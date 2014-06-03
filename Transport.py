@@ -117,6 +117,8 @@ class SynapseHttpTransportLayer(TransportLayer):
             layer here.
         """
 
+        logging.debug("register_callbacks")
+
         self.callbacks = callbacks
 
         # This is for when someone asks us for everything since version X
@@ -159,6 +161,10 @@ class SynapseHttpTransportLayer(TransportLayer):
         """ Gets all the current metdata for a given room from the
             given server
         """
+
+        logging.debug("trigger_get_context_metadata dest=%s, context=%s",
+             (destination, context))
+
         body = yield self.client.get_json(
                 destination,
                 path="/metadata/%s/" % context
@@ -177,6 +183,10 @@ class SynapseHttpTransportLayer(TransportLayer):
     def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
         """ Gets a particular pdu by talking to the destination server
         """
+
+        logging.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
+             (destination, pdu_origin, pdu_id))
+
         body = yield self.client.get_json(
                 destination,
                 path="/message/%s/%s/" % (pdu_origin, pdu_id)
@@ -197,6 +207,9 @@ class SynapseHttpTransportLayer(TransportLayer):
             specified server using a HTTP PUT /send/<txid>/
         """
 
+        logging.debug("send_data dest=%s, txid=%s",
+             (transport_data.destination, transport_data.transaction_id))
+
         if transport_data.destination == self.server_name:
             raise RuntimeError("Transport layer cannot send to itself!")
 
@@ -205,6 +218,9 @@ class SynapseHttpTransportLayer(TransportLayer):
                 path="/send/%s/" % transport_data.transaction_id,
                 data=transport_data.data
             )
+
+        logging.debug("send_data dest=%s, txid=%s, got response: %d",
+             (transport_data.destination, transport_data.transaction_id, code))
 
         defer.returnValue((code, response))
 

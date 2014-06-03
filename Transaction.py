@@ -24,8 +24,15 @@ class TransactionLayer(TransportCallbacks):
         For outgoing events, we usually pass it straight to the Transport layer
     """
 
-    def send_transaction(self, transaction):
-        """ Sends data to a group of remote home servers
+    def send_pdu(self, destinations, pdu_json, order):
+        """ Schedules the pdu_json to be sent to the given destination.
+
+            The order is an integer which defines the order in which pdus
+            will be sent (ones with a larger order come later). This is to
+            make sure we maintain the ordering defined by the versions without
+            having to know what the versions look like at this layer.
+
+            Returns a deferred list
         """
         pass
 
@@ -73,17 +80,32 @@ class Transaction(DBObject):
         to encode/decode transactions. It's also responsible for
         persisting the transaction in the transactions table.
 
+        A transaction wraps a bunch of PDUs that have been received / need to
+        be sent to a particular server.
+
         Stores the "pdu_list" as json, and converts it to
         a json encoded string in "data" before storage.
 
         When loading from the db, will decode the "data"
         column into "pdu_list"
+
+        Properties:
+            - transaction_id
+            - ts                     - time we started trying to send this txn
+            - destination            - where this txn is going (can be us)
+            - origin                 - where this txn has come from (can be us)
+            - pdu_list               - a list of pdus the txn contains
+            - response_code          - response code for this txn if known
+            - response               - the response data
+            - (internal: ) data      - the json encoded pdu_list
     """
 
     TABLENAME = "transactions"  # Table name
     _next_transaction_id = int(time.time())  # XXX Temp. hack to make it unique
 
     def create(ts, origin, destination, pdu_list):
+        """ pdu_list: list of pdu's which have been encoded as dicts
+        """
         transaction_id = Transaction._next_transaction_id
         Transaction._next_transaction_id += 1
 
@@ -96,16 +118,6 @@ class Transaction(DBObject):
                 response_code=0,
                 response=None
             )
-
-    def beforeSave(self):
-        # We're about to be saved! Quick update the data!
-        self.data = json.dumps(self.pdu_list)
-
-    def afterInit(self):
-        if self.data is not None:
-            # We were probably loaded from the db, so decode data
-            # into pdu_list
-            self.pdu_list = json.loads(self.data)
 
     def from_transport_data(transport_data):
         return Transaction(
@@ -131,6 +143,42 @@ class Transaction(DBObject):
         """ Sends the transaction via the given transaction_layer
         """
         transaction_layer.send_transaction(self)
+
+    # INTERNAL
+    def beforeSave(self):
+        # We're about to be saved! Quick update the data!
+        self.data = json.dumps(self.pdu_list)
+        return True
+
+    # INTERNAL
+    def afterInit(self):
+        if self.data:
+            # We were probably loaded from the db, so decode data
+            # into pdu_list
+            self.pdu_list = json.loads(self.data)
+
+        return True
+
+    # INTERNAL
+    @defer.inlineCallbacks
+    def refresh(self):
+        ret = yield super(DBObject, self).refresh()
+
+        # Automagically store self.pdu_list as json in data column
+        if self.data:
+            self.pdu_list = json.loads(self.data)
+
+        defer.returnValue(ret)
+
+
+class _PendingPdus(DBObject):
+    """ Stores pdus that are waiting to be sent to a given destination.
+
+        Items get removed from this table once they have been convereted
+        into a Transaction
+    """
+
+    TABLENAME = "pending_pdus"  # Table name
 
 
 def _setup_db(db_name):
@@ -164,21 +212,19 @@ class HttpTransactionLayer(TransactionLayer):
 
         self.data_layer = None
 
+        self.pending_transactions = {}
+        self.pending_pdus = {}
+
     def set_data_layer(self, data_layer):
         self.data_layer = data_layer
 
     @defer.inlineCallbacks
-    def send_transaction(self, transaction):
-        """ Sends a transaction.
+    def send_pdu(self, destinations, pdu_json):
+        """ Schedules the pdu_json to be sent to the given destination.
+
+            Returns a deferredList
         """
-        code, response = yield self.transport_layer.send_data(
-                transaction.to_transport_data()
-            )
-
-        transaction.respone_code = code
-        transaction.response = response
-
-        yield transaction.save()
+        pass
 
     @defer.inlineCallbacks
     def on_pull_request(self, version):
@@ -265,3 +311,205 @@ class HttpTransactionLayer(TransactionLayer):
     def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
         return self.transport_layer.trigger_get_data(
             destination, pdu_origin, pdu_id)
+
+    @defer.inlineCallbacks
+    def _send_transaction(self, transaction):
+        code, response = yield self.transport_layer.send_data(
+                transaction.to_transport_data()
+            )
+
+        transaction.respone_code = code
+        transaction.response = response
+
+        yield transaction.save()
+
+        defer.returnValue((code, response))
+
+    @defer.inlineCallbacks
+    def _send_pdu(self, destination, ts, pdu_json):
+        deferred = defer.Deferred()
+        if destination in self.pending_transactions:
+            pending_pdu = _PendingPdus.create(
+                pdu_json=self.dumps(pdu_json),
+                destination=destination,
+                ts=ts
+            )
+
+            saved_deferred = pending_pdu.save()
+            self.pending_transactions[destination].addCallback(
+                    lambda x: saved_deferred
+                )
+
+            yield saved_deferred
+        else:
+            transaction = Transaction.create(
+                    ts=ts,
+                    origin=self.server_name,
+                    destination=destination,
+                    pdu_list=[pdu_json]
+                )
+
+            d = transaction.save()
+
+            d.addCallback(
+                lambda: self._send_transaction(transaction)
+            )
+
+            self.pending_transactions[destination] = d
+
+        self.pending_pdus[pending_pdu.id] = deferred
+        response = yield deferred
+
+        defer.returnValue(response)
+
+    def _on_sent(self, destination):
+        pass
+
+
+class _TransactionQueue(object):
+    """ This class makes sure we only have one transaction in flight at
+        a time for a given destination.
+
+        It batches PDUs into single transactions.
+    """
+
+    def __init__(self):
+        self.pending_transactions = {}
+        self.pending_pdus = {}
+
+    @defer.inlineCallbacks
+    def send_pdu(self, destinations, pdu_json):
+        """ Schedules the pdu_json to be sent to the given destination.
+
+            Returns a deferredList
+        """
+        # We loop through all destinations to see whether we already have
+        # a transaction in progress. If we do, stick it in the pending_pdus
+        # table and we'll get back to it later.
+
+        deferreds = []
+
+        for dest in destinations:
+            deferred = defer.Deferred()
+            if dest in self.pending_transactions:
+                pending_pdu = _PendingPdus.create(
+                    pdu_json=self.dumps(pdu_json),
+                    destination=dest,
+                    ts=int(time.time() * 1000)
+                )
+
+                d = pending_pdu.save()
+
+                d.addCallback(
+                    lambda: self.pending_pdus.set(pending_pdu.id, deferred)
+                )
+
+                self.pending_transactions[dest].addCallback(lambda x: d)
+            else:
+                transaction = Transaction.create(
+                        ts=int(time.time() * 1000),
+                        origin=self.server_name,
+                        destination=dest,
+                        pdu_list=[pdu_json]
+                    )
+
+                d = transaction.save()
+
+                d.addCallback(
+                    lambda: self._send_transaction(transaction)
+                )
+
+                d.addCallback()
+
+                self.pending_transactions[dest] = d
+
+            deferreds.append(deferred)
+
+        return defer.deferredList(deferreds)
+
+    @defer.inlineCallbacks
+    def _send_pdu(self, destination, ts, pdu_json):
+        deferred = defer.Deferred()
+        if destination in self.pending_transactions:
+            pending_pdu = _PendingPdus.create(
+                pdu_json=self.dumps(pdu_json),
+                destination=destination,
+                ts=ts
+            )
+
+            saved_deferred = pending_pdu.save()
+            self.pending_transactions[destination].addCallback(
+                    lambda x: saved_deferred
+                )
+
+            yield saved_deferred
+        else:
+            transaction = Transaction.create(
+                    ts=ts,
+                    origin=self.server_name,
+                    destination=destination,
+                    pdu_list=[pdu_json]
+                )
+
+            d = transaction.save()
+
+            d.addCallback(
+                lambda: self._send_transaction(transaction)
+            )
+
+            self.pending_transactions[destination] = d
+
+        self.pending_pdus[pending_pdu.id] = deferred
+        response = yield deferred
+
+        defer.returnValue(response)
+
+    @defer.inlineCallbacks
+    def _send_transaction(self, transaction, deferred_list):
+        code, response = yield self.transport_layer.send_data(
+                transaction.to_transport_data()
+            )
+
+        transaction.respone_code = code
+        transaction.response = response
+
+        defer.returnValue((code, response))
+
+        yield transaction.save()
+
+        if len(response) == len(deferred_list):
+            for i in range(len(response)):
+                deferred_list[i].callback(response[i])
+
+    @defer.inlineCallbacks
+    def _send_from_pending_table(self, destination):
+        deferred = defer.Deferred()
+
+        if destination in self.pending_transactions:
+            return
+
+        self.pending_transactions[destination] = deferred
+
+        rows = yield _PendingPdus.findBy(destination=destination)
+
+        if not rows:
+            # Nothing more to send to this server!
+            deferred.callback(None)
+            return
+
+        transaction = Transaction.create(
+                        ts=int(time.time() * 1000),
+                        origin=self.server_name,
+                        destination=destination,
+                        pdu_list=[p.pdu_json for p in rows]
+                    )
+
+        deferred_list = [self.pending_pdus[p.id] for p in rows]
+        ret = yield self._send_transaction(
+            transaction, deferred_list)
+
+        deferred.callback(ret)
+
+        self.pending_transactions[destination]
+
+        self._send_from_pending_table(destination)

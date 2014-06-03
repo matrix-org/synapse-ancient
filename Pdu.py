@@ -1,5 +1,4 @@
 from twisted.internet import defer, reactor
-from twisted.enterprise import adbapi
 from twistar.dbobject import DBObject
 from twistar.registry import Registry
 from twistar.utils import createInstances
@@ -14,14 +13,51 @@ import random
 
 
 class PduLayer(TransactionCallbacks):
-    pass
+    def send_pdu(self, pdu):
+        """ Sends data to a group of remote home servers
+        """
+        pass
+
+    def trigger_get_context_metadata(self, destination, context):
+        """ Try and get the remote home server to give us all metadata about
+            a given context
+        """
+        pass
+
+    def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
+        """ Tries to get the remote home server ("destination") to give us
+            the given pdu that was from the given ("pdu_origin") server
+        """
+        pass
+
+
+class PduCallbacks(object):
+    def on_receive_pdu(self, pdu):
+        pass
 
 
 class PDU(DBObject):
+    """ Persists PDUs into a db.
+
+        This automagically recognizes metadata PDUs and keeps the metadata
+        PDUs table up to date.
+
+        Properties:
+            - pdu_id
+            - context
+            - pdu_type
+            - origin
+            - ts
+            - content (automatically converts into content_json)
+            - is_metadata
+            - metadata_key
+    """
+
     TABLENAME = "pdus"  # Table name
     _next_pdu_id = int(time.time())  # XXX Temp. hack to make it unique
 
-    def create(context, pdu_type, origin, ts, content):
+    def create(context, pdu_type, origin, ts, content,
+            is_metadata=True, metadata_key=None):
         p_id = PDU._next_pdu_id
         PDU._next_pdu_id += 1
         return PDU(
@@ -30,11 +66,16 @@ class PDU(DBObject):
                 pdu_type=pdu_type,
                 origin=origin,
                 ts=ts,
-                content=content
+                content=content,
+                is_metadata=is_metadata,
+                metadata_key=metadata_key
             )
 
     @defer.inlineCallbacks
     def get_current_metadata_pdus(context):
+        """ Get all current metatdata PDUs for a given context.
+            See MetadataPDU below.
+        """
         result = yield Registry.DBPOOL.runQuery(
                 "SELECT pdus.* from metadata_pdu "
                 "LEFT JOIN pdus ON metadata_pdu.pdu_row_id = pdus.id "
@@ -45,19 +86,57 @@ class PDU(DBObject):
         defer.returnValue(instances)
         return
 
+    # INTERNAL
+    @defer.inlineCallbacks
+    def beforeSave(self):
+        # Automagically store self.content as json in content_json column
+        if self.content:
+            self.content_json = json.dumps(self.content)
 
-class MetadataPDU(DBObject):
+        if (self.is_metadata):
+            # Just create a new one and insert it. This will replace anything
+            # already in there correctly anyway.
+            m_pdu = _MetadataPDU.create_from_pdu(self)
+            yield m_pdu.save()
+
+        defer.returnValue(True)
+
+    # INTERNAL
+    def afterInit(self):
+        # Automagically store self.content as json in content_json column
+        if self.content_json:
+            self.content = json.loads(self.content_json)
+
+        return True
+
+    # INTERNAL
+    @defer.inlineCallbacks
+    def refresh(self):
+        ret = yield super(DBObject, self).refresh()
+
+        # Automagically store self.content as json in content_json column
+        if self.content_json:
+            self.content = json.loads(self.content_json)
+
+        defer.returnValue(ret)
+
+
+class _MetadataPDU(DBObject):
+    """ For a given context, we need to be able to efficiently get PDUs that
+        are considered to be a) metadata and b) "current"
+        Metadata pdu's are considered current if we have not since seen any
+        pdu's with the same (context, pdu_type, metadata_key) tuple.
+        We do this by keeping the track of "current" metata PDUs in a seperate
+        table.
+    """
     TABLENAME = "metadata_pdu"
-    BELONGSTO = [
-            {'association_foreign_key': 'pdu_row_id', 'class_name': 'PDU'}
-        ]
 
-    def create_from_pdu(pdu, key):
-        return MetadataPDU(
+    def create_from_pdu(pdu):
+        return _MetadataPDU(
                 pdu_row_id=pdu.id,
                 pdi_context=pdu.context,
                 pdu_type=pdu.pdu_type,
-                key=key
+                key=pdu.key
             )
 
 
@@ -68,8 +147,8 @@ def setup_db(db_name):
     with sqlite3.connect(db_name) as db_conn:
         c = db_conn.cursor()
 
-        c.execute("DROP TABLE IF EXISTS data")
-        c.execute("DROP TABLE IF EXISTS metadata")
+        c.execute("DROP TABLE IF EXISTS pdus")
+        c.execute("DROP TABLE IF EXISTS metadata_pdu")
         c.executescript(sql_script)
 
         c.close()
@@ -80,7 +159,7 @@ def get_origin(ucid):
     return ucid.split("@", 1)[1]
 
 
-class SynapseDataLayer(object):
+class SynapseDataLayer(PduLayer):
     def __init__(self, server_name, db_name, transaction_layer):
         self.server_name = server_name
         self.transaction_layer = transaction_layer
@@ -89,17 +168,44 @@ class SynapseDataLayer(object):
 
         setup_db(db_name)
 
-        def set_row_factory(d):
-            d.row_factory = sqlite3.Row
-
-        self.__db_pool = adbapi.ConnectionPool(
-                'sqlite3',
-                db_name,
-                check_same_thread=False,
-                cp_openfun=set_row_factory
-            )
-
         self.message_layer = None
+
+    def on_pdu_request(pdu_origin, pdu_id):
+        """ Get's called when we want to get a specific pdu
+            Returns a dict representing the pdu
+        """
+        pass
+
+    def on_get_context_metadata(context):
+        """ Get's called when we want to get all metadata pdus for a given
+            context.
+            Returns a list of dicts.
+        """
+        pass
+
+    def on_received_transaction(transaction):
+        """ Get's called when we receive a transaction with a bunch of pdus.
+
+            Returns a deferred with a tuple of (code, response_json)
+        """
+        pass
+
+    def send_pdu(self, pdu):
+        """ Sends data to a group of remote home servers
+        """
+        pass
+
+    def trigger_get_context_metadata(self, destination, context):
+        """ Try and get the remote home server to give us all metadata about
+            a given context
+        """
+        pass
+
+    def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
+        """ Tries to get the remote home server ("destination") to give us
+            the given pdu that was from the given ("pdu_origin") server
+        """
+        pass
 
     def set_message_layer(self, message_layer):
         self.message_layer = message_layer
