@@ -9,7 +9,7 @@ import logging
 import json
 
 
-class TransportHttpServer(object):
+class HttpServer(object):
     """ Interface for registering callbacks on a HTTP server
     """
 
@@ -21,7 +21,7 @@ class TransportHttpServer(object):
         """
 
 
-class TransportHttpClient(object):
+class HttpClient(object):
     """ Interface for talking json over http
     """
 

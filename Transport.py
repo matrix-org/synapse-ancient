@@ -83,6 +83,8 @@ class TransportData(object):
     """ Used to represent some piece of data that we send/receive.
         These may or may not be associated with a transaction (e.g.,
         we may receive data from a GET request.)
+
+        These are not persisted anywhere
     """
     def __init__(self, origin, destination, transaction_id, body):
         self.origin = origin
