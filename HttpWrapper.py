@@ -66,7 +66,7 @@ _HttpClientPathEntry = namedtuple(
 
 
 # The actual HTTP server impl, using twisted http server
-class TwsitedHttpServer(TransportHttpServer, resource.Resource):
+class TwsitedHttpServer(HttpServer, resource.Resource):
     """ This wraps the twisted HTTP server, and triggers the
         correct callbacks on the transport_layer.
 
@@ -130,7 +130,7 @@ class TwsitedHttpServer(TransportHttpServer, resource.Resource):
             handle_err(request, e)
 
 
-class TwistedHttpClient(TransportHttpClient):
+class TwistedHttpClient(HttpClient):
     """ Convenience wrapper around the twisted HTTP client api.
     """
 
