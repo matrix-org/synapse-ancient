@@ -1,0 +1,54 @@
+PUT /send/abc/ HTTP/1.1
+Host: ...
+Content-Length: ...
+Content-Type: application/json
+
+{ 
+    origin: ..., 
+    data: [
+        { 
+            data_id: ...,
+            version: ...,
+            ts: ...,
+            context: ...,
+            origin: ...,
+            content: {
+                ...
+            }
+        },
+        ...,
+    ]
+}
+
+HTTP/1.1 200 OK
+...
+
+======================================
+
+GET /pull/-1/ HTTP/1.1
+Host: ...
+Content-Length: 0
+
+HTTP/1.1 200 OK
+Content-Length: ...
+Content-Type: application/json
+
+
+{
+    origin: ..., 
+    data: [
+        {
+            data_id: ...,
+            version: ...,
+            ts: ...,
+            context: ...,
+            origin: ...,
+            content: {
+                ...
+            }
+        },
+        ...
+    ]
+}
+
+

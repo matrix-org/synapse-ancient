@@ -1,0 +1,37 @@
+== Server to Server Stack ==
+
+The server to server side of things is designed into 4 distinct layers:
+
+    1. Messaging Layer
+    2. Data Layer
+    3. Transaction Layer
+    4. Transport Layer
+
+Where the bottom (the transport layer) is what talks to the internet via HTTP, and the top (the messaging layer) talks to the rest of the Home Server with a domain specific API.
+
+Each layer talks exclusively to the layers immediately above and below it.
+
+
+1. Messaging Layer
+    This is what the rest of the Home Server hits to send messages, join rooms, etc. It also allows you to register callbacks for when it get's notified by lower levels that e.g. a new message has been received.
+
+    It is responible for serializing requests to send to the data layer, and to parse requests received from the data layer.
+
+
+2. Data Layer
+    This layer handles: 
+        * duplicate data_id's - i.e., it makes sure we ignore them. 
+        * responding to requests for a given data_id
+        * responding to requests for all metadata for a given context (i.e. room)
+
+    So it has to parse incoming messages to discover which are metadata and which aren't, and has to correctly clobber existing metadata where appropriate.
+    
+
+
+3. Transaction Layer
+    This layer makes incoming requests idempotent. I.e., it stores which transaction id's we have seen and what our response were. If we have already seen a message with the given transaction id, we do not notify higher levels but simply respond with the previous response.
+
+
+4. Transport Layer
+    This is responsible for starting a HTTP server and hitting the correct callbacks on the Transaction layer, as well as sending both data and requests for data.
+
