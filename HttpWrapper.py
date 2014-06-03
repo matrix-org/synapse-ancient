@@ -5,10 +5,39 @@ from twisted.internet import defer, reactor
 
 from collections import namedtuple
 
-from Transport import TransportClient, TransportServer
-
 import logging
 import json
+
+
+class TransportHttpServer(object):
+    """ Interface for registering callbacks on a HTTP server
+    """
+
+    def register_path(self, method, path_pattern, callback):
+        """ Register a callback that gefrot's fired if we receive a http request
+            with the given method for a path that matches the given regex. If
+            the regex contains groups these get's passed to the calback via
+            an unpacked tuple.
+        """
+
+
+class TransportHttpClient(object):
+    """ Interface for talking json over http
+    """
+
+    def put_json(self, destination, path, data):
+        """ Sends the specifed json data using PUT
+
+            Returns a defered with tuple of (response_code, response_json_body)
+        """
+        pass
+
+    def get_json(self, destination, path):
+        """ Get's some json from the given host homeserver and path
+
+            Returns a defered with tuple of (response_code, response_json_body)
+        """
+        pass
 
 
 # Respond to the given HTTP request with a status code and
@@ -37,7 +66,7 @@ _HttpClientPathEntry = namedtuple(
 
 
 # The actual HTTP server impl, using twisted http server
-class TwsitedHttpServer(TransportServer, resource.Resource):
+class TwsitedHttpServer(TransportHttpServer, resource.Resource):
     """ This wraps the twisted HTTP server, and triggers the
         correct callbacks on the transport_layer.
 
@@ -101,7 +130,7 @@ class TwsitedHttpServer(TransportServer, resource.Resource):
             handle_err(request, e)
 
 
-class TwistedHttpClient(TransportClient):
+class TwistedHttpClient(TransportHttpClient):
     """ Convenience wrapper around the twisted HTTP client api.
     """
 

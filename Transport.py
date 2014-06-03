@@ -18,8 +18,6 @@ class TransportLayer(object):
     def trigger_get_context_metadata(self, destination, context):
         """ Requests all metadata for a given context (i.e. room) from the
             given server
-
-            Returns
         """
         pass
 
@@ -93,37 +91,6 @@ class TransportData(object):
         self.body = body
 
 
-class TransportClient(object):
-    """ Interface for talking json over http
-    """
-
-    def put_json(self, destination, path, data):
-        """ Sends the specifed json data using PUT
-
-            Returns a defered with tuple of (response_code, response_json_body)
-        """
-        pass
-
-    def get_json(self, destination, path):
-        """ Get's some json from the given host homeserver and path
-
-            Returns a defered with tuple of (response_code, response_json_body)
-        """
-        pass
-
-
-class TransportServer(object):
-    """ Interface for registering callbacks on a HTTP server
-    """
-
-    def register_path(self, method, path_pattern, callback):
-        """ Register a callback that gefrot's fired if we receive a http request
-            with the given method for a path that matches the given regex. If
-            the regex contains groups these get's passed to the calback via
-            an unpacked tuple.
-        """
-
-
 # This layer is what we use to talk HTTP. We set up a HTTP server to listen
 # for PUTs (people trying to send us data) and GETs (people trying to get
 # missing data).
@@ -134,6 +101,10 @@ class SynapseHttpTransportLayer(TransportLayer):
     """ Used to talk HTTP, both as a client and server """
 
     def __init__(self, server_name, server, client):
+        """ server_name: current server host and port
+            server: instance of HttpWrapper.HttpServer to use
+            client: instance of HttpWrapper.HttpClient to use
+        """
         self.server_name = server_name
         self.server = server
         self.client = client

@@ -3,7 +3,7 @@
 The server to server side of things is designed into 4 distinct layers:
 
     1. Messaging Layer
-    2. Data Layer
+    2. Pdu Layer
     3. Transaction Layer
     4. Transport Layer
 
@@ -18,10 +18,10 @@ Each layer talks exclusively to the layers immediately above and below it.
     It is responible for serializing requests to send to the data layer, and to parse requests received from the data layer.
 
 
-2. Data Layer
+2. PDU Layer
     This layer handles: 
-        * duplicate data_id's - i.e., it makes sure we ignore them. 
-        * responding to requests for a given data_id
+        * duplicate pdu_id's - i.e., it makes sure we ignore them. 
+        * responding to requests for a given pdu_id
         * responding to requests for all metadata for a given context (i.e. room)
 
     So it has to parse incoming messages to discover which are metadata and which aren't, and has to correctly clobber existing metadata where appropriate.
