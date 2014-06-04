@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS transactions(
     destination TEXT,
     origin TEXT, 
     data TEXT, 
+    ts INTEGER,
     response_code INTEGER, 
     response TEXT
 );

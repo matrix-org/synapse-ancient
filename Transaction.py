@@ -1,12 +1,17 @@
+# -*- coding: utf-8 -*-
+
 from twisted.internet import defer
-from twistar.dbobject import DBObject
 
 from Transport import TransportCallbacks, TransportData
 
+from db.transaction import Transaction
+
 import logging
-import json
-import sqlite3
 import time
+
+
+class PduDecodeException(Exception):
+    pass
 
 
 class TransactionLayer(TransportCallbacks):
@@ -51,78 +56,10 @@ class TransactionLayer(TransportCallbacks):
         """
         pass
 
-
-class TransactionCallbacks(object):
-    """ When the transaction layer receives requests it can't process, we
-        send them upwards via these set's of callbacks.
-    """
-
-    def on_pdu_request(pdu_origin, pdu_id):
-        """ Get's called when we want to get a specific pdu
-            Returns a dict representing the pdu
-        """
-        pass
-
-    def on_get_context_metadata(context):
-        """ Get's called when we want to get all metadata pdus for a given
-            context.
-            Returns a list of dicts.
-        """
-        pass
-
-    def on_received_transaction(transaction):
-        """ Get's called when we receive a transaction with a bunch of pdus.
-
-            Returns a deferred with a tuple of (code, response_json)
-        """
-        pass
-
-
-class Transaction(DBObject):
-    """ Represents a transaction, and includes helper methods
-        to encode/decode transactions. It's also responsible for
-        persisting the transaction in the transactions table.
-
-        A transaction wraps a bunch of PDUs that have been received / need to
-        be sent to a particular server.
-
-        Stores the "pdu_list" as json, and converts it to
-        a json encoded string in "data" before storage.
-
-        When loading from the db, will decode the "data"
-        column into "pdu_list"
-
-        Properties:
-            - transaction_id
-            - ts                     - time we started trying to send this txn
-            - destination            - where this txn is going (can be us)
-            - origin                 - where this txn has come from (can be us)
-            - pdu_list               - a list of pdus the txn contains
-            - response_code          - response code for this txn if known
-            - response               - the response data
-            - (internal: ) data      - the json encoded pdu_list
-    """
-
-    TABLENAME = "transactions"  # Table name
-    _next_transaction_id = int(time.time())  # XXX Temp. hack to make it unique
-
-    def create(ts, origin, destination, pdu_list):
-        """ pdu_list: list of pdu's which have been encoded as dicts
-        """
-        transaction_id = Transaction._next_transaction_id
-        Transaction._next_transaction_id += 1
-
-        return Transaction(
-                transaction_id=transaction_id,
-                ts=ts,
-                destination=destination,
-                origin=origin,
-                pdu_list=pdu_list,
-                response_code=0,
-                response=None
-            )
-
     def from_transport_data(transport_data):
+        """ Converts TransportData into a Transaction instance
+        """
+
         return Transaction(
                 transaction_id=transport_data.transaction_id,
                 origin=transport_data.origin,
@@ -130,70 +67,56 @@ class Transaction(DBObject):
                 ts=transport_data.body["ts"]
             )
 
-    def to_transport_data(self):
+    def to_transport_data(transaction):
+        """ Converts a Transaction into a TransportData
+        """
+
         return TransportData(
-               origin=self.origin,
-               destination=self.destination,
-               transaction_id=self.transaction_id,
+               origin=transaction.origin,
+               destination=transaction.destination,
+               transaction_id=transaction.transaction_id,
                body={
-                       "origin": self.origin,
-                       "data": self.pdu_list,
-                       "ts": self.ts
+                       "origin": transaction.origin,
+                       "data": transaction.pdu_list,
+                       "ts": transaction.ts
                    }
            )
 
-    # INTERNAL
-    def beforeSave(self):
-        # We're about to be saved! Quick update the data!
-        self.data = json.dumps(self.pdu_list)
-        return True
 
-    # INTERNAL
-    def afterInit(self):
-        if self.data:
-            # We were probably loaded from the db, so decode data
-            # into pdu_list
-            self.pdu_list = json.loads(self.data)
-
-        return True
-
-    # INTERNAL
-    @defer.inlineCallbacks
-    def refresh(self):
-        ret = yield super(DBObject, self).refresh()
-
-        # Automagically store self.pdu_list as json in data column
-        if self.data:
-            self.pdu_list = json.loads(self.data)
-
-        defer.returnValue(ret)
-
-
-def _setup_db(db_name):
-    """ Creates the necessary tables in the given db.
-
-        * Deletes old data.*
+class TransactionCallbacks(object):
+    """ When the transaction layer receives requests it can't process, we
+        send them upwards via these set's of callbacks.
     """
 
-    with open("schema/transactions.sql", "r") as sql_file:
-        sql_script = sql_file.read()
+    def on_pdu_request(self, pdu_origin, pdu_id):
+        """ Get's called when we want to get a specific pdu
+            Returns a dict representing the pdu
+        """
+        pass
 
-    with sqlite3.connect(db_name) as db_conn:
-        c = db_conn.cursor()
+    def on_get_context_metadata(self, context):
+        """ Get's called when we want to get all metadata pdus for a given
+            context.
+            Returns a list of dicts.
+        """
+        pass
 
-        c.execute("DROP TABLE IF EXISTS transactions")
-        c.executescript(sql_script)
+    def on_received_pdu(self, origin, sent_ts, pdu_json):
+        """ Get's called when we receive a pdu via a transaction.
 
-        c.close()
-        db_conn.commit()
+            Returns a deferred which is called back when it has been
+            successfully processed *and* persisted, or errbacks with either
+            a) PduDecodeException, at which point we return a 400 on the
+            entire transaction, or b) another exception at which point we
+            respond with a 500 to the entire transaction.
+        """
+        pass
 
 
 class HttpTransactionLayer(TransactionLayer):
     def __init__(self, server_name, db_name, transport_layer):
         self.server_name = server_name
         self.db_name = db_name
-
-        _setup_db(db_name)
 
         self.transport_layer = transport_layer
         self.transport_layer.register_callbacks(self)
@@ -228,7 +151,11 @@ class HttpTransactionLayer(TransactionLayer):
             Returns a deferred tuple of (code, response)
         """
         response = yield self.data_layer.on_data_request(pdu_origin, pdu_id)
-        data = self._wrap_data([response])
+        if response:
+            data = self._wrap_data([])
+        else:
+            data = self._wrap_data([response])
+
         defer.returnValue((200, data))
 
     @defer.inlineCallbacks
@@ -262,7 +189,7 @@ class HttpTransactionLayer(TransactionLayer):
                         )
                         return
 
-        transaction = Transaction.from_transport_data(
+        transaction = self.from_transport_data(
                 transport_data
             )
 
@@ -362,7 +289,7 @@ class _TransactionQueue(object):
                     )
 
         code, response = yield self.transport_layer.send_data(
-                transaction.to_transport_data()
+                self.to_transport_data(transaction)
             )
 
         if code == 200:
