@@ -6,10 +6,6 @@ from twisted.trial import unittest
 from Transport import SynapseHttpTransportLayer, TransportData, TransportCallbacks
 from HttpWrapper import HttpClient, HttpServer
 
-class TestHttpServer(HttpServer):
-    def register_path(self, method, path_pattern, callback):
-        pass
-
 
 class TransportTestCase(unittest.TestCase):
     def setUp(self):
