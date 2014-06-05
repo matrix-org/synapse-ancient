@@ -143,7 +143,7 @@ class SynapseHttpTransportLayer(TransportLayer):
         # This is when someone asks for all data for a given context.
         self.server.register_path(
             "GET",
-            re.compile("^/metadata/([^/]*)/$"),
+            re.compile("^/state/([^/]*)/$"),
             lambda request, context:
                 callbacks.on_context_metadata_request(context)
         )
@@ -169,7 +169,7 @@ class SynapseHttpTransportLayer(TransportLayer):
 
         body = yield self.client.get_json(
                 destination,
-                path="/metadata/%s/" % context
+                path="/state/%s/" % context
             )
 
         yield self.callbacks.on_transport_data(
@@ -191,7 +191,7 @@ class SynapseHttpTransportLayer(TransportLayer):
 
         body = yield self.client.get_json(
                 destination,
-                path="/message/%s/%s/" % (pdu_origin, pdu_id)
+                path="/pdu/%s/%s/" % (pdu_origin, pdu_id)
             )
 
         yield self.callbacks.on_transport_data(
@@ -215,10 +215,10 @@ class SynapseHttpTransportLayer(TransportLayer):
         if transport_data.destination == self.server_name:
             raise RuntimeError("Transport layer cannot send to itself!")
 
-        code, response = yield self.put_json(
+        code, response = yield self.client.put_json(
                 transport_data.destination,
                 path="/send/%s/" % transport_data.transaction_id,
-                data=transport_data.data
+                data=transport_data.body
             )
 
         logging.debug("send_data dest=%s, txid=%s, got response: %d",
@@ -239,12 +239,13 @@ class SynapseHttpTransportLayer(TransportLayer):
             body = json.loads(data)
         except Exception as e:
             logging.exception(e)
-            return (400, {"error": "Invalid json"})
+            defer.returnValue(400, {"error": "Invalid json"})
+            return
 
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield callback.on_transport_data(
                 TransportData(
-                    origin=body["origin"],
+                    origin=body["origin"],  # We should ideally be getting this from the security layer.
                     destination=self.server_name,
                     transaction_id=transaction_id,
                     body=body

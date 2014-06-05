@@ -19,6 +19,7 @@ class HttpServer(object):
             the regex contains groups these get's passed to the calback via
             an unpacked tuple.
         """
+        pass
 
 
 class HttpClient(object):
