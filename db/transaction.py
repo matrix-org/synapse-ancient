@@ -35,6 +35,7 @@ class Transaction(DBObject):
     TABLENAME = "transactions"  # Table name
     _next_transaction_id = int(time.time())  # XXX Temp. hack to make it unique
 
+    @staticmethod
     def create(ts, origin, destination, pdu_list):
         """ pdu_list: list of pdu's which have been encoded as dicts
         """

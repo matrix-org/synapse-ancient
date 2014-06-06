@@ -8,5 +8,5 @@ CREATE TABLE IF NOT EXISTS transactions(
     response TEXT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS transactions_txid ON transactions(txid, origin);
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_txid ON transactions(transaction_id, origin);
 

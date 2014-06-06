@@ -44,8 +44,8 @@ class TransactionLayer(TransportCallbacks):
         """
         pass
 
-    def trigger_get_context_metadata(self, destination, context):
-        """ Try and get the remote home server to give us all metadata about
+    def trigger_get_context_state(self, destination, context):
+        """ Try and get the remote home server to give us all state about
             a given context
         """
         pass
@@ -56,6 +56,7 @@ class TransactionLayer(TransportCallbacks):
         """
         pass
 
+    @staticmethod
     def from_transport_data(transport_data):
         """ Converts TransportData into a Transaction instance
         """
@@ -67,6 +68,7 @@ class TransactionLayer(TransportCallbacks):
                 ts=transport_data.body["ts"]
             )
 
+    @staticmethod
     def to_transport_data(transaction):
         """ Converts a Transaction into a TransportData
         """
@@ -94,7 +96,7 @@ class TransactionCallbacks(object):
         """
         pass
 
-    def on_get_context_metadata(self, context):
+    def on_get_context_state(self, context):
         """ Get's called when we want to get all metadata pdus for a given
             context.
             Returns a list of dicts.
@@ -114,9 +116,8 @@ class TransactionCallbacks(object):
 
 
 class HttpTransactionLayer(TransactionLayer):
-    def __init__(self, server_name, db_name, transport_layer):
+    def __init__(self, server_name, transport_layer):
         self.server_name = server_name
-        self.db_name = db_name
 
         self.transport_layer = transport_layer
         self.transport_layer.register_callbacks(self)
@@ -124,7 +125,10 @@ class HttpTransactionLayer(TransactionLayer):
         self.data_layer = None
 
         # Responsible for batching pdus
-        self._transaction_queue = _TransactionQueue(transport_layer)
+        self._transaction_queue = _TransactionQueue(
+                server_name,
+                transport_layer
+            )
 
     def set_data_layer(self, data_layer):
         self.data_layer = data_layer
@@ -135,7 +139,7 @@ class HttpTransactionLayer(TransactionLayer):
 
             Returns a deferred
         """
-        self._transaction_queue.enqueue_pdu(destination, pdu_json, order)
+        yield self._transaction_queue.enqueue_pdu(destination, pdu_json, order)
 
     @defer.inlineCallbacks
     def on_pull_request(self, version):
@@ -159,11 +163,11 @@ class HttpTransactionLayer(TransactionLayer):
         defer.returnValue((200, data))
 
     @defer.inlineCallbacks
-    def on_context_metadata_request(self, context):
-        """ Called on GET /metadata/<context>/ from transport layer
+    def on_context_state_request(self, context):
+        """ Called on GET /state/<context>/ from transport layer
             Returns a deferred tuple of (code, response)
         """
-        response = yield self.data_layer.on_get_metadata(context)
+        response = yield self.data_layer.on_get_context_state(context)
         data = self._wrap_data(response)
         defer.returnValue((200, data))
 
@@ -216,11 +220,11 @@ class HttpTransactionLayer(TransactionLayer):
 
         defer.returnValue((transaction.respone_code, transaction.response))
 
-    def trigger_get_context_metadata(self, destination, context):
-        """ Try and get the remote home server to give us all metadata about
+    def trigger_get_context_state(self, destination, context):
+        """ Try and get the remote home server to give us all state about
             a given context
         """
-        return self.transport_layer.trigger_get_context_metadata(
+        return self.transport_layer.trigger_get_context_state(
             destination, context)
 
     def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
@@ -235,8 +239,9 @@ class _TransactionQueue(object):
         It batches pending PDUs into single transactions.
     """
 
-    def __init__(self, transport_layer):
+    def __init__(self, server_name, transport_layer):
 
+        self.server_name = server_name
         self.transport_layer = transport_layer
 
         # Is a mapping from destinations -> deferreds. Used to keep track
@@ -248,7 +253,6 @@ class _TransactionQueue(object):
         # tuple(pending pdus, deferred, order)
         self.pending_pdus_list = {}
 
-    @defer.inlineCallbacks
     def enqueue_pdu(self, destination, pdu_json, order):
         """ Schedules the pdu_json to be sent to the given destination.
 
@@ -289,7 +293,7 @@ class _TransactionQueue(object):
                     )
 
         code, response = yield self.transport_layer.send_data(
-                self.to_transport_data(transaction)
+                TransactionLayer.to_transport_data(transaction)
             )
 
         if code == 200:

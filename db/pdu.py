@@ -30,6 +30,7 @@ class PDU(DBObject):
     TABLENAME = "pdus"  # Table name
     _next_pdu_id = int(time.time())  # XXX Temp. hack to make it unique
 
+    @staticmethod
     def create(context, pdu_type, origin, ts, content,
             is_state=True, state_key=None):
         p_id = PDU._next_pdu_id
@@ -45,6 +46,7 @@ class PDU(DBObject):
                 state_key=state_key
             )
 
+    @staticmethod
     def create_from_dict(pdu_json):
 
         unrecognized_keys = copy.deepcopy(pdu_json)
@@ -83,6 +85,7 @@ class PDU(DBObject):
 
         return d
 
+    @staticmethod
     @defer.inlineCallbacks
     def get_current_metadata_pdus(context):
         """ Get all current metatdata PDUs for a given context.
@@ -139,6 +142,7 @@ class PDUDestination(DBObject):
     """
     TABLENAME = "pdu_destinations"
 
+    @staticmethod
     def create_from_pdu(pdu, destination):
         return PDUDestination(
                 pdu_row_id=pdu.id,
@@ -160,6 +164,7 @@ class CurrentStatePDUEntry(DBObject):
     """
     TABLENAME = "state_pdu"
 
+    @staticmethod
     def create_from_pdu(pdu):
         return CurrentStatePDUEntry(
                 pdu_row_id=pdu.id,
@@ -167,3 +172,4 @@ class CurrentStatePDUEntry(DBObject):
                 pdu_type=pdu.pdu_type,
                 state_key=pdu.key
             )
+        

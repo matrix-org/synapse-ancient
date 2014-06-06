@@ -54,7 +54,7 @@ class TransportTestCase(unittest.TestCase):
         
         return d
     
-    def test_trigger_get_context_metadata(self):
+    def test_trigger_get_context_state(self):
         """ Test that when we want to get state for a given context, this triggers 
             both the correct GET request and hits the correct callback with the result
         """
@@ -73,7 +73,7 @@ class TransportTestCase(unittest.TestCase):
             def on_pdu_request(self, pdu_origin, pdu_id):
                 test_case.fail()
         
-            def on_context_metadata_request(self, context):
+            def on_context_state_request(self, context):
                 test_case.fail()
         
             def on_transport_data(self, transport_data):
@@ -105,7 +105,7 @@ class TransportTestCase(unittest.TestCase):
         
         transport_layer.register_callbacks(test_callbacks)
         
-        d = transport_layer.trigger_get_context_metadata(test_destination, test_context)
+        d = transport_layer.trigger_get_context_state(test_destination, test_context)
         
         return d
     
@@ -129,7 +129,7 @@ class TransportTestCase(unittest.TestCase):
             def on_pdu_request(self, pdu_origin, pdu_id):
                 test_case.fail()
         
-            def on_context_metadata_request(self, context):
+            def on_context_state_request(self, context):
                 test_case.fail()
         
             def on_transport_data(self, transport_data):

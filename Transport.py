@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from twisted.internet import defer
+from protocol import Transaction
 
 import logging
 import json
@@ -17,7 +18,7 @@ class TransportLayer(object):
         home servers
     """
 
-    def trigger_get_context_metadata(self, destination, context):
+    def trigger_get_context_state(self, destination, context):
         """ Requests all metadata for a given context (i.e. room) from the
             given server
         """
@@ -28,10 +29,10 @@ class TransportLayer(object):
         """
         pass
 
-    def send_data(self, transport_data):
-        """ Sends the given TransportData
+    def send_transaction(self, transaction):
+        """ Sends the given Transaction
 
-            Returns a defered with tuple of (response_code, response_json_body)
+            Returns a deferred with tuple of (response_code, response_json_body)
         """
         pass
 
@@ -64,35 +65,21 @@ class TransportCallbacks(object):
         """
         pass
 
-    def on_context_metadata_request(self, context):
-        """ Called on GET /metadata/<context>/
+    def on_context_state_request(self, context):
+        """ Called on GET /state/<context>/
 
             Should return (as a deferred) a tuple of
             (response_code, response_body_json)
         """
         pass
 
-    def on_transport_data(self, transport_data):
+    def on_transaction(self, transaction):
         """ Called on PUT /send/<transaction_id>
 
             Should return (as a deferred) a tuple of
             (response_code, response_body_json)
         """
         pass
-
-
-class TransportData(object):
-    """ Used to represent some piece of data that we send/receive.
-        These may or may not be associated with a transaction (e.g.,
-        we may receive data from a GET request.)
-
-        These are not persisted anywhere
-    """
-    def __init__(self, origin, destination, transaction_id, body):
-        self.origin = origin
-        self.destination = destination
-        self.transaction_id = transaction_id
-        self.body = body
 
 
 # This layer is what we use to talk HTTP. We set up a HTTP server to listen
@@ -145,7 +132,7 @@ class SynapseHttpTransportLayer(TransportLayer):
             "GET",
             re.compile("^/state/([^/]*)/$"),
             lambda request, context:
-                callbacks.on_context_metadata_request(context)
+                callbacks.on_context_state_request(context)
         )
 
         # This is when someone is trying to send us a bunch of data.
@@ -159,8 +146,8 @@ class SynapseHttpTransportLayer(TransportLayer):
         )
 
     @defer.inlineCallbacks
-    def trigger_get_context_metadata(self, destination, context):
-        """ Gets all the current metdata for a given room from the
+    def trigger_get_context_state(self, destination, context):
+        """ Gets all the current state for a given room from the
             given server
         """
 
@@ -172,8 +159,8 @@ class SynapseHttpTransportLayer(TransportLayer):
                 path="/state/%s/" % context
             )
 
-        yield self.callbacks.on_transport_data(
-                TransportData(
+        yield self.callbacks.on_transaction(
+                Transaction(
                     origin=destination,
                     destination=self.server_name,
                     transaction_id=None,
@@ -195,10 +182,11 @@ class SynapseHttpTransportLayer(TransportLayer):
             )
 
         yield self.callbacks.on_transport_data(
-                TransportData(
+                Transaction(
+                    transaction_id=None,
                     origin=destination,
                     destination=self.server_name,
-                    transaction_id=None,
+                    ts=body["ts"],
                     body=body
                 )
             )
@@ -242,10 +230,13 @@ class SynapseHttpTransportLayer(TransportLayer):
             defer.returnValue(400, {"error": "Invalid json"})
             return
 
+        # We should ideally be getting this from the security layer.
+        origin = body["origin"]
+
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield callback.on_transport_data(
                 TransportData(
-                    origin=body["origin"],  # We should ideally be getting this from the security layer.
+                    origin=origin,
                     destination=self.server_name,
                     transaction_id=transaction_id,
                     body=body
