@@ -23,7 +23,6 @@ Each layer talks exclusively to the layers immediately above and below it.
         * duplicate pdu_id's - i.e., it makes sure we ignore them. 
         * responding to requests for a given pdu_id
         * responding to requests for all metadata for a given context (i.e. room)
-        * Storing which pdus have been delivered to which servers
 
     So it has to parse incoming messages to discover which are metadata and which aren't, and has to correctly clobber existing metadata where appropriate.
     

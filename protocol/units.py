@@ -1,12 +1,31 @@
 # -*- coding: utf-8 -*-
 
+from twisted.internet import defer
+
+from persistence.transaction import TransactionDbEntry
+from persistence.pdu import (PduDbEntry, PduDestinationEntry,
+    PduContextEdgesEntry)
+
 import copy
+import time
 
 
 class JsonEncodedObject(object):
+    """ Given a list of "valid keys", load them from kwargs into __dict__,
+        all unrecognized keys get dumped into an "unrecognized_keys" dict.
+
+        get_dict() returns everything supplied in **kwargs in __init__,
+        excluding those listed in "internal_keys"
+
+        This is useful when we are sending json data backwards and forwards,
+        and we want a nice way to encode/decode them.
+    """
+
+    valid_keys = []  # keys we will store
+    internal_keys = []  # keys to ignore while building dict
 
     def __init__(self, **kwargs):
-        self.unrecognized_keys = {}
+        self.unrecognized_keys = {}  # Keys we were given not listed as valid
         for k, v in kwargs.items():
             if k in self.valid_keys:
                 self.__dict__[k] = v
@@ -15,7 +34,8 @@ class JsonEncodedObject(object):
 
     def get_dict(self):
         d = copy.deepcopy(self.__dict__)
-        d = {k: encode(v) for (k, v) in d.items() if v}
+        d = {k: encode(v) for (k, v) in d.items()
+                        if v and k not in self.internal_keys}
 
         if "unrecognized_keys" in d:
             del d["unrecognized_keys"]
@@ -26,6 +46,9 @@ class JsonEncodedObject(object):
 
 
 class Transaction(JsonEncodedObject):
+    """ A transaction is a list of Pdus to be sent to a remote home
+        server with some extra metadata.
+    """
     valid_keys = [
             "transaction_id",
             "origin",
@@ -35,28 +58,101 @@ class Transaction(JsonEncodedObject):
             "pdus"  # This get's converted to a list of Pdu's
         ]
 
+    internal_keys = [
+            "transaction_id",
+            "destination"
+        ]
+
+    # HACK to get unique tx id
+    _next_transaction_id = int(time.time() * 1000)
+
     def __init__(self, **kwargs):
         super(Transaction, self).__init__(**kwargs)
 
-        if "pdus" in kwargs:
-            self.pdus = [Pdu(**p) for p in self.pdus]
+        if self.transaction_id:
+            for p in self.pdus:
+                p.transaction_id = p
+
+    @staticmethod
+    def decode(transaction_dict):
+        """ Used to convert a dict from the interwebs to a Transaction
+            object. It converts the Pdu dicts into Pdu objects too!
+        """
+        pdus = [Pdu(**p) for p in transaction_dict["pdus"]]
+        transaction_dict.update(pdus=pdus)
+
+        return Transaction(**transaction_dict)
+
+    @staticmethod
+    def create_new(**kwargs):
+        """ Used to create a new transaction. Will auto fill out
+            transaction_id and ts keys.
+        """
+        if "ts" not in kwargs:
+            kwargs["ts"] = int(time.time() * 1000)
+        if "transaction_id" not in kwargs:
+            kwargs["transaction_id"] = Transaction._next_transaction_id
+            Transaction._next_transaction_id += 1
+
+        return Transaction(**kwargs)
+
+    def get_db_entry(self):
+        return TransactionDbEntry.findOrCreate(**self.get_dict())
 
 
 class Pdu(JsonEncodedObject):
     valid_keys = [
             "pdu_id",
+            "context"
             "origin",
-            "destinations",
             "ts",
-            "pdus",
             "pdu_type",
             "is_state",
             "state_key",
             "destinations",
-            "transaction_ids",
+            "transaction_id",
             "previous_pdus",
             "content"
         ]
+
+    internal_keys = [
+            "destinations",
+            "transaction_id"
+        ]
+
+    # TODO: We need to make this properly load content rather than
+    # just leaving it as a dict. (OR DO WE?!)
+
+    def get_db_entry(self):
+        return PduDbEntry.findOrCreate(
+                content_json=json.dumps(self.content),
+                **self.get_dict()
+            )
+
+    @staticmethod
+    def from_db_entry(db_entry):
+        d = {k: v for k, v in db_entry.dict().items() if k in valid_keys}
+        d["content"] = json.loads(db_entry.content_json)
+        return Pdu(**d)
+
+    @defer.inlineCallbacks
+    def get_destinations_from_db(self):
+        results = yield PduDestinationEntry.findBy(
+                pdu_id=self.pdu_id,
+                origin=self.origin
+            )
+
+        self.destinations = [r["destination"] for r in results]
+
+    @defer.inlineCallbacks
+    def get_previous_pdus_from_db(self):
+        results = yield PduContextEdgesEntry.findBy(
+                pdu_id=self.pdu_id,
+                origin=self.origin
+            )
+
+        self.previous_pdus = [{"pdu_id": r["pdu_id"], "origin": r["origin"]}
+                    for r in results]
 
 
 class Content(object):

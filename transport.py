@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from twisted.internet import defer
-from protocol import Transaction
+from protocol.units import Transaction
 
 import logging
 import json
@@ -36,24 +36,42 @@ class TransportLayer(object):
         """
         pass
 
-    def register_callbacks(self, callbacks):
-        """ Register TransportCallbacks that will be fired when we receive
-            data.
+    def register_received_callbacks(self, callbacks):
+        """ Register TransportReceivedCallbacks that will be fired when we
+            receive data.
+        """
+        pass
+
+    def register_request_callbacks(self, callbacks):
+        """ Register TransportRequestCallbacks that will be fired when we get
+            asked for data.
         """
         pass
 
 
-class TransportCallbacks(object):
-    """ Anything that uses the transport layer *must* handle these callbacks.
-        These are fired when a remote home server is trying to communicate
-        with us.
+class TransportReceivedCallbacks(object):
+    """ Get's called when we receive data/transaction
     """
-
-    def on_pull_request(self, version):
-        """ Called on GET /pull/<version>/
+    def on_transaction(self, transaction):
+        """ Called on PUT /send/<transaction_id>
 
             Should return (as a deferred) a tuple of
             (response_code, response_body_json)
+        """
+        pass
+
+
+class TransportRequestCallbacks(object):
+    """ Get's called when someone want's data from us
+    """
+    def on_pull_request(self, versions):
+        """ Called on GET /pull/?v=...
+
+            Should return (as a deferred) a tuple of
+            (response_code, response_body_dict)
+
+            response_body_dict should be from a Transaction if response_code is
+            a 200
         """
         pass
 
@@ -61,7 +79,10 @@ class TransportCallbacks(object):
         """ Called on GET /pdu/<pdu_origin>/<pdu_id>/
 
             Should return (as a deferred) a tuple of
-            (response_code, response_body_json)
+            (response_code, response_body_dict)
+
+            response_body_dict should be from a Transaction if response_code is
+            a 200
         """
         pass
 
@@ -69,15 +90,10 @@ class TransportCallbacks(object):
         """ Called on GET /state/<context>/
 
             Should return (as a deferred) a tuple of
-            (response_code, response_body_json)
-        """
-        pass
+            (response_code, response_body_dict)
 
-    def on_transaction(self, transaction):
-        """ Called on PUT /send/<transaction_id>
-
-            Should return (as a deferred) a tuple of
-            (response_code, response_body_json)
+            response_body_dict should be from a Transaction if response_code is
+            a 200
         """
         pass
 
@@ -99,23 +115,18 @@ class SynapseHttpTransportLayer(TransportLayer):
         self.server_name = server_name
         self.server = server
         self.client = client
-        self.callbacks = None
+        self.request_callbacks = None
+        self.received_callbacks = None
 
-    def register_callbacks(self, callbacks):
-        """ We register callbacks the required callbacks for the transport
-            layer here.
-        """
-
-        logging.debug("register_callbacks")
-
-        self.callbacks = callbacks
+    def register_request_callbacks(self, callbacks):
+        self.request_callbacks = callbacks
 
         # This is for when someone asks us for everything since version X
         self.server.register_path(
             "GET",
-            re.compile("^/pull/([^/]*)/$"),
-            lambda request, version:
-                callbacks.on_pull_request(int(version))
+            re.compile("^/pull/$"),
+            lambda request:
+                callbacks.on_pull_request(request.args["v"])
         )
 
         # This is when someone asks for a data item for a given server
@@ -134,6 +145,9 @@ class SynapseHttpTransportLayer(TransportLayer):
             lambda request, context:
                 callbacks.on_context_state_request(context)
         )
+
+    def register_received_callbacks(self, callbacks):
+        self.received_callbacks = callbacks
 
         # This is when someone is trying to send us a bunch of data.
         self.server.register_path(
@@ -154,18 +168,18 @@ class SynapseHttpTransportLayer(TransportLayer):
         logging.debug("trigger_get_context_metadata dest=%s, context=%s",
              (destination, context))
 
-        body = yield self.client.get_json(
+        data = yield self.client.get_json(
                 destination,
                 path="/state/%s/" % context
             )
 
-        yield self.callbacks.on_transaction(
-                Transaction(
-                    origin=destination,
+        data.update(origin=destination,
                     destination=self.server_name,
                     transaction_id=None,
-                    body=body
                 )
+
+        yield self.received_callbacks.on_transaction(
+                Transaction.decode(**data)
             )
 
     @defer.inlineCallbacks
@@ -176,41 +190,41 @@ class SynapseHttpTransportLayer(TransportLayer):
         logging.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
              (destination, pdu_origin, pdu_id))
 
-        body = yield self.client.get_json(
+        data = yield self.client.get_json(
                 destination,
                 path="/pdu/%s/%s/" % (pdu_origin, pdu_id)
             )
 
-        yield self.callbacks.on_transport_data(
-                Transaction(
-                    transaction_id=None,
+        data.update(
                     origin=destination,
                     destination=self.server_name,
-                    ts=body["ts"],
-                    body=body
+                    transaction_id=None,
                 )
+
+        yield self.received_callbacks.on_transport_data(
+                Transaction.decode(**data)
             )
 
     @defer.inlineCallbacks
-    def send_data(self, transport_data):
+    def send_transaction(self, transaction):
         """ Sends the specifed data, with the given transaction id, to the
             specified server using a HTTP PUT /send/<txid>/
         """
 
         logging.debug("send_data dest=%s, txid=%s",
-             (transport_data.destination, transport_data.transaction_id))
+             (transaction.destination, transaction.transaction_id))
 
-        if transport_data.destination == self.server_name:
+        if transaction.destination == self.server_name:
             raise RuntimeError("Transport layer cannot send to itself!")
 
         code, response = yield self.client.put_json(
-                transport_data.destination,
-                path="/send/%s/" % transport_data.transaction_id,
-                data=transport_data.body
+                transaction.destination,
+                path="/send/%s/" % transaction.transaction_id,
+                data=transaction.get_dict()
             )
 
         logging.debug("send_data dest=%s, txid=%s, got response: %d",
-             (transport_data.destination, transport_data.transaction_id, code))
+             (transaction.destination, transaction.transaction_id, code))
 
         defer.returnValue((code, response))
 
@@ -224,23 +238,21 @@ class SynapseHttpTransportLayer(TransportLayer):
         try:
             data = request.content.read()
 
-            body = json.loads(data)
+            transaction_data = json.loads(data)
         except Exception as e:
             logging.exception(e)
             defer.returnValue(400, {"error": "Invalid json"})
             return
 
         # We should ideally be getting this from the security layer.
-        origin = body["origin"]
+        # origin = body["origin"]
+
+        transaction_data["transaction_id"] = transaction_id
+        transaction_data["destination"] = self.server_name
 
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield callback.on_transport_data(
-                TransportData(
-                    origin=origin,
-                    destination=self.server_name,
-                    transaction_id=transaction_id,
-                    body=body
-                )
+                Transaction.decode(**transaction_data)
             )
 
         defer.returnValue((code, response))
