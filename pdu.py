@@ -6,7 +6,6 @@ from transaction import TransactionCallbacks
 from persistence.pdu import (PduDbEntry, register_new_outgoing_pdu,
     register_remote_pdu, register_pdu_as_sent)
 from protocol.units import Pdu
-from persistence import queries
 
 
 class PduLayer(TransactionCallbacks):
@@ -22,6 +21,9 @@ class PduCallbacks(object):
     def on_receive_pdu(self, pdu):
         """ We received a PDU. Someone should handle that.
         """
+        pass
+
+    def on_unseen_pdu(self, originating_server, pdu_id, origin):
         pass
 
 
@@ -70,7 +72,7 @@ class SynapseDataLayer(PduLayer):
         defer.returnValue(ret)
 
     def on_context_state_request(self, context):
-        return queries.get_state_pdus_for_context(context)
+        return Pdu.get_state(context)
 
     @defer.inlineCallbacks
     def on_pdu_request(self, pdu_origin, pdu_id):
@@ -96,6 +98,18 @@ class SynapseDataLayer(PduLayer):
             # We've already seen it, so we ignore it.
             defer.returnValue({})
             return
+
+        # Now we check to see if we have seen the pdus it references.
+        for pdu_id, origin in pdu.previous_pdus:
+            exists = yield PduDbEntry.findBy(
+                origin=origin, pdu_id=pdu_id)
+            if not exists:
+                # Oh no! We better request it.
+                self.callback.on_unseen_pdu(
+                        pdu.origin,
+                        pdu_id=pdu_id,
+                        origin=origin
+                    )
 
         # Update the edges + extremeties table
         yield register_remote_pdu(pdu)

@@ -3,11 +3,9 @@
 from twisted.internet import defer
 
 from transport import TransportReceivedCallbacks, TransportRequestCallbacks
-from protocol.units import Transaction
+from protocol.units import Transaction, Pdu
 from persistence.transaction import (LastSentTransactionDbEntry,
     TransactionToPduDbEntry)
-
-from persistence.queries import get_pdus_after_transaction_id
 
 import logging
 import time
@@ -112,7 +110,7 @@ class HttpTransactionLayer(TransactionLayer):
         # integers and thus can just take the max
         tx_id = max([int(v) for v in versions])
 
-        response = yield get_pdus_after_transaction_id(
+        response = yield Pdu.after_transaction(
                 self.server_name,
                 tx_id,
                 origin

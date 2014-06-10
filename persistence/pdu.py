@@ -5,8 +5,6 @@ from twistar.dbobject import DBObject
 from twistar.registry import Registry
 from twistar.utils import createInstances
 
-from protocol.units import Pdu
-
 import queries
 
 
@@ -72,10 +70,26 @@ def _add_pdu_to_tables(pdu):
         DOES NOT DELETE existing extremeties. This should be done only when
         we know the remote sides have seen our message (for outgoing ones)
     """
-     # Add new pdu to extremeties table
-    extrem = PduContextForwardExtremeties(pdu_id=pdu.pdu_id, origin=pdu.origin)
 
-    dl_list = [extrem.save()]
+    dl_list = []
+
+    # Check to see if we have already received something that refrences this
+    # pdu. If yes, we don't consider it an extremity
+    result = yield PduContextEdgesEntry.findBy(
+            prev_pdu_id=pdu.pdu_id,
+            prev_origin=pdu.origin,
+            context=pdu.context
+        )
+
+    if not result:
+        # Add new pdu to extremeties table
+        extrem = PduContextForwardExtremeties(
+                pdu_id=pdu.pdu_id,
+                origin=pdu.origin,
+                context=pdu.context
+            )
+
+        dl_list.append(extrem.save())
 
     # Update edges table with new pdu
     for r in pdu.previous_pdus:
@@ -97,7 +111,8 @@ def get_pdus_after_transaction_id(origin, transaction_id, destination):
     """
     query = queries.get_pdus_after_transaction_id_query()
 
-    return _load_pdus_from_query(query, origin, transaction_id, destination)
+    return _load_pdu_entries_from_query(query, origin, transaction_id,
+                destination)
 
 
 def get_state_pdus_for_context(context):
@@ -105,11 +120,11 @@ def get_state_pdus_for_context(context):
     """
     query = queries.get_state_pdus_for_context_query()
 
-    return _load_pdus_from_query(query, context)
+    return _load_pdu_entries_from_query(query, context)
 
 
 @defer.inlineCallbacks
-def _load_pdus_from_query(query, *args):
+def _load_pdu_entries_from_query(query, *args):
     """ Given the query that loads fetches rows of pdus from the db,
         actually load them as protocol.units.Pdu's
     """
@@ -121,10 +136,10 @@ def _load_pdus_from_query(query, *args):
     pdus = []
 
     for r in results:
-        i = yield createInstances(PduDbEntry, r)
-        pdus.append(Pdu.from_db_entry(i))
+        db_entry = yield createInstances(PduDbEntry, r)
+        pdus.append(db_entry)
 
-    yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
-    yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+    #yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
+    #yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
 
     defer.returnValue(pdus)

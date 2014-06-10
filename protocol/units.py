@@ -4,7 +4,8 @@ from twisted.internet import defer
 
 from persistence.transaction import TransactionDbEntry
 from persistence.pdu import (PduDbEntry, PduDestinationEntry,
-    PduContextEdgesEntry)
+    PduContextEdgesEntry, get_pdus_after_transaction_id,
+    get_state_pdus_for_context)
 
 import copy
 import time
@@ -120,8 +121,24 @@ class Pdu(JsonEncodedObject):
             "transaction_id"
         ]
 
+    # HACK to get unique tx id
+    _next_pdu_id = int(time.time() * 1000)
+
     # TODO: We need to make this properly load content rather than
     # just leaving it as a dict. (OR DO WE?!)
+
+    @staticmethod
+    def create_new(**kwargs):
+        """ Used to create a new pdu. Will auto fill out
+            pdu_id and ts keys.
+        """
+        if "ts" not in kwargs:
+            kwargs["ts"] = int(time.time() * 1000)
+        if "transaction_id" not in kwargs:
+            kwargs["pdu_id"] = Pdu._next_pdu_id
+            Pdu._next_pdu_id += 1
+
+        return Pdu(**kwargs)
 
     def get_db_entry(self):
         return PduDbEntry.findOrCreate(
@@ -153,6 +170,29 @@ class Pdu(JsonEncodedObject):
 
         self.previous_pdus = [{"pdu_id": r["pdu_id"], "origin": r["origin"]}
                     for r in results]
+
+    @staticmethod
+    def after_transaction(origin, transaction_id, destination):
+        db_entries = get_pdus_after_transaction_id(origin, transaction_id,
+                destination)
+
+        return _load_from_db(db_entries)
+
+    @staticmethod
+    def get_state(context):
+        db_entries = get_state_pdus_for_context(context)
+
+        return _load_from_db(db_entries)
+
+    @staticmethod
+    @defer.inlineCallbacks
+    def _load_from_db(db_entries):
+        pdus = [Pdu.from_db_entry(e) for e in db_entries]
+
+        yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
+        yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+
+        defer.returnValue(pdus)
 
 
 class Content(object):
