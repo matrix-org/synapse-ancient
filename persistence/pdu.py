@@ -2,8 +2,12 @@
 
 from twisted.internet import defer
 from twistar.dbobject import DBObject
+from twistar.registry import Registry
+from twistar.utils import createInstances
 
-from queries import delete_forward_context_extremeties
+from protocol.units import Pdu
+
+import queries
 
 
 class PduDbEntry(DBObject):
@@ -47,7 +51,8 @@ def register_remote_pdu(pdu):
         Updates the edges + extremeties tables
     """
     yield _add_pdu_to_tables(pdu)
-    yield delete_forward_context_extremeties(pdu.context, pdu.previous_pdus)
+    yield queries.delete_forward_context_extremeties(
+        pdu.context, pdu.previous_pdus)
 
 
 @defer.inlineCallbacks
@@ -57,7 +62,8 @@ def register_pdu_as_sent(pdu):
 
         Update extremeties table
     """
-    yield delete_forward_context_extremeties(pdu.context, pdu.previous_pdus)
+    yield queries.delete_forward_context_extremeties(
+        pdu.context, pdu.previous_pdus)
 
 
 @defer.inlineCallbacks
@@ -82,3 +88,43 @@ def _add_pdu_to_tables(pdu):
         dl_list.append(edge.save())
 
     yield defer.DeferredList(dl_list)
+
+
+@defer.inlineCallbacks
+def get_pdus_after_transaction_id(origin, transaction_id, destination):
+    """ Given a transaction_id, return all PDUs sent *after* that
+        transaction_id to a given destination
+    """
+    query = queries.get_pdus_after_transaction_id_query()
+
+    return _load_pdus_from_query(query, origin, transaction_id, destination)
+
+
+def get_state_pdus_for_context(context):
+    """ Given a context, return all state pdus
+    """
+    query = queries.get_state_pdus_for_context_query()
+
+    return _load_pdus_from_query(query, context)
+
+
+@defer.inlineCallbacks
+def _load_pdus_from_query(query, *args):
+    """ Given the query that loads fetches rows of pdus from the db,
+        actually load them as protocol.units.Pdu's
+    """
+    results = yield Registry.DBPOOL.runQuery(
+            query,
+            args
+        )
+
+    pdus = []
+
+    for r in results:
+        i = yield createInstances(PduDbEntry, r)
+        pdus.append(Pdu.from_db_entry(i))
+
+    yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
+    yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+
+    defer.returnValue(pdus)

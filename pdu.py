@@ -10,12 +10,18 @@ from persistence import queries
 
 
 class PduLayer(TransactionCallbacks):
+    """ Responsible for handling duplicate pdu_ids as well as versioning.
+    """
     def send_pdu(self, pdu):
+        """ Sends a PDU. This takes care of handling the versions
+        """
         pass
 
 
 class PduCallbacks(object):
     def on_receive_pdu(self, pdu):
+        """ We received a PDU. Someone should handle that.
+        """
         pass
 
 
@@ -98,4 +104,3 @@ class SynapseDataLayer(PduLayer):
         ret = yield self.callback.on_receive_pdu(pdu)
 
         defer.returnValue(ret)
-
