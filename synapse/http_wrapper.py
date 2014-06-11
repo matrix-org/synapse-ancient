@@ -98,7 +98,7 @@ class TwsitedHttpServer(HttpServer, resource.Resource):
     def render(self, request):
         """ This get's called by twisted every time someone sends us a request.
         """
-        self._async_render(self, request)
+        self._async_render(request)
         return server.NOT_DONE_YET
 
     @defer.inlineCallbacks
@@ -144,7 +144,7 @@ class TwistedHttpClient(HttpClient):
         """
         response = yield self._create_put_request(
                 "http://%s%s" % (destination, path),
-                _JsonProducer(data),
+                data,
                 headers_dict={"Content-Type": ["application/json"]}
             )
 
@@ -174,8 +174,8 @@ class TwistedHttpClient(HttpClient):
         return self._create_request(
             "PUT",
             url,
-            _JsonProducer(json_data),
-            headers_dict
+            producer=_JsonProducer(json_data),
+            headers_dict=headers_dict
         )
 
     def _create_get_request(self, url, headers_dict={}):
@@ -184,7 +184,7 @@ class TwistedHttpClient(HttpClient):
         return self._create_request(
             "GET",
             url,
-            headers_dict
+            headers_dict=headers_dict
         )
 
     @defer.inlineCallbacks
@@ -193,12 +193,19 @@ class TwistedHttpClient(HttpClient):
         """
         headers_dict["User-Agent"] = ["Synapse"]
 
-        response = yield self.agent.request(
-                method,
-                url.encode("UTF8"),
-                Headers(headers_dict),
-                producer
-            )
+        logging.debug("Sending request: %s %s", method, url)
+
+        try:
+            response = yield self.agent.request(
+                    method,
+                    url.encode("UTF8"),
+                    Headers(headers_dict),
+                    producer
+                )
+        except Exception as e:
+            _print_ex(e)
+
+            return
 
         if 200 <= response.code < 300:
             # We need to update the transactions table to say it was sent?
@@ -207,17 +214,27 @@ class TwistedHttpClient(HttpClient):
             # :'(
             # Update transactions table?
             logging.error(
-                "Got response %d %s" % (response.code, response.phrase)
+                "Got response %d %s", response.code, response.phrase
             )
+            raise RuntimeError("Got response %d %s"
+                    % (response.code, response.phrase))
 
         defer.returnValue(response)
+
+
+def _print_ex(e):
+    if hasattr(e, "reasons"):
+        for ex in e.reasons:
+            _print_ex(ex)
+    else:
+        logging.exception(e)
 
 
 # Used by the twisted http client to create the HTTP
 # body from json
 class _JsonProducer(object):
     def __init__(self, jsn):
-        self.body = json.dumps(jsn)
+        self.body = json.dumps(jsn).encode("utf8")
         self.length = len(self.body)
 
     def startProducing(self, consumer):

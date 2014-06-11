@@ -7,6 +7,8 @@ from persistence.pdu import (PduDbEntry, register_new_outgoing_pdu,
     register_remote_pdu, register_pdu_as_sent)
 from protocol.units import Pdu
 
+import logging
+
 
 class PduLayer(TransactionCallbacks):
     """ Responsible for handling duplicate pdu_ids as well as versioning.
@@ -27,13 +29,19 @@ class PduCallbacks(object):
         pass
 
 
-class SynapseDataLayer(PduLayer):
+class SynapsePduLayer(PduLayer):
 
-    def __init__(self, transaction_layer, callback):
+    def __init__(self, transaction_layer):
         self.transaction_layer = transaction_layer
-        self.callback = callback
+
+        self.transaction_layer.set_callback(self)
+
+        self.callback = None
 
         self.order = 0
+
+    def set_callback(self, callback):
+        self.callback = callback
 
     @defer.inlineCallbacks
     def send_pdu(self, pdu):
@@ -59,7 +67,7 @@ class SynapseDataLayer(PduLayer):
         for pdu in pdu_list:
             dl.append(self._handle_new_pdu(pdu))
 
-        results = yield dl.deferredList(dl)
+        results = yield defer.DeferredList(dl)
 
         # Generate an appropriate return value from the DeferredList results
         ret = []
@@ -69,7 +77,9 @@ class SynapseDataLayer(PduLayer):
             else:
                 ret.append(r[1])
 
-        defer.returnValue(ret)
+        logging.debug("Returning: %s", str(ret))
+
+        defer.returnValue((200, ret))
 
     def on_context_state_request(self, context):
         return Pdu.get_state(context)
@@ -90,6 +100,8 @@ class SynapseDataLayer(PduLayer):
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
+        logging.debug("_handle_new_pdu")
+
         # Have we seen this pdu before?
         existing = yield PduDbEntry.findBy(
                 origin=pdu.origin, pdu_id=pdu.pdu_id)

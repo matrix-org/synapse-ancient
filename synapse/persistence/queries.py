@@ -22,7 +22,7 @@ def get_state_pdus_for_context_query():
 
 
 def get_delete_versions_context_query(N):
-    where_clause = ["(pdu_id = ? AND pdu_origin = ?)"] * N
+    where_clause = ["(pdu_id = ? AND origin = ?)"] * N
     where_clause = " OR ".join(where_clause)
     return (
         "DELETE FROM pdu_context_forward_extremeties "

@@ -89,14 +89,14 @@ class HttpTransactionLayer(TransactionLayer):
             )
 
     def enqueue_pdu(self, pdu, order):
-            self._transaction_queue.enque_pdu(pdu, order)
+            self._transaction_queue.enqueue_pdu(pdu, order)
 
     def _wrap_pdus(self, pdu_list):
         return Transaction(
                 pdus=pdu_list,
                 origin=self.server_name,
                 ts=int(time.time() * 1000)
-            )
+            ).get_dict()
 
     def set_callback(self, callback):
         self.callback = callback
@@ -116,6 +116,9 @@ class HttpTransactionLayer(TransactionLayer):
                 origin
             )
 
+        if not response:
+            response = []
+
         data = self._wrap_pdus(response)
         defer.returnValue((200, data))
 
@@ -124,11 +127,12 @@ class HttpTransactionLayer(TransactionLayer):
         """ Called on GET /pdu/<pdu_origin>/<pdu_id>/ from transport layer
             Returns a deferred tuple of (code, response)
         """
-        response = yield self.callback.on_data_request(pdu_origin, pdu_id)
+        response = yield self.callback.on_pdu_request(pdu_origin, pdu_id)
+
         if response:
-            data = self._wrap_pdus([])
-        else:
             data = self._wrap_pdus([response])
+        else:
+            data = self._wrap_pdus([])
 
         defer.returnValue((200, data))
 
@@ -137,8 +141,10 @@ class HttpTransactionLayer(TransactionLayer):
         """ Called on GET /state/<context>/ from transport layer
             Returns a deferred tuple of (code, response)
         """
-        response = yield self.callback.on_get_context_state(context)
+        response = yield self.callback.on_context_state_request(context)
+
         data = self._wrap_pdus(response)
+
         defer.returnValue((200, data))
 
     @defer.inlineCallbacks
@@ -146,14 +152,20 @@ class HttpTransactionLayer(TransactionLayer):
         """ Called on PUT /send/<transaction_id> from transport layer
         """
 
+        logging.debug("[%s] Got transaction", transaction.transaction_id)
+
         # Check to see if we a) have a transaction_id associated with this
         # request and if so b) have we already responded to it?
         db_entry = yield transaction.get_db_entry()
-        response = db_entry.have_responded()
+        response = yield db_entry.have_responded()
 
         if response:
+            logging.debug("[%s] We've already responed to this request",
+                transaction.transaction_id)
             defer.returnValue(response)
             return
+
+        logging.debug("[%s] Transacition is new", transaction.transaction_id)
 
         # Pass request to transaction layer.
         try:
@@ -174,7 +186,7 @@ class HttpTransactionLayer(TransactionLayer):
             return
 
         yield db_entry.set_response(code, response)
-        defer.returnValue((transaction.respone_code, transaction.response))
+        defer.returnValue((code, response))
 
 
 class _TransactionQueue(object):
@@ -223,7 +235,7 @@ class _TransactionQueue(object):
             return
 
         # tuple_list is a list of (pending_pdu, deferred, order)
-        tuple_list = self.pending_pdus_list.get(destination)
+        tuple_list = self.pending_pdus_list.pop(destination, None)
 
         if not tuple_list:
             return
@@ -232,10 +244,14 @@ class _TransactionQueue(object):
             # Sort based on the order field
             tuple_list.sort(key=lambda t: t[2])
 
-            last_sent_rows = LastSentTransactionDbEntry.findBy(
+            last_sent_rows = yield LastSentTransactionDbEntry.findBy(
                     destination=destination
                 )
-            prev_txs = [r.transaction_id for r in last_sent_rows]
+
+            if last_sent_rows:
+                prev_txs = [r.transaction_id for r in last_sent_rows]
+            else:
+                prev_txs = []
 
             transaction = Transaction.create_new(
                             origin=self.server_name,
@@ -277,7 +293,7 @@ class _TransactionQueue(object):
 
         finally:
             # We want to be *very* sure we delete this after we stop processing
-            del self.pending_transactions[destination]
+            self.pending_transactions.pop(destination, None)
 
             # Check to see if there is anything else to send.
-            self._attempt_new_transaction(self, destination)
+            self._attempt_new_transaction(destination)

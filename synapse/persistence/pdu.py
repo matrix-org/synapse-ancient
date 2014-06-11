@@ -37,7 +37,7 @@ def register_new_outgoing_pdu(pdu):
     """
     results = yield PduContextForwardExtremeties.findBy(context=pdu.context)
 
-    pdu.previous_pdus = [(r["pdu_id"], r["origin"]) for r in results]
+    pdu.previous_pdus = [(r.pdu_id, r.origin) for r in results]
 
     yield _add_pdu_to_tables(pdu)
 

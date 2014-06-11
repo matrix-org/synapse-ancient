@@ -1,7 +1,4 @@
-from twisted.internet import defer
 from twisted.protocols import basic
-
-from protocol.units import Pdu
 
 from pdu import PduCallbacks
 
@@ -22,12 +19,17 @@ class Messaging(PduCallbacks):
 
 
 class MessagingImpl(Messaging):
-    def _init__(self, transport_layer, transaction_layer, pdu_layer,
-        server_name, callback):
+    def __init__(self, server_name, transport_layer, transaction_layer,
+        pdu_layer, callback=None):
         self.transport_layer = transport_layer
         self.transaction_layer = transaction_layer
         self.pdu_layer = pdu_layer
         self.server_name = server_name
+        self.callback = callback
+
+        self.pdu_layer.set_callback(self)
+
+    def set_callback(self, callback):
         self.callback = callback
 
     def on_receive_pdu(self, pdu):
@@ -83,4 +85,3 @@ class LineReader(basic.LineReceiver):
             self.transport.write('>>> ')
 
 #stdio.StandardIO(LineReader(sServer))
-

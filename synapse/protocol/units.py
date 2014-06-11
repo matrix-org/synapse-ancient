@@ -2,8 +2,8 @@
 
 from twisted.internet import defer
 
-from persistence.transaction import TransactionDbEntry
-from persistence.pdu import (PduDbEntry, PduDestinationEntry,
+from ..persistence.transaction import TransactionDbEntry
+from ..persistence.pdu import (PduDbEntry, PduDestinationEntry,
     PduContextEdgesEntry, get_pdus_after_transaction_id,
     get_state_pdus_for_context)
 
@@ -36,7 +36,7 @@ class JsonEncodedObject(object):
     def get_dict(self):
         d = copy.deepcopy(self.__dict__)
         d = {k: encode(v) for (k, v) in d.items()
-                        if v and k not in self.internal_keys}
+                        if k not in self.internal_keys}
 
         if "unrecognized_keys" in d:
             del d["unrecognized_keys"]
@@ -59,6 +59,12 @@ class Transaction(JsonEncodedObject):
             "pdus"  # This get's converted to a list of Pdu's
         ]
 
+    db_cols = [
+        "transaction_id",
+        "origin",
+        "ts"
+    ]
+
     internal_keys = [
             "transaction_id",
             "destination"
@@ -68,6 +74,9 @@ class Transaction(JsonEncodedObject):
     _next_transaction_id = int(time.time() * 1000)
 
     def __init__(self, **kwargs):
+        if "transaction_id" not in kwargs:
+            kwargs["transaction_id"] = None
+
         super(Transaction, self).__init__(**kwargs)
 
         if self.transaction_id:
@@ -79,7 +88,7 @@ class Transaction(JsonEncodedObject):
         """ Used to convert a dict from the interwebs to a Transaction
             object. It converts the Pdu dicts into Pdu objects too!
         """
-        pdus = [Pdu(**p) for p in transaction_dict["pdus"]]
+        pdus = [Pdu(**p) for p in transaction_dict.setdefault("pdus", [])]
         transaction_dict.update(pdus=pdus)
 
         return Transaction(**transaction_dict)
@@ -98,13 +107,18 @@ class Transaction(JsonEncodedObject):
         return Transaction(**kwargs)
 
     def get_db_entry(self):
-        return TransactionDbEntry.findOrCreate(**self.get_dict())
+        return TransactionDbEntry.findOrCreate(
+                **{
+                    k: v for k, v in self.get_dict().items()
+                        if k in self.db_cols
+                }
+            )
 
 
 class Pdu(JsonEncodedObject):
     valid_keys = [
             "pdu_id",
-            "context"
+            "context",
             "origin",
             "ts",
             "pdu_type",
@@ -134,9 +148,13 @@ class Pdu(JsonEncodedObject):
         """
         if "ts" not in kwargs:
             kwargs["ts"] = int(time.time() * 1000)
-        if "transaction_id" not in kwargs:
+
+        if "pdu_id" not in kwargs:
             kwargs["pdu_id"] = Pdu._next_pdu_id
             Pdu._next_pdu_id += 1
+
+        if "is_state" not in kwargs:
+            kwargs["is_state"] = False
 
         return Pdu(**kwargs)
 

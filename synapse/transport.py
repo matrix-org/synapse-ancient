@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 
+"""The transport layer is responsible for both sending transactions to remote
+home servers and receiving a variety of requests from other home servers.
+Typically, this is done over HTTP and all home servers are required to
+support HTTP, however individual pairings of servers may decide to communicate
+over a different (reliable) protocol.
+"""
+
 from twisted.internet import defer
 from protocol.units import Transaction
 
@@ -9,18 +16,14 @@ import re
 
 
 class TransportLayer(object):
-    """ This layer is responsible for actually communicating with
-        a remote home server.
-
-        This is done by starting a HTTP server and listening for certain
-        events, which trigger callbacks.
-        This layer also contains a HTTP client for hitting out to remote
-        home servers
+    """This is a basic interface that any transport layer should support. For
+    the most part, these roughly map to requests that will be sent to the
+    destination home server.
     """
 
     def trigger_get_context_state(self, destination, context):
-        """ Requests all metadata for a given context (i.e. room) from the
-            given server
+        """Requests all state for a given context (i.e. room) from the
+        given server
         """
         pass
 
@@ -104,7 +107,7 @@ class TransportRequestCallbacks(object):
 #
 # This is the bottom layer of the Server-To-Server stack.
 
-class SynapseHttpTransportLayer(TransportLayer):
+class HttpTransportLayer(TransportLayer):
     """ Used to talk HTTP, both as a client and server """
 
     def __init__(self, server_name, server, client):
@@ -156,7 +159,7 @@ class SynapseHttpTransportLayer(TransportLayer):
             lambda request, transaction_id:
                 # We intercept this and decode the json a bit before
                 # handing off to to the callbacks.
-                self.on_send_request(request, transaction_id, callbacks)
+                self._on_send_request(request, transaction_id, callbacks)
         )
 
     @defer.inlineCallbacks
@@ -166,7 +169,7 @@ class SynapseHttpTransportLayer(TransportLayer):
         """
 
         logging.debug("trigger_get_context_metadata dest=%s, context=%s",
-             (destination, context))
+             destination, context)
 
         data = yield self.client.get_json(
                 destination,
@@ -179,7 +182,7 @@ class SynapseHttpTransportLayer(TransportLayer):
                 )
 
         yield self.received_callbacks.on_transaction(
-                Transaction.decode(**data)
+                Transaction.decode(data)
             )
 
     @defer.inlineCallbacks
@@ -188,7 +191,7 @@ class SynapseHttpTransportLayer(TransportLayer):
         """
 
         logging.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
-             (destination, pdu_origin, pdu_id))
+             destination, pdu_origin, pdu_id)
 
         data = yield self.client.get_json(
                 destination,
@@ -201,8 +204,8 @@ class SynapseHttpTransportLayer(TransportLayer):
                     transaction_id=None,
                 )
 
-        yield self.received_callbacks.on_transport_data(
-                Transaction.decode(**data)
+        yield self.received_callbacks.on_transaction(
+                Transaction.decode(data)
             )
 
     @defer.inlineCallbacks
@@ -212,7 +215,7 @@ class SynapseHttpTransportLayer(TransportLayer):
         """
 
         logging.debug("send_data dest=%s, txid=%s",
-             (transaction.destination, transaction.transaction_id))
+            transaction.destination, transaction.transaction_id)
 
         if transaction.destination == self.server_name:
             raise RuntimeError("Transport layer cannot send to itself!")
@@ -224,7 +227,7 @@ class SynapseHttpTransportLayer(TransportLayer):
             )
 
         logging.debug("send_data dest=%s, txid=%s, got response: %d",
-             (transaction.destination, transaction.transaction_id, code))
+             transaction.destination, transaction.transaction_id, code)
 
         defer.returnValue((code, response))
 
@@ -251,8 +254,8 @@ class SynapseHttpTransportLayer(TransportLayer):
         transaction_data["destination"] = self.server_name
 
         # OK, now tell the transaction layer about this bit of data.
-        code, response = yield callback.on_transport_data(
-                Transaction.decode(**transaction_data)
+        code, response = yield callback.on_transaction(
+                Transaction.decode(transaction_data)
             )
 
         defer.returnValue((code, response))

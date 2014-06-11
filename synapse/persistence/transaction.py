@@ -9,13 +9,12 @@ import json
 class TransactionDbEntry(DBObject):
     TABLENAME = "transactions"  # Table name
 
-    @staticmethod
     @defer.inlineCallbacks
-    def have_responsed(self):
+    def have_responded(self):
         """ Have we responded to this transaction before? If so return
             (response code, response_dict) tuple, else None
         """
-        yield self.update()
+        yield self.refresh()
 
         if self.response_code > 0 and self.response:
             defer.returnValue(
