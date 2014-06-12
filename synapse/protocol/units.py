@@ -4,10 +4,11 @@ from twisted.internet import defer
 
 from ..persistence.transaction import TransactionDbEntry
 from ..persistence.pdu import (PduDbEntry, PduDestinationEntry,
-    PduContextEdgesEntry, get_pdus_after_transaction_id,
+    PduContextEdgesEntry, PduState, get_pdus_after_transaction_id,
     get_state_pdus_for_context)
 
 import copy
+import json
 import time
 
 
@@ -135,11 +136,29 @@ class Pdu(JsonEncodedObject):
             "transaction_id"
         ]
 
+    db_cols = [
+        "pdu_id",
+        "context",
+        "origin",
+        "ts",
+        "pdu_type",
+        "is_state",
+        "state_key",
+        "transaction_id"
+    ]
+
     # HACK to get unique tx id
     _next_pdu_id = int(time.time() * 1000)
 
     # TODO: We need to make this properly load content rather than
     # just leaving it as a dict. (OR DO WE?!)
+
+    def __init__(self, destinations=[], is_state=False, **kwargs):
+        super(Pdu, self).__init__(
+                destinations=destinations,
+                is_state=is_state,
+                **kwargs
+            )
 
     @staticmethod
     def create_new(**kwargs):
@@ -153,22 +172,31 @@ class Pdu(JsonEncodedObject):
             kwargs["pdu_id"] = Pdu._next_pdu_id
             Pdu._next_pdu_id += 1
 
-        if "is_state" not in kwargs:
-            kwargs["is_state"] = False
-
         return Pdu(**kwargs)
 
     def get_db_entry(self):
         return PduDbEntry.findOrCreate(
                 content_json=json.dumps(self.content),
-                **self.get_dict()
+                **{
+                    k: v for k, v in self.get_dict().items()
+                        if k in self.db_cols
+                }
             )
 
     @staticmethod
-    def from_db_entry(db_entry):
-        d = {k: v for k, v in db_entry.dict().items() if k in valid_keys}
-        d["content"] = json.loads(db_entry.content_json)
-        return Pdu(**d)
+    @defer.inlineCallbacks
+    def from_db_entries(db_entries):
+        pdus = []
+        for db_entry in db_entries:
+            d = {k: v for k, v in db_entry.dict().items()
+                    if k in Pdu.valid_keys}
+            d["content"] = json.loads(db_entry.content_json)
+            pdus.append(Pdu(**d))
+
+        yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
+        yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+
+        defer.returnValue(pdus)
 
     @defer.inlineCallbacks
     def get_destinations_from_db(self):
@@ -177,7 +205,7 @@ class Pdu(JsonEncodedObject):
                 origin=self.origin
             )
 
-        self.destinations = [r["destination"] for r in results]
+        self.destinations = [r.destination for r in results]
 
     @defer.inlineCallbacks
     def get_previous_pdus_from_db(self):
@@ -186,31 +214,55 @@ class Pdu(JsonEncodedObject):
                 origin=self.origin
             )
 
-        self.previous_pdus = [{"pdu_id": r["pdu_id"], "origin": r["origin"]}
+        self.previous_pdus = [{"pdu_id": r.prev_pdu_id, "origin": r.prev_origin}
                     for r in results]
+
+    @defer.inlineCallbacks
+    def persist(self):
+        # FIXME: This entire thing should be a single transaction.
+
+        db = yield self.get_db_entry()
+        yield db.save()
+
+        dl = []
+
+        if self.is_state:
+            # We need to persist this as well.
+            state = PduState(
+                    pdu_row_id=db.id,
+                    context=self.context,
+                    pdu_type=self.pdu_type,
+                    state_key=self.state_key
+                )
+
+            dl.append(state.save())
+
+        # Update destinations
+        for dest in self.destinations:
+            pde = PduDestinationEntry(
+                    pdu_id=self.pdu_id,
+                    origin=self.origin,
+                    destination=dest
+                )
+            dl.append(pde.save())
+
+        yield defer.DeferredList(dl, fireOnOneErrback=True)
 
     @staticmethod
     def after_transaction(origin, transaction_id, destination):
         db_entries = get_pdus_after_transaction_id(origin, transaction_id,
                 destination)
 
-        return _load_from_db(db_entries)
-
-    @staticmethod
-    def get_state(context):
-        db_entries = get_state_pdus_for_context(context)
-
-        return _load_from_db(db_entries)
+        return Pdu.from_db_entries(db_entries)
 
     @staticmethod
     @defer.inlineCallbacks
-    def _load_from_db(db_entries):
-        pdus = [Pdu.from_db_entry(e) for e in db_entries]
+    def get_state(context):
+        db_entries = yield get_state_pdus_for_context(context)
 
-        yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
-        yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+        r = yield Pdu.from_db_entries(db_entries)
 
-        defer.returnValue(pdus)
+        defer.returnValue(r)
 
 
 class Content(object):

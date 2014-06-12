@@ -10,7 +10,7 @@ from synapse.protocol.units import Pdu
 
 from synapse import utils
 
-from twisted.internet import stdio, reactor
+from twisted.internet import stdio, reactor, error
 from twisted.protocols import basic
 from twisted.enterprise import adbapi
 from twistar.registry import Registry
@@ -53,6 +53,13 @@ class InputOutput(basic.LineReceiver):
                 self.server.invite_to_room(room_name, sender, invitee)
                 self.sendLine("OK.")
 
+            m = re.match("^send (\S+) (\S+) (.*)$", line)
+            if m:
+                sender, room_name, body = m.groups()
+                self.sendLine("%s send to %s" % (sender, room_name))
+                self.server.send_message(room_name, sender, body)
+                self.sendLine("OK.")
+
         except Exception as e:
             logging.exception(e)
         finally:
@@ -68,7 +75,10 @@ class InputOutput(basic.LineReceiver):
         self.waiting_for_input = True
 
     def connectionLost(self, reason):
-        reactor.stop()
+        try:
+            reactor.stop()
+        except error.ReactorNotRunning:
+            pass
 
 
 class Room(object):
@@ -111,7 +121,7 @@ class HomeServer(MessagingCallbacks):
                 self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
 
     def _on_message(self, pdu):
-        self.output.print_line("#% %s\t %s" %
+        self.output.print_line("#%s %s\t %s" %
                 (pdu.context, pdu.content["sender"], pdu.content["body"])
             )
 
@@ -141,13 +151,15 @@ class HomeServer(MessagingCallbacks):
                 context=room_name,
                 origin=self.server_name,
                 pdu_type="message",
-                destinations=self._get_room_servers(room_name),
+                destinations=self._get_room_remote_servers(room_name),
                 content={"sender": sender, "body": body}
             )
 
         return self.messaging_layer.send_pdu(pdu)
 
     def join_room(self, room_name, sender, joinee, destination=None):
+        self._on_join(room_name, joinee)
+
         if destination:
             destinations = [destination]
         else:
@@ -168,8 +180,6 @@ class HomeServer(MessagingCallbacks):
                 )
 
             self.messaging_layer.send_pdu(pdu)
-
-        self._on_join(room_name, joinee)
 
     def invite_to_room(self, room_name, sender, invitee):
         self._on_invite(self.server_name, room_name, invitee)
@@ -192,8 +202,7 @@ class HomeServer(MessagingCallbacks):
             self.messaging_layer.send_pdu(pdu)
 
     def _get_room_remote_servers(self, room_name):
-        return [i for i in self.joined_rooms.setdefault(room_name,).servers
-                    if i != self.server_name]
+        return [i for i in self.joined_rooms.setdefault(room_name,).servers]
 
     def _get_or_create_room(self, room_name):
         return self.joined_rooms.setdefault(room_name, Room(room_name))

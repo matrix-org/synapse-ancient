@@ -5,6 +5,7 @@ from twistar.dbobject import DBObject
 from twistar.registry import Registry
 from twistar.utils import createInstances
 
+import logging
 import queries
 
 
@@ -13,6 +14,10 @@ class PduDbEntry(DBObject):
 
     def dict(self):
         return self.__dict__
+
+
+class PduState(DBObject):
+    TABLENAME = "state_pdu"  # Table name
 
 
 class PduDestinationEntry(DBObject):
@@ -49,8 +54,10 @@ def register_remote_pdu(pdu):
         Updates the edges + extremeties tables
     """
     yield _add_pdu_to_tables(pdu)
-    yield queries.delete_forward_context_extremeties(
-        pdu.context, pdu.previous_pdus)
+
+    if pdu.previous_pdus:
+        yield queries.delete_forward_context_extremeties(
+            pdu.context, pdu.previous_pdus)
 
 
 @defer.inlineCallbacks
@@ -60,8 +67,9 @@ def register_pdu_as_sent(pdu):
 
         Update extremeties table
     """
-    yield queries.delete_forward_context_extremeties(
-        pdu.context, pdu.previous_pdus)
+    if pdu.previous_pdus:
+        yield queries.delete_forward_context_extremeties(
+            pdu.context, pdu.previous_pdus)
 
 
 @defer.inlineCallbacks
@@ -128,18 +136,20 @@ def _load_pdu_entries_from_query(query, *args):
     """ Given the query that loads fetches rows of pdus from the db,
         actually load them as protocol.units.Pdu's
     """
-    results = yield Registry.DBPOOL.runQuery(
-            query,
-            args
-        )
+    def interaction(txn):
+        logging.debug("Exec %d bindings: %s" % (len(args), query))
+        txn.execute(query, args)
 
-    pdus = []
+        results = []
+        for result in txn.fetchall():
+            vals = Registry.getConfig().valuesToHash(
+                txn, result, PduDbEntry.TABLENAME, False)
+            results.append(vals)
 
-    for r in results:
-        db_entry = yield createInstances(PduDbEntry, r)
-        pdus.append(db_entry)
+        return results
+        #return createInstances(results, PduDbEntry)
 
-    #yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
-    #yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+    results = yield Registry.DBPOOL.runInteraction(interaction)
+    db_entries = yield createInstances(results, PduDbEntry)
 
-    defer.returnValue(pdus)
+    defer.returnValue(db_entries)

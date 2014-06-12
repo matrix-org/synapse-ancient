@@ -2,6 +2,8 @@
 
 from twistar.registry import Registry
 
+import defer
+
 
 def get_pdus_after_transaction_id_query():
     return (
@@ -17,7 +19,7 @@ def get_state_pdus_for_context_query():
     return (
         "SELECT pdus.* from state_pdu "
                 "LEFT JOIN pdus ON state_pdu.pdu_row_id = pdus.id "
-                "WHERE context = ?"
+                "WHERE pdus.context = ?"
     )
 
 
@@ -34,6 +36,10 @@ def delete_forward_context_extremeties(context, pdu_list):
     """ Given a list of ids [(pdu_id, origin),...], delete them from the
         pdu_context_forward_extremeties table
     """
+
+    if not pdu_list:
+        return defer.succeed(None)
+
     query = get_delete_versions_context_query(len(pdu_list))
 
     # The where clause args need to be [context, id1, origin1, id2,...]

@@ -215,9 +215,17 @@ class _TransactionQueue(object):
         # a transaction in progress. If we do, stick it in the pending_pdus
         # table and we'll get back to it later.
 
+        destinations = [d for d in pdu.destinations
+                            if d != self.server_name]
+
+        logging.debug("Sending to: %s" % str(destinations))
+
+        if not destinations:
+            return defer.succeed(None)
+
         deferred_list = []
 
-        for destination in pdu.destinations:
+        for destination in destinations:
             deferred = defer.Deferred()
             self.pending_pdus_list.setdefault(destination, []).append(
                         (pdu, deferred, order)

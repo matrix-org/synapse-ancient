@@ -50,6 +50,9 @@ class SynapsePduLayer(PduLayer):
         order = self.order
         self.order += 1
 
+        # Save *before* trying to send
+        yield pdu.persist()
+
         # This fills out the previous_pdus property
         yield register_new_outgoing_pdu(pdu)
 
@@ -75,7 +78,8 @@ class SynapsePduLayer(PduLayer):
             if r[0]:
                 ret.append({})
             else:
-                ret.append(r[1])
+                logging.exception(r[1])
+                ret.append({"error": str(r[1])})
 
         logging.debug("Returning: %s", str(ret))
 
@@ -88,7 +92,8 @@ class SynapsePduLayer(PduLayer):
     def on_pdu_request(self, pdu_origin, pdu_id):
         results = yield PduDbEntry.findBy(origin=pdu_origin, pdu_id=pdu_id)
 
-        pdus = [Pdu.from_db_entry(r) for r in results]
+        #pdus = [Pdu.from_db_entry(r) for r in results]
+        pdus = yield Pdu.from_db_entries(results)
 
         if not pdus:
             defer.returnValue(None)
@@ -100,7 +105,8 @@ class SynapsePduLayer(PduLayer):
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
-        logging.debug("_handle_new_pdu")
+        logging.debug("_handle_new_pdu %s from %s",
+                        str(pdu.pdu_id), pdu.origin)
 
         # Have we seen this pdu before?
         existing = yield PduDbEntry.findBy(
@@ -128,5 +134,8 @@ class SynapsePduLayer(PduLayer):
 
         # Inform callback
         ret = yield self.callback.on_receive_pdu(pdu)
+
+        # Save *after* we have processed
+        yield pdu.persist()
 
         defer.returnValue(ret)
