@@ -19,6 +19,9 @@ class Messaging(PduCallbacks):
 
 
 class MessagingImpl(Messaging):
+    """ This is (for now) simply providing a nice interface for people who want
+    to use the server to server stuff.
+    """
     def __init__(self, server_name, transport_layer, transaction_layer,
         pdu_layer, callback=None):
         self.transport_layer = transport_layer
@@ -45,43 +48,3 @@ class MessagingImpl(Messaging):
     def get_context_state(self, destination, context):
         return self.transport_layer.trigger_get_context_state(destination,
             context)
-
-
-class LineReader(basic.LineReceiver):
-    delimiter = '\n'
-
-    def __init__(self, message_layer):
-        self.message_layer = message_layer
-
-    def connectionMade(self):
-        self.transport.write('>>> ')
-
-    def lineReceived(self, line):
-        #self.sendLine('Echo: ' + line)
-        try:
-            if not line:
-                return
-
-            cmd, room_id, data = line.split(" ", 2)
-
-            if cmd == "msg":
-                sender, body = data.split(" ", 1)
-                self.message_layer.send_message(sender, room_id, body)
-                self.sendLine("OK")
-            elif cmd == "partial":
-                sender, receiver, body = data.split(" ", 2)
-                self.message_layer.send_message_partial(
-                    sender, room_id, body, receiver)
-                self.sendLine("OK")
-            elif cmd == "add":
-                self.message_layer.send_join(room_id, data)
-                self.sendLine("OK")
-            elif cmd == "create":
-                self.message_layer.send_join(room_id, data)
-                self.sendLine("OK")
-        except Exception as e:
-            logging.exception(e)
-        finally:
-            self.transport.write('>>> ')
-
-#stdio.StandardIO(LineReader(sServer))

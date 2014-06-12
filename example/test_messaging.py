@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 
+""" This is an example of using the server to server implementation to do a
+basic chat style thing. It accepts commands from stdin and outputs to stdout.
+
+It assumes that ucids are of the form <user>@<domain>, and uses <domain> as
+the address of the remote home server to hit.
+
+Usage:
+    python test_messaging.py <port>
+
+Currently assumes the local address is localhost:<port>
+
+
+"""
+
 from synapse.http_wrapper import TwsitedHttpServer, TwistedHttpClient
 from synapse.transport import HttpTransportLayer
 from synapse.transaction import HttpTransactionLayer
@@ -23,6 +37,9 @@ import sqlite3
 
 
 class InputOutput(basic.LineReceiver):
+    """ This is responsible for basic I/O so that a user can interact with
+    the example app.
+    """
     delimiter = '\n'
 
     def __init__(self):
@@ -36,11 +53,14 @@ class InputOutput(basic.LineReceiver):
         self.transport.write('>>> ')
 
     def lineReceived(self, line):
+        """ This is where we process commands.
+        """
         self.waiting_for_input = False
 
         try:
             m = re.match("^join (\S+) (\S+)$", line)
             if m:
+                # The `sender` wants to join a room.
                 sender, room_name = m.groups()
                 self.sendLine("%s joining %s" % (sender, room_name))
                 self.server.join_room(room_name, sender, sender)
@@ -48,6 +68,7 @@ class InputOutput(basic.LineReceiver):
 
             m = re.match("^invite (\S+) (\S+) (\S+)$", line)
             if m:
+                # `sender` wants to invite someone to a room
                 sender, room_name, invitee = m.groups()
                 self.sendLine("%s invited to %s" % (invitee, room_name))
                 self.server.invite_to_room(room_name, sender, invitee)
@@ -55,6 +76,7 @@ class InputOutput(basic.LineReceiver):
 
             m = re.match("^send (\S+) (\S+) (.*)$", line)
             if m:
+                # `sender` wants to message a room
                 sender, room_name, body = m.groups()
                 self.sendLine("%s send to %s" % (sender, room_name))
                 self.server.send_message(room_name, sender, body)
@@ -82,6 +104,9 @@ class InputOutput(basic.LineReceiver):
 
 
 class Room(object):
+    """ Used to store (in memory) the current membership state of a room, and
+    which home servers we should send PDUs associated with the room to.
+    """
     def __init__(self, room_name):
         self.room_name = room_name
         self.invited = set()
@@ -89,17 +114,24 @@ class Room(object):
         self.servers = set()
 
     def add_participant(self, participant):
+        """ Someone has joined the room
+        """
         self.participants.add(participant)
         self.invited.discard(participant)
 
         self.servers.add(utils.origin_from_ucid(participant))
 
     def add_invited(self, invitee):
+        """ Someone has been invited to the room
+        """
         self.invited.add(invitee)
         self.servers.add(utils.origin_from_ucid(invitee))
 
 
 class HomeServer(MessagingCallbacks):
+    """ A very basic home server implentation that allows people to join a
+    room and then invite other people.
+    """
     def __init__(self, server_name, messaging_layer, output):
         self.server_name = server_name
         self.messaging_layer = messaging_layer
@@ -110,6 +142,8 @@ class HomeServer(MessagingCallbacks):
         self.output = output
 
     def on_receive_pdu(self, pdu):
+        """ We just received a PDU
+        """
         pdu_type = pdu.pdu_type
 
         if pdu_type == "message":
@@ -121,11 +155,15 @@ class HomeServer(MessagingCallbacks):
                 self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
 
     def _on_message(self, pdu):
+        """ We received a message
+        """
         self.output.print_line("#%s %s\t %s" %
                 (pdu.context, pdu.content["sender"], pdu.content["body"])
             )
 
     def _on_join(self, context, joinee):
+        """ Someone has joined a room, either a remote user or a local user
+        """
         room = self._get_or_create_room(context)
         room.add_participant(joinee)
 
@@ -134,6 +172,8 @@ class HomeServer(MessagingCallbacks):
             )
 
     def _on_invite(self, origin, context, invitee):
+        """ Someone has been invited
+        """
         new_room = context not in self.joined_rooms
 
         room = self._get_or_create_room(context)
@@ -147,6 +187,8 @@ class HomeServer(MessagingCallbacks):
             self.messaging_layer.get_context_state(origin, context)
 
     def send_message(self, room_name, sender, body):
+        """ Send a message to a room!
+        """
         pdu = Pdu.create_new(
                 context=room_name,
                 origin=self.server_name,
@@ -158,6 +200,8 @@ class HomeServer(MessagingCallbacks):
         return self.messaging_layer.send_pdu(pdu)
 
     def join_room(self, room_name, sender, joinee, destination=None):
+        """ Join a room!
+        """
         self._on_join(room_name, joinee)
 
         if destination:
@@ -182,6 +226,8 @@ class HomeServer(MessagingCallbacks):
             self.messaging_layer.send_pdu(pdu)
 
     def invite_to_room(self, room_name, sender, invitee):
+        """ Invite someone to a room!
+        """
         self._on_invite(self.server_name, room_name, invitee)
 
         destinations = self._get_room_remote_servers(room_name)
@@ -209,6 +255,9 @@ class HomeServer(MessagingCallbacks):
 
 
 def setup_db(db_name):
+    """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
+    have to worry.
+    """
     Registry.DBPOOL = adbapi.ConnectionPool(
         'sqlite3', database=("dbs/%d") % port, check_same_thread=False)
 
