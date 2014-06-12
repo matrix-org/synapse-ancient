@@ -46,7 +46,7 @@ def send_response(request, code, content):
     request.setResponseCode(code)
     request.setHeader("Content-Type", "application/json")
 
-    request.write('%s\n' % json.dumps(content))
+    request.write('%s\n' % json.dumps(content, indent=4))
     request.finish()
     return server.NOT_DONE_YET
 
@@ -234,7 +234,7 @@ def _print_ex(e):
 # body from json
 class _JsonProducer(object):
     def __init__(self, jsn):
-        self.body = json.dumps(jsn).encode("utf8")
+        self.body = json.dumps(jsn, indent=4).encode("utf8")
         self.length = len(self.body)
 
     def startProducing(self, consumer):

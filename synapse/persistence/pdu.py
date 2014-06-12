@@ -112,7 +112,6 @@ def _add_pdu_to_tables(pdu):
     yield defer.DeferredList(dl_list)
 
 
-@defer.inlineCallbacks
 def get_pdus_after_transaction_id(origin, transaction_id, destination):
     """ Given a transaction_id, return all PDUs sent *after* that
         transaction_id to a given destination

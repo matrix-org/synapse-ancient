@@ -229,17 +229,17 @@ def setup_db(db_name):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-
-    observer = PythonLoggingObserver()
-    observer.start()
-
     parser = argparse.ArgumentParser()
     parser.add_argument('port', type=int)
     args = parser.parse_args()
 
     port = args.port
     server_name = "localhost:%d" % port
+
+    logging.basicConfig(filename=("logs/%d" % port), level=logging.DEBUG)
+
+    observer = PythonLoggingObserver()
+    observer.start()
 
     setup_db("dbs/%d" % port)
 

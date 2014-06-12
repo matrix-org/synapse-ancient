@@ -4,7 +4,7 @@
 home servers and receiving a variety of requests from other home servers.
 Typically, this is done over HTTP and all home servers are required to
 support HTTP, however individual pairings of servers may decide to communicate
-over a different (reliable) protocol.
+over a different (albeit still reliable) protocol.
 """
 
 from twisted.internet import defer
@@ -23,43 +23,109 @@ class TransportLayer(object):
 
     def trigger_get_context_state(self, destination, context):
         """Requests all state for a given context (i.e. room) from the
-        given server
+        given server.
+
+        This will *not* return the state, but will pass the received state
+        to the TransportReceivedCallbacks.on_transaction callback in the same
+        way as if it had been sent them in a Transaction.
+
+        Args:
+            destination (str): The host name of the remote home server we want
+                to get the state from.
+            context (str): The name of the context we want the state of
+
+        Returns:
+            Deferred: Succeeds when we have finished processing the
+            response of the request.
+
+            The argument passed to the deferred is undefined and may be None.
         """
         pass
 
     def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
-        """ Requests the pdu with give id and origin from the given server
+        """ Requests the pdu with give id and origin from the given server.
+
+        This will *not* return the PDU, but will pass the received state
+        to the TransportReceivedCallbacks.on_transaction callback in the same
+        way as if it had been sent them in a Transaction.
+
+        Args:
+            destination (str): The host name of the remote home server we want
+                to get the state from.
+            pdu_origin (str): The home server which created the PDU.
+            pdu_id (str): The id of the PDU being requested
+
+        Returns:
+            Deferred: Succeeds when we have finished processing the
+            response of the request.
+
+            The argument passed to the deferred is undefined and may be None.
         """
         pass
 
     def send_transaction(self, transaction):
         """ Sends the given Transaction
 
-            Returns a deferred with tuple of (response_code, response_json_body)
+        Args:
+            transaction (synapse.protocol.units.Transaction): The transaction
+                to send. The Transaction instance includes the destination to
+                send it to.
+
+        Returns:
+            Deferred: Succeeds when we have finished processing the response
+            of the request.
+
+            The argument passed to the callback is a tuple in the form of
+            (response_code, response_body) where the response_body is a
+            python dict decoded from json
         """
         pass
 
-    def register_received_callbacks(self, callbacks):
-        """ Register TransportReceivedCallbacks that will be fired when we
-            receive data.
+    def register_received_callbacks(self, callback):
+        """ Register a callback that will be fired when we receive data.
+
+        Args:
+            callback (synapse.transport.TransportReceivedCallbacks): The
+                callback to fire when we receive data.
+
+        Returns:
+            None
         """
         pass
 
-    def register_request_callbacks(self, callbacks):
-        """ Register TransportRequestCallbacks that will be fired when we get
-            asked for data.
+    def register_request_callbacks(self, callback):
+        """ Register a callback that will be fired when we get asked for data.
+
+        Args:
+            callback (synapse.transport.TransportRequestCallbacks): The
+                callback to fire when we receive requests for data.
+
+        Returns:
+            None
         """
         pass
 
 
 class TransportReceivedCallbacks(object):
-    """ Get's called when we receive data/transaction
+    """ Get's called when we receive a transaction
     """
     def on_transaction(self, transaction):
         """ Called on PUT /send/<transaction_id>
 
-            Should return (as a deferred) a tuple of
-            (response_code, response_body_json)
+        Args:
+            transaction (synapse.transaction.Transaction): The transaction that
+                was sent to us.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            the transaction has finished being processed.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
         """
         pass
 
@@ -70,42 +136,72 @@ class TransportRequestCallbacks(object):
     def on_pull_request(self, versions):
         """ Called on GET /pull/?v=...
 
-            Should return (as a deferred) a tuple of
-            (response_code, response_body_dict)
+        This is hit when a remote home server wants to received all data
+        after a given transaction. This is used when a home server comes back
+        online and wants to get everything it has missed.
 
-            response_body_dict should be from a Transaction if response_code is
-            a 200
+        Args:
+            versions (list): A list of transaction_ids that should be used to
+                determine what PDUs the remote side have not yet seen.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            we have a response ready to send.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
         """
         pass
 
     def on_pdu_request(self, pdu_origin, pdu_id):
         """ Called on GET /pdu/<pdu_origin>/<pdu_id>/
 
-            Should return (as a deferred) a tuple of
-            (response_code, response_body_dict)
+        Someone wants a particular PDU. This PDU may or may not have originated
+        from us.
 
-            response_body_dict should be from a Transaction if response_code is
-            a 200
+        Args:
+            pdu_origin (str): The home server that generated the PDU
+            pdu_id (str): The id that the origination home server assigned it.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            we have a response ready to send.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
         """
         pass
 
     def on_context_state_request(self, context):
         """ Called on GET /state/<context>/
 
-            Should return (as a deferred) a tuple of
-            (response_code, response_body_dict)
+        Get's hit when someone wants all the *current* state for a given
+        contexts.
 
-            response_body_dict should be from a Transaction if response_code is
-            a 200
+        Args:
+            context (str): The name of the context that we're interested in.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            the transaction has finished being processed.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
         """
         pass
 
-
-# This layer is what we use to talk HTTP. We set up a HTTP server to listen
-# for PUTs (people trying to send us data) and GETs (people trying to get
-# missing data).
-#
-# This is the bottom layer of the Server-To-Server stack.
 
 class HttpTransportLayer(TransportLayer):
     """ Used to talk HTTP, both as a client and server """
@@ -129,7 +225,8 @@ class HttpTransportLayer(TransportLayer):
             "GET",
             re.compile("^/pull/$"),
             lambda request:
-                callbacks.on_pull_request(request.args["v"])
+                callbacks.on_pull_request(request.args["origin"][0],
+                    request.args["v"])
         )
 
         # This is when someone asks for a data item for a given server

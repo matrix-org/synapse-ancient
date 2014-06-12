@@ -249,11 +249,13 @@ class Pdu(JsonEncodedObject):
         yield defer.DeferredList(dl, fireOnOneErrback=True)
 
     @staticmethod
+    @defer.inlineCallbacks
     def after_transaction(origin, transaction_id, destination):
-        db_entries = get_pdus_after_transaction_id(origin, transaction_id,
+        db_entries = yield get_pdus_after_transaction_id(origin, transaction_id,
                 destination)
 
-        return Pdu.from_db_entries(db_entries)
+        res = yield Pdu.from_db_entries(db_entries)
+        defer.returnValue(res)
 
     @staticmethod
     @defer.inlineCallbacks
