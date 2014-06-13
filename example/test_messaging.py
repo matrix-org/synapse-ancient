@@ -11,11 +11,10 @@ Usage:
 
 Currently assumes the local address is localhost:<port>
 
-
 """
 
-from synapse.http_wrapper import TwsitedHttpServer, TwistedHttpClient
-from synapse.transport import HttpTransportLayer
+from synapse.protocol.http import TwsitedHttpServer, TwistedHttpClient
+from synapse.transport import TransportLayer
 from synapse.transaction import HttpTransactionLayer
 from synapse.pdu import SynapsePduLayer
 from synapse.messaging import MessagingImpl, MessagingCallbacks
@@ -24,7 +23,7 @@ from synapse.protocol.units import Pdu
 
 from synapse import utils
 
-from twisted.internet import stdio, reactor, error
+from twisted.internet import stdio, reactor, error, defer
 from twisted.protocols import basic
 from twisted.enterprise import adbapi
 from twistar.registry import Registry
@@ -184,8 +183,10 @@ class HomeServer(MessagingCallbacks):
             )
 
         if new_room and origin is not self.server_name:
+            logging.debug("Get room state")
             self.messaging_layer.get_context_state(origin, context)
 
+    @defer.inlineCallbacks
     def send_message(self, room_name, sender, body):
         """ Send a message to a room!
         """
@@ -197,8 +198,12 @@ class HomeServer(MessagingCallbacks):
                 content={"sender": sender, "body": body}
             )
 
-        return self.messaging_layer.send_pdu(pdu)
+        try:
+            yield self.messaging_layer.send_pdu(pdu)
+        except Exception as e:
+            logging.exception(e)
 
+    @defer.inlineCallbacks
     def join_room(self, room_name, sender, joinee, destination=None):
         """ Join a room!
         """
@@ -223,8 +228,12 @@ class HomeServer(MessagingCallbacks):
                     content={"sender": sender, "joinee": joinee}
                 )
 
-            self.messaging_layer.send_pdu(pdu)
+            try:
+                yield self.messaging_layer.send_pdu(pdu)
+            except Exception as e:
+                logging.exception(e)
 
+    @defer.inlineCallbacks
     def invite_to_room(self, room_name, sender, invitee):
         """ Invite someone to a room!
         """
@@ -245,7 +254,10 @@ class HomeServer(MessagingCallbacks):
                     content={"sender": sender, "invitee": invitee}
                 )
 
-            self.messaging_layer.send_pdu(pdu)
+            try:
+                yield self.messaging_layer.send_pdu(pdu)
+            except Exception as e:
+                logging.exception(e)
 
     def _get_room_remote_servers(self, room_name):
         return [i for i in self.joined_rooms.setdefault(room_name,).servers]
@@ -285,7 +297,8 @@ if __name__ == "__main__":
     port = args.port
     server_name = "localhost:%d" % port
 
-    logging.basicConfig(filename=("logs/%d" % port), level=logging.DEBUG)
+    #logging.basicConfig(filename=("logs/%d" % port), level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
     observer = PythonLoggingObserver()
     observer.start()
@@ -297,7 +310,7 @@ if __name__ == "__main__":
     http_server = TwsitedHttpServer()
     http_client = TwistedHttpClient()
 
-    transport_layer = HttpTransportLayer(server_name, http_server, http_client)
+    transport_layer = TransportLayer(server_name, http_server, http_client)
     transaction_layer = HttpTransactionLayer(server_name, transport_layer)
     pdu_layer = SynapsePduLayer(transaction_layer)
 

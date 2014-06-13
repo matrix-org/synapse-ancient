@@ -46,5 +46,6 @@ class MessagingImpl(Messaging):
         return self.pdu_layer.send_pdu(pdu)
 
     def get_context_state(self, destination, context):
+        logging.debug("get_context_state")
         return self.transport_layer.trigger_get_context_state(destination,
             context)

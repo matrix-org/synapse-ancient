@@ -156,8 +156,7 @@ class HttpTransactionLayer(TransactionLayer):
 
         # Check to see if we a) have a transaction_id associated with this
         # request and if so b) have we already responded to it?
-        db_entry = yield transaction.get_db_entry()
-        response = yield db_entry.have_responded()
+        response = yield transaction.have_responded()
 
         if response:
             logging.debug("[%s] We've already responed to this request",
@@ -185,7 +184,7 @@ class HttpTransactionLayer(TransactionLayer):
             defer.returnValue((500, {"error": "Internal server error"}))
             return
 
-        yield db_entry.set_response(code, response)
+        yield transaction.set_response(code, response)
         defer.returnValue((code, response))
 
 
@@ -258,6 +257,7 @@ class _TransactionQueue(object):
 
             if last_sent_rows:
                 prev_txs = [r.transaction_id for r in last_sent_rows]
+                last_sent_rows = []
             else:
                 prev_txs = []
 
@@ -267,6 +267,8 @@ class _TransactionQueue(object):
                             pdus=[p[0] for p in tuple_list],
                             previous_ids=prev_txs
                         )
+
+            yield transaction.persist()
 
             # Update the transaction_id -> pdu_id table
             yield defer.DeferredList([TransactionToPduDbEntry(
@@ -297,6 +299,17 @@ class _TransactionQueue(object):
 
                 # Ensures we don't continue until all callbacks on that
                 # deferred have fired
+                yield deferred
+
+        except Exception as e:
+            logging.error("Problem in _attempt_transaction")
+
+            # We capture this here as there as nothing actually listens
+            # for this finishing functions deferred.
+            logging.exception(e)
+
+            for _, deferred, _ in tuple_list:
+                deferred.errback(e)
                 yield deferred
 
         finally:

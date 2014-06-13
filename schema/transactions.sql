@@ -4,11 +4,22 @@ CREATE TABLE IF NOT EXISTS transactions(
     transaction_id INTEGER, 
     origin TEXT, 
     ts INTEGER,
-    response_code INTEGER, 
-    response TEXT
+    CONSTRAINT uniquesss UNIQUE (transaction_id, origin) ON CONFLICT REPLACE
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS transactions_txid ON transactions(transaction_id, origin);
+
+
+CREATE TABLE IF NOT EXISTS transaction_responses(
+    id INTEGER PRIMARY KEY AUTOINCREMENT, -- twistar requires this
+    transaction_id INTEGER,
+    origin TEXT,
+    response_code INTEGER,
+    response TEXT,
+    CONSTRAINT uniquesss UNIQUE (transaction_id, origin) ON CONFLICT REPLACE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS tx_r_txid ON transaction_responses(transaction_id, origin);
 
 
 -- Stores the last transaction_id we sent to a given destination

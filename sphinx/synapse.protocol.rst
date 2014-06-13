@@ -4,6 +4,14 @@ synapse.protocol package
 Submodules
 ----------
 
+synapse.protocol.http module
+----------------------------
+
+.. automodule:: synapse.protocol.http
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 synapse.protocol.units module
 -----------------------------
 

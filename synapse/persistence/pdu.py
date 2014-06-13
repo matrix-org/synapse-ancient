@@ -56,7 +56,7 @@ def register_remote_pdu(pdu):
     yield _add_pdu_to_tables(pdu)
 
     if pdu.previous_pdus:
-        yield queries.delete_forward_context_extremeties(
+        yield _delete_forward_context_extremeties(
             pdu.context, pdu.previous_pdus)
 
 
@@ -68,7 +68,7 @@ def register_pdu_as_sent(pdu):
         Update extremeties table
     """
     if pdu.previous_pdus:
-        yield queries.delete_forward_context_extremeties(
+        yield _delete_forward_context_extremeties(
             pdu.context, pdu.previous_pdus)
 
 
@@ -116,7 +116,7 @@ def get_pdus_after_transaction_id(origin, transaction_id, destination):
     """ Given a transaction_id, return all PDUs sent *after* that
         transaction_id to a given destination
     """
-    query = queries.get_pdus_after_transaction_id_query()
+    query = queries.pdus_after_transaction_id()
 
     return _load_pdu_entries_from_query(query, origin, transaction_id,
                 destination)
@@ -125,7 +125,7 @@ def get_pdus_after_transaction_id(origin, transaction_id, destination):
 def get_state_pdus_for_context(context):
     """ Given a context, return all state pdus
     """
-    query = queries.get_state_pdus_for_context_query()
+    query = queries.state_pdus_for_context()
 
     return _load_pdu_entries_from_query(query, context)
 
@@ -152,3 +152,10 @@ def _load_pdu_entries_from_query(query, *args):
     db_entries = yield createInstances(results, PduDbEntry)
 
     defer.returnValue(db_entries)
+
+
+def _delete_forward_context_extremeties(context, pdu_list):
+    query, where_args = queries.delete_forward_context_extremeties(
+        context, pdu_list)
+
+    return Registry.DBPOOL.runQuery(query, where_args)

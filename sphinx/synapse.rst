@@ -12,14 +12,6 @@ Subpackages
 Submodules
 ----------
 
-synapse.http_wrapper module
----------------------------
-
-.. automodule:: synapse.http_wrapper
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 synapse.messaging module
 ------------------------
 
