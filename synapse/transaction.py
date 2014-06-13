@@ -15,35 +15,6 @@ class PduDecodeException(Exception):
     pass
 
 
-class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
-    """ The transaction layer is responsible for handling incoming and outgoing
-        transactions, as well as other events (e.g. requests for a specific
-        pdu)
-
-        For incoming transactions it needs to ignore duplicates, and otherwise
-        pass the data upwards. It receives incoming transactions (and other
-        events) via the Transport.TransportCallbacks.
-        For incoming events it usually passes the request directly onwards
-
-        For outgoing transactions, it needs to convert it to a suitable form
-        for the Transport layer to process.
-        For outgoing events, we usually pass it straight to the Transport layer
-    """
-
-    def enqueue_pdu(self, pdu, order):
-        """ Schedules the pdu to be sent.
-
-            The order is an integer which defines the order in which pdus
-            will be sent (ones with a larger order come later). This is to
-            make sure we maintain the ordering defined by the versions without
-            having to know what the versions look like at this layer.
-
-            Returns a deferred which returns when the pdu has successfully
-            been sent to the destination.
-        """
-        pass
-
-
 class TransactionCallbacks(object):
     """ Get's called when the transaction layer receives new data.
     """
@@ -72,7 +43,31 @@ class TransactionCallbacks(object):
         pass
 
 
-class HttpTransactionLayer(TransactionLayer):
+class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
+    """ The transaction layer is responsible for handling incoming and outgoing
+        transactions, as well as other events (e.g. requests for a specific
+        pdu)
+
+        For incoming transactions it needs to ignore duplicates, and otherwise
+        pass the data upwards. It receives incoming transactions (and other
+        events) via the Transport.TransportCallbacks.
+        For incoming events it usually passes the request directly onwards
+
+        For outgoing transactions, it needs to convert it to a suitable form
+        for the Transport layer to process.
+        For outgoing events, we usually pass it straight to the Transport layer
+
+        Attributes:
+            server_name (str): Local home server host
+
+            transport_layer (synapse.transport.TransportLayer): The transport
+                layer to use.
+
+            callback (synapse.transaction.TransactionCallbacks): The callback
+                that gets triggered when we either a) have new data or b) have
+                received a request that transaction layer doesn't handle.
+    """
+
     def __init__(self, server_name, transport_layer):
         self.server_name = server_name
 
@@ -89,7 +84,17 @@ class HttpTransactionLayer(TransactionLayer):
             )
 
     def enqueue_pdu(self, pdu, order):
-            self._transaction_queue.enqueue_pdu(pdu, order)
+        """ Schedules the pdu to be sent.
+
+            The order is an integer which defines the order in which pdus
+            will be sent (ones with a larger order come later). This is to
+            make sure we maintain the ordering defined by the versions without
+            having to know what the versions look like at this layer.
+
+            Returns a deferred which returns when the pdu has successfully
+            been sent to the destination.
+        """
+        self._transaction_queue.enqueue_pdu(pdu, order)
 
     def _wrap_pdus(self, pdu_list):
         return Transaction(
@@ -99,6 +104,11 @@ class HttpTransactionLayer(TransactionLayer):
             ).get_dict()
 
     def set_callback(self, callback):
+        """ Set's the callback.
+
+        Args:
+            callback (synapse.transaction.TransactionCallbacks):
+        """
         self.callback = callback
 
     @defer.inlineCallbacks

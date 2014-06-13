@@ -15,7 +15,7 @@ Currently assumes the local address is localhost:<port>
 
 from synapse.protocol.http import TwsitedHttpServer, TwistedHttpClient
 from synapse.transport import TransportLayer
-from synapse.transaction import HttpTransactionLayer
+from synapse.transaction import TransactionLayer
 from synapse.pdu import SynapsePduLayer
 from synapse.messaging import MessagingImpl, MessagingCallbacks
 
@@ -311,7 +311,7 @@ if __name__ == "__main__":
     http_client = TwistedHttpClient()
 
     transport_layer = TransportLayer(server_name, http_server, http_client)
-    transaction_layer = HttpTransactionLayer(server_name, transport_layer)
+    transaction_layer = TransactionLayer(server_name, transport_layer)
     pdu_layer = SynapsePduLayer(transaction_layer)
 
     messaging = MessagingImpl(server_name, transport_layer, transaction_layer,

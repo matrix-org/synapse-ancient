@@ -1,5 +1,3 @@
-from twisted.protocols import basic
-
 from pdu import PduCallbacks
 
 import logging
