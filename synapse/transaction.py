@@ -1,4 +1,17 @@
 # -*- coding: utf-8 -*-
+""" The transaction layer is responsible for handling incoming and outgoing
+transactions, as well as other events (e.g. requests for a specific
+pdu)
+
+For incoming transactions it needs to ignore duplicates, and otherwise
+pass the data upwards. It receives incoming transactions (and other
+events) via the Transport.TransportCallbacks.
+For incoming events it usually passes the request directly onwards
+
+For outgoing transactions, it needs to convert it to a suitable form
+for the Transport layer to process.
+For outgoing events, we usually pass it straight to the Transport layer
+"""
 
 from twisted.internet import defer
 
@@ -20,9 +33,14 @@ class TransactionCallbacks(object):
     """
 
     def on_received_pdus(self, pdu_list):
-        """ Get's called when we receive a pdus via a transaction.
+        """ Get's called when we receive pdus via a transaction.
 
-            Returns a deferred which is called back when they have been
+        Args:
+            pdu_list (list): A list of synapse.protocol.units.Pdu that we
+                received as part of a transaction
+
+        Returns:
+            Deferred: Called back when they have been
             successfully processed *and* persisted, or errbacks with either
             a) PduDecodeException, at which point we return a 400 on the
             entire transaction, or b) another exception at which point we
@@ -32,13 +50,28 @@ class TransactionCallbacks(object):
 
     def on_context_state_request(self, context):
         """ Called on GET /state/<context>/ from transport layer
-            Returns a deferred tuple of (code, response)
+
+        Args:
+            context (str): The name of the context to get the current state of
+
+        Returns:
+            Deferred: Results in a tuple of (code, response), where `response`
+            should be a list of dicts representing the current state Pdu's
+            for the given context
         """
         pass
 
     def on_pdu_request(self, pdu_origin, pdu_id):
         """ Called on GET /pdu/<pdu_origin>/<pdu_id>/ from transport layer
-            Returns a deferred tuple of (code, response)
+
+        Args:
+            pdu_origin (str): The origin of the Pdu being requested.
+
+            pdu_id (str): The id of the Pdu being requested.
+
+        Returns:
+            Deferred: Results in a tuple of (code, response), where `response`
+            should be a dict representing the Pdu requested.
         """
         pass
 
