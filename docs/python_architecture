@@ -9,9 +9,6 @@ The server to server side of things is designed into 4 distinct layers:
 
 Where the bottom (the transport layer) is what talks to the internet via HTTP, and the top (the messaging layer) talks to the rest of the Home Server with a domain specific API.
 
-Each layer talks exclusively to the layers immediately above and below it.
-
-
 1. Messaging Layer
     This is what the rest of the Home Server hits to send messages, join rooms, etc. It also allows you to register callbacks for when it get's notified by lower levels that e.g. a new message has been received.
 

@@ -29,7 +29,8 @@ class PduDecodeException(Exception):
 
 
 class TransactionCallbacks(object):
-    """ Get's called when the transaction layer receives new data.
+    """ Get's called when the transaction layer receives new data, or needs to
+    request data to handle requests.
     """
 
     def on_received_pdus(self, pdu_list):
@@ -161,6 +162,9 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
     @defer.inlineCallbacks
     def on_pull_request(self, origin, versions):
         """ Called on GET /pull/ from transport layer
+
+        Overrides:
+            TransportReceivedCallbacks
         """
 
         # We know that we're the only node, so we assume that they're
@@ -182,7 +186,10 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
     @defer.inlineCallbacks
     def on_pdu_request(self, pdu_origin, pdu_id):
         """ Called on GET /pdu/<pdu_origin>/<pdu_id>/ from transport layer
-            Returns a deferred tuple of (code, response)
+        Returns a deferred tuple of (code, response)
+
+        Overrides:
+            TransportReceivedCallbacks
         """
         response = yield self.callback.on_pdu_request(pdu_origin, pdu_id)
 
@@ -196,7 +203,10 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
     @defer.inlineCallbacks
     def on_context_state_request(self, context):
         """ Called on GET /state/<context>/ from transport layer
-            Returns a deferred tuple of (code, response)
+        Returns a deferred tuple of (code, response)
+
+        Overrides:
+            TransportReceivedCallbacks
         """
         response = yield self.callback.on_context_state_request(context)
 
@@ -207,6 +217,9 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
     @defer.inlineCallbacks
     def on_transaction(self, transaction):
         """ Called on PUT /send/<transaction_id> from transport layer
+
+        Overrides:
+            TransportRequestCallbacks
         """
 
         logging.debug("[%s] Got transaction", transaction.transaction_id)
