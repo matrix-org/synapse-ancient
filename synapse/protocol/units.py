@@ -331,8 +331,9 @@ class Pdu(JsonEncodedObject):
             d["content"] = json.loads(db_entry.content_json)
             pdus.append(Pdu(**d))
 
-        yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
-        yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+        for p in pdus:
+            yield p.get_destinations_from_db()
+            yield p.get_previous_pdus_from_db()
 
         defer.returnValue(pdus)
 
@@ -398,9 +399,7 @@ class Pdu(JsonEncodedObject):
                     origin=self.origin,
                     destination=dest
                 )
-            dl.append(pde.save())
-
-        yield defer.DeferredList(dl, fireOnOneErrback=True)
+            yield pde.save()
 
     @staticmethod
     @defer.inlineCallbacks

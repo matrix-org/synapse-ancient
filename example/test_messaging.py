@@ -21,8 +21,7 @@ from synapse.messaging import MessagingLayer, MessagingCallbacks
 
 from synapse import utils
 
-from twisted.internet import stdio, reactor, error, defer
-from twisted.protocols import basic
+from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
 from twistar.registry import Registry
 from twisted.python.log import PythonLoggingObserver
@@ -32,75 +31,64 @@ import logging
 import re
 import sqlite3
 
+import cursesio
+import curses.wrapper
+
 
 logger = logging.getLogger("example")
 
 
-class InputOutput(basic.LineReceiver):
+class InputOutput(object):
     """ This is responsible for basic I/O so that a user can interact with
     the example app.
     """
-    delimiter = '\n'
 
-    def __init__(self):
-        self.waiting_for_input = False
+    def __init__(self, screen, user):
+        self.screen = screen
+        self.user = user
 
     def set_home_server(self, server):
         self.server = server
 
-    def connectionMade(self):
-        self.waiting_for_input = True
-        self.transport.write('>>> ')
-
-    def lineReceived(self, line):
+    def on_line(self, line):
         """ This is where we process commands.
         """
-        self.waiting_for_input = False
 
         try:
-            m = re.match("^join (\S+) (\S+)$", line)
+            m = re.match("^join (\S+)$", line)
             if m:
                 # The `sender` wants to join a room.
-                sender, room_name = m.groups()
-                self.sendLine("%s joining %s" % (sender, room_name))
-                self.server.join_room(room_name, sender, sender)
-                self.sendLine("OK.")
+                room_name, = m.groups()
+                self.print_line("%s joining %s" % (self.user, room_name))
+                self.server.join_room(room_name, self.user, self.user)
+                #self.print_line("OK.")
+                return
 
-            m = re.match("^invite (\S+) (\S+) (\S+)$", line)
+            m = re.match("^invite (\S+) (\S+)$", line)
             if m:
                 # `sender` wants to invite someone to a room
-                sender, room_name, invitee = m.groups()
-                self.sendLine("%s invited to %s" % (invitee, room_name))
-                self.server.invite_to_room(room_name, sender, invitee)
-                self.sendLine("OK.")
+                room_name, invitee = m.groups()
+                self.print_line("%s invited to %s" % (invitee, room_name))
+                self.server.invite_to_room(room_name, self.user, invitee)
+                #self.print_line("OK.")
+                return
 
-            m = re.match("^send (\S+) (\S+) (.*)$", line)
+            m = re.match("^send (\S+) (.*)$", line)
             if m:
                 # `sender` wants to message a room
-                sender, room_name, body = m.groups()
-                self.sendLine("%s send to %s" % (sender, room_name))
-                self.server.send_message(room_name, sender, body)
-                self.sendLine("OK.")
+                room_name, body = m.groups()
+                self.print_line("%s send to %s" % (self.user, room_name))
+                self.server.send_message(room_name, self.user, body)
+                #self.print_line("OK.")
+                return
+
+            self.print_line("Unrecognized command")
 
         except Exception as e:
             logger.exception(e)
-        finally:
-            self.waiting_for_input = True
-            self.transport.write('>>> ')
 
     def print_line(self, text):
-        self.sendLine(text.encode('utf8'))
-
-        if self.waiting_for_input:
-            self.transport.write('>>> ')
-
-        self.waiting_for_input = True
-
-    def connectionLost(self, reason):
-        try:
-            reactor.stop()
-        except error.ReactorNotRunning:
-            pass
+        self.screen.print_line(text)
 
 
 class Room(object):
@@ -157,7 +145,7 @@ class HomeServer(MessagingCallbacks):
     def _on_message(self, pdu):
         """ We received a message
         """
-        self.output.print_line("#%s %s\t %s" %
+        self.output.print_line("#%s %s %s" %
                 (pdu.context, pdu.content["sender"], pdu.content["body"])
             )
 
@@ -194,7 +182,6 @@ class HomeServer(MessagingCallbacks):
         try:
             yield self.messaging_layer.send(
                     context=room_name,
-                    destinations=self._get_room_remote_servers(room_name),
                     pdu_type="message",
                     content={"sender": sender, "body": body}
                 )
@@ -202,30 +189,20 @@ class HomeServer(MessagingCallbacks):
             logger.exception(e)
 
     @defer.inlineCallbacks
-    def join_room(self, room_name, sender, joinee, destination=None):
+    def join_room(self, room_name, sender, joinee):
         """ Join a room!
         """
         self._on_join(room_name, joinee)
 
-        if destination:
-            destinations = [destination]
-        else:
-            self._get_or_create_room(room_name)
-            destinations = self._get_room_remote_servers(room_name)
-
-        if destinations:
-            logger.debug("Sending to %s", str(destinations))
-
-            try:
-                yield self.messaging_layer.send_state(
-                        context=room_name,
-                        destinations=destinations,
-                        pdu_type="membership",
-                        state_key=joinee,
-                        content={"sender": sender, "joinee": joinee}
-                    )
-            except Exception as e:
-                logger.exception(e)
+        try:
+            yield self.messaging_layer.send_state(
+                    context=room_name,
+                    pdu_type="membership",
+                    state_key=joinee,
+                    content={"sender": sender, "joinee": joinee}
+                )
+        except Exception as e:
+            logger.exception(e)
 
     @defer.inlineCallbacks
     def invite_to_room(self, room_name, sender, invitee):
@@ -233,21 +210,15 @@ class HomeServer(MessagingCallbacks):
         """
         self._on_invite(self.server_name, room_name, invitee)
 
-        destinations = self._get_room_remote_servers(room_name)
-
-        if destinations:
-            logger.debug("Sending to %s", str(destinations))
-
-            try:
-                yield self.messaging_layer.send_state(
-                        destinations=destinations,
-                        context=room_name,
-                        pdu_type="membership",
-                        state_key=invitee,
-                        content={"sender": sender, "invitee": invitee}
-                    )
-            except Exception as e:
-                logger.exception(e)
+        try:
+            yield self.messaging_layer.send_state(
+                    context=room_name,
+                    pdu_type="membership",
+                    state_key=invitee,
+                    content={"sender": sender, "invitee": invitee}
+                )
+        except Exception as e:
+            logger.exception(e)
 
     def _get_room_remote_servers(self, room_name):
         return [i for i in self.joined_rooms.setdefault(room_name,).servers]
@@ -255,13 +226,19 @@ class HomeServer(MessagingCallbacks):
     def _get_or_create_room(self, room_name):
         return self.joined_rooms.setdefault(room_name, Room(room_name))
 
+    def get_servers_for_context(self, context):
+        return defer.succeed(
+                self.joined_rooms.setdefault(context, Room(context)).servers
+            )
+
 
 def setup_db(db_name):
     """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
     have to worry.
     """
     Registry.DBPOOL = adbapi.ConnectionPool(
-        'sqlite3', database=("dbs/%d") % port, check_same_thread=False)
+        'sqlite3', db_name, check_same_thread=False,
+        cp_min=0, cp_max=1)
 
     schemas = [
             "schema/transactions.sql",
@@ -279,20 +256,22 @@ def setup_db(db_name):
             db_conn.commit()
 
 
-if __name__ == "__main__":
+def main(stdscr):
     parser = argparse.ArgumentParser()
-    parser.add_argument('port', type=int)
+    parser.add_argument('user', type=str)
     parser.add_argument('-v', '--verbose', action='count')
     args = parser.parse_args()
 
-    port = args.port
-    server_name = "localhost:%d" % port
+    user = args.user
+    server_name = utils.origin_from_ucid(user)
+
+    ## Set up logging ##
 
     root_logger = logging.getLogger()
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - '
             '%(message)s')
-    fh = logging.FileHandler("logs/%d" % port)
+    fh = logging.FileHandler("logs/%s" % user)
     fh.setFormatter(formatter)
 
     root_logger.addHandler(fh)
@@ -309,9 +288,16 @@ if __name__ == "__main__":
     observer = PythonLoggingObserver()
     observer.start()
 
-    setup_db("dbs/%d" % port)
+    ## Set up db ##
 
-    input_output = InputOutput()
+    setup_db("dbs/%s" % user)
+
+    ## Set up synapse server
+
+    curses_stdio = cursesio.CursesStdIO(stdscr)
+    input_output = InputOutput(curses_stdio, user)
+
+    curses_stdio.set_callback(input_output)
 
     http_server = TwsitedHttpServer()
     http_client = TwistedHttpClient()
@@ -322,12 +308,23 @@ if __name__ == "__main__":
 
     messaging = MessagingLayer(server_name, transport_layer, pdu_layer)
 
-    hs = HomeServer(server_name, messaging, input_output)
+    hs = HomeServer(server_name, messaging, curses_stdio)
 
     input_output.set_home_server(hs)
 
+    ## Start! ##
+
+    try:
+        port = int(server_name.split(":")[1])
+    except:
+        port = 12345
+
     http_server.start_listening(port)
 
-    stdio.StandardIO(input_output)
+    reactor.addReader(curses_stdio)
 
     reactor.run()
+
+
+if __name__ == "__main__":
+    curses.wrapper(main)

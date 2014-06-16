@@ -97,16 +97,29 @@ class PduLayer(TransactionCallbacks):
         order = self._order
         self._order += 1
 
+        logger.debug("[%s] Persisting PDU", pdu.pdu_id)
+
         # Save *before* trying to send
         yield pdu.persist()
+
+        logger.debug("[%s] Persisted PDU", pdu.pdu_id)
+        logger.debug("[%s] register_new_outgoing_pdu...", pdu.pdu_id)
 
         # This fills out the previous_pdus property
         yield register_new_outgoing_pdu(pdu)
 
+        logger.debug("[%s] register_new_outgoing_pdu... done", pdu.pdu_id)
+        logger.debug("[%s] transaction_layer.enqueue_pdu... ", pdu.pdu_id)
+
         yield self.transaction_layer.enqueue_pdu(pdu, order)
+
+        logger.debug("[%s] transaction_layer.enqueue_pdu... done", pdu.pdu_id)
+        logger.debug("[%s] register_pdu_as_sent...", pdu.pdu_id)
 
         # Deletes the appropriate entries in the extremeties table
         yield register_pdu_as_sent(pdu)
+
+        logger.debug("[%s] register_pdu_as_sent... done", pdu.pdu_id)
 
     @defer.inlineCallbacks
     def on_received_pdus(self, pdu_list):
@@ -160,7 +173,8 @@ class PduLayer(TransactionCallbacks):
             defer.returnValue(None)
             return
 
-        yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+        for p in pdus:
+            yield p.get_previous_pdus_from_db()
 
         defer.returnValue(pdus)
 

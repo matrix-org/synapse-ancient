@@ -82,8 +82,6 @@ def _add_pdu_to_tables(pdu):
         we know the remote sides have seen our message (for outgoing ones)
     """
 
-    dl_list = []
-
     # Check to see if we have already received something that refrences this
     # pdu. If yes, we don't consider it an extremity
     result = yield PduContextEdgesEntry.findBy(
@@ -100,7 +98,7 @@ def _add_pdu_to_tables(pdu):
                 context=pdu.context
             )
 
-        dl_list.append(extrem.save())
+        yield extrem.save()
 
     # Update edges table with new pdu
     for r in pdu.previous_pdus:
@@ -110,9 +108,7 @@ def _add_pdu_to_tables(pdu):
                     prev_pdu_id=r[0],
                     prev_origin=r[1]
                 )
-        dl_list.append(edge.save())
-
-    yield defer.DeferredList(dl_list)
+        yield edge.save()
 
 
 def get_pdus_after_transaction_id(origin, transaction_id, destination):
@@ -139,7 +135,7 @@ def _load_pdu_entries_from_query(query, *args):
         actually load them as protocol.units.Pdu's
     """
     def interaction(txn):
-        logging.debug("Exec %d bindings: %s" % (len(args), query))
+        logger.debug("Exec %d bindings: %s" % (len(args), query))
         txn.execute(query, args)
 
         results = []

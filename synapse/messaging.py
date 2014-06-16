@@ -3,6 +3,8 @@
 from pdu import PduCallbacks
 from protocol.units import Pdu
 
+from twisted.internet import defer
+
 import logging
 
 
@@ -21,6 +23,19 @@ class MessagingCallbacks(object):
 
         Returns:
             Deferred: Results in a dict that used as the response to the PDU.
+        """
+        pass
+
+    def get_servers_for_context(self, context):
+        """ Get's called whenever we want to send a PDU to a given context to
+        determine who we should send the PDU to.
+
+        Args:
+            context (str): The name of the context
+
+        Returns:
+            Deferred: Results in a list of the remote servers to send the
+            PDU to.
         """
         pass
 
@@ -63,12 +78,23 @@ class MessagingLayer(PduCallbacks):
         """
         self.callback = callback
 
+    @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
         """
         Overrides:
             synapse.pdu.PduCallbacks
         """
-        return self.callback.on_receive_pdu(pdu)
+        r = yield defer.maybeDeferred(self.callback.on_receive_pdu, pdu)
+
+        # Don't send feedback for feedback messages!
+        if pdu.pdu_type != "feedback":
+            self.send(
+                    context=pdu.context,
+                    pdu_type="feedback",
+                    content={}
+                )
+
+        defer.returnValue(r)
 
     def on_unseen_pdu(self, originating_server, pdu_id, origin):
         """
@@ -106,12 +132,11 @@ class MessagingLayer(PduCallbacks):
         return self.transport_layer.trigger_get_context_state(destination,
             context)
 
-    def send_state(self, destinations, context, pdu_type, state_key, content):
+    @defer.inlineCallbacks
+    def send_state(self, context, pdu_type, state_key, content):
         """ Convenience method for creating and sending a state PDU.
 
         Args:
-            destinations (list): A list of remote home servers to send the PDU
-                to.
             context (str): The context of the new PDU.
             pdu_type (str): The type of the PDU.
             state_key (str): The state key
@@ -121,6 +146,12 @@ class MessagingLayer(PduCallbacks):
             Deferred: Succeeds when we have finished attempting to deliver the
                 PDU.
         """
+
+        destinations = yield self.callback.get_servers_for_context(context)
+
+        logger.debug("Sending pdu (%s, %s) to %s", context, pdu_type,
+                        str(destinations))
+
         pdu = Pdu.create_new(
                     context=context,
                     origin=self.server_name,
@@ -131,14 +162,15 @@ class MessagingLayer(PduCallbacks):
                     content=content
                 )
 
-        return self.send_pdu(pdu)
+        r = yield self.send_pdu(pdu)
 
-    def send(self, destinations, context, pdu_type, content):
+        defer.returnValue(r)
+
+    @defer.inlineCallbacks
+    def send(self, context, pdu_type, content):
         """ Convenience method for creating and sending a non-state PDU.
 
         Args:
-            destinations (list): A list of remote home servers to send the PDU
-                to.
             context (str): The context of the new PDU.
             pdu_type (str): The type of the PDU.
             content (dict): The content to send.
@@ -147,6 +179,11 @@ class MessagingLayer(PduCallbacks):
             Deferred: Succeeds when we have finished attempting to deliver the
                 PDU.
         """
+        destinations = yield self.callback.get_servers_for_context(context)
+
+        logger.debug("Sending pdu (%s, %s) to %s", context, pdu_type,
+                        str(destinations))
+
         pdu = Pdu.create_new(
                 context=context,
                 origin=self.server_name,
@@ -155,4 +192,6 @@ class MessagingLayer(PduCallbacks):
                 content=content
             )
 
-        return self.send_pdu(pdu)
+        r = yield self.send_pdu(pdu)
+
+        defer.returnValue(r)

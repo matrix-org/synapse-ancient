@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS pdu_context_forward_extremeties(
     id INTEGER PRIMARY KEY AUTOINCREMENT, -- twistar requires this
     pdu_id TEXT,
     origin TEXT,
-    context TEXT
+    context TEXT,
+    CONSTRAINT uniqueness UNIQUE (pdu_id, origin, context) ON CONFLICT REPLACE
 );
 
 CREATE TABLE IF NOT EXISTS pdu_context_edges(
