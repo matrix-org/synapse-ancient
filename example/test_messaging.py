@@ -17,9 +17,7 @@ from synapse.protocol.http import TwsitedHttpServer, TwistedHttpClient
 from synapse.transport import TransportLayer
 from synapse.transaction import TransactionLayer
 from synapse.pdu import PduLayer
-from synapse.messaging import MessagingImpl, MessagingCallbacks
-
-from synapse.protocol.units import Pdu
+from synapse.messaging import MessagingLayer, MessagingCallbacks
 
 from synapse import utils
 
@@ -33,6 +31,9 @@ import argparse
 import logging
 import re
 import sqlite3
+
+
+logger = logging.getLogger("example")
 
 
 class InputOutput(basic.LineReceiver):
@@ -82,7 +83,7 @@ class InputOutput(basic.LineReceiver):
                 self.sendLine("OK.")
 
         except Exception as e:
-            logging.exception(e)
+            logger.exception(e)
         finally:
             self.waiting_for_input = True
             self.transport.write('>>> ')
@@ -183,25 +184,22 @@ class HomeServer(MessagingCallbacks):
             )
 
         if new_room and origin is not self.server_name:
-            logging.debug("Get room state")
+            logger.debug("Get room state")
             self.messaging_layer.get_context_state(origin, context)
 
     @defer.inlineCallbacks
     def send_message(self, room_name, sender, body):
         """ Send a message to a room!
         """
-        pdu = Pdu.create_new(
-                context=room_name,
-                origin=self.server_name,
-                pdu_type="message",
-                destinations=self._get_room_remote_servers(room_name),
-                content={"sender": sender, "body": body}
-            )
-
         try:
-            yield self.messaging_layer.send_pdu(pdu)
+            yield self.messaging_layer.send(
+                    context=room_name,
+                    destinations=self._get_room_remote_servers(room_name),
+                    pdu_type="message",
+                    content={"sender": sender, "body": body}
+                )
         except Exception as e:
-            logging.exception(e)
+            logger.exception(e)
 
     @defer.inlineCallbacks
     def join_room(self, room_name, sender, joinee, destination=None):
@@ -216,22 +214,18 @@ class HomeServer(MessagingCallbacks):
             destinations = self._get_room_remote_servers(room_name)
 
         if destinations:
-            self.output.print_line("Sending to " + str(destinations))
-
-            pdu = Pdu.create_new(
-                    context=room_name,
-                    origin=self.server_name,
-                    pdu_type="membership",
-                    destinations=destinations,
-                    is_state=True,
-                    state_key=joinee,
-                    content={"sender": sender, "joinee": joinee}
-                )
+            logger.debug("Sending to %s", str(destinations))
 
             try:
-                yield self.messaging_layer.send_pdu(pdu)
+                yield self.messaging_layer.send_state(
+                        context=room_name,
+                        destinations=destinations,
+                        pdu_type="membership",
+                        state_key=joinee,
+                        content={"sender": sender, "joinee": joinee}
+                    )
             except Exception as e:
-                logging.exception(e)
+                logger.exception(e)
 
     @defer.inlineCallbacks
     def invite_to_room(self, room_name, sender, invitee):
@@ -242,22 +236,18 @@ class HomeServer(MessagingCallbacks):
         destinations = self._get_room_remote_servers(room_name)
 
         if destinations:
-            self.output.print_line("Sending to " + str(destinations))
-
-            pdu = Pdu.create_new(
-                    context=room_name,
-                    origin=self.server_name,
-                    pdu_type="membership",
-                    destinations=destinations,
-                    is_state=True,
-                    state_key=invitee,
-                    content={"sender": sender, "invitee": invitee}
-                )
+            logger.debug("Sending to %s", str(destinations))
 
             try:
-                yield self.messaging_layer.send_pdu(pdu)
+                yield self.messaging_layer.send_state(
+                        destinations=destinations,
+                        context=room_name,
+                        pdu_type="membership",
+                        state_key=invitee,
+                        content={"sender": sender, "invitee": invitee}
+                    )
             except Exception as e:
-                logging.exception(e)
+                logger.exception(e)
 
     def _get_room_remote_servers(self, room_name):
         return [i for i in self.joined_rooms.setdefault(room_name,).servers]
@@ -292,13 +282,29 @@ def setup_db(db_name):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('port', type=int)
+    parser.add_argument('-v', '--verbose', action='count')
     args = parser.parse_args()
 
     port = args.port
     server_name = "localhost:%d" % port
 
-    #logging.basicConfig(filename=("logs/%d" % port), level=logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG)
+    root_logger = logging.getLogger()
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - '
+            '%(message)s')
+    fh = logging.FileHandler("logs/%d" % port)
+    fh.setFormatter(formatter)
+
+    root_logger.addHandler(fh)
+    root_logger.setLevel(logging.DEBUG)
+
+    sh = logging.StreamHandler()
+    sh.setFormatter(formatter)
+
+    if args.verbose > 1:
+        root_logger.addHandler(sh)
+    elif args.verbose == 1:
+        logger.addHandler(sh)
 
     observer = PythonLoggingObserver()
     observer.start()
@@ -314,8 +320,7 @@ if __name__ == "__main__":
     transaction_layer = TransactionLayer(server_name, transport_layer)
     pdu_layer = PduLayer(transaction_layer)
 
-    messaging = MessagingImpl(server_name, transport_layer, transaction_layer,
-        pdu_layer)
+    messaging = MessagingLayer(server_name, transport_layer, pdu_layer)
 
     hs = HomeServer(server_name, messaging, input_output)
 

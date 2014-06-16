@@ -24,6 +24,9 @@ import logging
 import time
 
 
+logger = logging.getLogger("synapse.transaction")
+
+
 class PduDecodeException(Exception):
     pass
 
@@ -222,19 +225,19 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
             TransportRequestCallbacks
         """
 
-        logging.debug("[%s] Got transaction", transaction.transaction_id)
+        logger.debug("[%s] Got transaction", transaction.transaction_id)
 
         # Check to see if we a) have a transaction_id associated with this
         # request and if so b) have we already responded to it?
         response = yield transaction.have_responded()
 
         if response:
-            logging.debug("[%s] We've already responed to this request",
+            logger.debug("[%s] We've already responed to this request",
                 transaction.transaction_id)
             defer.returnValue(response)
             return
 
-        logging.debug("[%s] Transacition is new", transaction.transaction_id)
+        logger.debug("[%s] Transacition is new", transaction.transaction_id)
 
         # Pass request to transaction layer.
         try:
@@ -243,11 +246,11 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
                 )
         except PduDecodeException as e:
             # Problem decoding one of the PDUs, BAIL BAIL BAIL
-            logging.exception(e)
+            logger.exception(e)
             code = 400
             response = {"error": str(e)}
         except Exception as e:
-            logging.exception(e)
+            logger.exception(e)
 
             # We don't save a 500 response!
 
@@ -287,7 +290,7 @@ class _TransactionQueue(object):
         destinations = [d for d in pdu.destinations
                             if d != self.server_name]
 
-        logging.debug("Sending to: %s" % str(destinations))
+        logger.debug("Sending to: %s" % str(destinations))
 
         if not destinations:
             return defer.succeed(None)
@@ -372,11 +375,11 @@ class _TransactionQueue(object):
                 yield deferred
 
         except Exception as e:
-            logging.error("Problem in _attempt_transaction")
+            logger.error("Problem in _attempt_transaction")
 
             # We capture this here as there as nothing actually listens
             # for this finishing functions deferred.
-            logging.exception(e)
+            logger.exception(e)
 
             for _, deferred, _ in tuple_list:
                 deferred.errback(e)

@@ -9,6 +9,9 @@ import logging
 import json
 
 
+logger = logging.getLogger("synapse.protocol.http")
+
+
 class HttpServer(object):
     """ Interface for registering callbacks on a HTTP server
     """
@@ -100,7 +103,7 @@ def _handle_error(request, e):
         request (twisted.web.http.Request): The HTTP request that went wrong.
         e (Exception): The exception indicating what went wrong.
     """
-    logging.exception(e)
+    logger.exception(e)
     _send_response(
         request,
         500,
@@ -204,9 +207,9 @@ class TwistedHttpClient(HttpClient):
                 headers_dict={"Content-Type": ["application/json"]}
             )
 
-        logging.debug("Getting resp body")
+        logger.debug("Getting resp body")
         body = yield readBody(response)
-        logging.debug("Got resp body")
+        logger.debug("Got resp body")
 
         defer.returnValue((response.code, body))
 
@@ -250,7 +253,7 @@ class TwistedHttpClient(HttpClient):
         """
         headers_dict["User-Agent"] = ["Synapse"]
 
-        logging.debug("Sending request: %s %s", method, url)
+        logger.debug("Sending request: %s %s", method, url)
 
         try:
             response = yield self.agent.request(
@@ -260,9 +263,9 @@ class TwistedHttpClient(HttpClient):
                     producer
                 )
 
-            logging.debug("Got response to %s" % method)
+            logger.debug("Got response to %s" % method)
         except Exception as e:
-            logging.error("Got error in _create_request")
+            logger.error("Got error in _create_request")
             _print_ex(e)
 
             raise
@@ -273,7 +276,7 @@ class TwistedHttpClient(HttpClient):
         else:
             # :'(
             # Update transactions table?
-            logging.error(
+            logger.error(
                 "Got response %d %s", response.code, response.phrase
             )
             raise RuntimeError("Got response %d %s"
@@ -287,7 +290,7 @@ def _print_ex(e):
         for ex in e.reasons:
             _print_ex(ex)
     else:
-        logging.exception(e)
+        logger.exception(e)
 
 
 class _JsonProducer(object):

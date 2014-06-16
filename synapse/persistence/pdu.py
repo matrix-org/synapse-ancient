@@ -9,6 +9,9 @@ import logging
 import queries
 
 
+logger = logging.getLogger("synapse.persistence.pdu")
+
+
 class PduDbEntry(DBObject):
     TABLENAME = "pdus"  # Table name
 

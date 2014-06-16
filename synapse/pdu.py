@@ -17,6 +17,9 @@ from protocol.units import Pdu
 import logging
 
 
+logger = logging.getLogger("synapse.pdu")
+
+
 class PduCallbacks(object):
     """ A callback interface used by the PduLayer to inform layers above about
     new PDUs.
@@ -126,10 +129,10 @@ class PduLayer(TransactionCallbacks):
             if r[0]:
                 ret.append({})
             else:
-                logging.exception(r[1])
+                logger.exception(r[1])
                 ret.append({"error": str(r[1])})
 
-        logging.debug("Returning: %s", str(ret))
+        logger.debug("Returning: %s", str(ret))
 
         defer.returnValue((200, ret))
 
@@ -163,7 +166,7 @@ class PduLayer(TransactionCallbacks):
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
-        logging.debug("_handle_new_pdu %s from %s",
+        logger.debug("_handle_new_pdu %s from %s",
                         str(pdu.pdu_id), pdu.origin)
 
         # Have we seen this pdu before?

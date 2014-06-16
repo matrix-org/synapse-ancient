@@ -16,6 +16,9 @@ import json
 import re
 
 
+logger = logging.getLogger("synapse.transport")
+
+
 class TransportReceivedCallbacks(object):
     """ Callbacks used when we receive a transaction
     """
@@ -168,7 +171,7 @@ class TransportLayer(object):
 
             The argument passed to the deferred is undefined and may be None.
         """
-        logging.debug("trigger_get_context_metadata dest=%s, context=%s",
+        logger.debug("trigger_get_context_metadata dest=%s, context=%s",
              destination, context)
 
         path = "/state/%s/" % context
@@ -195,7 +198,7 @@ class TransportLayer(object):
 
             The result of the deferred is undefined and may be None.
         """
-        logging.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
+        logger.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
              destination, pdu_origin, pdu_id)
 
         path = "/pdu/%s/%s/" % (pdu_origin, pdu_id)
@@ -219,7 +222,7 @@ class TransportLayer(object):
             (response_code, response_body) where the response_body is a
             python dict decoded from json
         """
-        logging.debug("send_data dest=%s, txid=%s",
+        logger.debug("send_data dest=%s, txid=%s",
             transaction.destination, transaction.transaction_id)
 
         # We probably don't want to send things to ourselves, as that's just
@@ -241,7 +244,7 @@ class TransportLayer(object):
                 data=data
             )
 
-        logging.debug("send_data dest=%s, txid=%s, got response: %d",
+        logger.debug("send_data dest=%s, txid=%s, got response: %d",
              transaction.destination, transaction.transaction_id, code)
 
         defer.returnValue((code, response))
@@ -327,11 +330,11 @@ class TransportLayer(object):
             data = request.content.read()
 
             l = data[:20].encode("string_escape")
-            logging.debug("Got data: \"%s\"" % l)
+            logger.debug("Got data: \"%s\"" % l)
 
             transaction_data = json.loads(data)
 
-            logging.debug("Decoded: %s" % (str(transaction_data)))
+            logger.debug("Decoded: %s" % (str(transaction_data)))
 
             # We should ideally be getting this from the security layer.
             # origin = body["origin"]
@@ -346,11 +349,11 @@ class TransportLayer(object):
             transaction = Transaction.decode(transaction_data)
 
         except Exception as e:
-            logging.exception(e)
+            logger.exception(e)
             defer.returnValue(400, {"error": "Invalid transaction"})
             return
 
-        logging.debug("Converted to transaction.")
+        logger.debug("Converted to transaction.")
 
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield self.received_callbacks.on_transaction(
