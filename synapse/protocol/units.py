@@ -88,15 +88,6 @@ class Transaction(JsonEncodedObject):
             "pdus"  # This get's converted to a list of Pdu's
         ]
 
-    db_cols = [
-        "transaction_id",
-        "origin",
-        "ts"
-    ]
-    """ A list of keys that we persist in the database. The column names are
-    the same
-    """
-
     internal_keys = [
             "transaction_id",
             "destination"
@@ -145,29 +136,6 @@ class Transaction(JsonEncodedObject):
 
         return Transaction(**kwargs)
 
-    def persist(self):
-        """ Persists the transaction. This is a no-op for transactions without
-        transaction_id, i.e., transactions created from responses to requests.
-
-        Returns:
-            Deferred.
-        """
-
-        if not self.transaction_id:
-            # We only persist transaction's with IDs, rather than "fake" ones
-            # generated after we receive a request
-            return defer.succeed(None)
-
-        entry = TransactionResponses(
-                **{
-                    k: v for k, v in self.get_dict().items()
-                        if k in self.db_cols
-                }
-            )
-
-        return entry.save()
-
-    @defer.inlineCallbacks
     def have_responded(self):
         """ Have we responded to this transaction?
 
@@ -181,21 +149,10 @@ class Transaction(JsonEncodedObject):
         if not self.transaction_id:
              # This is a fake transaction, which we always process.
             defer.returnValue(None)
-            return
+            return duffer.succeed(None)
 
-        entry = yield TransactionResponses.findBy(
-                transaction_id=self.transaction_id,
-                origin=self.origin
-            )
+        return TransactionQueries.have_responded()
 
-        if entry:
-            entry = entry[0]  # We know there can only be one
-            defer.returnValue(entry.response_code, json.loads(entry.response))
-            return
-
-        defer.returnValue(None)
-
-    @defer.inlineCallbacks
     def set_response(self, code, response):
         """ Set's how we responded to this transaction. This only makes sense
         for actual transactions with transaction_ids, rather than transactions
@@ -210,18 +167,14 @@ class Transaction(JsonEncodedObject):
         """
         if not self.transaction_id:
              # This is a fake transaction, which we can't respond to.
-            defer.returnValue(None)
-            return
+            return defer.succeed(None)
 
-        entry = TransactionResponses(
-                    transaction_id=self.transaction_id,
-                    origin=self.origin
-                )
-
-        entry.response_code = code
-        entry.response = json.dumps(response)
-
-        yield entry.save()
+        return TransactionQueries.set_recieved_txn_response(
+                self.transaction_id,
+                self.origin,
+                code,
+                json.dumps(response)
+            )
 
 
 class Pdu(JsonEncodedObject):
@@ -253,16 +206,6 @@ class Pdu(JsonEncodedObject):
             "transaction_id"
         ]
 
-    db_cols = [
-        "pdu_id",
-        "context",
-        "origin",
-        "ts",
-        "pdu_type",
-        "is_state",
-        "state_key",
-        "transaction_id"
-    ]
     """ A list of keys that we persist in the database. The column names are
     the same
     """
@@ -295,152 +238,6 @@ class Pdu(JsonEncodedObject):
             Pdu._next_pdu_id += 1
 
         return Pdu(**kwargs)
-
-    def get_db_entry(self):
-        """
-        Returns:
-            synapse.persistence.pdu.PduDbEntry: The DBObject associated with
-            this PDU, if one isn't found in the DB, create one (but doesn't
-            save it).
-        """
-        return PduDbEntry.findOrCreate(
-                content_json=json.dumps(self.content),
-                **{
-                    k: v for k, v in self.get_dict().items()
-                        if k in self.db_cols
-                }
-            )
-
-    @staticmethod
-    @defer.inlineCallbacks
-    def from_db_entries(db_entries):
-        """ Converts a list of synapse.persistence.pdu.PduDbEntry to a list
-        of Pdu's. This goes and hits the database to load the `previous_pdus`
-        and `destinations` keys.
-
-        Args:
-            db_entries (list): A lust of synapse.persistence.pdu.PduDbEntry
-
-        Returns:
-            Deferred: Results in a list of Pdus.
-        """
-        pdus = []
-        for db_entry in db_entries:
-            d = {k: v for k, v in db_entry.dict().items()
-                    if k in Pdu.valid_keys}
-            d["content"] = json.loads(db_entry.content_json)
-            pdus.append(Pdu(**d))
-
-        yield defer.DeferredList([p.get_destinations_from_db() for p in pdus])
-        yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
-
-        defer.returnValue(pdus)
-
-    @defer.inlineCallbacks
-    def get_destinations_from_db(self):
-        """ Loads the `destinations` key from the db.
-
-        Returns:
-            Deferred
-        """
-        results = yield PduDestinationEntry.findBy(
-                pdu_id=self.pdu_id,
-                origin=self.origin
-            )
-
-        self.destinations = [r.destination for r in results]
-
-    @defer.inlineCallbacks
-    def get_previous_pdus_from_db(self):
-        """ Loads the `previous_pdus` key from the db.
-
-        Returns:
-            Deferred
-        """
-        results = yield PduContextEdgesEntry.findBy(
-                pdu_id=self.pdu_id,
-                origin=self.origin
-            )
-
-        self.previous_pdus = [{"pdu_id": r.prev_pdu_id, "origin": r.prev_origin}
-                    for r in results]
-
-    @defer.inlineCallbacks
-    def persist(self):
-        """ Persists this Pdu in the database. This writes to seperate tables
-        to store the `destinations` and `previous_pdus` attributes.
-
-        Returns:
-            Deferred: Succeeds when persistance has been successful.
-        """
-        # FIXME: This entire thing should be a single transaction.
-
-        db = yield self.get_db_entry()
-        yield db.save()
-
-        dl = []
-
-        if self.is_state:
-            # We need to persist this as well.
-            state = PduState(
-                    pdu_row_id=db.id,
-                    context=self.context,
-                    pdu_type=self.pdu_type,
-                    state_key=self.state_key
-                )
-
-            dl.append(state.save())
-
-        # Update destinations
-        for dest in self.destinations:
-            pde = PduDestinationEntry(
-                    pdu_id=self.pdu_id,
-                    origin=self.origin,
-                    destination=dest
-                )
-            dl.append(pde.save())
-
-        yield defer.DeferredList(dl, fireOnOneErrback=True)
-
-    @staticmethod
-    @defer.inlineCallbacks
-    def after_transaction(origin, transaction_id, destination):
-        """ Get all pdus after a transaction_id that originated from a given
-        home server.
-
-        Args:
-            origin (str): Only returns pdus with this origin.
-            transaction_id (str): The transaction_id to get PDU's after. Not
-                inclusive.
-            destination (str): The home server that received the transacion.
-
-        Returns:
-            Deferred: Results in a list of PDUs that were sent after the
-            given transaction.
-        """
-        db_entries = yield get_pdus_after_transaction_id(origin, transaction_id,
-                destination)
-
-        res = yield Pdu.from_db_entries(db_entries)
-        defer.returnValue(res)
-
-    @staticmethod
-    @defer.inlineCallbacks
-    def get_state(context):
-        """ Get all PDU's associated with a given context.
-
-        Args:
-            context (str): The context to get state for.
-
-        Returns:
-            Deferred: Results in a list of PDUs that represent the current
-            state of the contex.t
-        """
-        db_entries = yield get_state_pdus_for_context(context)
-
-        r = yield Pdu.from_db_entries(db_entries)
-
-        defer.returnValue(r)
 
 
 def _encode(obj):

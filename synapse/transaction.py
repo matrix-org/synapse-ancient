@@ -24,6 +24,9 @@ import logging
 import time
 
 
+logger = logging.getLogger("synapse.transaction")
+
+
 class PduDecodeException(Exception):
     pass
 
@@ -222,19 +225,19 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
             TransportRequestCallbacks
         """
 
-        logging.debug("[%s] Got transaction", transaction.transaction_id)
+        logger.debug("[%s] Got transaction", transaction.transaction_id)
 
         # Check to see if we a) have a transaction_id associated with this
         # request and if so b) have we already responded to it?
         response = yield transaction.have_responded()
 
         if response:
-            logging.debug("[%s] We've already responed to this request",
+            logger.debug("[%s] We've already responed to this request",
                 transaction.transaction_id)
             defer.returnValue(response)
             return
 
-        logging.debug("[%s] Transacition is new", transaction.transaction_id)
+        logger.debug("[%s] Transacition is new", transaction.transaction_id)
 
         # Pass request to transaction layer.
         try:
@@ -243,11 +246,11 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
                 )
         except PduDecodeException as e:
             # Problem decoding one of the PDUs, BAIL BAIL BAIL
-            logging.exception(e)
+            logger.exception(e)
             code = 400
             response = {"error": str(e)}
         except Exception as e:
-            logging.exception(e)
+            logger.exception(e)
 
             # We don't save a 500 response!
 
@@ -279,6 +282,7 @@ class _TransactionQueue(object):
         # tuple(pending pdus, deferred, order)
         self.pending_pdus_list = {}
 
+    @defer.inlineCallbacks
     def enqueue_pdu(self, pdu, order):
         # We loop through all destinations to see whether we already have
         # a transaction in progress. If we do, stick it in the pending_pdus
@@ -287,10 +291,10 @@ class _TransactionQueue(object):
         destinations = [d for d in pdu.destinations
                             if d != self.server_name]
 
-        logging.debug("Sending to: %s" % str(destinations))
+        logger.debug("Sending to: %s" % str(destinations))
 
         if not destinations:
-            return defer.succeed(None)
+            return
 
         deferred_list = []
 
@@ -302,9 +306,7 @@ class _TransactionQueue(object):
 
             self._attempt_new_transaction(destination)
 
-            deferred_list.append(deferred)
-
-        return defer.DeferredList(deferred_list)
+            yield deferred_list.append(deferred)
 
     @defer.inlineCallbacks
     def _attempt_new_transaction(self, destination):
@@ -317,9 +319,13 @@ class _TransactionQueue(object):
         if not tuple_list:
             return
 
+        logger.debug("TX [%s] Attempting new transaction", destination)
+
         try:
             # Sort based on the order field
             tuple_list.sort(key=lambda t: t[2])
+
+            logger.debug("[%s] Getting prev_txs...", destination)
 
             last_sent_rows = yield LastSentTransactionDbEntry.findBy(
                     destination=destination
@@ -331,6 +337,9 @@ class _TransactionQueue(object):
             else:
                 prev_txs = []
 
+            logger.debug("TX [%s] prev_txs: %s", destination, str(prev_txs))
+            logger.debug("TX [%s] Persisting transaction...", destination)
+
             transaction = Transaction.create_new(
                             origin=self.server_name,
                             destination=destination,
@@ -340,26 +349,43 @@ class _TransactionQueue(object):
 
             yield transaction.persist()
 
-            # Update the transaction_id -> pdu_id table
-            yield defer.DeferredList([TransactionToPduDbEntry(
+            logger.debug("TX [%s] Persisted transaction", destination)
+            logger.debug("TX [%s] Persisting transaction<->pdu...", destination)
+
+            for p in transaction.pdus:
+                yield TransactionToPduDbEntry(
                     transaction_id=transaction.transaction_id,
                     destination=destination,
                     pdu_id=p.pdu_id
-                ).save() for p in transaction.pdus])
+                ).save()
+
+            logger.debug("TX [%s] Persisted transaction<->pdu", destination)
+            logger.debug("TX [%s] Sending transaction...", destination)
 
             # Actually send the transaction
             code, response = yield self.transport_layer.send_transaction(
                     transaction
                 )
 
+            logger.debug("TX [%s] Sent transaction", destination)
+            logger.debug("TX [%s] Deleting last_sent_rows...", destination)
+
             # Okay, we successfully talked to the server (we didn't throw an
             # error),  so update the last_sent_transactions table
-            yield defer.DeferredList([row.delete() for row in last_sent_rows])
+            for row in last_sent_rows:
+                yield row.delete()
+
+            logger.debug("TX [%s] Deleted last_sent_rows", destination)
+            logger.debug("TX [%s] Updating last sent...", destination)
+
             yield LastSentTransactionDbEntry(
                     transaction_id=transaction.transaction_id,
                     destination=destination,
                     ts=transaction.ts
                 ).save()
+
+            logger.debug("TX [%s] Updated last sent", destination)
+            logger.debug("TX [%s] Yielding to callbacks...", destination)
 
             for _, deferred, _ in tuple_list:
                 if code == 200:
@@ -371,12 +397,14 @@ class _TransactionQueue(object):
                 # deferred have fired
                 yield deferred
 
+            logger.debug("TX [%s] Yielded to callbacks", destination)
+
         except Exception as e:
-            logging.error("Problem in _attempt_transaction")
+            logger.error("TX Problem in _attempt_transaction")
 
             # We capture this here as there as nothing actually listens
             # for this finishing functions deferred.
-            logging.exception(e)
+            logger.exception(e)
 
             for _, deferred, _ in tuple_list:
                 deferred.errback(e)

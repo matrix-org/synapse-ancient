@@ -17,6 +17,9 @@ from protocol.units import Pdu
 import logging
 
 
+logger = logging.getLogger("synapse.pdu")
+
+
 class PduCallbacks(object):
     """ A callback interface used by the PduLayer to inform layers above about
     new PDUs.
@@ -94,16 +97,29 @@ class PduLayer(TransactionCallbacks):
         order = self._order
         self._order += 1
 
+        logger.debug("[%s] Persisting PDU", pdu.pdu_id)
+
         # Save *before* trying to send
         yield pdu.persist()
+
+        logger.debug("[%s] Persisted PDU", pdu.pdu_id)
+        logger.debug("[%s] register_new_outgoing_pdu...", pdu.pdu_id)
 
         # This fills out the previous_pdus property
         yield register_new_outgoing_pdu(pdu)
 
+        logger.debug("[%s] register_new_outgoing_pdu... done", pdu.pdu_id)
+        logger.debug("[%s] transaction_layer.enqueue_pdu... ", pdu.pdu_id)
+
         yield self.transaction_layer.enqueue_pdu(pdu, order)
+
+        logger.debug("[%s] transaction_layer.enqueue_pdu... done", pdu.pdu_id)
+        logger.debug("[%s] register_pdu_as_sent...", pdu.pdu_id)
 
         # Deletes the appropriate entries in the extremeties table
         yield register_pdu_as_sent(pdu)
+
+        logger.debug("[%s] register_pdu_as_sent... done", pdu.pdu_id)
 
     @defer.inlineCallbacks
     def on_received_pdus(self, pdu_list):
@@ -126,10 +142,10 @@ class PduLayer(TransactionCallbacks):
             if r[0]:
                 ret.append({})
             else:
-                logging.exception(r[1])
+                logger.exception(r[1])
                 ret.append({"error": str(r[1])})
 
-        logging.debug("Returning: %s", str(ret))
+        logger.debug("Returning: %s", str(ret))
 
         defer.returnValue((200, ret))
 
@@ -157,13 +173,14 @@ class PduLayer(TransactionCallbacks):
             defer.returnValue(None)
             return
 
-        yield defer.DeferredList([p.get_previous_pdus_from_db() for p in pdus])
+        for p in pdus:
+            yield p.get_previous_pdus_from_db()
 
         defer.returnValue(pdus)
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
-        logging.debug("_handle_new_pdu %s from %s",
+        logger.debug("_handle_new_pdu %s from %s",
                         str(pdu.pdu_id), pdu.origin)
 
         # Have we seen this pdu before?
