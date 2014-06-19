@@ -97,6 +97,9 @@ class PduLayer(TransactionCallbacks):
 
         logger.debug("[%s] Persisting PDU", pdu.pdu_id)
 
+        # Populate the prev_pdus
+        yield pdu.populate_previous_pdus()
+
         # Save *before* trying to send
         yield pdu.persist_outgoing()
 
@@ -141,7 +144,7 @@ class PduLayer(TransactionCallbacks):
             TransactionCallbacks
         """
 
-        return Pdu.get_state(context)
+        return Pdu.current_state(context)
 
     @defer.inlineCallbacks
     def on_pdu_request(self, pdu_origin, pdu_id):
@@ -172,7 +175,7 @@ class PduLayer(TransactionCallbacks):
             return
 
         # Now we check to see if we have seen the pdus it references.
-        for pdu_id, origin in pdu.previous_pdus:
+        for pdu_id, origin in pdu.prev_pdus:
             exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
             if not exists:
                 # Oh no! We better request it.

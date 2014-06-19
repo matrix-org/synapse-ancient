@@ -43,7 +43,10 @@ class Table(object):
                     where_clause
                 )
         else:
-            return _select_clause
+            return _select_clause % (
+                    ", ".join(clz.fields),
+                    clz.table_name,
+                )
 
     @classmethod
     def insert_statement(clz):
@@ -78,6 +81,7 @@ class ReceivedTransactionsTable(Table):
         "ts",
         "response_code",
         "response_json",
+        "has_been_referenced",
     ]
 
     EntryType = namedtuple("ReceivedTransactionsEntry", fields)
@@ -95,7 +99,6 @@ class SentTransactions(Table):
         "ts",
         "response_code",
         "response_json",
-        "have_referenced",
     ]
 
     EntryType = namedtuple("SentTransactionsEntry", fields)

@@ -4,11 +4,7 @@ server to server protocol.
 """
 
 from twisted.internet import defer
-
-from ..persistence.transaction import TransactionDbEntry, TransactionResponses
-from ..persistence.pdu import (PduDbEntry, PduDestinationEntry,
-    PduContextEdgesEntry, PduState, get_pdus_after_transaction_id,
-    get_state_pdus_for_context)
+from ..persistence.transactions import TransactionQueries, PduQueries
 
 import copy
 import json
@@ -111,8 +107,6 @@ class Transaction(JsonEncodedObject):
             for p in self.pdus:
                 p.transaction_id = p
 
-        self._db_entry = None
-
     @staticmethod
     def decode(transaction_dict):
         """ Used to convert a dict from the interwebs to a Transaction
@@ -151,7 +145,8 @@ class Transaction(JsonEncodedObject):
             defer.returnValue(None)
             return duffer.succeed(None)
 
-        return TransactionQueries.have_responded()
+        return TransactionQueries.get_response_for_received(
+            self.transaction_id, self.origin)
 
     def set_response(self, code, response):
         """ Set's how we responded to this transaction. This only makes sense
@@ -214,7 +209,6 @@ class Transaction(JsonEncodedObject):
                 [(p.pdu_id, p.origin) for p in self.pdus]
             )
 
-    @defer.inlineCallbacks
     def delivered(self, response_code, response_json):
         """ Marks this outgoing transaction as delivered.
 
@@ -249,7 +243,7 @@ class Pdu(JsonEncodedObject):
             "state_key",
             "destinations",
             "transaction_id",
-            "previous_pdus",
+            "prev_pdus",
             "content"
         ]
 
@@ -268,10 +262,12 @@ class Pdu(JsonEncodedObject):
     # TODO: We need to make this properly load content rather than
     # just leaving it as a dict. (OR DO WE?!)
 
-    def __init__(self, destinations=[], is_state=False, **kwargs):
+    def __init__(self, destinations=[], is_state=False, prev_pdus=[],
+    **kwargs):
         super(Pdu, self).__init__(
                 destinations=destinations,
                 is_state=is_state,
+                prev_pdus=prev_pdus,
                 **kwargs
             )
 
@@ -318,7 +314,10 @@ class Pdu(JsonEncodedObject):
         Returns:
             Pdu
         """
-        return Pdu(prev_pdus=pdu_tupe.prev_pdu_list, **pdu_tuple.pdu_entry)
+        if pdu_tuple:
+            return Pdu(prev_pdus=pdu_tuple.prev_pdu_list, **pdu_tuple.pdu_entry)
+        else:
+            return None
 
     @staticmethod
     @defer.inlineCallbacks
@@ -343,16 +342,7 @@ class Pdu(JsonEncodedObject):
             Deferred
         """
 
-        if self.is_state:
-            return PduQueries.insert_state(
-                    self.prev_pdus,
-                    **self.get_dict()
-                )
-        else:
-            return PduQueries.insert(
-                    self.prev_pdus,
-                    **self.get_dict()
-                )
+        return self._persist()
 
     def persist_outgoing(self):
         """ Store this PDU we are sending in the database.
@@ -361,15 +351,21 @@ class Pdu(JsonEncodedObject):
             Deferred
         """
 
+        return self._persist()
+
+    def _persist(self):
+        kwargs = copy.copy(self.__dict__)
+        del kwargs["content"]
+        kwargs["content_json"] = json.dumps(self.content)
+        kwargs["unrecognized_keys"] = json.dumps(kwargs["unrecognized_keys"])
+
         if self.is_state:
             return PduQueries.insert_state(
-                    self.prev_pdus,
-                    **self.get_dict()
+                    **kwargs
                 )
         else:
             return PduQueries.insert(
-                    self.prev_pdus,
-                    **self.get_dict()
+                    **kwargs
                 )
 
     @defer.inlineCallbacks

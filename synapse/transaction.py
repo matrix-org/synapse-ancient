@@ -325,10 +325,12 @@ class _TransactionQueue(object):
 
             logger.debug("TX [%s] Persisting transaction...", destination)
 
+            pdus = [p[0] for p in tuple_list]
+
             transaction = Transaction.create_new(
                             origin=self.server_name,
                             destination=destination,
-                            pdus=[p[0] for p in tuple_list],
+                            pdus=pdus,
                             #previous_ids=prev_txs
                         )
 

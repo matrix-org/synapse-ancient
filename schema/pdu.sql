@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS state_pdus(
     context TEXT,
     pdu_type TEXT,
     state_key TEXT ,
-    CONSTRAINT pdu_row_id UNIQUE (pdu_row_id),
     CONSTRAINT uniqueness UNIQUE (context, pdu_type, state_key) ON CONFLICT REPLACE
 );
 
@@ -32,7 +31,7 @@ create TABLE IF NOT EXISTS pdu_destinations(
     CONSTRAINT uniqueness UNIQUE (pdu_id, origin, destination) ON CONFLICT REPLACE
 );
 
-CREATE TABLE IF NOT EXISTS pdu_extremeties(
+CREATE TABLE IF NOT EXISTS pdu_forward_extremeties(
     pdu_id TEXT,
     origin TEXT,
     context TEXT,
@@ -49,14 +48,11 @@ CREATE TABLE IF NOT EXISTS pdu_edges(
 );
 
 
-create INDEX IF NOT EXISTS pdu_row ON pdus(id);
 CREATE INDEX IF NOT EXISTS pdu_id ON pdus(pdu_id, origin);
 
 CREATE INDEX IF NOT EXISTS dests_id ON pdu_destinations (pdu_id, origin);
 -- CREATE INDEX IF NOT EXISTS dests ON pdu_destinations (destination);
 
-CREATE INDEX IF NOT EXISTS state_pdu_id ON state_pdus(pdu_row_id);
-
-CREATE INDEX IF NOT EXISTS pdu_extrem_context ON pdu_extremeties(context);
+CREATE INDEX IF NOT EXISTS pdu_extrem_context ON pdu_forward_extremeties(context);
 CREATE INDEX IF NOT EXISTS pdu_edges_id ON pdu_edges(pdu_id, origin);
 
