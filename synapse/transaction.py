@@ -17,8 +17,6 @@ from twisted.internet import defer
 
 from transport import TransportReceivedCallbacks, TransportRequestCallbacks
 from protocol.units import Transaction, Pdu
-from persistence.transaction import (LastSentTransactionDbEntry,
-    TransactionToPduDbEntry)
 
 import logging
 import time
@@ -74,8 +72,8 @@ class TransactionCallbacks(object):
             pdu_id (str): The id of the Pdu being requested.
 
         Returns:
-            Deferred: Results in a tuple of (code, response), where `response`
-            should be a dict representing the Pdu requested.
+            Deferred: Results in a synapse.protocol.units.Pdu, or `None` if
+            we couldn't find a matching Pdu.
         """
         pass
 
@@ -175,9 +173,9 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         tx_id = max([int(v) for v in versions])
 
         response = yield Pdu.after_transaction(
-                self.server_name,
                 tx_id,
-                origin
+                origin,
+                self.server_name
             )
 
         if not response:
@@ -325,41 +323,18 @@ class _TransactionQueue(object):
             # Sort based on the order field
             tuple_list.sort(key=lambda t: t[2])
 
-            logger.debug("[%s] Getting prev_txs...", destination)
-
-            last_sent_rows = yield LastSentTransactionDbEntry.findBy(
-                    destination=destination
-                )
-
-            if last_sent_rows:
-                prev_txs = [r.transaction_id for r in last_sent_rows]
-                last_sent_rows = []
-            else:
-                prev_txs = []
-
-            logger.debug("TX [%s] prev_txs: %s", destination, str(prev_txs))
             logger.debug("TX [%s] Persisting transaction...", destination)
 
             transaction = Transaction.create_new(
                             origin=self.server_name,
                             destination=destination,
                             pdus=[p[0] for p in tuple_list],
-                            previous_ids=prev_txs
+                            #previous_ids=prev_txs
                         )
 
-            yield transaction.persist()
+            yield transaction.prepare_to_send()
 
             logger.debug("TX [%s] Persisted transaction", destination)
-            logger.debug("TX [%s] Persisting transaction<->pdu...", destination)
-
-            for p in transaction.pdus:
-                yield TransactionToPduDbEntry(
-                    transaction_id=transaction.transaction_id,
-                    destination=destination,
-                    pdu_id=p.pdu_id
-                ).save()
-
-            logger.debug("TX [%s] Persisted transaction<->pdu", destination)
             logger.debug("TX [%s] Sending transaction...", destination)
 
             # Actually send the transaction
@@ -368,23 +343,11 @@ class _TransactionQueue(object):
                 )
 
             logger.debug("TX [%s] Sent transaction", destination)
-            logger.debug("TX [%s] Deleting last_sent_rows...", destination)
+            logger.debug("TX [%s] Marking as delivered...", destination)
 
-            # Okay, we successfully talked to the server (we didn't throw an
-            # error),  so update the last_sent_transactions table
-            for row in last_sent_rows:
-                yield row.delete()
+            yield transaction.delivered(code, response)
 
-            logger.debug("TX [%s] Deleted last_sent_rows", destination)
-            logger.debug("TX [%s] Updating last sent...", destination)
-
-            yield LastSentTransactionDbEntry(
-                    transaction_id=transaction.transaction_id,
-                    destination=destination,
-                    ts=transaction.ts
-                ).save()
-
-            logger.debug("TX [%s] Updated last sent", destination)
+            logger.debug("TX [%s] Marked as delivered", destination)
             logger.debug("TX [%s] Yielding to callbacks...", destination)
 
             for _, deferred, _ in tuple_list:

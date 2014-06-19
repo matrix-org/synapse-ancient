@@ -176,6 +176,58 @@ class Transaction(JsonEncodedObject):
                 json.dumps(response)
             )
 
+    def persist_as_received(self, response_code, response_json):
+        """ Saves this transaction into the received transactions table.
+
+        Args:
+            response_code (int): The HTTP response code we responded with.
+            response_json (dict): The response body we returned
+
+        Response:
+            Deferred: Succeeds after we successfully persist.
+        """
+
+        return TransactionQueries.insert_received(
+                ReceivedTransactionsTable.EntryType(
+                    transaction_id=self.transaction_id,
+                    origin=self.origin,
+                    ts=self.ts,
+                    response_code=response_code,
+                    response_json=json.dumps(response_json)
+                ),
+                self.previous_ids
+            )
+
+    @defer.inlineCallbacks
+    def prepare_to_send(self):
+        """ Prepares this transaction for sending. Persists the transaction and
+        computes the correct value for the prev_ids list.
+
+        Returns:
+            Deferred: Succeeds when the transaction is ready for transmission.
+        """
+
+        self.prev_ids = yield TransactionQueries.prep_send_transaction(
+                self.transaction_id,
+                self.destination,
+                self.ts,
+                [(p.pdu_id, p.origin) for p in self.pdus]
+            )
+
+    @defer.inlineCallbacks
+    def delivered(self, response_code, response_json):
+        """ Marks this outgoing transaction as delivered.
+
+        Args:
+            response_code (int): The HTTP response code we recieved.
+            response_json (dict): The response body.
+
+        Returns:
+            Deferred: Succeeds after we persisted the result
+        """
+        return TransactionQueries.delivered_txn(self.transaction_id,
+            self.destination, response_code, json.dumps(response_json))
+
 
 class Pdu(JsonEncodedObject):
     """ A Pdu represents a piece of data sent from a server and is associated
@@ -238,6 +290,120 @@ class Pdu(JsonEncodedObject):
             Pdu._next_pdu_id += 1
 
         return Pdu(**kwargs)
+
+    @staticmethod
+    @defer.inlineCallbacks
+    def current_state(context):
+        """ Get a list of PDUs representing the current state of a context.
+
+        Args:
+            context (str): The context we're interested in.
+
+        Returns:
+            Deferred: Results in a `list` of Pdus
+        """
+
+        results = yield PduQueries.get_current_state(context)
+
+        defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
+
+    @staticmethod
+    def _from_pdu_tuple(pdu_tuple):
+        """ Converts a PduTuple to a Pdu
+
+        Args:
+            pdu_tuple (synapse.persistence.transactions.PduTuple): The tuple to
+                convert
+
+        Returns:
+            Pdu
+        """
+        return Pdu(prev_pdus=pdu_tupe.prev_pdu_list, **pdu_tuple.pdu_entry)
+
+    @staticmethod
+    @defer.inlineCallbacks
+    def get_persisted_pdu(pdu_id, pdu_origin):
+        """ Get's a specific PDU from the database.
+
+        Args:
+            pdu_id (str): The PDU ID.
+            pdu_origin (str): The PDU origin.
+
+        Retruns:
+            Deferred: Results in a Pdu
+        """
+        pdu_tuple = yield PduQueries.get_pdu(pdu_id, pdu_origin)
+
+        defer.returnValue(Pdu._from_pdu_tuple(pdu_tuple))
+
+    def persist_received(self):
+        """ Store this PDU we received in the database.
+
+        Returns:
+            Deferred
+        """
+
+        if self.is_state:
+            return PduQueries.insert_state(
+                    self.prev_pdus,
+                    **self.get_dict()
+                )
+        else:
+            return PduQueries.insert(
+                    self.prev_pdus,
+                    **self.get_dict()
+                )
+
+    def persist_outgoing(self):
+        """ Store this PDU we are sending in the database.
+
+        Returns:
+            Deferred
+        """
+
+        if self.is_state:
+            return PduQueries.insert_state(
+                    self.prev_pdus,
+                    **self.get_dict()
+                )
+        else:
+            return PduQueries.insert(
+                    self.prev_pdus,
+                    **self.get_dict()
+                )
+
+    @defer.inlineCallbacks
+    def populate_previous_pdus(self):
+        """ Populates the prev_pdus field with the current most recent pdus.
+        This is used when we are creating new Pdus for a context.
+
+        Returns:
+            Deferred: Succeeds when prev_pdus have been successfully updated.
+        """
+
+        self.prev_pdus = yield PduQueries.get_prev_pdus(self.context)
+
+    @staticmethod
+    @defer.inlineCallbacks
+    def after_transaction(transaction_id, destination, origin):
+        """ Get's a list of PDUs that we sent to a given destination after
+        a transaction_id.
+
+        Args:
+            transaction_id (str): The transaction_id of the last transaction
+                they saw.
+            destination (str): The remote home server address.
+            origin (str): The local home server address.
+
+        Results:
+            Deferred: A list of Pdus.
+        """
+        results = yield PduQueries.get_after_transaction(
+            transaction_id,
+            destination,
+            origin)
+
+        defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
 
 
 def _encode(obj):

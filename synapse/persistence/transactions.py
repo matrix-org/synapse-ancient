@@ -14,6 +14,7 @@ from collections import namedtuple
 
 
 PduTuple = namedtuple("PduTuple", ("pdu_entry", "prev_pdu_list"))
+TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
 
 
 class TransactionQueries(object):
@@ -31,9 +32,9 @@ class TransactionQueries(object):
             defer.returnValue(None)
 
     @classmethod
-    def insert_received(clz, **cols):
-        entry = ReceivedTransactionsTable.EntryType(**cols)
-        return DBPOOL.run_interaction(clz._insert_interaction, entry)
+    def insert_received(clz, tx_tuple):
+        #entry = ReceivedTransactionsTable.EntryType(**pdu_tuple.entry)
+        return DBPOOL.run_interaction(clz._insert_interaction, tx_tuple)
 
     @classmethod
     def set_recieved_txn_response(clz, transaction_id, origin, code,
@@ -87,10 +88,23 @@ class TransactionQueries(object):
             return results[1]
 
     @staticmethod
-    def _insert_received_interaction(txn, entry):
+    def _insert_received_interaction(txn, tx_tuple):
         query = ReceivedTransactionsTable.insert_statement()
 
-        return txn.execute(query, *entry)
+        txn.execute(query, *tx_tuple.tx_entry)
+
+        query = (
+                "UPDATE %s SET has_been_referenced = 1 "
+                "WHERE transaction_id = ? AND orign = ?"
+                ) % ReceivedTransactionsTable.table_name
+
+        origin = tx_tuple.tx_entry.origin
+
+        txn.executemany(query, [
+                (tx_id, origin) for tx_id in tx_tuple.prev_ids
+            ])
+
+        txn.commit()
 
     @staticmethod
     def _set_recieved_txn_response_interaction(txn, transaction_id, origin,
@@ -145,7 +159,7 @@ class TransactionQueries(object):
                 have_referenced=0
             ))
 
-        # Update he tx id -> pdu id mapping
+        # Update the tx id -> pdu id mapping
 
         query = TransactionsToPduTable.insert_statement()
         txn.executemany(query, [
