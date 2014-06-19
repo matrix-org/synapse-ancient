@@ -142,8 +142,7 @@ class Transaction(JsonEncodedObject):
         """
         if not self.transaction_id:
              # This is a fake transaction, which we always process.
-            defer.returnValue(None)
-            return duffer.succeed(None)
+            return defer.succeed(None)
 
         return TransactionQueries.get_response_for_received(
             self.transaction_id, self.origin)
