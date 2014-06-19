@@ -315,7 +315,13 @@ class Pdu(JsonEncodedObject):
             Pdu
         """
         if pdu_tuple:
-            return Pdu(prev_pdus=pdu_tuple.prev_pdu_list, **pdu_tuple.pdu_entry)
+            d = copy.copy(pdu_tuple.pdu_entry._asdict())
+            d["content"] = json.loads(d["content_json"])
+            del d["content_json"]
+            return Pdu(
+                    prev_pdus=pdu_tuple.prev_pdu_list,
+                    **d
+                )
         else:
             return None
 

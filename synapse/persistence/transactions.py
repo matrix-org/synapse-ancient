@@ -256,8 +256,8 @@ class PduQueries(object):
 
         return PduTuple(pdu_entry, edges)
 
-    @staticmethod
-    def _get_current_state_interaction(txn, context):
+    @classmethod
+    def _get_current_state_interaction(clz, txn, context):
         pdus_fields = ", ".join(["pdus.%s" % f for f in PdusTable.fields])
 
         query = ("SELECT %s FROM pdus INNER JOIN state_pdus ON "
@@ -267,7 +267,8 @@ class PduQueries(object):
 
         txn.execute(query, (context,))
 
-        return PdusTable.decode_results(txn.fetchall())
+        pdus = PdusTable.decode_results(txn.fetchall())
+        return clz._get_pdu_tuple_from_entries(txn, pdus)
 
     @classmethod
     def _insert_interaction(clz, txn, entry, prev_pdus):
@@ -309,8 +310,8 @@ class PduQueries(object):
 
         return [(row.pdu_id, row.origin) for row in results]
 
-    @staticmethod
-    def _get_pdus_after_transaction(txn, transaction_id, destination,
+    @classmethod
+    def _get_pdus_after_transaction(clz, txn, transaction_id, destination,
     local_server):
         pdus_fields = ", ".join(["pdus.%s" % f for f in PdusTable.fields])
 
@@ -329,9 +330,12 @@ class PduQueries(object):
 
         pdus = PdusTable.decode_results(txn.fetchall())
 
-        # Now get all the "previous_pdus" versioning gunk.
+        return clz._get_pdu_tuple_from_entries(txn, pdus)
+
+    @staticmethod
+    def _get_pdu_tuple_from_entries(txn, pdu_entries):
         results = []
-        for pdu in pdus:
+        for pdu in pdu_entries:
             txn.execute(
                 PduEdgesTable.select_statement("pdu_id = ? AND origin = ?"),
                 (pdu.pdu_id, pdu.origin)
