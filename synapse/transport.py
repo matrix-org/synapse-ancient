@@ -231,9 +231,6 @@ class TransportLayer(object):
         if transaction.destination == self.server_name:
             raise RuntimeError("Transport layer cannot send to itself!")
 
-        # Double make sure the transaction has been persisted before sending!
-        yield transaction.persist()
-
         data = transaction.get_dict()
 
         # Actually send the transation to the remote home server.
@@ -397,7 +394,6 @@ class TransportLayer(object):
         # We inform the layers above about the PDU as if we had received it
         # via a PUT.
         transaction = Transaction.decode(data)
-        yield transaction.persist()
 
         # We yield so that if the caller of this method want to wait for the
         # processing of the PDU to complete they can do so.

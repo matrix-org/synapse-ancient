@@ -23,7 +23,6 @@ from synapse import utils
 
 from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
-from twistar.registry import Registry
 from twisted.python.log import PythonLoggingObserver
 
 import argparse
@@ -236,9 +235,11 @@ def setup_db(db_name):
     """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
     have to worry.
     """
-    Registry.DBPOOL = adbapi.ConnectionPool(
+    pool = adbapi.ConnectionPool(
         'sqlite3', db_name, check_same_thread=False,
-        cp_min=0, cp_max=1)
+        cp_min=1, cp_max=1)
+
+    utils.set_db_pool(pool)
 
     schemas = [
             "schema/transactions.sql",

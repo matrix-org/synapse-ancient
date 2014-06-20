@@ -10,8 +10,6 @@
 from twisted.internet import defer
 
 from transaction import TransactionCallbacks
-from persistence.pdu import (PduDbEntry, register_new_outgoing_pdu,
-    register_remote_pdu, register_pdu_as_sent)
 from protocol.units import Pdu
 
 import logging
@@ -99,27 +97,18 @@ class PduLayer(TransactionCallbacks):
 
         logger.debug("[%s] Persisting PDU", pdu.pdu_id)
 
+        # Populate the prev_pdus
+        yield pdu.populate_previous_pdus()
+
         # Save *before* trying to send
-        yield pdu.persist()
+        yield pdu.persist_outgoing()
 
         logger.debug("[%s] Persisted PDU", pdu.pdu_id)
-        logger.debug("[%s] register_new_outgoing_pdu...", pdu.pdu_id)
-
-        # This fills out the previous_pdus property
-        yield register_new_outgoing_pdu(pdu)
-
-        logger.debug("[%s] register_new_outgoing_pdu... done", pdu.pdu_id)
         logger.debug("[%s] transaction_layer.enqueue_pdu... ", pdu.pdu_id)
 
         yield self.transaction_layer.enqueue_pdu(pdu, order)
 
         logger.debug("[%s] transaction_layer.enqueue_pdu... done", pdu.pdu_id)
-        logger.debug("[%s] register_pdu_as_sent...", pdu.pdu_id)
-
-        # Deletes the appropriate entries in the extremeties table
-        yield register_pdu_as_sent(pdu)
-
-        logger.debug("[%s] register_pdu_as_sent... done", pdu.pdu_id)
 
     @defer.inlineCallbacks
     def on_received_pdus(self, pdu_list):
@@ -155,7 +144,7 @@ class PduLayer(TransactionCallbacks):
             TransactionCallbacks
         """
 
-        return Pdu.get_state(context)
+        return Pdu.current_state(context)
 
     @defer.inlineCallbacks
     def on_pdu_request(self, pdu_origin, pdu_id):
@@ -164,19 +153,13 @@ class PduLayer(TransactionCallbacks):
             TransactionCallbacks
         """
 
-        results = yield PduDbEntry.findBy(origin=pdu_origin, pdu_id=pdu_id)
+        pdu = yield Pdu.get_persisted_pdu(pdu_id, pdu_origin)
 
-        #pdus = [Pdu.from_db_entry(r) for r in results]
-        pdus = yield Pdu.from_db_entries(results)
-
-        if not pdus:
+        if not pdu:
             defer.returnValue(None)
             return
 
-        for p in pdus:
-            yield p.get_previous_pdus_from_db()
-
-        defer.returnValue(pdus)
+        defer.returnValue(pdu)
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
@@ -184,8 +167,7 @@ class PduLayer(TransactionCallbacks):
                         str(pdu.pdu_id), pdu.origin)
 
         # Have we seen this pdu before?
-        existing = yield PduDbEntry.findBy(
-                origin=pdu.origin, pdu_id=pdu.pdu_id)
+        existing = yield Pdu.get_persisted_pdu(pdu.pdu_id, pdu.origin)
 
         if existing:
             # We've already seen it, so we ignore it.
@@ -193,24 +175,23 @@ class PduLayer(TransactionCallbacks):
             return
 
         # Now we check to see if we have seen the pdus it references.
-        for pdu_id, origin in pdu.previous_pdus:
-            exists = yield PduDbEntry.findBy(
-                origin=origin, pdu_id=pdu_id)
+        for pdu_id, origin in pdu.prev_pdus:
+            exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
             if not exists:
                 # Oh no! We better request it.
-                self.callback.on_unseen_pdu(
+                yield self.callback.on_unseen_pdu(
                         pdu.origin,
                         pdu_id=pdu_id,
                         origin=origin
                     )
 
-        # Update the edges + extremeties table
-        yield register_remote_pdu(pdu)
+        # XXX: Do we want to temporarily persist here, instead of waiting for
+        # us to fetch any missing Pdus?
 
         # Inform callback
         ret = yield self.callback.on_receive_pdu(pdu)
 
         # Save *after* we have processed
-        yield pdu.persist()
+        yield pdu.persist_received()
 
         defer.returnValue(ret)
