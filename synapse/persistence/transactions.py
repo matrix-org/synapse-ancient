@@ -163,7 +163,7 @@ class TransactionQueries(object):
         # Update the tx id -> pdu id mapping
 
         values = [
-                (transaction_id, destination, pdu[0])
+                (transaction_id, destination, pdu[0], pdu[1])
                 for pdu in pdu_list
             ]
 
@@ -315,18 +315,30 @@ class PduQueries(object):
     local_server):
         pdus_fields = ", ".join(["pdus.%s" % f for f in PdusTable.fields])
 
-        # Subquery to get all transactions that we've sent after the given
-        where = ("destination = ? AND id > (select id FROM %s WHERE "
-            "transaction_id = ? AND destination = ?)") % (
-                SentTransactions.table_name
-            )
-        subquery = SentTransactions.select_statement(where)
+        # Query that first get's all transaction_ids with an id greater than
+        # the one given from the `sent_transactions` table. Then JOIN on this
+        # from the `tx->pdu` table to get a list of (pdu_id, origin) that
+        # specify the pdus that were sent in those transactions.
+        # Finally, JOIN that from the `pdus` table to get all the attributes of
+        # those PDUs.
+        query = (
+            "SELECT %(fields)s FROM pdus INNER JOIN ("
+                "SELECT pdu_id, pdu_origin FROM %(tx_pdu)s as tp "
+                "INNER JOIN %(sent_tx)s as st "
+                    "ON tp.transaction_id = st.transaction_id "
+                    "AND tp.destination = st.destination "
+                "WHERE st.id > ("
+                    "SELECT id FROM %(sent_tx)s "
+                    "WHERE transaction_id = ? AND destination = ?"
+                ")"
+            ") AS t ON t.pdu_id = pdus.pdu_id AND pdus.origin = t.pdu_origin;"
+        ) % {
+            "fields": pdus_fields,
+            "tx_pdu": TransactionsToPduTable.table_name,
+            "sent_tx": SentTransactions.table_name,
+        }
 
-        # Get the attributes of PDUs in the subquery
-        query = ("SELECT %s FROM pdus INNER JOIN (%s) as t ON "
-            "pdus.id = t.pdu_id AND pdus.origin = ?") % (pdus_fields, subquery)
-
-        txn.execute(query, (transaction_id, destination, local_server))
+        txn.execute(query, (transaction_id, destination))
 
         pdus = PdusTable.decode_results(txn.fetchall())
 

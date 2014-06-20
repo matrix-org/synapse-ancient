@@ -37,9 +37,11 @@ CREATE INDEX IF NOT EXISTS sent_transaction_sent ON sent_transactions(response_c
 CREATE TABLE IF NOT EXISTS transaction_id_to_pdu(
     transaction_id INTEGER,
     destination TEXT,
-    pdu_id TEXT
+    pdu_id TEXT,
+    pdu_origin TEXT
 );
 
+CREATE INDEX IF NOT EXISTS transaction_id_to_pdu_tx ON transaction_id_to_pdu(transaction_id, destination);
 CREATE INDEX IF NOT EXISTS transaction_id_to_pdu_dest ON transaction_id_to_pdu(destination);
 CREATE INDEX IF NOT EXISTS transaction_id_to_pdu_index ON transaction_id_to_pdu(transaction_id, destination);
 

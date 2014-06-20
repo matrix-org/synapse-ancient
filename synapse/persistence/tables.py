@@ -113,6 +113,7 @@ class TransactionsToPduTable(Table):
         "transaction_id",
         "destination",
         "pdu_id",
+        "pdu_origin",
     ]
 
     EntryType = namedtuple("TransactionsToPduEntry", fields)
