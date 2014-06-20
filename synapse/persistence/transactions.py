@@ -274,7 +274,8 @@ class PduQueries(object):
     def _insert_interaction(clz, txn, entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), entry)
 
-        clz._handle_prev_pdus(txn, entry.pdu_id, entry.origin, prev_pdus)
+        clz._handle_prev_pdus(txn, entry.pdu_id, entry.origin, prev_pdus,
+            entry.context)
 
     @classmethod
     def _insert_state_interaction(clz, txn, pdu_entry, state_entry, prev_pdus):
@@ -282,10 +283,10 @@ class PduQueries(object):
         txn.execute(StatePdusTable.insert_statement(), state_entry)
 
         clz._handle_prev_pdus(txn,
-             pdu_entry.pdu_id, pdu_entry.origin, prev_pdus)
+             pdu_entry.pdu_id, pdu_entry.origin, prev_pdus, pdu_entry.context)
 
     @staticmethod
-    def _handle_prev_pdus(txn, pdu_id, origin, prev_pdus):
+    def _handle_prev_pdus(txn, pdu_id, origin, prev_pdus, context):
         txn.executemany(PduEdgesTable.insert_statement(),
                 [(pdu_id, origin, p[0], p[1]) for p in prev_pdus]
             )
@@ -297,7 +298,22 @@ class PduQueries(object):
             PduForwardExtremetiesTable.table_name)
         txn.executemany(query, prev_pdus)
 
-        # Second....
+        # We only insert the new pdu if there are no other pdus that reference
+        # it as a prev pdu
+        query = (
+            "INSERT INTO %(table)s (pdu_id, origin, context) "
+            "SELECT ?, ?, ? WHERE NOT EXISTS ("
+                "SELECT 1 FROM %(pdu_edges)s WHERE "
+                "prev_pdu_id = ? AND prev_origin = ?"
+            ")"
+            ) % {
+                "table": PduForwardExtremetiesTable.table_name,
+                "pdu_edges": PduEdgesTable.table_name
+            }
+
+        logger.debug("query: %s", query)
+
+        txn.execute(query, (pdu_id, origin, context, pdu_id, origin))
 
     @staticmethod
     def _get_prev_pdus_interaction(txn, context):
