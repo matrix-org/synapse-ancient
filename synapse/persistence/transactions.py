@@ -213,14 +213,21 @@ class PduQueries(object):
     @classmethod
     def insert_state(clz, prev_pdus, **cols):
         pdu_entry = PdusTable.EntryType(
-                **{k: cols[k] for k in PdusTable.fields}
+                **{k: cols.get(k, None) for k in PdusTable.fields}
             )
         state_entry = StatePdusTable.EntryType(
-                **{k: cols[k] for k in StatePdusTable.fields}
+                **{k: cols.get(k, None) for k in StatePdusTable.fields}
             )
         return utils.get_db_pool().runInteraction(
             clz._insert_state_interaction,
             pdu_entry, state_entry, prev_pdus)
+
+    @classmethod
+    def mark_as_processed(clz, pdu_id, pdu_origin):
+        return utils.get_db_pool().runInteraction(
+            clz._mark_as_processed_interaction,
+            pdu_id, pdu_origin
+            )
 
     @classmethod
     def get_prev_pdus(clz, context):
@@ -240,6 +247,9 @@ class PduQueries(object):
         txn.execute(query, (pdu_id, origin))
 
         results = PdusTable.decode_results(txn.fetchall())
+
+        logger.debug("_get_pdu_interaction: pdu_id=%s, origin=%s results: %s",
+            pdu_id, origin, repr(results))
 
         if len(results) == 1:
             pdu_entry = results[0]
@@ -284,6 +294,10 @@ class PduQueries(object):
 
         clz._handle_prev_pdus(txn,
              pdu_entry.pdu_id, pdu_entry.origin, prev_pdus, pdu_entry.context)
+
+    @staticmethod
+    def _mark_as_processed_interaction(txn, pdu_id, pdu_origin):
+        txn.execute("UPDATE %s SET have_processed = 1" % PdusTable.table_name)
 
     @staticmethod
     def _handle_prev_pdus(txn, pdu_id, origin, prev_pdus, context):

@@ -174,6 +174,9 @@ class PduLayer(TransactionCallbacks):
             defer.returnValue({})
             return
 
+        # Persist the Pdu, but don't mark it as processed yet.
+        yield pdu.persist_received()
+
         # Now we check to see if we have seen the pdus it references.
         for pdu_id, origin in pdu.prev_pdus:
             exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
@@ -191,7 +194,7 @@ class PduLayer(TransactionCallbacks):
         # Inform callback
         ret = yield self.callback.on_receive_pdu(pdu)
 
-        # Save *after* we have processed
-        yield pdu.persist_received()
+        # Mark this Pdu as processed
+        yield pdu.mark_as_processed()
 
         defer.returnValue(ret)

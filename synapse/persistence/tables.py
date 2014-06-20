@@ -133,6 +133,7 @@ class PdusTable(Table):
         "is_state",
         "state_key",
         "content_json",
+        "have_processed",
         "unrecognized_keys",
     ]
 

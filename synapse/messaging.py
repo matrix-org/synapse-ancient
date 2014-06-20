@@ -102,7 +102,7 @@ class MessagingLayer(PduCallbacks):
             synapse.pdu.PduCallbacks
         """
         return self.transport_layer.trigger_get_pdu(
-            originating_server, pdu_id, origin)
+            originating_server, origin, pdu_id)
 
     def send_pdu(self, pdu):
         """ Send a PDU.

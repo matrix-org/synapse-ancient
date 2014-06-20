@@ -358,6 +358,14 @@ class Pdu(JsonEncodedObject):
 
         return self._persist()
 
+    def mark_as_processed(self):
+        """ Mark this Pdu as having been processed.
+
+        Returns:
+            Deferred
+        """
+        return PduQueries.mark_as_processed(self.pdu_id, self.origin)
+
     def _persist(self):
         kwargs = copy.copy(self.__dict__)
         del kwargs["content"]
