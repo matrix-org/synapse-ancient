@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS pdus(
     state_key TEXT,
     content_json TEXT,
     unrecognized_keys TEXT,
+    version INTEGER DEFAULT 0,
     have_processed BOOL DEFAULT 0,
     CONSTRAINT pdu_id_origin UNIQUE (pdu_id, origin)
 );

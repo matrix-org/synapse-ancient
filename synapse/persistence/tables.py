@@ -133,6 +133,7 @@ class PdusTable(Table):
         "is_state",
         "state_key",
         "content_json",
+        "version",
         "have_processed",
         "unrecognized_keys",
     ]
@@ -181,6 +182,7 @@ class PduEdgesTable(Table):
         "origin",
         "prev_pdu_id",
         "prev_origin",
+        "context"
     ]
 
     EntryType = namedtuple("PduEdgesEntry", fields)

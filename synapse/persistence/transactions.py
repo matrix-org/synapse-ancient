@@ -241,6 +241,12 @@ class PduQueries(object):
             clz._get_pdus_after_transaction,
             transaction_id, destination, local_server)
 
+    @classmethod
+    def paginate(clz, context, version_list, limit):
+        return utils.get_db_pool().runInteraction(
+            clz._paginate_interaction,
+            context, version_list, limit)
+
     @staticmethod
     def _get_pdu_interaction(txn, pdu_id, origin):
         query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
@@ -302,7 +308,7 @@ class PduQueries(object):
     @staticmethod
     def _handle_prev_pdus(txn, pdu_id, origin, prev_pdus, context):
         txn.executemany(PduEdgesTable.insert_statement(),
-                [(pdu_id, origin, p[0], p[1]) for p in prev_pdus]
+                [(pdu_id, origin, p[0], p[1], context) for p in prev_pdus]
             )
 
         ## Update the extremeties table
@@ -331,14 +337,26 @@ class PduQueries(object):
 
     @staticmethod
     def _get_prev_pdus_interaction(txn, context):
+        query = (
+                "SELECT p.pdu_id, p.origin, p.version FROM %(pdus)s as p "
+                "INNER JOIN %(forward)s as f ON p.pdu_id = f.pdu_id "
+                "AND f.origin = p.origin "
+                "WHERE f.context = ?"
+                ) % {
+                        "pdus": PdusTable.table_name,
+                        "forward": PduForwardExtremetiesTable.table_name,
+                    }
+
+        logger.debug("get_prev query: %s" % query)
+
         txn.execute(
-            PduForwardExtremetiesTable.select_statement("context = ?"),
+            query,
             (context, )
         )
 
-        results = PduForwardExtremetiesTable.decode_results(txn.fetchall())
+        results = txn.fetchall()
 
-        return [(row.pdu_id, row.origin) for row in results]
+        return [(row[0], row[1], row[2]) for row in results]
 
     @classmethod
     def _get_pdus_after_transaction(clz, txn, transaction_id, destination,
@@ -389,3 +407,61 @@ class PduQueries(object):
             results.append(PduTuple(pdu, edges))
 
         return results
+
+    @classmethod
+    def _paginate_interaction(clz, txn, context, version_list, limit):
+        logger.debug("_paginate_interaction: %s, %s, %s",
+            context, repr(version_list), limit)
+
+        pdu_fields = ", ".join(["p.%s" % f for f in PdusTable.fields])
+
+        pdu_results = []
+
+        front = version_list
+
+        new_front = [1]  # Initially seed with a value so that we always do
+                         # at lest one loop
+
+        # We iterate through all pdu_ids in `front` to select their previous
+        # pdus. These are dumped in `new_front`. We continue until we reach the
+        # limit *or* new_front is empty (i.e., we've run out of things to
+        # select
+        while new_front and len(pdu_results) < limit:
+
+            new_front = []
+            for pdu_id, origin in front:
+                logger.debug("_paginate_interaction: i=%s, o=%s",
+                    pdu_id, origin)
+                query = (
+                    "SELECT %(pdu_fields)s from %(pdu_table)s as p "
+                    "INNER JOIN %(edges_table)s as e ON "
+                        "p.pdu_id = e.prev_pdu_id "
+                        "AND p.origin = e.prev_origin "
+                        "AND p.context = e.context "
+                    "WHERE e.context = ? AND e.pdu_id = ? AND e.origin = ? "
+                    "LIMIT ?"
+                    %
+                        {
+                            "pdu_fields": pdu_fields,
+                            "pdu_table": PdusTable.table_name,
+                            "edges_table": PduEdgesTable.table_name,
+                        }
+                    )
+
+                txn.execute(
+                    query,
+                    (context, pdu_id, origin, limit - len(pdu_results))
+                )
+
+                entries = PdusTable.decode_results(txn.fetchall())
+
+                for row in entries:
+                    logger.debug("_paginate_interaction: got i=%s, o=%s",
+                        row.pdu_id, row.origin)
+                    new_front.append((row.pdu_id, row.origin))
+                    pdu_results.append(row)
+
+            front = new_front
+
+        # We also want to update the `prev_pdus` attributes before returning.
+        return clz._get_pdu_tuple_from_entries(txn, pdu_results)

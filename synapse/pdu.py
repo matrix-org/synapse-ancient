@@ -161,6 +161,14 @@ class PduLayer(TransactionCallbacks):
 
         defer.returnValue(pdu)
 
+    def on_paginate_request(self, context, versions, limit):
+        """
+        Overrides:
+            TransactionCallbacks
+        """
+
+        return Pdu.paginate(context, versions, limit)
+
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
         logger.debug("_handle_new_pdu %s from %s",

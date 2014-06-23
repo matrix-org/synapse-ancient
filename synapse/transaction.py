@@ -77,6 +77,31 @@ class TransactionCallbacks(object):
         """
         pass
 
+    def on_paginate_request(self, context, versions, limit):
+        """ Called on GET /paginate/<context>/?v=...&limit=...
+
+        Get's hit when we want to paginate backwards on a given context from
+        the given point.
+
+        Args:
+            context (str): The context to paginate on
+            versions (list): A list of 2-tuple's representing where to paginate
+                from, in the form `(pdu_id, origin)`
+            limit (int): How many pdus to return.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            we have a response ready to send.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
+        """
+        pass
+
 
 class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
     """ The transaction layer is responsible for handling incoming and outgoing
@@ -220,7 +245,7 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         """ Called on PUT /send/<transaction_id> from transport layer
 
         Overrides:
-            TransportRequestCallbacks
+            TransportReceivedCallbacks
         """
 
         logger.debug("[%s] Got transaction", transaction.transaction_id)
@@ -257,6 +282,19 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
 
         yield transaction.set_response(code, response)
         defer.returnValue((code, response))
+
+    @defer.inlineCallbacks
+    def on_paginate_request(self, context, versions, limit):
+        """
+        Overrides:
+            TransportRequestCallbacks
+        """
+        response = yield self.callback.on_paginate_request(context, versions,
+            limit)
+
+        data = self._wrap_pdus(response)
+
+        defer.returnValue((200, data))
 
 
 class _TransactionQueue(object):

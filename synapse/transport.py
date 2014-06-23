@@ -115,6 +115,31 @@ class TransportRequestCallbacks(object):
         """
         pass
 
+    def on_paginate_request(self, context, versions, limit):
+        """ Called on GET /paginate/<context>/?v=...&limit=...
+
+        Get's hit when we want to paginate backwards on a given context from
+        the given point.
+
+        Args:
+            context (str): The context to paginate on
+            versions (list): A list of 2-tuple's representing where to paginate
+                from, in the form `(pdu_id, origin)`
+            limit (int): How many pdus to return.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            we have a response ready to send.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
+        """
+        pass
+
 
 class TransportLayer(object):
     """This is a basic implementation of the transport layer that translates
@@ -306,6 +331,14 @@ class TransportLayer(object):
                 callback.on_context_state_request(context)
         )
 
+        self.server.register_path(
+            "GET",
+            re.compile("^/paginate/([^/]*)/$"),
+            lambda request, context:
+                self._on_paginate_request(context, request.args["v"],
+                    request.args["limit"])
+        )
+
     @defer.inlineCallbacks
     def _on_send_request(self, request, transaction_id):
         """ Called on PUT /send/<transaction_id>/
@@ -398,3 +431,16 @@ class TransportLayer(object):
         # We yield so that if the caller of this method want to wait for the
         # processing of the PDU to complete they can do so.
         yield self.received_callbacks.on_transaction(transaction)
+
+    def _on_paginate_request(self, context, v_list, limits):
+        if not limits:
+            return defer.succeed(
+                    (400, {"error": "Did not include limit param"})
+                )
+
+        limit = int(limits[-1])
+
+        versions = [v.split(",", 1) for v in v_list]
+
+        return self.request_callbacks.on_paginate_request(
+            context, versions, limit)

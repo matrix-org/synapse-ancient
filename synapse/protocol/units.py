@@ -243,6 +243,7 @@ class Pdu(JsonEncodedObject):
             "destinations",
             "transaction_id",
             "prev_pdus",
+            "version",
             "content"
         ]
 
@@ -386,11 +387,21 @@ class Pdu(JsonEncodedObject):
         """ Populates the prev_pdus field with the current most recent pdus.
         This is used when we are creating new Pdus for a context.
 
+        Also populates the `versions` field with the correct value.
+
         Returns:
             Deferred: Succeeds when prev_pdus have been successfully updated.
         """
 
-        self.prev_pdus = yield PduQueries.get_prev_pdus(self.context)
+        results = yield PduQueries.get_prev_pdus(self.context)
+
+        self.prev_pdus = [(p_id, origin) for p_id, origin, _ in results]
+
+        vs = [int(v) for _, _, v in results]
+        if vs:
+            self.version = max(vs) + 1
+        else:
+            self.version = 0
 
     @staticmethod
     @defer.inlineCallbacks
@@ -411,6 +422,13 @@ class Pdu(JsonEncodedObject):
             transaction_id,
             destination,
             origin)
+
+        defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
+
+    @staticmethod
+    @defer.inlineCallbacks
+    def paginate(context, version_list, limit):
+        results = yield PduQueries.paginate(context, version_list, limit)
 
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
 
