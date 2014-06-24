@@ -185,16 +185,19 @@ class PduLayer(TransactionCallbacks):
         # Persist the Pdu, but don't mark it as processed yet.
         yield pdu.persist_received()
 
-        # Now we check to see if we have seen the pdus it references.
-        for pdu_id, origin in pdu.prev_pdus:
-            exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
-            if not exists:
-                # Oh no! We better request it.
-                yield self.callback.on_unseen_pdu(
-                        pdu.origin,
-                        pdu_id=pdu_id,
-                        origin=origin
-                    )
+        # If we are a "new" pdu, we check to see if we have seen the pdus
+        # it references.
+        is_new = yield pdu.is_new()
+        if is_new:
+            for pdu_id, origin in pdu.prev_pdus:
+                exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
+                if not exists:
+                    # Oh no! We better request it.
+                    yield self.callback.on_unseen_pdu(
+                            pdu.origin,
+                            pdu_id=pdu_id,
+                            origin=origin
+                        )
 
         # XXX: Do we want to temporarily persist here, instead of waiting for
         # us to fetch any missing Pdus?

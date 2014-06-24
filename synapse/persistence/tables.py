@@ -202,3 +202,17 @@ class PduForwardExtremetiesTable(Table):
     EntryType = namedtuple("PduForwardExtremetiesEntry", fields)
 
     CoumnNames = EntryType(*fields)
+
+
+class PduBackwardExtremetiesTable(Table):
+    table_name = "pdu_backward_extremeties"
+
+    fields = [
+        "pdu_id",
+        "origin",
+        "context",
+    ]
+
+    EntryType = namedtuple("PduBackwardExtremetiesEntry", fields)
+
+    CoumnNames = EntryType(*fields)

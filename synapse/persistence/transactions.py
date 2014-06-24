@@ -2,7 +2,7 @@
 
 from tables import (ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
-    PduForwardExtremetiesTable)
+    PduForwardExtremetiesTable, PduBackwardExtremetiesTable)
 from .. import utils
 
 from twisted.internet import defer
@@ -247,6 +247,12 @@ class PduQueries(object):
             clz._paginate_interaction,
             context, version_list, limit)
 
+    @classmethod
+    def is_new(clz, pdu_id, origin, context, version):
+        return utils.get_db_pool().runInteraction(
+            clz._is_new_interaction,
+            pdu_id, origin, context, version)
+
     @staticmethod
     def _get_pdu_interaction(txn, pdu_id, origin):
         query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
@@ -318,8 +324,23 @@ class PduQueries(object):
             PduForwardExtremetiesTable.table_name)
         txn.executemany(query, prev_pdus)
 
-        # We only insert the new pdu if there are no other pdus that reference
-        # it as a prev pdu
+        # Also delete from the backwards extremeties table all ones that
+        # reference pdus that we have already seen
+        query = (
+            "DELETE FROM %(pdu_back)s WHERE EXISTS ("
+                "SELECT 1 FROM %(pdus)s AS pdus "
+                "WHERE "
+                "%(pdu_back)s.pdu_id = pdus.pdu_id "
+                "AND %(pdu_back)s.origin = pdus.origin"
+            ")"
+            ) % {
+                "pdu_back": PduBackwardExtremetiesTable.table_name,
+                "pdus": PdusTable.table_name,
+            }
+        txn.execute(query)
+
+        # We only insert as a forward extremety the new pdu if there are no
+        # other pdus that reference it as a prev pdu
         query = (
             "INSERT INTO %(table)s (pdu_id, origin, context) "
             "SELECT ?, ?, ? WHERE NOT EXISTS ("
@@ -334,6 +355,28 @@ class PduQueries(object):
         logger.debug("query: %s", query)
 
         txn.execute(query, (pdu_id, origin, context, pdu_id, origin))
+
+        # We only insert prev_pdus into the backwards extremety table iff
+        # we don't already have it.
+        query = (
+            "INSERT INTO %(back)s (pdu_id, origin, context) "
+            "SELECT prev_pdu_id, prev_origin, context "
+            "FROM %(pdu_edges)s as edges "
+            "WHERE edges.pdu_id = ? AND edges.origin = ? AND edges.context = ? "
+            "AND NOT EXISTS ("
+                "SELECT 1 FROM %(pdus)s as p "
+                "WHERE p.pdu_id = edges.prev_pdu_id "
+                "AND p.origin = edges.prev_origin "
+            ")"
+            ) % {
+                "back": PduBackwardExtremetiesTable.table_name,
+                "pdu_edges": PduEdgesTable.table_name,
+                "pdus": PdusTable.table_name,
+            }
+
+        logger.debug("query: %s", query)
+
+        txn.execute(query, (pdu_id, origin, context))
 
     @staticmethod
     def _get_prev_pdus_interaction(txn, context):
@@ -465,3 +508,51 @@ class PduQueries(object):
 
         # We also want to update the `prev_pdus` attributes before returning.
         return clz._get_pdu_tuple_from_entries(txn, pdu_results)
+
+    @staticmethod
+    def _is_new_interaction(txn, pdu_id, origin, context, version):
+        ## If version > min version in back table, then we classify it as new.
+        ## OR if there is nothing in the back table, then it kinda needs to
+        ## be a new thing.
+        query = (
+            "SELECT min(p.version) FROM %(edges)s as e "
+            "INNER JOIN %(back)s as b "
+                "ON e.prev_pdu_id = b.pdu_id AND e.prev_origin = b.origin "
+            "INNER JOIN %(pdus)s as p "
+                "ON e.pdu_id = p.pdu_id AND p.origin = e.origin "
+            "WHERE p.context = ?"
+            ) % {
+                    "pdus": PdusTable.table_name,
+                    "edges": PduEdgesTable.table_name,
+                    "back": PduBackwardExtremetiesTable.table_name,
+                }
+
+        txn.execute(query, (context,))
+
+        min_version, = txn.fetchone()
+
+        if not min_version or version > int(min_version):
+            logger.debug("is_new true: id=%s, o=%s, v=%s min_ver=%s",
+                pdu_id, origin, version, min_version)
+            return True
+
+        ## If this pdu is in the forwards table, then it also is a nwe one
+        query = (
+            "SELECT * FROM %(forward)s WHERE pdu_id = ? AND origin = ?"
+            ) % {
+                    "forward": PduForwardExtremetiesTable.table_name,
+                }
+
+        txn.execute(query, (pdu_id, origin))
+
+        # Did we get anything?
+        if txn.fetchall():
+            logger.debug("is_new true: id=%s, o=%s, v=%s was forward",
+                pdu_id, origin, version)
+            return True
+
+        logger.debug("is_new false: id=%s, o=%s, v=%s",
+                pdu_id, origin, version)
+
+        ## FINE THEN. It's probably old.
+        return False

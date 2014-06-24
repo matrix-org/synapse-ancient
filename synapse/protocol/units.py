@@ -432,6 +432,14 @@ class Pdu(JsonEncodedObject):
 
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
 
+    def is_new(self):
+        return PduQueries.is_new(
+                pdu_id=self.pdu_id,
+                origin=self.origin,
+                context=self.context,
+                version=self.version
+            )
+
 
 def _encode(obj):
     if type(obj) is list:
