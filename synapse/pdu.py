@@ -11,6 +11,7 @@ from twisted.internet import defer
 
 from transaction import TransactionCallbacks
 from protocol.units import Pdu
+from persistence.transactions import StateQueries
 
 import logging
 
@@ -34,9 +35,22 @@ class PduCallbacks(object):
         """
         pass
 
-    def on_unseen_pdu(self, originating_server, pdu_id, origin):
+    def on_state_change(self, pdu):
+        """ A state change occured.
+
+        Args:
+            pdu (synapse.protocol.units.Pdu): The pdu of the new state.
+
+        Returns:
+            Deferred: Results in a dict that used as the response to the PDU.
+        """
+        pass
+
+    def on_unseen_pdu(self, originating_server, pdu_id, origin, outlier):
         """ We have seen a reference to a PDU we don't have. Usually someone
         specifically asks some remote home server for it.
+
+        Should result in the PDU being in the DB by the time this finishes.
 
         Args:
             originating_server (str): The home server that referenced the
@@ -177,18 +191,17 @@ class PduLayer(TransactionCallbacks):
         # Have we seen this pdu before?
         existing = yield Pdu.get_persisted_pdu(pdu.pdu_id, pdu.origin)
 
-        if existing:
+        # Check if we've seen it before. If we have then we ignore
+        # it (unless we have only seen an outlier before)
+        if existing and (not existing.outlier or pdu.outlier):
             # We've already seen it, so we ignore it.
             defer.returnValue({})
             return
 
-        # Persist the Pdu, but don't mark it as processed yet.
-        yield pdu.persist_received()
-
         # If we are a "new" pdu, we check to see if we have seen the pdus
-        # it references.
+        # it references. (Unless we are an outlier)
         is_new = yield pdu.is_new()
-        if is_new:
+        if is_new and not pdu.outlier:
             for pdu_id, origin in pdu.prev_pdus:
                 exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
                 if not exists:
@@ -199,13 +212,55 @@ class PduLayer(TransactionCallbacks):
                             origin=origin
                         )
 
-        # XXX: Do we want to temporarily persist here, instead of waiting for
-        # us to fetch any missing Pdus?
+        # Persist the Pdu, but don't mark it as processed yet.
+        yield pdu.persist_received()
 
-        # Inform callback
-        ret = yield self.callback.on_receive_pdu(pdu)
+        # XXX: Do we want to temporarily persist here, instead of waiting
+        # for us to fetch any missing Pdus?
 
-        # Mark this Pdu as processed
-        yield pdu.mark_as_processed()
+        if pdu.is_state:
+            res = yield self._handle_state(pdu)
+            defer.returnValue(res)
+            return
+        else:
+            # Inform callback
+            ret = yield self.callback.on_receive_pdu(pdu)
 
-        defer.returnValue(ret)
+            # Mark this Pdu as processed
+            yield pdu.mark_as_processed()
+
+            defer.returnValue(ret)
+
+    @defer.inlineCallbacks
+    def _handle_state(self, pdu):
+        # Work out if the state has changed. If so hit the state change
+        # callback.
+
+        # XXX: RACES?!
+
+        # Fetch any missing state pdus we might be missing
+        while True:
+            r = yield StateQueries.get_next_missing_pdu(pdu)
+            if r:
+                yield self.callback.on_unseen_pdu(
+                            pdu.origin,
+                            pdu_id=r.pdu_id,
+                            origin=r.origin,
+                            outlier=True,
+                        )
+            else:
+                break
+
+        was_updated = yield StateQueries.handle_new_state(pdu)
+
+        if was_updated:
+            yield self.callback.on_state_change(pdu)
+
+        if not pdu.outlier:
+            # Inform callback
+            ret = yield self.callback.on_receive_pdu(pdu)
+
+            # Mark this Pdu as processed
+            yield pdu.mark_as_processed()
+
+            defer.returnValue(ret)

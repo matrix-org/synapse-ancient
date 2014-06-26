@@ -241,7 +241,7 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         defer.returnValue((200, data))
 
     @defer.inlineCallbacks
-    def on_transaction(self, transaction):
+    def on_transaction(self, transaction, outlier):
         """ Called on PUT /send/<transaction_id> from transport layer
 
         Overrides:

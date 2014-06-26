@@ -81,12 +81,12 @@ class Transaction(JsonEncodedObject):
             "destination",
             "ts",
             "previous_ids",
-            "pdus"  # This get's converted to a list of Pdu's
+            "pdus",  # This get's converted to a list of Pdu's
         ]
 
     internal_keys = [
             "transaction_id",
-            "destination"
+            "destination",
         ]
 
     # HACK to get unique tx id
@@ -108,11 +108,12 @@ class Transaction(JsonEncodedObject):
                 p.transaction_id = p
 
     @staticmethod
-    def decode(transaction_dict):
+    def decode(transaction_dict, outlier=False):
         """ Used to convert a dict from the interwebs to a Transaction
             object. It converts the Pdu dicts into Pdu objects too!
         """
-        pdus = [Pdu(**p) for p in transaction_dict.setdefault("pdus", [])]
+        pdus = [Pdu(outlier=outlier, **p)
+                for p in transaction_dict.setdefault("pdus", [])]
         transaction_dict.update(pdus=pdus)
 
         return Transaction(**transaction_dict)
@@ -244,12 +245,17 @@ class Pdu(JsonEncodedObject):
             "transaction_id",
             "prev_pdus",
             "version",
-            "content"
+            "content",
+            "outlier",
+            "power_level",
+            "prev_state_id",
+            "prev_state_origin",
         ]
 
     internal_keys = [
             "destinations",
-            "transaction_id"
+            "transaction_id",
+            "outlier",
         ]
 
     """ A list of keys that we persist in the database. The column names are
@@ -263,11 +269,12 @@ class Pdu(JsonEncodedObject):
     # just leaving it as a dict. (OR DO WE?!)
 
     def __init__(self, destinations=[], is_state=False, prev_pdus=[],
-    **kwargs):
+    outlier=False, **kwargs):
         super(Pdu, self).__init__(
                 destinations=destinations,
                 is_state=is_state,
                 prev_pdus=prev_pdus,
+                outlier=outlier,
                 **kwargs
             )
 
@@ -344,6 +351,9 @@ class Pdu(JsonEncodedObject):
     def persist_received(self):
         """ Store this PDU we received in the database.
 
+        Args:
+            is_out_of_order (bool):
+
         Returns:
             Deferred
         """
@@ -375,10 +385,12 @@ class Pdu(JsonEncodedObject):
 
         if self.is_state:
             return PduQueries.insert_state(
+                    self.outlier,
                     **kwargs
                 )
         else:
             return PduQueries.insert(
+                    self.outlier,
                     **kwargs
                 )
 

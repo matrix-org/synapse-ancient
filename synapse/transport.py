@@ -23,7 +23,8 @@ class TransportReceivedCallbacks(object):
     """ Callbacks used when we receive a transaction
     """
     def on_transaction(self, transaction):
-        """ Called on PUT /send/<transaction_id>
+        """ Called on PUT /send/<transaction_id>, or on response to a request
+        that we sent (e.g. a pagination request)
 
         Args:
             transaction (synapse.transaction.Transaction): The transaction that
@@ -201,10 +202,10 @@ class TransportLayer(object):
 
         path = "/state/%s/" % context
 
-        yield self._trigger_transaction(destination, path)
+        yield self._trigger_transaction(destination, path, outlier=True)
 
     @defer.inlineCallbacks
-    def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
+    def trigger_get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
         """ Requests the pdu with give id and origin from the given server.
 
         This will *not* return the PDU, but will pass the received state
@@ -215,7 +216,9 @@ class TransportLayer(object):
             destination (str): The host name of the remote home server we want
                 to get the state from.
             pdu_origin (str): The home server which created the PDU.
-            pdu_id (str): The id of the PDU being requested
+            pdu_id (str): The id of the PDU being requested.
+            outlier (bool): Should the returned PDUs be considered an outlier?
+                Default: False
 
         Returns:
             Deferred: Succeeds when we have finished processing the
@@ -228,7 +231,7 @@ class TransportLayer(object):
 
         path = "/pdu/%s/%s/" % (pdu_origin, pdu_id)
 
-        yield self._trigger_transaction(destination, path)
+        yield self._trigger_transaction(destination, path, outlier=outlier)
 
     @defer.inlineCallbacks
     def send_transaction(self, transaction):
@@ -387,12 +390,13 @@ class TransportLayer(object):
 
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield self.received_callbacks.on_transaction(
-                transaction)
+                transaction,
+                "put_request")
 
         defer.returnValue((code, response))
 
     @defer.inlineCallbacks
-    def _trigger_transaction(self, destination, path):
+    def _trigger_transaction(self, destination, path, outlier=False):
         """Used when we want to send a GET request to a remote home server
         that will result in them returning a response with a Transaction that
         we want to process.
@@ -405,6 +409,8 @@ class TransportLayer(object):
             destination (str): The desteination home server to send the request
                 to.
             path (str): The path to GET.
+            outlier (bool): Should the returned PDUs be considered an outlier?
+                Default: False
 
         Returns:
             Deferred: Succeeds when we have finished processing the repsonse.
@@ -426,7 +432,7 @@ class TransportLayer(object):
 
         # We inform the layers above about the PDU as if we had received it
         # via a PUT.
-        transaction = Transaction.decode(data)
+        transaction = Transaction.decode(data, outlier=outlier)
 
         # We yield so that if the caller of this method want to wait for the
         # processing of the PDU to complete they can do so.

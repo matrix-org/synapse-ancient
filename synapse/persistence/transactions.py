@@ -17,6 +17,7 @@ logger = logging.getLogger("synapse.persistence.transactions")
 
 PduTuple = namedtuple("PduTuple", ("pdu_entry", "prev_pdu_list"))
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
+PduIdTuple = namedTuple("PduIdTuple", ("pdu_id", "origin"))
 
 
 class TransactionQueries(object):
@@ -202,16 +203,16 @@ class PduQueries(object):
             context)
 
     @classmethod
-    def insert(clz, prev_pdus, **cols):
+    def insert(clz, outlier, prev_pdus, **cols):
         entry = PdusTable.EntryType(
                 **{k: cols.get(k, None) for k in PdusTable.fields}
             )
         return utils.get_db_pool().runInteraction(
             clz._insert_interaction,
-            entry, prev_pdus)
+            outlier, entry, prev_pdus)
 
     @classmethod
-    def insert_state(clz, prev_pdus, **cols):
+    def insert_state(clz, outlier, prev_pdus, **cols):
         pdu_entry = PdusTable.EntryType(
                 **{k: cols.get(k, None) for k in PdusTable.fields}
             )
@@ -220,7 +221,7 @@ class PduQueries(object):
             )
         return utils.get_db_pool().runInteraction(
             clz._insert_state_interaction,
-            pdu_entry, state_entry, prev_pdus)
+            outlier, pdu_entry, state_entry, prev_pdus)
 
     @classmethod
     def mark_as_processed(clz, pdu_id, pdu_origin):
@@ -293,90 +294,76 @@ class PduQueries(object):
         return clz._get_pdu_tuple_from_entries(txn, pdus)
 
     @classmethod
-    def _insert_interaction(clz, txn, entry, prev_pdus):
+    def _insert_interaction(clz, txn, outlier, entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), entry)
 
-        clz._handle_prev_pdus(txn, entry.pdu_id, entry.origin, prev_pdus,
-            entry.context)
+        clz._handle_prev_pdus(txn, outlier, entry.pdu_id, entry.origin,
+            prev_pdus, entry.context)
 
     @classmethod
-    def _insert_state_interaction(clz, txn, pdu_entry, state_entry, prev_pdus):
+    def _insert_state_interaction(clz, txn, outlier, pdu_entry,
+    state_entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), pdu_entry)
         txn.execute(StatePdusTable.insert_statement(), state_entry)
 
         clz._handle_prev_pdus(txn,
-             pdu_entry.pdu_id, pdu_entry.origin, prev_pdus, pdu_entry.context)
+             outlier, pdu_entry.pdu_id, pdu_entry.origin, prev_pdus,
+             pdu_entry.context)
 
     @staticmethod
     def _mark_as_processed_interaction(txn, pdu_id, pdu_origin):
         txn.execute("UPDATE %s SET have_processed = 1" % PdusTable.table_name)
 
     @staticmethod
-    def _handle_prev_pdus(txn, pdu_id, origin, prev_pdus, context):
+    def _handle_prev_pdus(txn, outlier, pdu_id, origin, prev_pdus,
+    context):
         txn.executemany(PduEdgesTable.insert_statement(),
                 [(pdu_id, origin, p[0], p[1], context) for p in prev_pdus]
             )
 
-        ## Update the extremeties table
+        ## Update the extremeties table if this is not an outlier.
+        if not outlier:
 
-        # First, we delete any from the forwards extremeties table.
-        query = ("DELETE FROM %s WHERE pdu_id = ? AND origin = ?" %
-            PduForwardExtremetiesTable.table_name)
-        txn.executemany(query, prev_pdus)
+            # First, we delete any from the forwards extremeties table.
+            query = ("DELETE FROM %s WHERE pdu_id = ? AND origin = ?" %
+                PduForwardExtremetiesTable.table_name)
+            txn.executemany(query, prev_pdus)
 
-        # Also delete from the backwards extremeties table all ones that
-        # reference pdus that we have already seen
-        query = (
-            "DELETE FROM %(pdu_back)s WHERE EXISTS ("
-                "SELECT 1 FROM %(pdus)s AS pdus "
-                "WHERE "
-                "%(pdu_back)s.pdu_id = pdus.pdu_id "
-                "AND %(pdu_back)s.origin = pdus.origin"
-            ")"
-            ) % {
-                "pdu_back": PduBackwardExtremetiesTable.table_name,
-                "pdus": PdusTable.table_name,
-            }
-        txn.execute(query)
+            # Also delete from the backwards extremeties table all ones that
+            # reference pdus that we have already seen
+            query = (
+                "DELETE FROM %(pdu_back)s WHERE EXISTS ("
+                    "SELECT 1 FROM %(pdus)s AS pdus "
+                    "WHERE "
+                    "%(pdu_back)s.pdu_id = pdus.pdu_id "
+                    "AND %(pdu_back)s.origin = pdus.origin"
+                ")"
+                ) % {
+                    "pdu_back": PduBackwardExtremetiesTable.table_name,
+                    "pdus": PdusTable.table_name,
+                }
+            txn.execute(query)
 
-        # We only insert as a forward extremety the new pdu if there are no
-        # other pdus that reference it as a prev pdu
-        query = (
-            "INSERT INTO %(table)s (pdu_id, origin, context) "
-            "SELECT ?, ?, ? WHERE NOT EXISTS ("
-                "SELECT 1 FROM %(pdu_edges)s WHERE "
-                "prev_pdu_id = ? AND prev_origin = ?"
-            ")"
-            ) % {
-                "table": PduForwardExtremetiesTable.table_name,
-                "pdu_edges": PduEdgesTable.table_name
-            }
+            # We only insert as a forward extremety the new pdu if there are no
+            # other pdus that reference it as a prev pdu
+            query = (
+                "INSERT INTO %(table)s (pdu_id, origin, context) "
+                "SELECT ?, ?, ? WHERE NOT EXISTS ("
+                    "SELECT 1 FROM %(pdu_edges)s WHERE "
+                    "prev_pdu_id = ? AND prev_origin = ?"
+                ")"
+                ) % {
+                    "table": PduForwardExtremetiesTable.table_name,
+                    "pdu_edges": PduEdgesTable.table_name
+                }
 
-        logger.debug("query: %s", query)
+            logger.debug("query: %s", query)
 
-        txn.execute(query, (pdu_id, origin, context, pdu_id, origin))
+            txn.execute(query, (pdu_id, origin, context, pdu_id, origin))
 
-        # We only insert prev_pdus into the backwards extremety table iff
-        # we don't already have it.
-        query = (
-            "INSERT INTO %(back)s (pdu_id, origin, context) "
-            "SELECT prev_pdu_id, prev_origin, context "
-            "FROM %(pdu_edges)s as edges "
-            "WHERE edges.pdu_id = ? AND edges.origin = ? AND edges.context = ? "
-            "AND NOT EXISTS ("
-                "SELECT 1 FROM %(pdus)s as p "
-                "WHERE p.pdu_id = edges.prev_pdu_id "
-                "AND p.origin = edges.prev_origin "
-            ")"
-            ) % {
-                "back": PduBackwardExtremetiesTable.table_name,
-                "pdu_edges": PduEdgesTable.table_name,
-                "pdus": PdusTable.table_name,
-            }
-
-        logger.debug("query: %s", query)
-
-        txn.execute(query, (pdu_id, origin, context))
+            txn.executemany(PduBackwardExtremetiesTable.insert_statement(),
+                [(i, o, context) for i, o in prev_pdus]
+            )
 
     @staticmethod
     def _get_prev_pdus_interaction(txn, context):
@@ -556,3 +543,147 @@ class PduQueries(object):
 
         ## FINE THEN. It's probably old.
         return False
+
+
+class StateQueries(object):
+    @classmethod
+    def get_next_missing_pdu(clz, new_pdu):
+        pass
+
+    @classmethod
+    def handle_new_state(clz, new_pdu):
+        pass
+
+    @classmethod
+    def _get_next_missing_pdu_interaction(clz, txn, new_pdu):
+        current = clz._get_current_interaction(txn, new_pdu)
+
+        if not current:
+            return None
+
+        # Oh look, it's a straight clobber, so wooooo almost no-op.
+        if (new_pdu.prev_state_id == current.pdu_id
+        and new_pdu.prev_state_origin == current.origin):
+            return None
+
+        ##
+        # Ok, now loop through until we get to a common ancestor.
+        branch_a = new_pdu
+        branch_b = current
+
+        get_query = (
+            "SELECT %(fields)s FROM %(state)s "
+            "WHERE pdu_id = ? AND origin = ? "
+            ) % {
+                    "fields": StatePdusTable.get_fields_string(),
+                    "state": StatePdusTable.table_name,
+                }
+
+        while True:
+            if (branch_a.pdu_id == branch_b.pdu_id
+                    and branch_a.origin == branch_b.origin):
+                break
+
+            if branch_a.version < branch_b:
+                branch = branch_a
+            else:
+                branch = branch_b
+
+            txn.execute(get_query, (branch.pdu_id, branch.origin))
+
+            results = StatePdusTable.decode_results(txn.fetchall())
+
+            if not results:
+                return PduIdTuple(branch.pdu_id, branch.origin)
+
+        return None
+
+    @staticmethod
+    def _handle_new_state_interaction(txn, new_pdu):
+        current = clz._get_current_interaction(txn, new_pdu)
+
+        is_current = False
+
+        if not current:
+            # Oh, we don't have any state for this yet.
+            is_current = True
+        elif (current.pdu_id == new_pdu.prev_state_id
+                and current.origin == new_pdu.prev_state_origin):
+            # Oh! A direct clobber. Just do it.
+            is_current = True
+        else:
+            # We need to iterate through the tree.
+            branch_new = new_pdu
+            branch_current = current
+
+            max_new = new_pdu.power_level
+            max_current = current.power_level
+
+            while True:
+                if (branch_new.pdu_id == branch_current.pdu_id
+                        and branch_new.origin == branch_current.origin):
+                    # Woo! We found a common ancestor, is the new_pdu actually
+                    # new?
+                    is_current = max_new > max_current
+                    break
+
+                if branch_new.version < branch_current:
+                    txn.execute(get_query,
+                        (branch_new.pdu_id, branch_new.origin))
+                    branch_new = StatePdusTable.decode_results(
+                            txn.fetchall()
+                        )[0]
+
+                    max_new = max(branch_new.version, max_new)
+                else:
+                    txn.execute(get_query,
+                        (branch_current.pdu_id, branch_current.origin))
+                    branch_current = StatePdusTable.decode_results(
+                            txn.fetchall()
+                        )[0]
+
+                    max_current = max(branch_current.version, max_current)
+
+                # XXX: We should actually do some checks and then raise.
+                # We currenttly assume that we have all the state_pdus
+                # for example.
+
+        if is_current:
+            # Right, this is a new thing, so woo, just insert it.
+            txn.execute(
+                "INSERT INTO %(curr)s (%(fields)s) VALUES (%(qs)s)"
+                % {
+                    "curr": CurrentStateTable.table_name,
+                    "fields": CurrentStateTable.get_fields_string(),
+                    "qs": ", ".join(["?"] * len(CurrentStateTable.fields))
+                },
+                CurrentStateTable.EntryType(
+                    *(new_pdu.__dict__[k] for k in CurrentStateTable.fields)
+                )
+            )
+
+        return is_current
+
+    @staticmethod
+    def _get_current_interaction(txn, pdu):
+        current_query = (
+            "SELECT %(fields)s FROM %(state)s as s "
+            "INNER JOIN %(curr)s as c "
+                "ON s.pdu_id = c.pdu_id AND s.origin = c.origin "
+            "WHERE context = ? AND pdu_type = ? AND state_key = ? "
+            ) % {
+                    "fields": StatePdusTable.get_fields_string(prefix="s"),
+                    "curr": CurrentStateTable.table_name,
+                    "state": StatePdusTable.table_name,
+                }
+
+        txn.execute(current_query,
+            (new_pdu.context, new_pdu.pdu_type, new_pdu.state_key))
+
+        results = StatePdusTable.decode_results(txn.fetchall())
+
+        if not resutlts:
+            return None
+
+        # We should only ever get 0 or 1 due to table restraints
+        current = results[0]

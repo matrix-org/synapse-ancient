@@ -1,16 +1,15 @@
 -- Stores pdus and their content
 CREATE TABLE IF NOT EXISTS pdus(
     pdu_id TEXT, 
-    context TEXT, 
-    pdu_type TEXT, 
     origin TEXT, 
-    ts INTEGER, 
-    is_state INTEGER,
-    state_key TEXT,
+    context TEXT,
+    pdu_type TEXT,
+    ts INTEGER,
+    version INTEGER DEFAULT 0 NOT NULL,
     content_json TEXT,
     unrecognized_keys TEXT,
-    version INTEGER DEFAULT 0,
-    have_processed BOOL DEFAULT 0,
+    outlier BOOL NOT NULL,
+    have_processed BOOL, 
     CONSTRAINT pdu_id_origin UNIQUE (pdu_id, origin)
 );
 
@@ -20,7 +19,21 @@ CREATE TABLE IF NOT EXISTS state_pdus(
     origin TEXT,
     context TEXT,
     pdu_type TEXT,
-    state_key TEXT ,
+    state_key TEXT,
+    power_level TEXT,
+    prev_state_id TEXT,
+    prev_state_origin TEXT,
+    CONSTRAINT pdu_id_origin UNIQUE (pdu_id, origin)
+    CONSTRAINT prev_pdu_id_origin UNIQUE (prev_state_id, prev_state_origin)
+);
+
+CREATE TABLE IF NOT EXISTS current_state(
+    pdu_id TEXT,
+    origin TEXT,
+    context TEXT,
+    pdu_type TEXT,
+    state_key TEXT,
+    CONSTRAINT pdu_id_origin UNIQUE (pdu_id, origin)
     CONSTRAINT uniqueness UNIQUE (context, pdu_type, state_key) ON CONFLICT REPLACE
 );
 

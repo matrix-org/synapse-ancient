@@ -88,9 +88,18 @@ def _send_response(request, code, content):
 
     """
     request.setResponseCode(code)
+
+    # Hack to send pretty printed json in response to requests made by
+    # curl.
+    ident = None
+    for h in request.requestHeaders.getRawHeaders("User-Agent", default=[]):
+        if "curl" in h:
+            ident = 4
+            break
+
     request.setHeader("Content-Type", "application/json")
 
-    request.write('%s\n' % json.dumps(content, indent=4))
+    request.write('%s\n' % json.dumps(content, indent=ident))
     request.finish()
 
 
@@ -297,7 +306,7 @@ class _JsonProducer(object):
     """ Used by the twisted http client to create the HTTP body from json
     """
     def __init__(self, jsn):
-        self.body = json.dumps(jsn, indent=4).encode("utf8")
+        self.body = json.dumps(jsn).encode("utf8")
         self.length = len(self.body)
 
     def startProducing(self, consumer):

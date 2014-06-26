@@ -71,6 +71,15 @@ class Table(object):
     def generate_where(*field_names):
         return " AND ".join(["%s = ?" % f for f in field_names])
 
+    @classmethod
+    def get_fields_string(clz, prefix=None):
+        if prefix:
+            to_join = ("%s.%s" % (prefix, f) for f in clz.fields)
+        else:
+            to_join = clz.fields
+
+        return ", ".join(to_join)
+
 
 class ReceivedTransactionsTable(Table):
     table_name = "received_transactions"
@@ -126,16 +135,15 @@ class PdusTable(Table):
 
     fields = [
         "pdu_id",
+        "origin",
         "context",
         "pdu_type",
-        "origin",
         "ts",
-        "is_state",
-        "state_key",
-        "content_json",
         "version",
-        "have_processed",
+        "content_json",
         "unrecognized_keys",
+        "outlier",
+        "have_processed",
     ]
 
     EntryType = namedtuple("PdusEntry", fields)
@@ -152,9 +160,28 @@ class StatePdusTable(Table):
         "context",
         "pdu_type",
         "state_key",
+        "power_level",
+        "prev_state_id",
+        "prev_state_origin",
     ]
 
     EntryType = namedtuple("StatePdusEntry", fields)
+
+    CoumnNames = EntryType(*fields)
+
+
+class CurrentStateTable(Table):
+    table_name = "current_state"
+
+    fields = [
+        "pdu_id",
+        "origin",
+        "context",
+        "pdu_type",
+        "state_key",
+    ]
+
+    EntryType = namedtuple("CurrentStateEntry", fields)
 
     CoumnNames = EntryType(*fields)
 
