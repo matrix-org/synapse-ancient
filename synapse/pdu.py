@@ -234,6 +234,9 @@ class PduLayer(TransactionCallbacks):
 
     @defer.inlineCallbacks
     def _handle_state(self, pdu):
+        logger.debug("_handle_state pdu: %s %s",
+            pdu.pdu_id, pdu.origin)
+
         # Work out if the state has changed. If so hit the state change
         # callback.
 
@@ -243,6 +246,8 @@ class PduLayer(TransactionCallbacks):
         while True:
             r = yield StateQueries.get_next_missing_pdu(pdu)
             if r:
+                logger.debug("_handle_state getting pdu: %s %s",
+                    r.pdu_id, r.origin)
                 yield self.callback.on_unseen_pdu(
                             pdu.origin,
                             pdu_id=r.pdu_id,
@@ -252,12 +257,21 @@ class PduLayer(TransactionCallbacks):
             else:
                 break
 
+        logger.debug("_handle_state updating state")
+
         was_updated = yield StateQueries.handle_new_state(pdu)
 
+        logger.debug("_handle_state was_updated %s", repr(was_updated))
+
         if was_updated:
+            logger.debug("Notifying about new state: %s %s",
+                pdu.pdu_id, pdu.origin)
             yield self.callback.on_state_change(pdu)
 
         if not pdu.outlier:
+            logger.debug("Notifying about new pdu: %s %s",
+                pdu.pdu_id, pdu.origin)
+
             # Inform callback
             ret = yield self.callback.on_receive_pdu(pdu)
 
@@ -265,3 +279,5 @@ class PduLayer(TransactionCallbacks):
             yield pdu.mark_as_processed()
 
             defer.returnValue(ret)
+        else:
+            defer.returnValue({})

@@ -15,7 +15,7 @@ import logging
 
 logger = logging.getLogger("synapse.persistence.transactions")
 
-PduTuple = namedtuple("PduTuple", ("pdu_entry", "prev_pdu_list"))
+PduTuple = namedtuple("PduTuple", ("pdu_entry", "state_entry", "prev_pdu_list"))
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
 PduIdTuple = namedtuple("PduIdTuple", ("pdu_id", "origin"))
 
@@ -258,8 +258,8 @@ class PduQueries(object):
             clz._is_new_interaction,
             pdu_id, origin, context, version)
 
-    @staticmethod
-    def _get_pdu_interaction(txn, pdu_id, origin):
+    @classmethod
+    def _get_pdu_interaction(clz, txn, pdu_id, origin):
         query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
         txn.execute(query, (pdu_id, origin))
 
@@ -273,15 +273,7 @@ class PduQueries(object):
         else:
             return None
 
-        txn.execute(
-            PduEdgesTable.select_statement("pdu_id = ? AND origin = ?"),
-            (pdu_entry.pdu_id, pdu_entry.origin)
-        )
-
-        edges = [(r.prev_pdu_id, r.prev_origin)
-            for r in PduEdgesTable.decode_results(txn.fetchall())]
-
-        return PduTuple(pdu_entry, edges)
+        return clz._get_pdu_tuple_from_entry(txn, pdu_entry)
 
     @classmethod
     def _get_current_state_interaction(clz, txn, context):
@@ -426,21 +418,33 @@ class PduQueries(object):
 
         return clz._get_pdu_tuple_from_entries(txn, pdus)
 
+    @classmethod
+    def _get_pdu_tuple_from_entries(clz, txn, pdu_entries):
+        return [clz._get_pdu_tuple_from_entry(txn, pdu) for pdu in pdu_entries]
+
     @staticmethod
-    def _get_pdu_tuple_from_entries(txn, pdu_entries):
-        results = []
-        for pdu in pdu_entries:
-            txn.execute(
-                PduEdgesTable.select_statement("pdu_id = ? AND origin = ?"),
-                (pdu.pdu_id, pdu.origin)
-            )
+    def _get_pdu_tuple_from_entry(txn, pdu_entry):
+        txn.execute(
+            PduEdgesTable.select_statement("pdu_id = ? AND origin = ?"),
+            (pdu_entry.pdu_id, pdu_entry.origin)
+        )
 
-            edges = [(r.prev_pdu_id, r.prev_origin)
-                for r in PduEdgesTable.decode_results(txn.fetchall())]
+        edges = [(r.prev_pdu_id, r.prev_origin)
+            for r in PduEdgesTable.decode_results(txn.fetchall())]
 
-            results.append(PduTuple(pdu, edges))
+        txn.execute(
+            StatePdusTable.select_statement("pdu_id = ? AND origin = ?"),
+            (pdu_entry.pdu_id, pdu_entry.origin)
+        )
 
-        return results
+        states = StatePdusTable.decode_results(txn.fetchall())
+
+        if states:
+            state_entry = states[0]
+        else:
+            state_entry = None
+
+        return PduTuple(pdu_entry, state_entry, edges)
 
     @classmethod
     def _paginate_interaction(clz, txn, context, version_list, limit):
@@ -564,6 +568,9 @@ class StateQueries(object):
 
     @classmethod
     def _get_next_missing_pdu_interaction(clz, txn, new_pdu):
+        logger.debug("_get_next_missing_pdu_interaction %s %s",
+            new_pdu.pdu_id, new_pdu.origin)
+
         current = clz._get_current_interaction(txn, new_pdu)
 
         if not current:
@@ -608,6 +615,9 @@ class StateQueries(object):
 
     @classmethod
     def _handle_new_state_interaction(clz, txn, new_pdu):
+        logger.debug("_handle_new_state_interaction %s %s",
+            new_pdu.pdu_id, new_pdu.origin)
+
         current = clz._get_current_interaction(txn, new_pdu)
 
         is_current = False
@@ -624,8 +634,8 @@ class StateQueries(object):
             branch_new = new_pdu
             branch_current = current
 
-            max_new = new_pdu.power_level
-            max_current = current.power_level
+            max_new = int(new_pdu.power_level)
+            max_current = int(current.power_level)
 
             while True:
                 if (branch_new.pdu_id == branch_current.pdu_id
@@ -635,28 +645,32 @@ class StateQueries(object):
                     is_current = max_new > max_current
                     break
 
-                if branch_new.version < branch_current:
+                if int(branch_new.version) < int(branch_current.version):
                     txn.execute(get_query,
                         (branch_new.pdu_id, branch_new.origin))
+
                     branch_new = StatePdusTable.decode_results(
                             txn.fetchall()
                         )[0]
 
-                    max_new = max(branch_new.version, max_new)
+                    max_new = max(int(branch_new.version), max_new)
                 else:
                     txn.execute(get_query,
                         (branch_current.pdu_id, branch_current.origin))
+
                     branch_current = StatePdusTable.decode_results(
                             txn.fetchall()
                         )[0]
 
-                    max_current = max(branch_current.version, max_current)
+                    max_current = max(int(branch_current.version), max_current)
 
                 # XXX: We should actually do some checks and then raise.
                 # We currenttly assume that we have all the state_pdus
                 # for example.
 
         if is_current:
+            logger.debug("_handle_new_state_interaction make current")
+
             # Right, this is a new thing, so woo, just insert it.
             txn.execute(
                 "INSERT INTO %(curr)s (%(fields)s) VALUES (%(qs)s)"
@@ -669,11 +683,18 @@ class StateQueries(object):
                     *(new_pdu.__dict__[k] for k in CurrentStateTable.fields)
                 )
             )
+        else:
+            logger.debug("_handle_new_state_interaction not current")
+
+        logger.debug("_handle_new_state_interaction done")
 
         return is_current
 
     @staticmethod
     def _get_current_interaction(txn, pdu):
+        logger.debug("_get_current_interaction %s %s",
+            pdu.pdu_id, pdu.origin)
+
         current_query = (
             "SELECT %(fields)s FROM %(state)s as s "
             "INNER JOIN %(curr)s as c "
@@ -691,7 +712,12 @@ class StateQueries(object):
         results = StatePdusTable.decode_results(txn.fetchall())
 
         if not results:
+            logger.debug("_get_current_interaction not found")
             return None
 
         # We should only ever get 0 or 1 due to table restraints
         current = results[0]
+
+        logger.debug("_get_current_interaction found %s %s",
+            current.pdu_id, current.origin)
+        return current
