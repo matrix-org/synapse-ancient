@@ -26,6 +26,17 @@ class MessagingCallbacks(object):
         """
         pass
 
+    def on_state_change(self, pdu):
+        """ A state change occured.
+
+        Args:
+            pdu (synapse.protocol.units.Pdu): The pdu of the new state.
+
+        Returns:
+            Deferred
+        """
+        pass
+
     def get_servers_for_context(self, context):
         """ Get's called whenever we want to send a PDU to a given context to
         determine who we should send the PDU to.
@@ -96,13 +107,22 @@ class MessagingLayer(PduCallbacks):
 
         defer.returnValue(r)
 
-    def on_unseen_pdu(self, originating_server, pdu_id, origin):
+    def on_state_change(self, pdu):
+        """
+        Overrides:
+            synapse.pdu.PduCallbacks
+        """
+        yield defer.maybeDeferred(self.callback.on_state_change, pdu)
+
+        # TODO: Add state feedback.
+
+    def on_unseen_pdu(self, originating_server, pdu_id, origin, outlier):
         """
         Overrides:
             synapse.pdu.PduCallbacks
         """
         return self.transport_layer.trigger_get_pdu(
-            originating_server, origin, pdu_id)
+            originating_server, origin, pdu_id, outlier)
 
     def send_pdu(self, pdu):
         """ Send a PDU.

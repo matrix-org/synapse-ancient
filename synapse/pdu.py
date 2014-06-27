@@ -42,7 +42,7 @@ class PduCallbacks(object):
             pdu (synapse.protocol.units.Pdu): The pdu of the new state.
 
         Returns:
-            Deferred: Results in a dict that used as the response to the PDU.
+            Deferred
         """
         pass
 
@@ -209,7 +209,8 @@ class PduLayer(TransactionCallbacks):
                     yield self.callback.on_unseen_pdu(
                             pdu.origin,
                             pdu_id=pdu_id,
-                            origin=origin
+                            origin=origin,
+                            outlier=pdu.outlier
                         )
 
         # Persist the Pdu, but don't mark it as processed yet.

@@ -390,8 +390,7 @@ class TransportLayer(object):
 
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield self.received_callbacks.on_transaction(
-                transaction,
-                "put_request")
+                transaction)
 
         defer.returnValue((code, response))
 

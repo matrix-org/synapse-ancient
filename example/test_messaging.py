@@ -141,6 +141,11 @@ class HomeServer(MessagingCallbacks):
             elif "invitee" in pdu.content:
                 self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
 
+    def on_state_change(self, pdu):
+        self.output.print_line("#%s (state) %s *** %s" %
+                (pdu.context, pdu.state_key, pdu.pdu_type)
+            )
+
     def _on_message(self, pdu):
         """ We received a message
         """

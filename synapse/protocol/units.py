@@ -7,8 +7,12 @@ from twisted.internet import defer
 from ..persistence.transactions import TransactionQueries, PduQueries
 
 import copy
+import logging
 import json
 import time
+
+
+logger = logging.getLogger("synapse.protocol.units")
 
 
 class JsonEncodedObject(object):
@@ -383,14 +387,14 @@ class Pdu(JsonEncodedObject):
         kwargs["content_json"] = json.dumps(self.content)
         kwargs["unrecognized_keys"] = json.dumps(kwargs["unrecognized_keys"])
 
+        logger.debug("Persisting: %s", repr(kwargs))
+
         if self.is_state:
             return PduQueries.insert_state(
-                    self.outlier,
                     **kwargs
                 )
         else:
             return PduQueries.insert(
-                    self.outlier,
                     **kwargs
                 )
 

@@ -2,7 +2,7 @@
 
 from tables import (ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
-    PduForwardExtremetiesTable, PduBackwardExtremetiesTable)
+    PduForwardExtremetiesTable, PduBackwardExtremetiesTable, CurrentStateTable)
 from .. import utils
 
 from twisted.internet import defer
@@ -17,7 +17,7 @@ logger = logging.getLogger("synapse.persistence.transactions")
 
 PduTuple = namedtuple("PduTuple", ("pdu_entry", "prev_pdu_list"))
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
-PduIdTuple = namedTuple("PduIdTuple", ("pdu_id", "origin"))
+PduIdTuple = namedtuple("PduIdTuple", ("pdu_id", "origin"))
 
 
 class TransactionQueries(object):
@@ -203,25 +203,29 @@ class PduQueries(object):
             context)
 
     @classmethod
-    def insert(clz, outlier, prev_pdus, **cols):
+    def insert(clz, prev_pdus, **cols):
         entry = PdusTable.EntryType(
                 **{k: cols.get(k, None) for k in PdusTable.fields}
             )
         return utils.get_db_pool().runInteraction(
             clz._insert_interaction,
-            outlier, entry, prev_pdus)
+            entry, prev_pdus)
 
     @classmethod
-    def insert_state(clz, outlier, prev_pdus, **cols):
+    def insert_state(clz, prev_pdus, **cols):
         pdu_entry = PdusTable.EntryType(
                 **{k: cols.get(k, None) for k in PdusTable.fields}
             )
         state_entry = StatePdusTable.EntryType(
                 **{k: cols.get(k, None) for k in StatePdusTable.fields}
             )
+
+        logger.debug("Inserting pdu: %s", repr(pdu_entry))
+        logger.debug("Inserting state: %s", repr(state_entry))
+
         return utils.get_db_pool().runInteraction(
             clz._insert_state_interaction,
-            outlier, pdu_entry, state_entry, prev_pdus)
+            pdu_entry, state_entry, prev_pdus)
 
     @classmethod
     def mark_as_processed(clz, pdu_id, pdu_origin):
@@ -294,20 +298,20 @@ class PduQueries(object):
         return clz._get_pdu_tuple_from_entries(txn, pdus)
 
     @classmethod
-    def _insert_interaction(clz, txn, outlier, entry, prev_pdus):
+    def _insert_interaction(clz, txn, entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), entry)
 
-        clz._handle_prev_pdus(txn, outlier, entry.pdu_id, entry.origin,
+        clz._handle_prev_pdus(txn, entry.outlier, entry.pdu_id, entry.origin,
             prev_pdus, entry.context)
 
     @classmethod
-    def _insert_state_interaction(clz, txn, outlier, pdu_entry,
+    def _insert_state_interaction(clz, txn, pdu_entry,
     state_entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), pdu_entry)
         txn.execute(StatePdusTable.insert_statement(), state_entry)
 
         clz._handle_prev_pdus(txn,
-             outlier, pdu_entry.pdu_id, pdu_entry.origin, prev_pdus,
+             pdu_entry.outlier, pdu_entry.pdu_id, pdu_entry.origin, prev_pdus,
              pdu_entry.context)
 
     @staticmethod
@@ -548,11 +552,15 @@ class PduQueries(object):
 class StateQueries(object):
     @classmethod
     def get_next_missing_pdu(clz, new_pdu):
-        pass
+        return utils.get_db_pool().runInteraction(
+            clz._get_next_missing_pdu_interaction,
+            new_pdu)
 
     @classmethod
     def handle_new_state(clz, new_pdu):
-        pass
+        return utils.get_db_pool().runInteraction(
+            clz._handle_new_state_interaction,
+            new_pdu)
 
     @classmethod
     def _get_next_missing_pdu_interaction(clz, txn, new_pdu):
@@ -598,8 +606,8 @@ class StateQueries(object):
 
         return None
 
-    @staticmethod
-    def _handle_new_state_interaction(txn, new_pdu):
+    @classmethod
+    def _handle_new_state_interaction(clz, txn, new_pdu):
         current = clz._get_current_interaction(txn, new_pdu)
 
         is_current = False
@@ -670,7 +678,7 @@ class StateQueries(object):
             "SELECT %(fields)s FROM %(state)s as s "
             "INNER JOIN %(curr)s as c "
                 "ON s.pdu_id = c.pdu_id AND s.origin = c.origin "
-            "WHERE context = ? AND pdu_type = ? AND state_key = ? "
+            "WHERE s.context = ? AND s.pdu_type = ? AND s.state_key = ? "
             ) % {
                     "fields": StatePdusTable.get_fields_string(prefix="s"),
                     "curr": CurrentStateTable.table_name,
@@ -678,11 +686,11 @@ class StateQueries(object):
                 }
 
         txn.execute(current_query,
-            (new_pdu.context, new_pdu.pdu_type, new_pdu.state_key))
+            (pdu.context, pdu.pdu_type, pdu.state_key))
 
         results = StatePdusTable.decode_results(txn.fetchall())
 
-        if not resutlts:
+        if not results:
             return None
 
         # We should only ever get 0 or 1 due to table restraints
