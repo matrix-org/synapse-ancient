@@ -7,9 +7,7 @@ It assumes that ucids are of the form <user>@<domain>, and uses <domain> as
 the address of the remote home server to hit.
 
 Usage:
-    python test_messaging.py <port>
-
-Currently assumes the local address is localhost:<port>
+    python test_messaging.py <user>
 
 """
 
