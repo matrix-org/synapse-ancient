@@ -69,6 +69,14 @@ CREATE TABLE IF NOT EXISTS pdu_edges(
     CONSTRAINT uniqueness UNIQUE (pdu_id, origin, prev_pdu_id, prev_origin, context)
 );
 
+CREATE TABLE IF NOT EXISTS context_versions(
+    context TEXT,
+    min_version INTEGER,
+    CONSTRAINT uniqueness UNIQUE (context)
+);
+
+CREATE INDEX IF NOT EXISTS context_vers ON context_versions(context);
+
 
 CREATE INDEX IF NOT EXISTS pdu_id ON pdus(pdu_id, origin);
 
