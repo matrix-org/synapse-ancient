@@ -386,6 +386,8 @@ class Pdu(JsonEncodedObject):
 
         ret = yield self._persist()
 
+        # This is safe to do since if *we* are sending something, then we must
+        # have seen everything we reference (hopefully).
         if self.is_state:
             yield StateQueries.handle_new_state(self)
 
