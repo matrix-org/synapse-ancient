@@ -1,0 +1,5 @@
+To run the example home server, you have to have twisted installed and then run something like:
+
+    PYTHONPATH=. python example/test_messaging.py foo@localhost:6000
+
+where localhost:6000 it binds to and remote home servers can talk to.
