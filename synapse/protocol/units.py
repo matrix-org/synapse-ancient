@@ -376,6 +376,7 @@ class Pdu(JsonEncodedObject):
 
         return self._persist()
 
+    @defer.inlineCallbacks
     def persist_outgoing(self):
         """ Store this PDU we are sending in the database.
 
@@ -383,7 +384,12 @@ class Pdu(JsonEncodedObject):
             Deferred
         """
 
-        return self._persist()
+        ret = yield self._persist()
+
+        if self.is_state:
+            yield StateQueries.handle_new_state(self)
+
+        defer.returnValue(ret)
 
     def mark_as_processed(self):
         """ Mark this Pdu as having been processed.
@@ -403,9 +409,6 @@ class Pdu(JsonEncodedObject):
         logger.debug("Persisting: %s", repr(kwargs))
 
         if self.is_state:
-            yield StateQueries.handle_new_state(self)
-
-        if self.is_state:
             ret = yield PduQueries.insert_state(
                     **kwargs
                 )
@@ -413,6 +416,9 @@ class Pdu(JsonEncodedObject):
             ret = yield PduQueries.insert(
                     **kwargs
                 )
+
+        #if self.is_state:
+            #yield StateQueries.handle_new_state(self)
 
         defer.returnValue(ret)
 

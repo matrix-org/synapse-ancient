@@ -596,9 +596,12 @@ class StateQueries(object):
             return None
 
         enum_branches = clz._enumerate_state_branches(txn, new_pdu, current)
-        for branch, pdu_tuple, state in enum_branches:
+        for branch, prev_state, state in enum_branches:
             if not state:
-                return pdu_tuple
+                return PduIdTuple(
+                    prev_state.prev_state_id,
+                    prev_state.prev_state_origin
+                )
 
         return None
 
@@ -640,9 +643,10 @@ class StateQueries(object):
                         res[1:]
                     )
 
+                prev_branch = branch_a
                 branch_a = states[0] if states else None
 
-                yield (0, pdu_tuple, branch_a)
+                yield (0, prev_branch, branch_a)
 
                 if not branch_a:
                     break
@@ -660,9 +664,10 @@ class StateQueries(object):
                         res[1:]
                     )
 
+                prev_branch = branch_b
                 branch_b = states[0] if states else None
 
-                yield (1, pdu_tuple, branch_b)
+                yield (1, prev_branch, branch_b)
 
                 if not states:
                     break
@@ -688,70 +693,23 @@ class StateQueries(object):
             # Oh! A direct clobber. Just do it.
             is_current = True
         else:
-             ##
+            ##
             # Ok, now loop through until we get to a common ancestor.
-            branch_new = new_pdu
-            branch_current = current
-
-            version_new = new_pdu.version
-            version_current = current.version
-
-            get_query = (
-                "SELECT p.version, %(fields)s FROM %(state)s as s "
-                "INNER JOIN %(pdus)s as p "
-                    "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
-                "WHERE s.pdu_id = ? AND s.origin = ? "
-                ) % {
-                        "fields": StatePdusTable.get_fields_string(prefix="s"),
-                        "state": StatePdusTable.table_name,
-                        "pdus": PdusTable.table_name,
-                }
-
             max_new = int(new_pdu.power_level)
             max_current = int(current.power_level)
 
-            while True:
-                # XXX: We should actually do some checks and then raise.
-                # We currenttly assume that we have all the state_pdus
-                # for example.
+            enum_branches = clz._enumerate_state_branches(txn, new_pdu, current)
+            for branch, prev_state, state in enum_branches:
+                if not state:
+                    raise RuntimeError("Could not find state_pdu %s %s" %
+                    (prev_state.prev_state_id, prev_state.prev_state_origin))
 
-                if (branch_new.pdu_id == branch_current.pdu_id
-                    and branch_new.origin == branch_current.origin):
-                    # Woo! We found a common ancestor, is the new_pdu actually
-                    # new?
-                    is_current = max_new > max_current
-                    break
-
-                if int(version_new) < int(version_current):
-                    txn.execute(get_query,
-                        (branch_new.prev_state_id,
-                            branch_new.prev_state_origin)
-                    )
-
-                    res = txn.fetchall()
-                    states = StatePdusTable.decode_results(
-                            res[1:]
-                        )
-
-                    branch_new = states[0]
-                    version_new = res[0]
-
-                    max_new = max(int(branch_new.version), max_new)
+                if branch == 0:
+                    max_new = max(int(state.version), max_new)
                 else:
-                    txn.execute(get_query,
-                        (branch_current.prev_state_id,
-                            branch_current.prev_state_origin)
-                    )
+                    max_current = max(int(state.version), max_current)
 
-                    res = txn.fetchall()
-                    states = StatePdusTable.decode_results(
-                            res[1:]
-                        )
-
-                    branch_current = states[0]
-                    version_current = res[0]
-
-                    max_current = max(int(branch_current.version), max_current)
+            is_current = max_new > max_current
 
         if is_current:
             logger.debug("_handle_new_state_interaction make current")
