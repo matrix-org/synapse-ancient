@@ -6,6 +6,7 @@ from protocol.units import Pdu
 from twisted.internet import defer
 
 import logging
+import random
 
 
 logger = logging.getLogger("synapse.messaging")
@@ -77,6 +78,8 @@ class MessagingLayer(PduCallbacks):
         self.pdu_layer = pdu_layer
         self.server_name = server_name
         self.callback = callback
+
+        self.power_level = random.randint(10, 100000)
 
         self.pdu_layer.set_callback(self)
 
@@ -179,6 +182,7 @@ class MessagingLayer(PduCallbacks):
                     destinations=destinations,
                     is_state=True,
                     state_key=state_key,
+                    power_level=self.power_level,
                     content=content
                 )
 

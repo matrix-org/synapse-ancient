@@ -19,6 +19,12 @@ PduTuple = namedtuple("PduTuple", ("pdu_entry", "state_entry", "prev_pdu_list"))
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
 PduIdTuple = namedtuple("PduIdTuple", ("pdu_id", "origin"))
 
+pdu_state_fields = (
+    PdusTable.fields
+    + [r for r in StatePdusTable.fields if r not in PdusTable.fields]
+)
+PduAndStateTuple = namedtuple("PduAndStateTuple", pdu_state_fields)
+
 
 class TransactionQueries(object):
 
@@ -567,62 +573,114 @@ class StateQueries(object):
             new_pdu)
 
     @classmethod
+    def current_state(clz, context, pdu_type, state_key):
+        return utils.get_db_pool().runInteraction(
+            clz._get_current_interaction,
+            context, pdu_type, state_key)
+
+    @classmethod
     def _get_next_missing_pdu_interaction(clz, txn, new_pdu):
         logger.debug("_get_next_missing_pdu_interaction %s %s",
             new_pdu.pdu_id, new_pdu.origin)
 
-        current = clz._get_current_interaction(txn, new_pdu)
+        current = clz._get_current_interaction(txn,
+            new_pdu.context, new_pdu.pdu_type, new_pdu.state_key)
 
-        if not current:
+        if (not current or not current.prev_state_id
+                or not current.prev_state_origin):
             return None
 
         # Oh look, it's a straight clobber, so wooooo almost no-op.
         if (new_pdu.prev_state_id == current.pdu_id
-        and new_pdu.prev_state_origin == current.origin):
+                and new_pdu.prev_state_origin == current.origin):
             return None
 
-        ##
-        # Ok, now loop through until we get to a common ancestor.
-        branch_a = new_pdu
-        branch_b = current
+        enum_branches = clz._enumerate_state_branches(txn, new_pdu, current)
+        for branch, pdu_tuple, state in enum_branches:
+            if not state:
+                return pdu_tuple
+
+        return None
+
+    @classmethod
+    def _enumerate_state_branches(clz, txn, pdu_a, pdu_b):
+        branch_a = pdu_a
+        branch_b = pdu_b
+
+        version_a = pdu_a.version
+        version_b = pdu_b.version
 
         get_query = (
-            "SELECT %(fields)s FROM %(state)s "
-            "WHERE pdu_id = ? AND origin = ? "
+            "SELECT p.version, %(fields)s FROM %(state)s as s "
+            "INNER JOIN %(pdus)s as p "
+                "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
+            "WHERE s.pdu_id = ? AND s.origin = ? "
             ) % {
-                    "fields": StatePdusTable.get_fields_string(),
+                    "fields": StatePdusTable.get_fields_string(prefix="s"),
                     "state": StatePdusTable.table_name,
+                    "pdus": PdusTable.table_name,
                 }
 
         while True:
             if (branch_a.pdu_id == branch_b.pdu_id
                     and branch_a.origin == branch_b.origin):
+                # Woo! We found a common ancestor
                 break
 
-            if branch_a.version < branch_b:
-                branch = branch_a
+            if int(version_a) < int(version_b):
+                pdu_tuple = PduIdTuple(
+                    branch_a.prev_state_id,
+                    branch_a.prev_state_origin
+                )
+
+                txn.execute(get_query, pdu_tuple)
+
+                res = txn.fetchall()
+                states = StatePdusTable.decode_results(
+                        res[1:]
+                    )
+
+                branch_a = states[0] if states else None
+
+                yield (0, pdu_tuple, branch_a)
+
+                if not branch_a:
+                    break
+                else:
+                    version_a = res[0]
             else:
-                branch = branch_b
+                pdu_tuple = PduIdTuple(
+                    branch_b.prev_state_id,
+                    branch_b.prev_state_origin
+                )
+                txn.execute(get_query, pdu_tuple)
 
-            txn.execute(get_query, (branch.pdu_id, branch.origin))
+                res = txn.fetchall()
+                states = StatePdusTable.decode_results(
+                        res[1:]
+                    )
 
-            results = StatePdusTable.decode_results(txn.fetchall())
+                branch_b = states[0] if states else None
 
-            if not results:
-                return PduIdTuple(branch.pdu_id, branch.origin)
+                yield (1, pdu_tuple, branch_b)
 
-        return None
+                if not states:
+                    break
+                else:
+                    version_b = res[0]
 
     @classmethod
     def _handle_new_state_interaction(clz, txn, new_pdu):
         logger.debug("_handle_new_state_interaction %s %s",
             new_pdu.pdu_id, new_pdu.origin)
 
-        current = clz._get_current_interaction(txn, new_pdu)
+        current = clz._get_current_interaction(txn,
+            new_pdu.context, new_pdu.pdu_type, new_pdu.state_key)
 
         is_current = False
 
-        if not current:
+        if (not current or not current.prev_state_id
+                or not current.prev_state_origin):
             # Oh, we don't have any state for this yet.
             is_current = True
         elif (current.pdu_id == new_pdu.prev_state_id
@@ -630,50 +688,77 @@ class StateQueries(object):
             # Oh! A direct clobber. Just do it.
             is_current = True
         else:
-            # We need to iterate through the tree.
+             ##
+            # Ok, now loop through until we get to a common ancestor.
             branch_new = new_pdu
             branch_current = current
+
+            version_new = new_pdu.version
+            version_current = current.version
+
+            get_query = (
+                "SELECT p.version, %(fields)s FROM %(state)s as s "
+                "INNER JOIN %(pdus)s as p "
+                    "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
+                "WHERE s.pdu_id = ? AND s.origin = ? "
+                ) % {
+                        "fields": StatePdusTable.get_fields_string(prefix="s"),
+                        "state": StatePdusTable.table_name,
+                        "pdus": PdusTable.table_name,
+                }
 
             max_new = int(new_pdu.power_level)
             max_current = int(current.power_level)
 
             while True:
+                # XXX: We should actually do some checks and then raise.
+                # We currenttly assume that we have all the state_pdus
+                # for example.
+
                 if (branch_new.pdu_id == branch_current.pdu_id
-                        and branch_new.origin == branch_current.origin):
+                    and branch_new.origin == branch_current.origin):
                     # Woo! We found a common ancestor, is the new_pdu actually
                     # new?
                     is_current = max_new > max_current
                     break
 
-                if int(branch_new.version) < int(branch_current.version):
+                if int(version_new) < int(version_current):
                     txn.execute(get_query,
-                        (branch_new.pdu_id, branch_new.origin))
+                        (branch_new.prev_state_id,
+                            branch_new.prev_state_origin)
+                    )
 
-                    branch_new = StatePdusTable.decode_results(
-                            txn.fetchall()
-                        )[0]
+                    res = txn.fetchall()
+                    states = StatePdusTable.decode_results(
+                            res[1:]
+                        )
+
+                    branch_new = states[0]
+                    version_new = res[0]
 
                     max_new = max(int(branch_new.version), max_new)
                 else:
                     txn.execute(get_query,
-                        (branch_current.pdu_id, branch_current.origin))
+                        (branch_current.prev_state_id,
+                            branch_current.prev_state_origin)
+                    )
 
-                    branch_current = StatePdusTable.decode_results(
-                            txn.fetchall()
-                        )[0]
+                    res = txn.fetchall()
+                    states = StatePdusTable.decode_results(
+                            res[1:]
+                        )
+
+                    branch_current = states[0]
+                    version_current = res[0]
 
                     max_current = max(int(branch_current.version), max_current)
-
-                # XXX: We should actually do some checks and then raise.
-                # We currenttly assume that we have all the state_pdus
-                # for example.
 
         if is_current:
             logger.debug("_handle_new_state_interaction make current")
 
             # Right, this is a new thing, so woo, just insert it.
             txn.execute(
-                "INSERT INTO %(curr)s (%(fields)s) VALUES (%(qs)s)"
+                "INSERT OR REPLACE INTO %(curr)s (%(fields)s) VALUES (%(qs)s)"
                 % {
                     "curr": CurrentStateTable.table_name,
                     "fields": CurrentStateTable.get_fields_string(),
@@ -691,32 +776,39 @@ class StateQueries(object):
         return is_current
 
     @staticmethod
-    def _get_current_interaction(txn, pdu):
-        logger.debug("_get_current_interaction %s %s",
-            pdu.pdu_id, pdu.origin)
+    def _get_current_interaction(txn, context, pdu_type, state_key):
+        logger.debug("_get_current_interaction %s %s %s",
+            context, pdu_type, state_key)
 
+        fields = [
+                "p.%s" % r if r in PdusTable.fields else "s.%s" % r
+                for r in pdu_state_fields
+            ]
         current_query = (
             "SELECT %(fields)s FROM %(state)s as s "
+            "INNER JOIN %(pdus)s as p "
+                "ON s.pdu_id = p.pdu_id AND s.origin = p.origin "
             "INNER JOIN %(curr)s as c "
                 "ON s.pdu_id = c.pdu_id AND s.origin = c.origin "
             "WHERE s.context = ? AND s.pdu_type = ? AND s.state_key = ? "
             ) % {
-                    "fields": StatePdusTable.get_fields_string(prefix="s"),
+                    "fields": ", ".join(fields),
                     "curr": CurrentStateTable.table_name,
                     "state": StatePdusTable.table_name,
+                    "pdus": PdusTable.table_name,
                 }
 
         txn.execute(current_query,
-            (pdu.context, pdu.pdu_type, pdu.state_key))
+            (context, pdu_type, state_key))
 
-        results = StatePdusTable.decode_results(txn.fetchall())
+        rows = txn.fetchall()
 
-        if not results:
+        if not rows:
             logger.debug("_get_current_interaction not found")
             return None
 
         # We should only ever get 0 or 1 due to table restraints
-        current = results[0]
+        current = PduAndStateTuple(*(rows[0]))
 
         logger.debug("_get_current_interaction found %s %s",
             current.pdu_id, current.origin)

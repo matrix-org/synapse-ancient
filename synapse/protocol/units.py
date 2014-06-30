@@ -4,7 +4,8 @@ server to server protocol.
 """
 
 from twisted.internet import defer
-from ..persistence.transactions import TransactionQueries, PduQueries
+from ..persistence.transactions import (TransactionQueries, PduQueries,
+    StateQueries)
 
 import copy
 import logging
@@ -331,6 +332,7 @@ class Pdu(JsonEncodedObject):
             if pdu_tuple.state_entry:
                 s = copy.copy(pdu_tuple.state_entry._asdict())
                 d.update(s)
+                d["is_state"] = True
 
             d["content"] = json.loads(d["content_json"])
             del d["content_json"]
@@ -391,6 +393,7 @@ class Pdu(JsonEncodedObject):
         """
         return PduQueries.mark_as_processed(self.pdu_id, self.origin)
 
+    @defer.inlineCallbacks
     def _persist(self):
         kwargs = copy.copy(self.__dict__)
         del kwargs["content"]
@@ -400,13 +403,18 @@ class Pdu(JsonEncodedObject):
         logger.debug("Persisting: %s", repr(kwargs))
 
         if self.is_state:
-            return PduQueries.insert_state(
+            yield StateQueries.handle_new_state(self)
+
+        if self.is_state:
+            ret = yield PduQueries.insert_state(
                     **kwargs
                 )
         else:
-            return PduQueries.insert(
+            ret = yield PduQueries.insert(
                     **kwargs
                 )
+
+        defer.returnValue(ret)
 
     @defer.inlineCallbacks
     def populate_previous_pdus(self):
@@ -414,6 +422,8 @@ class Pdu(JsonEncodedObject):
         This is used when we are creating new Pdus for a context.
 
         Also populates the `versions` field with the correct value.
+
+        Also populates prev_state_* for state_pdus.
 
         Returns:
             Deferred: Succeeds when prev_pdus have been successfully updated.
@@ -428,6 +438,17 @@ class Pdu(JsonEncodedObject):
             self.version = max(vs) + 1
         else:
             self.version = 0
+
+        if self.is_state:
+            curr = yield StateQueries.current_state(self.context,
+                self.pdu_type, self.state_key)
+
+            if curr:
+                self.prev_state_id = curr.pdu_id
+                self.prev_state_origin = curr.origin
+            else:
+                self.prev_state_id = None
+                self.prev_state_origin = None
 
     @staticmethod
     @defer.inlineCallbacks
