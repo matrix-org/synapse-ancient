@@ -13,7 +13,7 @@ Currently assumes the local address is localhost:<port>
 
 """
 
-from synapse.protocol.http import TwsitedHttpServer, TwistedHttpClient
+from synapse.protocol.http import TwistedHttpServer, TwistedHttpClient
 from synapse.transport import TransportLayer
 from synapse.transaction import TransactionLayer
 from synapse.pdu import PduLayer
@@ -305,7 +305,7 @@ def main(stdscr):
 
     curses_stdio.set_callback(input_output)
 
-    http_server = TwsitedHttpServer()
+    http_server = TwistedHttpServer()
     http_client = TwistedHttpClient()
 
     transport_layer = TransportLayer(server_name, http_server, http_client)
