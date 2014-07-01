@@ -29,6 +29,7 @@ class HttpServer(object):
             callback (function): The function to fire if we receive a matched
                 request. The first argument will be the request object and
                 subsequent arguments will be any matched groups from the regex.
+                This should return a tuple of (code, response).
         """
         pass
 

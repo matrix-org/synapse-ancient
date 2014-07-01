@@ -1,6 +1,11 @@
+import json
 import re
 
+from twisted.internet import defer
+
+from synapse.api.messages import Message
 from synapse.messaging import MessagingCallbacks
+from synapse.util import httputils
 
 class SynapseHomeServer(MessagingCallbacks):
     def __init__(self, http_server, server_name, messaging_layer):
@@ -22,9 +27,28 @@ class SynapseHomeServer(MessagingCallbacks):
     def on_state_change(self, pdu):
         print "#%s (state) %s *** %s" % (pdu.context, pdu.state_key, pdu.pdu_type)
 
+    @defer.inlineCallbacks
     def _on_PUT(self, request, event_id):
         print "PUT Req %s Event %s" % (request, event_id)
+        try:
+            put_json = json.loads(request.content.read())
+            msg = Message(sender_synid=put_json["from"], body=put_json["params"]["body"],
+                          type=put_json["type"])
+        except ValueError:
+            defer.returnValue((400, httputils.error_json("Content must be JSON.")))
+            return
+        except KeyError:
+            defer.returnValue((400, httputils.error_json("Missing required JSON keys.")))
+            return
+
+        yield msg.save()
+        print msg
+        defer.returnValue((200, { "state" : "saved" }))
+
+        
 
     def _on_GET(self, request):
         print "GET Req %s" % request
+        if "baseVer" not in request.args:
+            return (400, httputils.error_json("Missing baseVer"))
             
