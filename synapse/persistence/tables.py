@@ -243,3 +243,16 @@ class PduBackwardExtremetiesTable(Table):
     EntryType = namedtuple("PduBackwardExtremetiesEntry", fields)
 
     CoumnNames = EntryType(*fields)
+
+
+class ContextDepthTable(Table):
+    table_name = "context_depth"
+
+    fields = [
+        "context",
+        "min_depth",
+    ]
+
+    EntryType = namedtuple("ContextDepthEntry", fields)
+
+    CoumnNames = EntryType(*fields)

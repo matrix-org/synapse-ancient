@@ -2,7 +2,8 @@
 
 from tables import (ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
-    PduForwardExtremetiesTable, PduBackwardExtremetiesTable, CurrentStateTable)
+    PduForwardExtremetiesTable, PduBackwardExtremetiesTable, CurrentStateTable,
+    ContextDepthTable)
 from .. import utils
 
 from twisted.internet import defer
@@ -265,6 +266,18 @@ class PduQueries(object):
             pdu_id, origin, context, version)
 
     @classmethod
+    def update_min_depth(clz, context, depth):
+        return utils.get_db_pool().runInteraction(
+            clz._update_min_depth_interaction,
+            context, depth)
+
+    @classmethod
+    def get_min_depth(clz, context):
+        return utils.get_db_pool().runInteraction(
+            clz._get_min_depth_interaction,
+            context)
+
+    @classmethod
     def _get_pdu_interaction(clz, txn, pdu_id, origin):
         query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
         txn.execute(query, (pdu_id, origin))
@@ -283,12 +296,15 @@ class PduQueries(object):
 
     @classmethod
     def _get_current_state_interaction(clz, txn, context):
-        pdus_fields = ", ".join(["pdus.%s" % f for f in PdusTable.fields])
-
-        query = ("SELECT %s FROM pdus INNER JOIN state_pdus ON "
-                "state_pdus.pdu_id = pdus.pdu_id AND "
-                "state_pdus.origin = pdus.origin "
-                "WHERE state_pdus.context = ?") % pdus_fields
+        query = ("SELECT %(fields)s FROM %(pdus)s as p "
+                "INNER JOIN %(curr)s as c ON "
+                    "c.pdu_id = p.pdu_id AND "
+                    "c.origin = p.origin "
+                "WHERE c.context = ?") % {
+                    "fields": PdusTable.get_fields_string(prefix="p"),
+                    "pdus": PdusTable.table_name,
+                    "curr": CurrentStateTable.table_name,
+                }
 
         txn.execute(query, (context,))
 
@@ -557,6 +573,29 @@ class PduQueries(object):
 
         ## FINE THEN. It's probably old.
         return False
+
+    @classmethod
+    def _update_min_depth_interaction(clz, txn, context, depth):
+        min_depth = clz._get_min_depth_interaction(txn, context)
+
+        do_insert = depth < min_depth if min_depth else True
+
+        if do_insert:
+            txn.execute("INSERT OR REPLACE INTO %s (context, min_depth) "
+                "VALUES (?,?)" % ContextDepthTable.table_name,
+                (context, depth)
+            )
+
+    @staticmethod
+    def _get_min_depth_interaction(txn, context):
+        txn.execute("SELECT min_depth FROM %s WHERE context = ?"
+            % ContextDepthTable.table_name,
+            (context,)
+        )
+
+        row = txn.fetchone()
+
+        return row[0] if row else None
 
 
 class StateQueries(object):

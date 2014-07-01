@@ -7,7 +7,9 @@ It assumes that ucids are of the form <user>@<domain>, and uses <domain> as
 the address of the remote home server to hit.
 
 Usage:
-    python test_messaging.py <user>
+    python test_messaging.py <port>
+
+Currently assumes the local address is localhost:<port>
 
 """
 
@@ -98,6 +100,8 @@ class Room(object):
         self.participants = set()
         self.servers = set()
 
+        self.have_got_metadata = False
+
     def add_participant(self, participant):
         """ Someone has joined the room
         """
@@ -133,16 +137,21 @@ class HomeServer(MessagingCallbacks):
 
         if pdu_type == "message":
             self._on_message(pdu)
-        elif pdu_type == "membership":
-            if "joinee" in pdu.content:
-                self._on_join(pdu.context, pdu.content["joinee"])
-            elif "invitee" in pdu.content:
-                self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
+        #elif pdu_type == "membership":
+            #if "joinee" in pdu.content:
+                #self._on_join(pdu.context, pdu.content["joinee"])
+            #elif "invitee" in pdu.content:
+            #self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
 
     def on_state_change(self, pdu):
-        self.output.print_line("#%s (state) %s *** %s" %
-                (pdu.context, pdu.state_key, pdu.pdu_type)
-            )
+        #self.output.print_line("#%s (state) %s *** %s" %
+                #(pdu.context, pdu.state_key, pdu.pdu_type)
+            #)
+
+        if "joinee" in pdu.content:
+            self._on_join(pdu.context, pdu.content["joinee"])
+        elif "invitee" in pdu.content:
+            self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
 
     def _on_message(self, pdu):
         """ We received a message
@@ -164,8 +173,6 @@ class HomeServer(MessagingCallbacks):
     def _on_invite(self, origin, context, invitee):
         """ Someone has been invited
         """
-        new_room = context not in self.joined_rooms
-
         room = self._get_or_create_room(context)
         room.add_invited(invitee)
 
@@ -173,9 +180,10 @@ class HomeServer(MessagingCallbacks):
                 (context, invitee, "*** INVITED")
             )
 
-        if new_room and origin is not self.server_name:
+        if not room.have_got_metadata and origin is not self.server_name:
             logger.debug("Get room state")
             self.messaging_layer.get_context_state(origin, context)
+            room.have_got_metadata = True
 
     @defer.inlineCallbacks
     def send_message(self, room_name, sender, body):

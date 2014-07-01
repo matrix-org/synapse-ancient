@@ -110,6 +110,7 @@ class MessagingLayer(PduCallbacks):
 
         defer.returnValue(r)
 
+    @defer.inlineCallbacks
     def on_state_change(self, pdu):
         """
         Overrides:

@@ -422,6 +422,8 @@ class Pdu(JsonEncodedObject):
         #if self.is_state:
             #yield StateQueries.handle_new_state(self)
 
+        yield PduQueries.update_min_depth(self.context, self.version)
+
         defer.returnValue(ret)
 
     @defer.inlineCallbacks

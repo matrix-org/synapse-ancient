@@ -11,7 +11,7 @@ from twisted.internet import defer
 
 from transaction import TransactionCallbacks
 from protocol.units import Pdu
-from persistence.transactions import StateQueries
+from persistence.transactions import PduQueries, StateQueries
 
 import logging
 
@@ -202,16 +202,25 @@ class PduLayer(TransactionCallbacks):
         # it references. (Unless we are an outlier)
         is_new = yield pdu.is_new()
         if is_new and not pdu.outlier:
-            for pdu_id, origin in pdu.prev_pdus:
-                exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
-                if not exists:
-                    # Oh no! We better request it.
-                    yield self.callback.on_unseen_pdu(
-                            pdu.origin,
-                            pdu_id=pdu_id,
-                            origin=origin,
-                            outlier=pdu.outlier
-                        )
+            # We only paginate backwards if we seem to be missing something
+            # that is before the current min_depth for a context - i.e.,
+            # we don't want to paginate backwards.
+
+            min_depth = yield PduQueries.get_min_depth(pdu.context)
+
+            # If min_depth is None, that means that we haven't seen this
+            # context before, so we don't go backwards yet.
+            if min_depth and pdu.version > min_depth:
+                for pdu_id, origin in pdu.prev_pdus:
+                    exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
+                    if not exists:
+                        # Oh no! We better request it.
+                        yield self.callback.on_unseen_pdu(
+                                pdu.origin,
+                                pdu_id=pdu_id,
+                                origin=origin,
+                                outlier=pdu.outlier
+                            )
 
         # Persist the Pdu, but don't mark it as processed yet.
         yield pdu.persist_received()
