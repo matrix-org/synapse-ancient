@@ -35,7 +35,7 @@ def setup_server(hostname):
 
     transport_layer = TransportLayer(hostname, http_server, http_client)
     transaction_layer = TransactionLayer(hostname, transport_layer)
-    pdu_layer = PduLayer(transaction_layer)
+    pdu_layer = PduLayer(transport_layer, transaction_layer)
 
     messaging = MessagingLayer(hostname, transport_layer, pdu_layer)
 
@@ -49,7 +49,7 @@ def setup_db(db_name):
     Args:
         db_name : The path to the database.
     """
-    print "Database: %s" % db_name
+    print "Preparing database: %s..." % db_name
     pool = adbapi.ConnectionPool(
         'sqlite3', db_name, check_same_thread=False,
         cp_min=1, cp_max=1)
@@ -82,6 +82,7 @@ def setup_logging(verbosity, location):
         verbosity : The verbosity level.
         location : The location to write logs to.
     """
+    print "Logs stored at %s" % location
     root_logger = logging.getLogger()
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - '
@@ -104,11 +105,13 @@ def setup_logging(verbosity, location):
     observer.start()
 
 def main(port, db, host, verbose):
+    host = host if host else "localhost"
+
     setup_logging(verbose, "logs/%s"%host)  
 
     # setup and run with defaults if not specified
     setup_db(db if db else "proto_synapse.db")
-    server = setup_server(host if host else "localhost")
+    server = setup_server(host)
     server.start_listening(port if port else 8080)
 
     reactor.run()
