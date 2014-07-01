@@ -248,6 +248,9 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
             TransportReceivedCallbacks
         """
 
+        # TODO: We need to deal with us rapidly getting retransmits (we can't
+        #     rely solely on have_responded)
+
         logger.debug("[%s] Got transaction", transaction.transaction_id)
 
         # Check to see if we a) have a transaction_id associated with this

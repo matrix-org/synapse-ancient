@@ -31,10 +31,26 @@ PduAndStateTuple = namedtuple("PduAndStateTuple", pdu_state_fields)
 
 
 class TransactionQueries(object):
+    """A collection of queries that deal mainly with transactions.
+
+    Runs the queries in a single seperate, dedicated thread.
+    """
 
     @classmethod
     @defer.inlineCallbacks
     def get_response_for_received(clz, transaction_id, origin):
+        """ For an incoming transaction from a given origin, check if we have
+        already responded to it. If so, return the response code and response
+        body (as a dict).
+
+        Args:
+            transaction_id (str)
+            origin(str)
+
+        Returns:
+            Deferred: Resolves with None if we have not previously responded to
+            this transaction or a 2-tuple of (int, dict)
+        """
         result = yield utils.get_db_pool().runInteraction(
             clz._get_received_interaction,
             transaction_id, origin)
