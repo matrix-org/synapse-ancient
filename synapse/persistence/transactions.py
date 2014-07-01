@@ -348,25 +348,10 @@ class PduQueries(object):
         ## Update the extremeties table if this is not an outlier.
         if not outlier:
 
-            # First, we delete any from the forwards extremeties table.
+            # First, we delete the new one from the forwards extremeties table.
             query = ("DELETE FROM %s WHERE pdu_id = ? AND origin = ?" %
                 PduForwardExtremetiesTable.table_name)
             txn.executemany(query, prev_pdus)
-
-            # Also delete from the backwards extremeties table all ones that
-            # reference pdus that we have already seen
-            query = (
-                "DELETE FROM %(pdu_back)s WHERE EXISTS ("
-                    "SELECT 1 FROM %(pdus)s AS pdus "
-                    "WHERE "
-                    "%(pdu_back)s.pdu_id = pdus.pdu_id "
-                    "AND %(pdu_back)s.origin = pdus.origin"
-                ")"
-                ) % {
-                    "pdu_back": PduBackwardExtremetiesTable.table_name,
-                    "pdus": PdusTable.table_name,
-                }
-            txn.execute(query)
 
             # We only insert as a forward extremety the new pdu if there are no
             # other pdus that reference it as a prev pdu
@@ -385,9 +370,27 @@ class PduQueries(object):
 
             txn.execute(query, (pdu_id, origin, context, pdu_id, origin))
 
+            # Insert all the prev_pdus as a backwards thing, they'll get
+            # deleted in a second if they're incorrect anyway.
             txn.executemany(PduBackwardExtremetiesTable.insert_statement(),
                 [(i, o, context) for i, o in prev_pdus]
             )
+
+            # Also delete from the backwards extremeties table all ones that
+            # reference pdus that we have already seen
+            query = (
+                "DELETE FROM %(pdu_back)s WHERE EXISTS ("
+                    "SELECT 1 FROM %(pdus)s AS pdus "
+                    "WHERE "
+                    "%(pdu_back)s.pdu_id = pdus.pdu_id "
+                    "AND %(pdu_back)s.origin = pdus.origin "
+                    "AND not pdus.outlier "
+                ")"
+                ) % {
+                    "pdu_back": PduBackwardExtremetiesTable.table_name,
+                    "pdus": PdusTable.table_name,
+                }
+            txn.execute(query)
 
     @staticmethod
     def _get_prev_pdus_interaction(txn, context):
@@ -479,40 +482,47 @@ class PduQueries(object):
         logger.debug("_paginate_interaction: %s, %s, %s",
             context, repr(version_list), limit)
 
-        pdu_fields = ", ".join(["p.%s" % f for f in PdusTable.fields])
-
         pdu_results = []
+
+        # We seed the pdu_results with the things from the version_list.
+        for pdu_id, origin in version_list:
+            query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
+            txn.execute(query, (pdu_id, origin))
+
+            results = PdusTable.decode_results(txn.fetchall())
+
+            if results:
+                pdu_results.append(results[0])
 
         front = version_list
 
-        new_front = [1]  # Initially seed with a value so that we always do
-                         # at lest one loop
+        pdu_fields = ", ".join(["p.%s" % f for f in PdusTable.fields])
+        query = (
+            "SELECT %(pdu_fields)s from %(pdu_table)s as p "
+            "INNER JOIN %(edges_table)s as e ON "
+                "p.pdu_id = e.prev_pdu_id "
+                "AND p.origin = e.prev_origin "
+                "AND p.context = e.context "
+            "WHERE e.context = ? AND e.pdu_id = ? AND e.origin = ? "
+            "LIMIT ?"
+            %
+                {
+                    "pdu_fields": pdu_fields,
+                    "pdu_table": PdusTable.table_name,
+                    "edges_table": PduEdgesTable.table_name,
+                }
+            )
 
         # We iterate through all pdu_ids in `front` to select their previous
         # pdus. These are dumped in `new_front`. We continue until we reach the
         # limit *or* new_front is empty (i.e., we've run out of things to
         # select
-        while new_front and len(pdu_results) < limit:
+        while front and len(pdu_results) < limit:
 
             new_front = []
             for pdu_id, origin in front:
                 logger.debug("_paginate_interaction: i=%s, o=%s",
                     pdu_id, origin)
-                query = (
-                    "SELECT %(pdu_fields)s from %(pdu_table)s as p "
-                    "INNER JOIN %(edges_table)s as e ON "
-                        "p.pdu_id = e.prev_pdu_id "
-                        "AND p.origin = e.prev_origin "
-                        "AND p.context = e.context "
-                    "WHERE e.context = ? AND e.pdu_id = ? AND e.origin = ? "
-                    "LIMIT ?"
-                    %
-                        {
-                            "pdu_fields": pdu_fields,
-                            "pdu_table": PdusTable.table_name,
-                            "edges_table": PduEdgesTable.table_name,
-                        }
-                    )
 
                 txn.execute(
                     query,
