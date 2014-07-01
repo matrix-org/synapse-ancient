@@ -5,7 +5,6 @@ from twisted.internet import defer
 
 from synapse.api.messages import Message
 from synapse.messaging import MessagingCallbacks
-from synapse.util import httputils
 
 class SynapseHomeServer(MessagingCallbacks):
     def __init__(self, http_server, server_name, messaging_layer):
@@ -35,10 +34,10 @@ class SynapseHomeServer(MessagingCallbacks):
             msg = Message(sender_synid=put_json["from"], body=put_json["params"]["body"],
                           type=put_json["type"])
         except ValueError:
-            defer.returnValue((400, httputils.error_json("Content must be JSON.")))
+            defer.returnValue((400, error("Content must be JSON.")))
             return
         except KeyError:
-            defer.returnValue((400, httputils.error_json("Missing required JSON keys.")))
+            defer.returnValue((400, error("Missing required JSON keys.")))
             return
 
         yield msg.save()
@@ -50,8 +49,10 @@ class SynapseHomeServer(MessagingCallbacks):
     def _on_GET(self, request):
         print "GET Req %s" % request
         if "baseVer" not in request.args:
-            # defer.returnValue((400, httputils.error_json("Missing baseVer")))
-            return (400, httputils.error_json("Missing baseVer"))
+            # defer.returnValue((400, error("Missing baseVer")))
+            return (400, error("Missing baseVer"))
         # defer.returnValue((200, { "data" : "Not yet implemented." } ))
         return (200, { "data" : "Not yet implemented." })
-            
+    
+def error(msg):
+    return { "error" : msg }
