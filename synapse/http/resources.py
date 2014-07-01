@@ -1,7 +1,7 @@
 from twisted.web import server, resource
 from twisted.internet import reactor, defer
 
-import synapse.util.http_utils as http_utils
+import synapse.util.httputils as http_utils
 
 import argparse
 import json

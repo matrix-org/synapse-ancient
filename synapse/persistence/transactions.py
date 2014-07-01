@@ -3,7 +3,7 @@
 from tables import (ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
     PduForwardExtremetiesTable, PduBackwardExtremetiesTable, CurrentStateTable)
-from .. import utils
+from ..util import dbutils as utils
 
 from twisted.internet import defer
 
