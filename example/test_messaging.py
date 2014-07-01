@@ -81,6 +81,14 @@ class InputOutput(object):
                 #self.print_line("OK.")
                 return
 
+            m = re.match("^paginate (\S+)$", line)
+            if m:
+                # we want to paginate a room
+                room_name, = m.groups()
+                self.print_line("paginate %s" % room_name)
+                self.server.paginate(room_name)
+                return
+
             self.print_line("Unrecognized command")
 
         except Exception as e:
@@ -100,6 +108,8 @@ class Room(object):
         self.participants = set()
         self.servers = set()
 
+        self.oldest_server = None
+
         self.have_got_metadata = False
 
     def add_participant(self, participant):
@@ -108,7 +118,11 @@ class Room(object):
         self.participants.add(participant)
         self.invited.discard(participant)
 
-        self.servers.add(utils.origin_from_ucid(participant))
+        server = utils.origin_from_ucid(participant)
+        self.servers.add(server)
+
+        if not self.oldest_server:
+            self.oldest_server = server
 
     def add_invited(self, invitee):
         """ Someone has been invited to the room
@@ -230,6 +244,16 @@ class HomeServer(MessagingCallbacks):
         except Exception as e:
             logger.exception(e)
 
+    def paginate(self, room_name, limit=5):
+        room = self.joined_rooms.get(room_name)
+
+        if not room:
+            return
+
+        dest = room.oldest_server
+
+        return self.messaging_layer.paginate(dest, room_name, limit)
+
     def _get_room_remote_servers(self, room_name):
         return [i for i in self.joined_rooms.setdefault(room_name,).servers]
 
@@ -316,7 +340,7 @@ def main(stdscr):
 
     transport_layer = TransportLayer(server_name, http_server, http_client)
     transaction_layer = TransactionLayer(server_name, transport_layer)
-    pdu_layer = PduLayer(transaction_layer)
+    pdu_layer = PduLayer(transport_layer, transaction_layer)
 
     messaging = MessagingLayer(server_name, transport_layer, pdu_layer)
 
