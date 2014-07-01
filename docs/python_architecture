@@ -1,3 +1,5 @@
+= Server to Server =
+
 == Server to Server Stack ==
 
 The server to server side of things is designed into 4 distinct layers:
@@ -20,6 +22,7 @@ Where the bottom (the transport layer) is what talks to the internet via HTTP, a
         * duplicate pdu_id's - i.e., it makes sure we ignore them. 
         * responding to requests for a given pdu_id
         * responding to requests for all metadata for a given context (i.e. room)
+        * handling incoming pagination requests
 
     So it has to parse incoming messages to discover which are metadata and which aren't, and has to correctly clobber existing metadata where appropriate.
 
@@ -38,4 +41,11 @@ transaction_id is from "GET /send/<tx_id>/"
 
 4. Transport Layer
     This is responsible for starting a HTTP server and hitting the correct callbacks on the Transaction layer, as well as sending both data and requests for data.
+
+
+== Persistence ==
+
+We persist things in a single sqlite3 database. All database queries get run on a seperate, dedicated thread. This that we only ever have one query running at a time, making it a lot easier to do things in a safe manner.
+
+The queries are located in the synapse.persistence.transactions module, and the table information in the synapse.persistence.tables module.
 
