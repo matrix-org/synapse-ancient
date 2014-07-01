@@ -5,7 +5,7 @@ from collections import namedtuple
 
 _select_where_clause = "SELECT %s FROM %s WHERE %s"
 _select_clause = "SELECT %s FROM %s"
-_insert_clause = "INSERT INTO %s (%s) VALUES (%s)"
+_insert_clause = "INSERT OR REPLACE INTO %s (%s) VALUES (%s)"
 
 
 class Table(object):

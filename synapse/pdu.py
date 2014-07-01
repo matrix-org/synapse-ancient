@@ -247,7 +247,7 @@ class PduLayer(TransactionCallbacks):
         # for us to fetch any missing Pdus?
 
         if pdu.is_state:
-            res = yield self._handle_state(pdu)
+            res = yield self._handle_state(pdu, existing)
             defer.returnValue(res)
             return
         else:
@@ -260,40 +260,41 @@ class PduLayer(TransactionCallbacks):
             defer.returnValue(ret)
 
     @defer.inlineCallbacks
-    def _handle_state(self, pdu):
+    def _handle_state(self, pdu, existing):
         logger.debug("_handle_state pdu: %s %s",
             pdu.pdu_id, pdu.origin)
 
-        # Work out if the state has changed. If so hit the state change
-        # callback.
+        if not existing:
+            # Work out if the state has changed. If so hit the state change
+            # callback.
 
-        # XXX: RACES?!
+            # XXX: RACES?!
 
-        # Fetch any missing state pdus we might be missing
-        while True:
-            r = yield StateQueries.get_next_missing_pdu(pdu)
-            if r:
-                logger.debug("_handle_state getting pdu: %s %s",
-                    r.pdu_id, r.origin)
-                yield self.callback.on_unseen_pdu(
-                            pdu.origin,
-                            pdu_id=r.pdu_id,
-                            origin=r.origin,
-                            outlier=True,
-                        )
-            else:
-                break
+            # Fetch any missing state pdus we might be missing
+            while True:
+                r = yield StateQueries.get_next_missing_pdu(pdu)
+                if r:
+                    logger.debug("_handle_state getting pdu: %s %s",
+                        r.pdu_id, r.origin)
+                    yield self.callback.on_unseen_pdu(
+                                pdu.origin,
+                                pdu_id=r.pdu_id,
+                                origin=r.origin,
+                                outlier=True,
+                            )
+                else:
+                    break
 
-        logger.debug("_handle_state updating state")
+            logger.debug("_handle_state updating state")
 
-        was_updated = yield StateQueries.handle_new_state(pdu)
+            was_updated = yield StateQueries.handle_new_state(pdu)
 
-        logger.debug("_handle_state was_updated %s", repr(was_updated))
+            logger.debug("_handle_state was_updated %s", repr(was_updated))
 
-        if was_updated:
-            logger.debug("Notifying about new state: %s %s",
-                pdu.pdu_id, pdu.origin)
-            yield self.callback.on_state_change(pdu)
+            if was_updated:
+                logger.debug("Notifying about new state: %s %s",
+                    pdu.pdu_id, pdu.origin)
+                yield self.callback.on_state_change(pdu)
 
         if not pdu.outlier:
             logger.debug("Notifying about new pdu: %s %s",

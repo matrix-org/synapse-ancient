@@ -27,6 +27,7 @@ from twisted.enterprise import adbapi
 from twisted.python.log import PythonLoggingObserver
 
 import argparse
+import json
 import logging
 import re
 import sqlite3
@@ -152,6 +153,10 @@ class HomeServer(MessagingCallbacks):
 
         if pdu_type == "message":
             self._on_message(pdu)
+        else:
+            self.output.print_line("#%s (unrec) %s = %s" %
+                (pdu.context, pdu.pdu_type, json.dumps(pdu.content))
+            )
         #elif pdu_type == "membership":
             #if "joinee" in pdu.content:
                 #self._on_join(pdu.context, pdu.content["joinee"])
