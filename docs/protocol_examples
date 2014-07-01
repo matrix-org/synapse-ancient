@@ -5,10 +5,12 @@ Content-Type: application/json
 
 { 
     origin: ..., 
+    prev_ids: ...,
     data: [
         { 
             data_id: ...,
-            version: ...,
+            prev_pdus: [...],
+            depth: ...,
             ts: ...,
             context: ...,
             origin: ...,
@@ -33,13 +35,14 @@ HTTP/1.1 200 OK
 Content-Length: ...
 Content-Type: application/json
 
-
 {
-    origin: ..., 
+    origin: ...,
+    prev_ids: ...,
     data: [
         {
             data_id: ...,
-            version: ...,
+            prev_pdus: [...],
+            depth: ...,
             ts: ...,
             context: ...,
             origin: ...,
@@ -47,7 +50,7 @@ Content-Type: application/json
                 ...
             }
         },
-        ...
+        ...,
     ]
 }
 
