@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""This module contains metadata about the tables we use, as well as defining
+convenience types and functions to help query the tables.
+"""
 
 from collections import namedtuple
 
