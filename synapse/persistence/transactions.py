@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""This module is where we define the different queries we can run on the
+database.
+"""
 
 from tables import (ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
