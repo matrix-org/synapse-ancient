@@ -46,9 +46,12 @@ class SynapseHomeServer(MessagingCallbacks):
         defer.returnValue((200, { "state" : "saved" }))
 
         
-
+    # @defer.inlineCallbacks
     def _on_GET(self, request):
         print "GET Req %s" % request
         if "baseVer" not in request.args:
+            # defer.returnValue((400, httputils.error_json("Missing baseVer")))
             return (400, httputils.error_json("Missing baseVer"))
+        # defer.returnValue((200, { "data" : "Not yet implemented." } ))
+        return (200, { "data" : "Not yet implemented." })
             
