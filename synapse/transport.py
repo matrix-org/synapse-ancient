@@ -234,6 +234,27 @@ class TransportLayer(object):
         yield self._trigger_transaction(destination, path, outlier=outlier)
 
     @defer.inlineCallbacks
+    def trigger_paginate(self, dest, context, pdu_tuples, limit):
+        logger.debug("trigger_paginate dest=%s, context=%s, pdu_tuples=%s, "
+            "limit=%s",
+            dest, context, repr(pdu_tuples), str(limit))
+
+        if not pdu_tuples:
+            return
+
+        path = "/paginate/%s/" % context
+
+        args = {"v": ["%s,%s" % (i, o) for i, o in pdu_tuples]}
+        args["limit"] = [str(limit)]
+
+        yield self._trigger_transaction(
+            dest,
+            path,
+            outlier=False,
+            args=args,
+            )
+
+    @defer.inlineCallbacks
     def send_transaction(self, transaction):
         """ Sends the given Transaction
 
@@ -395,7 +416,7 @@ class TransportLayer(object):
         defer.returnValue((code, response))
 
     @defer.inlineCallbacks
-    def _trigger_transaction(self, destination, path, outlier=False):
+    def _trigger_transaction(self, destination, path, outlier=False, args=None):
         """Used when we want to send a GET request to a remote home server
         that will result in them returning a response with a Transaction that
         we want to process.
@@ -410,6 +431,8 @@ class TransportLayer(object):
             path (str): The path to GET.
             outlier (bool): Should the returned PDUs be considered an outlier?
                 Default: False
+            args (dict): This is parsed directlye to the HttpClient.
+                Defaults: False
 
         Returns:
             Deferred: Succeeds when we have finished processing the repsonse.
@@ -419,7 +442,8 @@ class TransportLayer(object):
         # Get the JSON from the remote server
         data = yield self.client.get_json(
                 destination,
-                path=path
+                path=path,
+                args=args,
             )
 
         # Add certain keys to the JSON, ready for decoding as a Transaction

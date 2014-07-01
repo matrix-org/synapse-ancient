@@ -7,6 +7,7 @@ from collections import namedtuple
 
 import logging
 import json
+import urllib
 
 
 logger = logging.getLogger("synapse.protocol.http")
@@ -55,13 +56,17 @@ class HttpClient(object):
         """
         pass
 
-    def get_json(self, destination, path):
+    def get_json(self, destination, path, args=None):
         """ Get's some json from the given host homeserver and path
 
         Args:
             destination (str): The remote server to send the HTTP request
                 to.
             path (str): The HTTP path.
+            args (dict): A dictionary used to create query strings, defaults to
+                None.
+                **Note**: The value of each key is assumed to be an iterable
+                and *not* a string.
 
         Returns:
             Deferred: Succeeds when we get *any* HTTP response.
@@ -223,7 +228,21 @@ class TwistedHttpClient(HttpClient):
         defer.returnValue((response.code, body))
 
     @defer.inlineCallbacks
-    def get_json(self, destination, path):
+    def get_json(self, destination, path, args=None):
+        if args:
+            # generates a list of strings of form "k=v".
+            # First we generate a list of lists, and then flatten it using
+            # the "fun" list comprehension syntax.
+            qs = [
+                i for s in
+                [
+                    ["%s=%s" % (k, urllib.quote_plus(w)) for w in v]
+                    for k, v in args.items()
+                ]
+                for i in s
+            ]
+            path = "%s?%s" % (path, "&".join(qs))
+
         response = yield self._create_get_request(
                 "http://%s%s" % (destination, path)
             )

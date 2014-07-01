@@ -278,6 +278,12 @@ class PduQueries(object):
             context)
 
     @classmethod
+    def get_back_extremeties(clz, context):
+        return utils.get_db_pool().runInteraction(
+            clz._get_back_extremeties_interaction,
+            context)
+
+    @classmethod
     def _get_pdu_interaction(clz, txn, pdu_id, origin):
         query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
         txn.execute(query, (pdu_id, origin))
@@ -596,6 +602,15 @@ class PduQueries(object):
         row = txn.fetchone()
 
         return row[0] if row else None
+
+    @staticmethod
+    def _get_back_extremeties_interaction(txn, context):
+        txn.execute("SELECT pdu_id, origin FROM %(back)s WHERE context = ?"
+            % {"back": PduBackwardExtremetiesTable.table_name, },
+            (context,)
+        )
+
+        return [PduIdTuple(i, o) for i, o in txn.fetchall()]
 
 
 class StateQueries(object):

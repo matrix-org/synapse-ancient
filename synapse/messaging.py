@@ -92,6 +92,9 @@ class MessagingLayer(PduCallbacks):
         """
         self.callback = callback
 
+    def paginate(self, dest, context, limit):
+        return self.pdu_layer.paginate(dest, context, limit)
+
     @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
         """

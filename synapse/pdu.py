@@ -75,14 +75,17 @@ class PduLayer(TransactionCallbacks):
         callback (synapse.pdu.PduCallbacks): The currently registered callback.
     """
 
-    def __init__(self, transaction_layer):
+    def __init__(self, transport_layer, transaction_layer):
         """
         Args:
+            transport_layer (synapse.transport.TransportLayer): The transport
+                layer to hit to request PDUs from other home servers.
             transaction_layer (synapse.transaction.TransactionLayer): The
                 transaction layer we use to to send PDUs.
         """
 
         self.transaction_layer = transaction_layer
+        self.transport_layer = transport_layer
 
         self.transaction_layer.set_callback(self)
 
@@ -123,6 +126,21 @@ class PduLayer(TransactionCallbacks):
         yield self.transaction_layer.enqueue_pdu(pdu, order)
 
         logger.debug("[%s] transaction_layer.enqueue_pdu... done", pdu.pdu_id)
+
+    @defer.inlineCallbacks
+    def paginate(self, dest, context, limit):
+        logger.debug("paginate context=%s, dest=%s", context, dest)
+        extremeties = yield PduQueries.get_back_extremeties(context)
+
+        logger.debug("paginate extrem=%s", extremeties)
+
+        if not extremeties:
+            return
+
+        res = yield self.transport_layer.trigger_paginate(dest, context,
+            extremeties, limit)
+
+        defer.returnValue(res)
 
     @defer.inlineCallbacks
     def on_received_pdus(self, pdu_list):
