@@ -60,6 +60,7 @@ All events are represented in JSON. They follow the format:
              $TYPE_SPECIFIC_FIELDS
            }
 }
+For a list of type specific fields, see the Event Types section.
 
 Error Responses
 ---------------
@@ -113,6 +114,7 @@ To see a list of public rooms:
   GET /rooms
   With query parameters:
     limit (integer) : The max number of rooms to return.
+    start (integer) : The 0-based start index to start returning rooms from.
   Returns (success): A "sy.room.list" Event
   Returns (failure): An Error Response
 
@@ -149,7 +151,7 @@ Params:
 
 Type: sy.room.list
 ------------------
-Gets a (potentially) partial list of rooms. If it is a partial list, then there should be a 'total' which is the total number
+Gets a (partial) list of rooms. If it is a partial list, then there should be a 'total' which is the total number
 of rooms, and 'start' which is the 0-based start index of the rooms in 'rooms'.
 Params:
 {
@@ -161,6 +163,7 @@ RoomInfo:
 {
   **"roomId"** : "string",
   "topic" : "string",
+  "num_members" : integer
 }
 
 Type: sy.message.*
@@ -222,6 +225,30 @@ There may be additional keys depending on what the message subtype is:
       "thumbanil_info" : JSON object (ImageInfo)
     }
     
-If there is no message subtype, it is assumed to be "sy.message.text".
+If the type is "sy.message", it is assumed to be "sy.message.text".
+
+Registration
+============
+All requests made to the server must contain an 'access_token' query parameter. You must register to get a token.
+
+Registering for an account
+--------------------------
+  PUT /register
+  With: A JSON object containing the key "user_id" which contains the desired userId, or an
+        empty JSON object to have the server allocate a userId automatically.
+  Returns (success): 200 OK with a JSON object:
+                     {
+                       "user_id" : "string [synapseUserId]",
+                       "access_token" : "string"
+                     }
+  Returns (failure): An Error Response.
+                     
+
+Unregistering an account
+------------------------
+  PUT /unregister
+  With query parameters: access_token=$ACCESS_TOKEN
+  Returns (success): 200 OK
+  Returns (failure): An Error Response.
 
 
