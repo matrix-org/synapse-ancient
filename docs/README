@@ -1,0 +1,6 @@
+To test it out, run the test messaging app, passing in your synapse ID as the parameter, formatted as user@host:port.
+
+mkdir dbs
+mkdir logs
+
+PYTHONPATH=. python example/test_messaging.py user@matthew-vpn.openmarket.com:5000
