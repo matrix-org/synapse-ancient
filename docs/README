@@ -4,3 +4,9 @@ mkdir dbs  # These should not be necessary as the dirs shoud already exist.
 mkdir logs
 
 PYTHONPATH=. python example/test_messaging.py user@matthew-vpn.openmarket.com:5000
+
+Then, you can join a room; invite someone to the room, and message them:
+
+join tng
+invite tng erik@wingspar:5000
+send tng hello world
