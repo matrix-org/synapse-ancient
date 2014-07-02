@@ -220,8 +220,8 @@ class PduEdgesTable(Table):
     CoumnNames = EntryType(*fields)
 
 
-class PduForwardExtremetiesTable(Table):
-    table_name = "pdu_forward_extremeties"
+class PduForwardExtremitiesTable(Table):
+    table_name = "pdu_forward_extremities"
 
     fields = [
         "pdu_id",
@@ -229,13 +229,13 @@ class PduForwardExtremetiesTable(Table):
         "context",
     ]
 
-    EntryType = namedtuple("PduForwardExtremetiesEntry", fields)
+    EntryType = namedtuple("PduForwardExtremitiesEntry", fields)
 
     CoumnNames = EntryType(*fields)
 
 
-class PduBackwardExtremetiesTable(Table):
-    table_name = "pdu_backward_extremeties"
+class PduBackwardExtremitiesTable(Table):
+    table_name = "pdu_backward_extremities"
 
     fields = [
         "pdu_id",
@@ -243,7 +243,7 @@ class PduBackwardExtremetiesTable(Table):
         "context",
     ]
 
-    EntryType = namedtuple("PduBackwardExtremetiesEntry", fields)
+    EntryType = namedtuple("PduBackwardExtremitiesEntry", fields)
 
     CoumnNames = EntryType(*fields)
 

@@ -130,15 +130,15 @@ class PduLayer(TransactionCallbacks):
     @defer.inlineCallbacks
     def paginate(self, dest, context, limit):
         logger.debug("paginate context=%s, dest=%s", context, dest)
-        extremeties = yield PduQueries.get_back_extremeties(context)
+        extremities = yield PduQueries.get_back_extremities(context)
 
-        logger.debug("paginate extrem=%s", extremeties)
+        logger.debug("paginate extrem=%s", extremities)
 
-        if not extremeties:
+        if not extremities:
             return
 
         res = yield self.transport_layer.trigger_paginate(dest, context,
-            extremeties, limit)
+            extremities, limit)
 
         defer.returnValue(res)
 

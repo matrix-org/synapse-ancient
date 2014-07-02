@@ -5,7 +5,7 @@ database.
 
 from tables import (ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
-    PduForwardExtremetiesTable, PduBackwardExtremetiesTable, CurrentStateTable,
+    PduForwardExtremitiesTable, PduBackwardExtremitiesTable, CurrentStateTable,
     ContextDepthTable)
 from ..util import dbutils as utils
 
@@ -297,9 +297,9 @@ class PduQueries(object):
             context)
 
     @classmethod
-    def get_back_extremeties(clz, context):
+    def get_back_extremities(clz, context):
         return utils.get_db_pool().runInteraction(
-            clz._get_back_extremeties_interaction,
+            clz._get_back_extremities_interaction,
             context)
 
     @classmethod
@@ -364,12 +364,12 @@ class PduQueries(object):
                 [(pdu_id, origin, p[0], p[1], context) for p in prev_pdus]
             )
 
-        ## Update the extremeties table if this is not an outlier.
+        ## Update the extremities table if this is not an outlier.
         if not outlier:
 
-            # First, we delete the new one from the forwards extremeties table.
+            # First, we delete the new one from the forwards extremities table.
             query = ("DELETE FROM %s WHERE pdu_id = ? AND origin = ?" %
-                PduForwardExtremetiesTable.table_name)
+                PduForwardExtremitiesTable.table_name)
             txn.executemany(query, prev_pdus)
 
             # We only insert as a forward extremety the new pdu if there are no
@@ -381,7 +381,7 @@ class PduQueries(object):
                     "prev_pdu_id = ? AND prev_origin = ?"
                 ")"
                 ) % {
-                    "table": PduForwardExtremetiesTable.table_name,
+                    "table": PduForwardExtremitiesTable.table_name,
                     "pdu_edges": PduEdgesTable.table_name
                 }
 
@@ -391,11 +391,11 @@ class PduQueries(object):
 
             # Insert all the prev_pdus as a backwards thing, they'll get
             # deleted in a second if they're incorrect anyway.
-            txn.executemany(PduBackwardExtremetiesTable.insert_statement(),
+            txn.executemany(PduBackwardExtremitiesTable.insert_statement(),
                 [(i, o, context) for i, o in prev_pdus]
             )
 
-            # Also delete from the backwards extremeties table all ones that
+            # Also delete from the backwards extremities table all ones that
             # reference pdus that we have already seen
             query = (
                 "DELETE FROM %(pdu_back)s WHERE EXISTS ("
@@ -406,7 +406,7 @@ class PduQueries(object):
                     "AND not pdus.outlier "
                 ")"
                 ) % {
-                    "pdu_back": PduBackwardExtremetiesTable.table_name,
+                    "pdu_back": PduBackwardExtremitiesTable.table_name,
                     "pdus": PdusTable.table_name,
                 }
             txn.execute(query)
@@ -420,7 +420,7 @@ class PduQueries(object):
                 "WHERE f.context = ?"
                 ) % {
                         "pdus": PdusTable.table_name,
-                        "forward": PduForwardExtremetiesTable.table_name,
+                        "forward": PduForwardExtremitiesTable.table_name,
                     }
 
         logger.debug("get_prev query: %s" % query)
@@ -576,7 +576,7 @@ class PduQueries(object):
             ) % {
                     "pdus": PdusTable.table_name,
                     "edges": PduEdgesTable.table_name,
-                    "back": PduBackwardExtremetiesTable.table_name,
+                    "back": PduBackwardExtremitiesTable.table_name,
                 }
 
         txn.execute(query, (context,))
@@ -592,7 +592,7 @@ class PduQueries(object):
         query = (
             "SELECT * FROM %(forward)s WHERE pdu_id = ? AND origin = ?"
             ) % {
-                    "forward": PduForwardExtremetiesTable.table_name,
+                    "forward": PduForwardExtremitiesTable.table_name,
                 }
 
         txn.execute(query, (pdu_id, origin))
@@ -633,9 +633,9 @@ class PduQueries(object):
         return row[0] if row else None
 
     @staticmethod
-    def _get_back_extremeties_interaction(txn, context):
+    def _get_back_extremities_interaction(txn, context):
         txn.execute("SELECT pdu_id, origin FROM %(back)s WHERE context = ?"
-            % {"back": PduBackwardExtremetiesTable.table_name, },
+            % {"back": PduBackwardExtremitiesTable.table_name, },
             (context,)
         )
 
