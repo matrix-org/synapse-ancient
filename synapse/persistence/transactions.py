@@ -30,6 +30,23 @@ pdu_state_fields = (
 PduAndStateTuple = namedtuple("PduAndStateTuple", pdu_state_fields)
 
 
+def run_transaction(transaction_func, *args):
+    """ Takes a function that queires the database and runs it in a dedicated
+    thread.
+
+    Args:
+        transaction_func (function): The function to run. Will get passed, as
+            the first parameter, a transaction object to use to talk to the
+            database. This get's run in a seperate thread.
+
+        *args: Extra arguments to pass to `transaction_func`
+
+    Returns:
+        Deferred: Resolves with the result of `transaction_func`.
+    """
+    return utils.get_db_pool().runInteraction(transaction_func, *args)
+
+
 class TransactionQueries(object):
     """A collection of queries that deal mainly with transactions.
 
@@ -64,7 +81,6 @@ class TransactionQueries(object):
 
     @classmethod
     def insert_received(clz, tx_tuple):
-        #entry = ReceivedTransactionsTable.EntryType(**pdu_tuple.entry)
         return utils.DBPOOL.runInteraction(clz._insert_interaction, tx_tuple)
 
     @classmethod
