@@ -5,7 +5,7 @@ server to server protocol.
 
 from twisted.internet import defer
 from ..persistence.transactions import (TransactionQueries, PduQueries,
-    StateQueries)
+    StateQueries, run_interaction)
 
 import copy
 import logging
@@ -150,8 +150,10 @@ class Transaction(JsonEncodedObject):
              # This is a fake transaction, which we always process.
             return defer.succeed(None)
 
-        return TransactionQueries.get_response_for_received(
-            self.transaction_id, self.origin)
+        return run_interaction(
+            TransactionQueries.get_response_for_received,
+            self.transaction_id, self.origin
+        )
 
     def set_response(self, code, response):
         """ Set's how we responded to this transaction. This only makes sense
@@ -169,7 +171,8 @@ class Transaction(JsonEncodedObject):
              # This is a fake transaction, which we can't respond to.
             return defer.succeed(None)
 
-        return TransactionQueries.set_recieved_txn_response(
+        return run_interaction(
+                TransactionQueries.set_recieved_txn_response,
                 self.transaction_id,
                 self.origin,
                 code,
@@ -187,16 +190,17 @@ class Transaction(JsonEncodedObject):
             Deferred: Succeeds after we successfully persist.
         """
 
-        return TransactionQueries.insert_received(
-                ReceivedTransactionsTable.EntryType(
-                    transaction_id=self.transaction_id,
-                    origin=self.origin,
-                    ts=self.ts,
-                    response_code=response_code,
-                    response_json=json.dumps(response_json)
-                ),
-                self.previous_ids
-            )
+        return run_interaction(
+            TransactionQueries.insert_received,
+            ReceivedTransactionsTable.EntryType(
+                transaction_id=self.transaction_id,
+                origin=self.origin,
+                ts=self.ts,
+                response_code=response_code,
+                response_json=json.dumps(response_json)
+            ),
+            self.previous_ids
+        )
 
     @defer.inlineCallbacks
     def prepare_to_send(self):
@@ -207,12 +211,13 @@ class Transaction(JsonEncodedObject):
             Deferred: Succeeds when the transaction is ready for transmission.
         """
 
-        self.prev_ids = yield TransactionQueries.prep_send_transaction(
-                self.transaction_id,
-                self.destination,
-                self.ts,
-                [(p.pdu_id, p.origin) for p in self.pdus]
-            )
+        self.prev_ids = yield run_interaction(
+            TransactionQueries.prep_send_transaction,
+            self.transaction_id,
+            self.destination,
+            self.ts,
+            [(p.pdu_id, p.origin) for p in self.pdus]
+        )
 
     def delivered(self, response_code, response_json):
         """ Marks this outgoing transaction as delivered.
@@ -224,8 +229,13 @@ class Transaction(JsonEncodedObject):
         Returns:
             Deferred: Succeeds after we persisted the result
         """
-        return TransactionQueries.delivered_txn(self.transaction_id,
-            self.destination, response_code, json.dumps(response_json))
+        return run_interaction(
+            TransactionQueries.delivered_txn,
+            self.transaction_id,
+            self.destination,
+            response_code,
+            json.dumps(response_json)
+        )
 
 
 class Pdu(JsonEncodedObject):
@@ -311,7 +321,10 @@ class Pdu(JsonEncodedObject):
             Deferred: Results in a `list` of Pdus
         """
 
-        results = yield PduQueries.get_current_state(context)
+        results = yield run_interaction(
+            PduQueries.get_current_state,
+            context
+        )
 
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
 
@@ -360,7 +373,10 @@ class Pdu(JsonEncodedObject):
         Retruns:
             Deferred: Results in a Pdu
         """
-        pdu_tuple = yield PduQueries.get_pdu(pdu_id, pdu_origin)
+        pdu_tuple = yield run_interaction(
+            PduQueries.get_pdu,
+            pdu_id, pdu_origin
+        )
 
         defer.returnValue(Pdu._from_pdu_tuple(pdu_tuple))
 
@@ -389,7 +405,10 @@ class Pdu(JsonEncodedObject):
         # This is safe to do since if *we* are sending something, then we must
         # have seen everything we reference (hopefully).
         if self.is_state:
-            yield StateQueries.handle_new_state(self)
+            yield run_interaction(
+                StateQueries.handle_new_state,
+                self
+            )
 
         defer.returnValue(ret)
 
@@ -399,7 +418,10 @@ class Pdu(JsonEncodedObject):
         Returns:
             Deferred
         """
-        return PduQueries.mark_as_processed(self.pdu_id, self.origin)
+        return run_interaction(
+            PduQueries.mark_as_processed,
+            self.pdu_id, self.origin
+        )
 
     @defer.inlineCallbacks
     def _persist(self):
@@ -411,18 +433,20 @@ class Pdu(JsonEncodedObject):
         logger.debug("Persisting: %s", repr(kwargs))
 
         if self.is_state:
-            ret = yield PduQueries.insert_state(
+            ret = yield run_interaction(
+                    PduQueries.insert_state,
                     **kwargs
                 )
         else:
-            ret = yield PduQueries.insert(
+            ret = yield run_interaction(
+                    PduQueries.insert,
                     **kwargs
                 )
 
-        #if self.is_state:
-            #yield StateQueries.handle_new_state(self)
-
-        yield PduQueries.update_min_depth(self.context, self.version)
+        yield run_interaction(
+            PduQueries.update_min_depth,
+            self.context, self.version
+        )
 
         defer.returnValue(ret)
 
@@ -439,7 +463,10 @@ class Pdu(JsonEncodedObject):
             Deferred: Succeeds when prev_pdus have been successfully updated.
         """
 
-        results = yield PduQueries.get_prev_pdus(self.context)
+        results = yield run_interaction(
+            PduQueries.get_prev_pdus,
+            self.context
+        )
 
         self.prev_pdus = [(p_id, origin) for p_id, origin, _ in results]
 
@@ -450,7 +477,9 @@ class Pdu(JsonEncodedObject):
             self.version = 0
 
         if self.is_state:
-            curr = yield StateQueries.current_state(self.context,
+            curr = yield run_interaction(
+                StateQueries.current_state,
+                self.context,
                 self.pdu_type, self.state_key)
 
             if curr:
@@ -475,27 +504,33 @@ class Pdu(JsonEncodedObject):
         Results:
             Deferred: A list of Pdus.
         """
-        results = yield PduQueries.get_after_transaction(
+        results = yield run_interaction(
+            PduQueries.get_after_transaction,
             transaction_id,
             destination,
-            origin)
+            origin
+        )
 
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
 
     @staticmethod
     @defer.inlineCallbacks
     def paginate(context, version_list, limit):
-        results = yield PduQueries.paginate(context, version_list, limit)
+        results = yield run_interaction(
+            PduQueries.paginate,
+            context, version_list, limit
+        )
 
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
 
     def is_new(self):
-        return PduQueries.is_new(
-                pdu_id=self.pdu_id,
-                origin=self.origin,
-                context=self.context,
-                version=self.version
-            )
+        return run_interaction(
+            PduQueries.is_new,
+            pdu_id=self.pdu_id,
+            origin=self.origin,
+            context=self.context,
+            version=self.version
+        )
 
 
 def _encode(obj):
