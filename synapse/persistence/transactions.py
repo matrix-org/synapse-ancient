@@ -68,7 +68,7 @@ class TransactionQueries(object):
             Deferred: Resolves with None if we have not previously responded to
             this transaction or a 2-tuple of (int, dict)
         """
-        result = yield utils.get_db_pool().runInteraction(
+        result = yield run_transaction(
             clz._get_received_interaction,
             transaction_id, origin)
 
@@ -86,27 +86,27 @@ class TransactionQueries(object):
     @classmethod
     def set_recieved_txn_response(clz, transaction_id, origin, code,
     response_json):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._set_recieved_response_interaction,
             transaction_id, origin, code, response_json)
 
     @classmethod
     def prep_send_transaction(clz, transaction_id, destination, ts,
     pdu_list):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._prep_send_transaction_interaction,
             transaction_id, destination, ts, pdu_list)
 
     @classmethod
     def delivered_txn(clz, transaction_id, destination,
     code, response_json):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._delivered_txn_interaction,
             transaction_id, destination, code, response_json)
 
     @classmethod
     def get_transactions_after(clz, transaction_id, destination):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_transactions_after_interaction,
             transaction_id, destination)
 
@@ -235,12 +235,12 @@ class PduQueries(object):
 
     @classmethod
     def get_pdu(clz, pdu_id, origin):
-        return utils.get_db_pool().runInteraction(clz._get_pdu_interaction,
+        return run_transaction(clz._get_pdu_interaction,
              pdu_id, origin)
 
     @classmethod
     def get_current_state(clz, context):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_current_state_interaction,
             context)
 
@@ -249,7 +249,7 @@ class PduQueries(object):
         entry = PdusTable.EntryType(
                 **{k: cols.get(k, None) for k in PdusTable.fields}
             )
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._insert_interaction,
             entry, prev_pdus)
 
@@ -265,56 +265,56 @@ class PduQueries(object):
         logger.debug("Inserting pdu: %s", repr(pdu_entry))
         logger.debug("Inserting state: %s", repr(state_entry))
 
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._insert_state_interaction,
             pdu_entry, state_entry, prev_pdus)
 
     @classmethod
     def mark_as_processed(clz, pdu_id, pdu_origin):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._mark_as_processed_interaction,
             pdu_id, pdu_origin
             )
 
     @classmethod
     def get_prev_pdus(clz, context):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_prev_pdus_interaction,
             context)
 
     @classmethod
     def get_after_transaction(clz, transaction_id, destination, local_server):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_pdus_after_transaction,
             transaction_id, destination, local_server)
 
     @classmethod
     def paginate(clz, context, version_list, limit):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._paginate_interaction,
             context, version_list, limit)
 
     @classmethod
     def is_new(clz, pdu_id, origin, context, version):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._is_new_interaction,
             pdu_id, origin, context, version)
 
     @classmethod
     def update_min_depth(clz, context, depth):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._update_min_depth_interaction,
             context, depth)
 
     @classmethod
     def get_min_depth(clz, context):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_min_depth_interaction,
             context)
 
     @classmethod
     def get_back_extremities(clz, context):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_back_extremities_interaction,
             context)
 
@@ -661,19 +661,19 @@ class PduQueries(object):
 class StateQueries(object):
     @classmethod
     def get_next_missing_pdu(clz, new_pdu):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_next_missing_pdu_interaction,
             new_pdu)
 
     @classmethod
     def handle_new_state(clz, new_pdu):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._handle_new_state_interaction,
             new_pdu)
 
     @classmethod
     def current_state(clz, context, pdu_type, state_key):
-        return utils.get_db_pool().runInteraction(
+        return run_transaction(
             clz._get_current_interaction,
             context, pdu_type, state_key)
 
