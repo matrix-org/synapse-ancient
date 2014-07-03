@@ -21,7 +21,7 @@ When rooms are created, the client either specifies or is allocated a room ID. T
 Like with clients, there may be multiple rooms with the same ID across multiple home servers. The roomId is used to uniquely
 identify a room when federating.
 
-globalMsgId : The globally unique ID for a message.
+Global message ID : The globally unique ID for a message.
 This ID is formed from the msgid, the client's synapseUserId and the synapseRoomId. This uniquely identifies any message. It is represented
 with '-' as the delimeter between IDs. The globalMsgId is of the form: synapseRoomId-synapseUserId-msgid
 
@@ -43,7 +43,62 @@ client is. These ids are completely opaque, and the client cannot infer anything
   Returns (failure): An Error Response
 
 LAST_EVENT_ID is the last event ID obtained from Event Data. If the client is connecting for the first time and does not know any event IDs,
-they can use "START" to request all events from the start.
+they can use "START" to request all events from the start. For more information on this, see "Filtering Query Parameters".
+
+Filtering Query Parameters
+--------------------------
+Clients may wish to filter results from the event stream, or other sources of information where the amount of information may be a problem,
+e.g. in a room with 10,000s messages. The filtering query parameters provide a way to navigate a 'window' around a large set of data. These
+parameters are only valid for GET requests.
+       
+        S e r v e r - s i d e   d a t a
+ |-------------------------------------------------|
+START      ^               ^                      END
+           |_______________|
+                   |
+            Client-extraction
+
+'START' and 'END' are magic values which specify the start and end of the dataset respectively.
+
+Query parameters:
+  from : $id - What item of data to start from. This could be a 0-based index, an event ID, or some other way of uniquely identifying data.
+  to : $id - What item of data to end at. This could be a 0-based index, an event ID, or some other way of uniquely identifying data. Typically,
+       clients will not know the item of data to end at, so this will usually be START or END.
+  limit : integer - An integer representing the maximum number of items to return.
+  dir : [f|b] - The direction to return results in. A direction of [f]orwards would return the items at 'from' first, whereas [b]ackwards would
+                return the items from 'to' first.
+  search : NOT_YET_IMPLEMENTED : The search query to perform.
+
+For example, the event stream has events E1 -> E15. The client wants the last 5 events and doesn't know any previous events:
+
+S                                                        E
+|-E1-E2-E3-E4-E5-E6-E7-E8-E9-E10-E11-E12-E13-E14-E14-E15-|
+|                               |<--direction=backwards--|
+|                          _____|   ___|                 |
+|__________________       |        |     ________________|
+                   |      |        |     |
+ GET /events?from=START&limit=5&dir=b&to=END
+ Returns:
+   E15,E14,E13,E12,E11
+
+
+Another example: a public room list has rooms R1 -> R17. The client is showing 5 rooms at a time on screen, and is on page 2. They want to
+now show page 3 (rooms R11 -> 15):
+
+S                                                           E
+|  0  1  2  3  4  5  6  7  8  9  10  11  12  13  14  15  16 | index
+|-R1-R2-R3-R4-R5-R6-R7-R8-R9-R10-R11-R12-R13-R14-R15-R16-R17| room
+                  |____________| |________________|
+                        |                |
+                    Currently            |
+                    viewing              |
+                                         |
+                         GET /rooms/list?from=9&to=END&dir=f&limit=5
+                         Returns: R11,R12,R13,R14,R15
+
+
+The term 'filtering query parameters' is used to describe an API which can be filtered in this way. The API will also specify what ID to use.
+For example, the event streaming API is compatible with filtering query parameters with the id as the event id.
 
 Event Data
 ----------
@@ -132,7 +187,7 @@ REST API
 
 All content must be application/json. Some keys are required, while others are optional. Unless otherwise specified,
 all HTTP PUT/POST/DELETEs will return a 200 OK with an empty response body on success, and a 200 OK with an 
-Error Response on failure.
+Error Response on failure. When sending data, if there are no keys to send, an empty JSON object should be sent.
 
 All POST/PUT/GET/DELETE requests MUST have an 'access_token' query parameter to allow the server to authenticate the client. All
 POST requests MUST be submitted as application/json. 
@@ -186,16 +241,14 @@ Setting the topic for a room
 See a list of public rooms
 --------------------------
   Event Type: sy.room.list
-  REST Path: /rooms/list
+  REST Path: /rooms/list?filtering_query_parameters
   Valid methods: GET
-  Optional query parameters:
-    limit (integer) : The max number of rooms to return.
-    start (integer) : The 0-based start index to start returning rooms from.
+  This API can use filtering query parameters, with the id as the 0-based start index to start returning rooms from.
   Returns:
     {
       "rooms" : JSON array of RoomInfo JSON objects - Required.
-      "total" : integer - Optional.
-      "start" : integer - Optional.
+      "total" : integer - Optional. The total number of rooms.
+      "start" : integer - Optional. The 0-based index of the first room in "rooms".
     }
 
 RoomInfo: Information about a single room.
@@ -224,7 +277,7 @@ Invite/Joining/Leaving a room
 
 Changing permissions for a member [PROPOSED]
 ---------------------------------
-  Event Type: sy.room.members.perms
+  Event Type: sy.room.membsers.perms
   REST Path: /rooms/$roomid/members/$userid/perms
   Valid methods: GET/PUT
   Required keys: 
@@ -255,39 +308,50 @@ Checking the user list of a room
 
 Messages
 ========
+Users send messages to other users in rooms. These messages may be text, images, video, etc. Clients may also want to acknowledge 
+messages by sending feedback, in the form of delivery/read receipts.
+
+Server-attached keys
+--------------------
+The server will attach additional keys to messages and feedback. If a client submits keys with the same name, they will be clobbered by
+the server. These keys are:
+  from : "string [userid]" - The userid of the user who sent the message.
+  hs_ts : integer - A timestamp representing when the message/feedback got to the client's home server.
 
 Sending messages
 ----------------
   Event Type: sy.room.message
-  REST Path: /rooms/$roomid/messages/$msgid
+  REST Path: /rooms/$roomid/messages/$userid/$msgid
   Valid methods: GET/PUT
   Required keys: 
-    msgtype : [text|image|audio|video|location|file] - The type of message. Not to be confused with the Event 'type'.
-
-There will be an additional key "from" which is attached to all messages by the server. This contains the synapseUserId of the 
-user who sent the message. If a client attempts to PUT a 'from' key when sending a message, it will be clobbered by the server.
+    msgtype : [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - The type of message. Not to be confused with the Event 'type'.
+  Reserved keys:
+    body : "string" - The human readable string for compatibility with clients which cannot process a given msgtype. This key is optional, but
+                      if it is included, it MUST be human readable text describing the message. See individual msgtypes for more info on what 
+                      this means in practice.
 
 Each msgtype may have required fields of their own.
 
-msgtype: text
--------------
+msgtype: sy.text
+----------------
 Required keys:
   body : "string" - The body of the message.
 Optional keys:
   None.
 
-msgtype: emote
---------------
+msgtype: sy.emote
+-----------------
 Required keys:
   body : "string" - *tries to come up with a witty explanation*.
 Optional keys:
   None.
 
-msgtype: image
---------------
+msgtype: sy.image
+-----------------
 Required keys:
   url : "string" - The URL to the image.
 Optional keys:
+  body : "string" - 
   info : JSON object (ImageInfo) - The image info for image referred to in 'url'.
   thumbnail_url : "string" - The URL to the thumbnail.
   thumbnail_info : JSON object (ImageInfo) - The image info for the image referred to in 'thumbnail_url'.
@@ -300,8 +364,11 @@ ImageInfo: Information about an image.
   "mimetype" : "string (e.g. image/jpeg)"
 }
 
-msgtype: audio
---------------
+Interpretation of 'body' key: The alt text of the image, or some kind of content description for accessibility 
+                              e.g. "image attachment".
+
+msgtype: sy.audio
+-----------------
 Required keys:
   url : "string" - The URL to the audio.
 Optional keys:
@@ -314,8 +381,11 @@ AudioInfo: Information about a piece of audio.
   "duration" : integer (duration of audio in milliseconds)
 }
 
-msgtype: video
---------------
+Interpretation of 'body' key: A description of the audio e.g. "Bee Gees - Stayin' Alive", or some kind of content description for 
+                              accessibility e.g. "audio attachment".
+
+msgtype: sy.video
+-----------------
 Required keys:
   url : "string" - The URL to the video.
 Optional keys:
@@ -332,18 +402,87 @@ VideoInfo: Information about a video.
   "thumbanil_info" : JSON object (ImageInfo)
 }
 
+Interpretation of 'body' key: A description of the video e.g. "Gangnam style", or some kind of content description for 
+                              accessibility e.g. "video attachment".
 
+msgtype: sy.location
+--------------------
+Required keys:
+  geo_uri : "string" - The geo URI representing the location.
+Optional keys:
+  thumbnail_url : "string" - The URL to a thumnail of the location being represented.
+  thumbnail_info : JSON object (ImageInfo) - The image info for the image referred to in 'thumbnail_url'.
+
+Interpretation of 'body' key: A description of the location e.g. "Big Ben, London, UK", or some kind of content description for 
+                              accessibility e.g. "location attachment".
+
+
+Sending feedback
+----------------
+When you receive a message, you may want to send delivery receipt to let the sender know that the message arrived. You may also
+want to send a read receipt when the user has read the message. These receipts are collectively known as 'feedback'.
+
+  Event Type: sy.room.message.feedback
+  REST Path: /rooms/$roomid/messages/$userid/$msgid/feedback/$userid/$feedback
+  Valid methods: GET/PUT
+  URL parameters:
+    $feedback : [d|r] - Specify if this is a [d]elivery or [r]ead receipt.
+  Required keys:
+    None.
+  Optional keys:
+    client_ts : integer - The wall-clock time when the client sent the receipt.
+
+Receiving messages (bulk/pagination)
+------------------------------------
+  Event Type: sy.room.message
+  REST Path: /rooms/$roomid/messages/list
+  Valid methods: GET
+  Query Parameters:
+    feedback : [true|false] - Specify if feedback should be bundled with each message.
+  This API can use filtering query parameters, with the id as the event ID of a known message.
+  Returns:
+    A JSON array of Event Data. If the "feedback" parameter was set, this will also contain a "feedback" key which
+   contains a JSON array of feedback, with each element as Event Data for the individual feedback for this message.
+
+When you join a room $roomid, you may want the last 10 messages with feedback. This is represented as:
+  GET /rooms/$roomid/messages/list?from=START&to=END&dir=b&limit=10&feedback=true
+
+You may want to get 10 messages even earlier than that without feedback. If the last message had an event ID of e12345678, this 
+request would be:
+  GET /rooms/$roomid/messages/list?from=START&to=e12345678&dir=b&limit=10&feedback=false
+  
+NOTE: Care must be taken when using this API in conjunction with event streaming. It is possible that this will return a message which will
+      then come down the event stream, resulting in a duplicate message. Clients should clobber based on the global message ID.
 
 Examples
 ========
 
-Registering for an account with sy.org, getting a list of public rooms, joining one of them and sending a message in that room.
+The following example is the story of "bob", who signs up at "sy.org" and joins the public room "room_beta@sy.org". They get the 2 most recent
+messages (with feedback) in that room and then send a message in that room. 
+
+For context, here is the complete chat log for room_beta@sy.org:
+
+Room: "Hello world" (room_beta@sy.org)
+Members: (2) alice@randomhost.org, friend_of_alice@randomhost.org
+Messages:
+  alice@randomhost.org : hi friend!                     [friend_of_alice@randomhost.org DELIVERED]
+  alice@randomhost.org : you're my only friend          [friend_of_alice@randomhost.org DELIVERED]
+  alice@randomhost.org : afk                            [friend_of_alice@randomhost.org DELIVERED]
+  [ bob@sy.org joins ]
+  bob@sy.org : Hi everyone
+  [ alice@randomhost.org changes the topic to "FRIENDS ONLY" ]
+  alice@randomhost.org : Hello!!!!
+  alice@randomhost.org : Let's go to another room
+  alice@randomhost.org : You're not my friend
+  [ alice@randomhost.org invites bob@sy.org to the room commoners@randomhost.org]
 
 
+REGISTER FOR AN ACCOUNT
 PUT: /register
 Content: {}
 Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 
+GET PUBLIC ROOM LIST
 GET: /rooms/list?access_token=abcdef0123456789
 Returns: 
 { 
@@ -356,18 +495,74 @@ Returns:
   }
 }
 
+JOIN ROOM room_beta@sy.org
 PUT /rooms/room_beta%40sy.org/members/bob%40sy.org/state?access_token=abcdef0123456789
 Content: { "membership" : "join" }
 Returns: 200 OK
 
+GET LATEST 2 MESSAGES WITH FEEDBACK
+GET /rooms/room_beta%40sy.org/messages/list?from=START&to=END&dir=b&limit=2&feedback=true&access_token=abcdef0123456789
+Returns:
+[
+  { 
+    "eid":"01948374", 
+    "type":"sy.room.message",
+    "roomid":"room_beta@sy.org",
+    "msgid":"avefifu",
+    "from":"alice@randomhost.org",
+    "hs_ts":139985736,
+    "content":{
+      "msgtype":"sy.text",
+      "body":"afk"
+    }
+    "feedback": [
+      {
+        "eid":"e93742763",
+        "type":"sy.room.message.feedback",
+        "roomid":"room_beta@sy.org",
+        "from":"friend_of_alice@randomhost.org",
+        "feedback":"d",
+        "hs_ts":139985850,
+        "content":{
+          "client_ts":139985843
+        }
+      }
+    ]
+  },
+  { 
+    "eid":"028dfe8373", 
+    "type":"sy.room.message",
+    "roomid":"room_beta@sy.org",
+    "msgid":"afhgfff",
+    "from":"alice@randomhost.org",
+    "hs_ts":139970006,
+    "content":{
+      "msgtype":"sy.text",
+      "body":"you're my only friend"
+    }
+    "feedback": [
+      {
+        "eid":"e93742763",
+        "type":"sy.room.message.feedback",
+        "roomid":"room_beta@sy.org",
+        "from":"friend_of_alice@randomhost.org",
+        "feedback":"d",
+        "hs_ts":139970144,
+        "content":{
+          "client_ts":139970122
+        }
+      }
+    ]
+  },
+]
+
+SEND MESSAGE IN ROOM
 PUT /rooms/room_beta%40sy.org/messages/m0001?access_token=abcdef0123456789
 Content: { "msgtype" : "text" , "body" : "Hi everyone" }
 Returns: 200 OK
 
 
 Checking the event stream for this user:
-
-
 GET: /events?from=START&access_token=abcdef0123456789
 Returns:
 [
@@ -386,8 +581,9 @@ Returns:
     "roomid":"room_beta@sy.org",
     "msgid":"m0001",
     "from":"bob@sy.org",
+    "hs_ts":140193857,
     "content":{
-      "msgtype":"text",
+      "msgtype":"sy.text",
       "body":"Hi everyone"
     }
   }
@@ -413,8 +609,9 @@ Returns:
     "roomid":"room_beta@sy.org",
     "msgid":"z839409",
     "from":"alice@randomhost.org",
+    "hs_ts":140195000,
     "content":{
-      "msgtype":"text",
+      "msgtype":"sy.text",
       "body":"Hello!!!"
     }
   },
@@ -424,9 +621,10 @@ Returns:
     "roomid":"room_beta@sy.org",
     "msgid":"z839410",
     "from":"alice@randomhost.org",
+    "hs_ts":140196000,
     "content":{
-      "msgtype":"text",
-      "body":"Lets go to another room"
+      "msgtype":"sy.text",
+      "body":"Let's go to another room"
     }
   },
   { 
@@ -435,8 +633,9 @@ Returns:
     "roomid":"room_beta@sy.org",
     "msgid":"z839411",
     "from":"alice@randomhost.org",
+    "hs_ts":140197000,
     "content":{
-      "msgtype":"text",
+      "msgtype":"sy.text",
       "body":"You're not my friend"
     }
   },
@@ -455,8 +654,4 @@ Returns:
 
 
 Outstanding problems / missing spec:
-- Currently no REST API way of getting any of alice's messages (/rooms/$roomid/messages/$msgid could clash with mutliple users with the same msgid).
-  Realistically, we need to make it /rooms/$roomid/messages/$userid/$msgid but this bloats the url length.
-- No pagination spec.
 - No presence spec.
-- No private message (one to one) spec.
