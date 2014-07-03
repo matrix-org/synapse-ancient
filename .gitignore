@@ -6,3 +6,4 @@ dbs/
 *.egg
 dist/
 docs/build/
+*.egg-info

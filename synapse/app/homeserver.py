@@ -18,8 +18,11 @@ from twisted.python.log import PythonLoggingObserver
 
 import argparse
 import logging
+import os
 import re
 import sqlite3
+import synapse.db.schema
+
 
 def setup_server(hostname):
     """ Sets up a home server.
@@ -42,6 +45,7 @@ def setup_server(hostname):
     hs = SynapseHomeServer(http_server, hostname, messaging)
     return http_server
 
+
 def setup_db(db_name):
     """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
     have to worry about overwriting existing content.
@@ -59,21 +63,21 @@ def setup_db(db_name):
     Registry.DBPOOL = pool
 
     schemas = [
-            "schema/transactions.sql",
-            "schema/pdu.sql",
-            "schema/users.sql",
-            "schema/im.sql"
+            "transactions",
+            "pdu",
+            "users",
+            "im"
     ]
 
     for sql_loc in schemas:
-        with open(sql_loc, "r") as sql_file:
-            sql_script = sql_file.read()
+        sql_script = synapse.db.schema.read_schema(sql_loc)
 
         with sqlite3.connect(db_name) as db_conn:
             c = db_conn.cursor()
             c.executescript(sql_script)
             c.close()
             db_conn.commit()
+
 
 def setup_logging(verbosity, location):
     """ Sets up logging with set verbosity levels.
@@ -104,9 +108,12 @@ def setup_logging(verbosity, location):
     observer = PythonLoggingObserver()
     observer.start()
 
+
 def main(port, db, host, verbose):
     host = host if host else "localhost"
-
+    
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
     setup_logging(verbose, "logs/%s"%host)
 
     # setup and run with defaults if not specified
@@ -116,13 +123,17 @@ def main(port, db, host, verbose):
 
     reactor.run()
 
-if __name__ == '__main__':
+
+def run():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--port", dest="port", type=int, help="The port to listen on.")
     parser.add_argument("-d", "--database", dest="db", help="The database name.")
     parser.add_argument("-H", "--host", dest="host", help="The hostname of the server.")
     parser.add_argument('-v', '--verbose', dest="verbose", action='count', help="The verbosity level.")
     args = parser.parse_args()
-
     main(args.port, args.db, args.host, args.verbose)
+
+
+if __name__ == '__main__':
+    run()
 

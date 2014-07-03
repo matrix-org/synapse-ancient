@@ -12,10 +12,14 @@ def read(fname):
 setup(
     name="SynapseHomeServer",
     version="0.1",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests"]),
     description="Reference Synapse Home Server",
     install_requires=["Twisted", "twistar"],
     setup_requires=["setuptools_trial", "sphinx", "sphinxcontrib-napoleon", "mock"],
     include_package_data=True,
-    long_description=read('README'),
+    long_description=read("README"),
+    entry_points="""
+    [console_scripts]
+    synapse-homeserver=synapse.app.homeserver:run
+    """
 )
