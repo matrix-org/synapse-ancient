@@ -422,10 +422,10 @@ When you receive a message, you may want to send delivery receipt to let the sen
 want to send a read receipt when the user has read the message. These receipts are collectively known as 'feedback'.
 
   Event Type: sy.room.message.feedback
-  REST Path: /rooms/$roomid/messages/$userid/$msgid/feedback/$from/$feedback
+  REST Path: /rooms/$roomid/messages/$msgfrom/$msgid/feedback/$from/$feedback
   Valid methods: GET/PUT
   URL parameters:
-    $userid - The sender of the message's userid.
+    $msgfrom - The sender of the message's userid.
     $from : userid - The sender of the feedback's userid. This value will be clobbered by the server before sending.
     $feedback : [d|r] - Specify if this is a [d]elivery or [r]ead receipt.
   Required keys:
@@ -443,7 +443,34 @@ Receiving messages (bulk/pagination)
   This API can use filtering query parameters, with the id as the event ID of a known message.
   Returns:
     A JSON array of Event Data. If the "feedback" parameter was set, this will also contain a "feedback" key which
-   contains a JSON array of feedback, with each element as Event Data for the individual feedback for this message.
+   contains a JSON array of feedback, with each element as Event Data with compressed feedback for this message.
+
+Event Data with compressed feedback is a special type of feedback with contextual keys removed. It is designed to limit the 
+amount of redundant data being sent for feedback. This removes the type, room ID, message sender ID and message ID keys.
+
+     ORIGINAL (via event streaming)
+{
+  "eid":"e1247632487",
+  "type":"sy.room.message.feedback",
+  "from":"string [userid]",
+  "feedback":"string [d|r]",
+  "roomid":"$roomid",
+  "msgid":"$msgid",
+  "msgfrom":"$msgfromid",
+  "content":{
+    "sender_ts":139880943
+  }
+}
+
+     COMPRESSED (via /messages/list)
+{
+  "eid":"e1247632487",
+  "from":"string [userid]",
+  "feedback":"string [d|r]",
+  "content":{
+    "sender_ts":139880943
+  }
+}
 
 When you join a room $roomid, you may want the last 10 messages with feedback. This is represented as:
   GET /rooms/$roomid/messages/list?from=START&to=END&dir=b&limit=10&feedback=true
@@ -519,8 +546,6 @@ Returns:
     "feedback": [
       {
         "eid":"e93742763",
-        "type":"sy.room.message.feedback",
-        "roomid":"room_beta@sy.org",
         "from":"friend_of_alice@randomhost.org",
         "feedback":"d",
         "hs_ts":139985850,
@@ -544,8 +569,6 @@ Returns:
     "feedback": [
       {
         "eid":"e93742763",
-        "type":"sy.room.message.feedback",
-        "roomid":"room_beta@sy.org",
         "from":"friend_of_alice@randomhost.org",
         "feedback":"d",
         "hs_ts":139970144,
