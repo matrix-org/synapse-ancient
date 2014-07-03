@@ -259,7 +259,7 @@ class Pdu(JsonEncodedObject):
             "destinations",
             "transaction_id",
             "prev_pdus",
-            "version",
+            "depth",
             "content",
             "outlier",
             "power_level",
@@ -445,7 +445,7 @@ class Pdu(JsonEncodedObject):
 
         yield run_interaction(
             PduQueries.update_min_depth,
-            self.context, self.version
+            self.context, self.depth
         )
 
         defer.returnValue(ret)
@@ -472,9 +472,9 @@ class Pdu(JsonEncodedObject):
 
         vs = [int(v) for _, _, v in results]
         if vs:
-            self.version = max(vs) + 1
+            self.depth = max(vs) + 1
         else:
-            self.version = 0
+            self.depth = 0
 
         if self.is_state:
             curr = yield run_interaction(
@@ -515,10 +515,10 @@ class Pdu(JsonEncodedObject):
 
     @staticmethod
     @defer.inlineCallbacks
-    def paginate(context, version_list, limit):
+    def paginate(context, pdu_list, limit):
         results = yield run_interaction(
             PduQueries.paginate,
-            context, version_list, limit
+            context, pdu_list, limit
         )
 
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
@@ -529,7 +529,7 @@ class Pdu(JsonEncodedObject):
             pdu_id=self.pdu_id,
             origin=self.origin,
             context=self.context,
-            version=self.version
+            depth=self.depth
         )
 
 

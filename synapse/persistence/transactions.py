@@ -410,7 +410,7 @@ class PduQueries(object):
         return clz._paginate_interaction(txn, context, pdu_list, limit)
 
     @classmethod
-    def is_new(clz, txn, pdu_id, origin, context, version):
+    def is_new(clz, txn, pdu_id, origin, context, depth):
         """For a given Pdu, try and figure out if it's 'new', i.e., if it's
         not something we got randomly from the past, for example when we
         request the current state of the room that will probably return a bunch
@@ -421,12 +421,12 @@ class PduQueries(object):
             pdu_id (str)
             origin (str)
             context (str)
-            version (int)
+            depth (int)
 
         Returns:
             bool
         """
-        return clz._is_new_interaction(txn, pdu_id, origin, context, version)
+        return clz._is_new_interaction(txn, pdu_id, origin, context, depth)
 
     @classmethod
     def update_min_depth(clz, txn, context, depth):
@@ -577,7 +577,7 @@ class PduQueries(object):
     @staticmethod
     def _get_prev_pdus_interaction(txn, context):
         query = (
-                "SELECT p.pdu_id, p.origin, p.version FROM %(pdus)s as p "
+                "SELECT p.pdu_id, p.origin, p.depth FROM %(pdus)s as p "
                 "INNER JOIN %(forward)s as f ON p.pdu_id = f.pdu_id "
                 "AND f.origin = p.origin "
                 "WHERE f.context = ?"
@@ -660,14 +660,14 @@ class PduQueries(object):
         return PduTuple(pdu_entry, state_entry, edges)
 
     @classmethod
-    def _paginate_interaction(clz, txn, context, version_list, limit):
+    def _paginate_interaction(clz, txn, context, pdu_list, limit):
         logger.debug("_paginate_interaction: %s, %s, %s",
-            context, repr(version_list), limit)
+            context, repr(pdu_list), limit)
 
         pdu_results = []
 
-        # We seed the pdu_results with the things from the version_list.
-        for pdu_id, origin in version_list:
+        # We seed the pdu_results with the things from the pdu_list.
+        for pdu_id, origin in pdu_list:
             query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
             txn.execute(query, (pdu_id, origin))
 
@@ -676,7 +676,7 @@ class PduQueries(object):
             if results:
                 pdu_results.append(results[0])
 
-        front = version_list
+        front = pdu_list
 
         pdu_fields = ", ".join(["p.%s" % f for f in PdusTable.fields])
         query = (
@@ -725,12 +725,12 @@ class PduQueries(object):
         return clz._get_pdu_tuple_from_entries(txn, pdu_results)
 
     @staticmethod
-    def _is_new_interaction(txn, pdu_id, origin, context, version):
-        ## If version > min version in back table, then we classify it as new.
+    def _is_new_interaction(txn, pdu_id, origin, context, depth):
+        ## If depth > min depth in back table, then we classify it as new.
         ## OR if there is nothing in the back table, then it kinda needs to
         ## be a new thing.
         query = (
-            "SELECT min(p.version) FROM %(edges)s as e "
+            "SELECT min(p.depth) FROM %(edges)s as e "
             "INNER JOIN %(back)s as b "
                 "ON e.prev_pdu_id = b.pdu_id AND e.prev_origin = b.origin "
             "INNER JOIN %(pdus)s as p "
@@ -744,11 +744,11 @@ class PduQueries(object):
 
         txn.execute(query, (context,))
 
-        min_version, = txn.fetchone()
+        min_depth, = txn.fetchone()
 
-        if not min_version or version > int(min_version):
-            logger.debug("is_new true: id=%s, o=%s, v=%s min_ver=%s",
-                pdu_id, origin, version, min_version)
+        if not min_depth or depth > int(min_depth):
+            logger.debug("is_new true: id=%s, o=%s, d=%s min_depth=%s",
+                pdu_id, origin, depth, min_depth)
             return True
 
         ## If this pdu is in the forwards table, then it also is a new one
@@ -762,12 +762,12 @@ class PduQueries(object):
 
         # Did we get anything?
         if txn.fetchall():
-            logger.debug("is_new true: id=%s, o=%s, v=%s was forward",
-                pdu_id, origin, version)
+            logger.debug("is_new true: id=%s, o=%s, d=%s was forward",
+                pdu_id, origin, depth)
             return True
 
-        logger.debug("is_new false: id=%s, o=%s, v=%s",
-                pdu_id, origin, version)
+        logger.debug("is_new false: id=%s, o=%s, d=%s",
+                pdu_id, origin, depth)
 
         ## FINE THEN. It's probably old.
         return False
@@ -890,11 +890,11 @@ class StateQueries(object):
         branch_a = pdu_a
         branch_b = pdu_b
 
-        version_a = pdu_a.version
-        version_b = pdu_b.version
+        depth_a = pdu_a.depth
+        depth_b = pdu_b.depth
 
         get_query = (
-            "SELECT p.version, %(fields)s FROM %(state)s as s "
+            "SELECT p.depth, %(fields)s FROM %(state)s as s "
             "INNER JOIN %(pdus)s as p "
                 "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
             "WHERE s.pdu_id = ? AND s.origin = ? "
@@ -910,7 +910,7 @@ class StateQueries(object):
                 # Woo! We found a common ancestor
                 break
 
-            if int(version_a) < int(version_b):
+            if int(depth_a) < int(depth_b):
                 pdu_tuple = PduIdTuple(
                     branch_a.prev_state_id,
                     branch_a.prev_state_origin
@@ -931,7 +931,7 @@ class StateQueries(object):
                 if not branch_a:
                     break
                 else:
-                    version_a = res[0]
+                    depth_a = res[0]
             else:
                 pdu_tuple = PduIdTuple(
                     branch_b.prev_state_id,
@@ -952,7 +952,7 @@ class StateQueries(object):
                 if not states:
                     break
                 else:
-                    version_b = res[0]
+                    depth_b = res[0]
 
     @classmethod
     def _handle_new_state_interaction(clz, txn, new_pdu):
@@ -985,9 +985,9 @@ class StateQueries(object):
                     (prev_state.prev_state_id, prev_state.prev_state_origin))
 
                 if branch == 0:
-                    max_new = max(int(state.version), max_new)
+                    max_new = max(int(state.depth), max_new)
                 else:
-                    max_current = max(int(state.version), max_current)
+                    max_current = max(int(state.depth), max_current)
 
             is_current = max_new > max_current
 
