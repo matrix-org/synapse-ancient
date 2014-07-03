@@ -9,7 +9,7 @@ from tables import (ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
     PduForwardExtremitiesTable, PduBackwardExtremitiesTable, CurrentStateTable,
     ContextDepthTable)
-from ..util import dbutils as utils
+from ..util import dbutils
 
 from twisted.internet import defer
 
@@ -32,7 +32,7 @@ pdu_state_fields = (
 PduAndStateTuple = namedtuple("PduAndStateTuple", pdu_state_fields)
 
 
-def run_interaction(transaction_func, *args):
+def run_interaction(transaction_func, *args, **kwargs):
     """ Takes a function that queires the database and runs it in a dedicated
     thread.
 
@@ -42,11 +42,13 @@ def run_interaction(transaction_func, *args):
             database. This get's run in a seperate thread.
 
         *args: Extra arguments to pass to `transaction_func`
+        **kwargs: Extra keyword arguments to pass to `transaction_func`
 
     Returns:
         Deferred: Resolves with the result of `transaction_func`.
     """
-    return utils.get_db_pool().runInteraction(transaction_func, *args)
+    return dbutils.get_db_pool().runInteraction(
+        transaction_func, *args, **kwargs)
 
 
 class TransactionQueries(object):
@@ -68,7 +70,7 @@ class TransactionQueries(object):
             origin(str)
 
         Returns:
-            Deferred: Resolves with None if we have not previously responded to
+            tuple: None if we have not previously responded to
             this transaction or a 2-tuple of (int, dict)
         """
         result = clz._get_received_interaction(txn, transaction_id, origin)
@@ -297,12 +299,7 @@ class PduQueries(object):
         Returns:
             PduTuple: If the pdu does not exist in the database, returns None
         """
-        res_list = clz._get_pdu_interaction(txn, pdu_id, origin)
-
-        if res_list:
-            return res_list[0]
-        else:
-            return None
+        return clz._get_pdu_interaction(txn, pdu_id, origin)
 
     @classmethod
     def get_current_state(clz, txn, context):
@@ -316,9 +313,7 @@ class PduQueries(object):
         Returns:
             list: A list of PduTuples
         """
-        return run_interaction(
-            clz._get_current_state_interaction,
-            context)
+        return clz._get_current_state_interaction(txn, context)
 
     @classmethod
     def insert(clz, txn, prev_pdus, **cols):
