@@ -10,6 +10,7 @@ from twistar.dbobject import DBObject
 from twisted.trial import unittest
 
 # synapse imports
+from synapse.db.schema import schema_path
 from synapse.db.database import Database
 from synapse.api.messages import Message
 from synapse.api.core import SynapseApi
@@ -18,7 +19,7 @@ from synapse.api.core import SynapseApi
 from mock import patch, Mock
 import os
 
-SCHEMA_SQL = "../../schema/im.sql" # tests execute in tests/_trial_temp
+SCHEMA_SQL = schema_path("im")
 TEST_DB = "_temp.db"
 
 def _remove_db():
@@ -123,7 +124,7 @@ class DatabaseCrudTestCase(unittest.TestCase):
 class DatabaseVersionQueriesTestCase(unittest.TestCase):
     """ Checks that the correct data is pulled out for a given version. """
 
-    BOOTSTRAP_SQL = "../db/test.sql" # tests execute in tests/_trial_temp
+    BOOTSTRAP_SQL = os.path.join(os.path.dirname(__file__), "test.sql") # tests execute in tests/_trial_temp
 
     def _test_create_db(self):
         global SCHEMA_SQL
