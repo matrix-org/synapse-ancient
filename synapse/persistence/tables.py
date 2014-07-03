@@ -142,7 +142,7 @@ class PdusTable(Table):
         "context",
         "pdu_type",
         "ts",
-        "version",
+        "depth",
         "content_json",
         "unrecognized_keys",
         "outlier",

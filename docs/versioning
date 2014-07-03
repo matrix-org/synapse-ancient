@@ -1,6 +1,6 @@
 Versioning is, like, hard for paginating backwards because of the number of Home Servers involved.
 
-The way we solve this is by doing versioning as a directed graph of PDUs. For pagination purposes, this is done on a per context basis. 
+The way we solve this is by doing versioning as an acyclic directed graph of PDUs. For pagination purposes, this is done on a per context basis. 
 When we send a PDU we include all PDUs that have been received for that context that hasn't been subsequently listed in a later PDU. The trivial case is a simple list of PDUs, e.g. A <- B <- C. However, if two servers send out a PDU at the same to, both B and C would point at A - a later PDU would then list both B and C.
 
 Problems with opaque version strings:

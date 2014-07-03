@@ -11,7 +11,7 @@ from twisted.internet import defer
 
 from transaction import TransactionCallbacks
 from protocol.units import Pdu
-from persistence.transactions import PduQueries, StateQueries
+from persistence.transactions import PduQueries, StateQueries, run_interaction
 
 import logging
 
@@ -130,7 +130,10 @@ class PduLayer(TransactionCallbacks):
     @defer.inlineCallbacks
     def paginate(self, dest, context, limit):
         logger.debug("paginate context=%s, dest=%s", context, dest)
-        extremities = yield PduQueries.get_back_extremities(context)
+        extremities = yield run_interaction(
+            PduQueries.get_back_extremities,
+            context
+        )
 
         logger.debug("paginate extrem=%s", extremities)
 
@@ -193,13 +196,13 @@ class PduLayer(TransactionCallbacks):
 
         defer.returnValue(pdu)
 
-    def on_paginate_request(self, context, versions, limit):
+    def on_paginate_request(self, context, pdus, limit):
         """
         Overrides:
             TransactionCallbacks
         """
 
-        return Pdu.paginate(context, versions, limit)
+        return Pdu.paginate(context, pdus, limit)
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
@@ -224,11 +227,14 @@ class PduLayer(TransactionCallbacks):
             # that is before the current min_depth for a context - i.e.,
             # we don't want to paginate backwards.
 
-            min_depth = yield PduQueries.get_min_depth(pdu.context)
+            min_depth = yield run_interaction(
+                PduQueries.get_min_depth,
+                pdu.context
+            )
 
             # If min_depth is None, that means that we haven't seen this
             # context before, so we don't go backwards yet.
-            if min_depth and pdu.version > min_depth:
+            if min_depth and pdu.depth > min_depth:
                 for pdu_id, origin in pdu.prev_pdus:
                     exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
                     if not exists:
@@ -272,7 +278,10 @@ class PduLayer(TransactionCallbacks):
 
             # Fetch any missing state pdus we might be missing
             while True:
-                r = yield StateQueries.get_next_missing_pdu(pdu)
+                r = yield run_interaction(
+                    StateQueries.get_next_missing_pdu,
+                    pdu
+                )
                 if r:
                     logger.debug("_handle_state getting pdu: %s %s",
                         r.pdu_id, r.origin)
@@ -287,7 +296,10 @@ class PduLayer(TransactionCallbacks):
 
             logger.debug("_handle_state updating state")
 
-            was_updated = yield StateQueries.handle_new_state(pdu)
+            was_updated = yield run_interaction(
+                StateQueries.handle_new_state,
+                pdu
+            )
 
             logger.debug("_handle_state was_updated %s", repr(was_updated))
 
