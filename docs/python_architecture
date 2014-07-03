@@ -2,6 +2,8 @@
 
 == Server to Server Stack ==
 
+To use the server to server stack, home servers should only need to interact with the Messaging layer.
+
 The server to server side of things is designed into 4 distinct layers:
 
     1. Messaging Layer
