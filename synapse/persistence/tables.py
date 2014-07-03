@@ -30,7 +30,7 @@ class Table(object):
     """
 
     @classmethod
-    def select_statement(clz, where_clause=None):
+    def select_statement(cls, where_clause=None):
         """
         Args:
             where_clause (str): The WHERE clause to use.
@@ -41,26 +41,26 @@ class Table(object):
         """
         if where_clause:
             return _select_where_clause % (
-                ", ".join(clz.fields),
-                clz.table_name,
+                ", ".join(cls.fields),
+                cls.table_name,
                 where_clause
             )
         else:
             return _select_clause % (
-                ", ".join(clz.fields),
-                clz.table_name,
+                ", ".join(cls.fields),
+                cls.table_name,
             )
 
     @classmethod
-    def insert_statement(clz):
+    def insert_statement(cls):
         return _insert_clause % (
-            clz.table_name,
-            ", ".join(clz.fields),
-            ", ".join(["?"] * len(clz.fields)),
+            cls.table_name,
+            ", ".join(cls.fields),
+            ", ".join(["?"] * len(cls.fields)),
         )
 
     @classmethod
-    def decode_results(clz, results):
+    def decode_results(cls, results):
         """ Given an iterable of tuples, return a list of `EntryType`
         Args:
             results (list): The results list to convert to `EntryType`
@@ -68,18 +68,18 @@ class Table(object):
         Returns:
             list: A list of `EntryType`
         """
-        return [clz.EntryType(*row) for row in results]
+        return [cls.EntryType(*row) for row in results]
 
     @staticmethod
     def generate_where(*field_names):
         return " AND ".join(["%s = ?" % f for f in field_names])
 
     @classmethod
-    def get_fields_string(clz, prefix=None):
+    def get_fields_string(cls, prefix=None):
         if prefix:
-            to_join = ("%s.%s" % (prefix, f) for f in clz.fields)
+            to_join = ("%s.%s" % (prefix, f) for f in cls.fields)
         else:
-            to_join = clz.fields
+            to_join = cls.fields
 
         return ", ".join(to_join)
 

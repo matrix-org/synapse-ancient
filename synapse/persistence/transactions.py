@@ -61,7 +61,7 @@ class TransactionQueries(object):
     """
 
     @classmethod
-    def get_response_for_received(clz, txn, transaction_id, origin):
+    def get_response_for_received(cls, txn, transaction_id, origin):
         """For an incoming transaction from a given origin, check if we have
         already responded to it. If so, return the response code and response
         body (as a dict).
@@ -75,7 +75,7 @@ class TransactionQueries(object):
             tuple: None if we have not previously responded to
             this transaction or a 2-tuple of (int, dict)
         """
-        result = clz._get_received_interaction(txn, transaction_id, origin)
+        result = cls._get_received_interaction(txn, transaction_id, origin)
 
         if result and result.response_code:
             return (result.response_code, result.response_json)
@@ -83,17 +83,17 @@ class TransactionQueries(object):
             return None
 
     @classmethod
-    def insert_received(clz, txn, tx_tuple):
+    def insert_received(cls, txn, tx_tuple):
         """Persist an incoming transaction.
 
         Args:
             txn
             tx_tuple (TransactionTuple)
         """
-        return clz._insert_interaction(txn, tx_tuple)
+        return cls._insert_interaction(txn, tx_tuple)
 
     @classmethod
-    def set_recieved_txn_response(clz, txn, transaction_id, origin, code,
+    def set_recieved_txn_response(cls, txn, transaction_id, origin, code,
                                   response_json):
         """Persist the response we returened for an incoming transaction, and
         should return for subsequent transactions with the same transaction_id
@@ -106,11 +106,11 @@ class TransactionQueries(object):
             code (int)
             response_json (str)
         """
-        return clz._set_recieved_response_interaction(
+        return cls._set_recieved_response_interaction(
             txn, transaction_id, origin, code, response_json)
 
     @classmethod
-    def prep_send_transaction(clz, txn, transaction_id, destination, ts,
+    def prep_send_transaction(cls, txn, transaction_id, destination, ts,
                               pdu_list):
         """Persists an outgoing transaction and calculates the values for the
         previous transaction id list.
@@ -128,12 +128,12 @@ class TransactionQueries(object):
         Returns:
             list: A list of previous transaction ids.
         """
-        return clz._prep_send_transaction_interaction(
+        return cls._prep_send_transaction_interaction(
             txn,
             transaction_id, destination, ts, pdu_list)
 
     @classmethod
-    def delivered_txn(clz, txn, transaction_id, destination,
+    def delivered_txn(cls, txn, transaction_id, destination,
                       code, response_json):
         """Persists the response for an outgoing transaction.
 
@@ -144,11 +144,11 @@ class TransactionQueries(object):
             code (int)
             response_json (str)
         """
-        return clz._delivered_txn_interaction(
+        return cls._delivered_txn_interaction(
             txn, transaction_id, destination, code, response_json)
 
     @classmethod
-    def get_transactions_after(clz, txn, transaction_id, destination):
+    def get_transactions_after(cls, txn, transaction_id, destination):
         """Get all transactions after a given local transaction_id.
 
         Args:
@@ -159,7 +159,7 @@ class TransactionQueries(object):
         Returns:
             list: A list of `ReceivedTransactionsTable.EntryType`
         """
-        return clz._get_transactions_after_interaction(
+        return cls._get_transactions_after_interaction(
             txn, transaction_id, destination)
 
     @staticmethod
@@ -272,7 +272,7 @@ class TransactionQueries(object):
         return prev_txns
 
     @classmethod
-    def _get_transactions_after_interaction(clz, txn, transaction_id,
+    def _get_transactions_after_interaction(cls, txn, transaction_id,
                                             destination):
         where = (
             "destination = ? AND id > (select id FROM %s WHERE "
@@ -295,7 +295,7 @@ class PduQueries(object):
     """
 
     @classmethod
-    def get_pdu(clz, txn, pdu_id, origin):
+    def get_pdu(cls, txn, pdu_id, origin):
         """Given a pdu_id and origin, get a PDU.
 
         Args:
@@ -306,10 +306,10 @@ class PduQueries(object):
         Returns:
             PduTuple: If the pdu does not exist in the database, returns None
         """
-        return clz._get_pdu_interaction(txn, pdu_id, origin)
+        return cls._get_pdu_interaction(txn, pdu_id, origin)
 
     @classmethod
-    def get_current_state(clz, txn, context):
+    def get_current_state(cls, txn, context):
         """Get a list of PDUs that represent the current state for a given
         context
 
@@ -320,10 +320,10 @@ class PduQueries(object):
         Returns:
             list: A list of PduTuples
         """
-        return clz._get_current_state_interaction(txn, context)
+        return cls._get_current_state_interaction(txn, context)
 
     @classmethod
-    def insert(clz, txn, prev_pdus, **cols):
+    def insert(cls, txn, prev_pdus, **cols):
         """Inserts a (non-state) PDU into the database.
 
         Args:
@@ -334,10 +334,10 @@ class PduQueries(object):
         entry = PdusTable.EntryType(
             **{k: cols.get(k, None) for k in PdusTable.fields}
         )
-        return clz._insert_interaction(txn, entry, prev_pdus)
+        return cls._insert_interaction(txn, entry, prev_pdus)
 
     @classmethod
-    def insert_state(clz, txn, prev_pdus, **cols):
+    def insert_state(cls, txn, prev_pdus, **cols):
         """Inserts a state PDU into the database
 
         Args:
@@ -355,12 +355,12 @@ class PduQueries(object):
         logger.debug("Inserting pdu: %s", repr(pdu_entry))
         logger.debug("Inserting state: %s", repr(state_entry))
 
-        return clz._insert_state_interaction(
+        return cls._insert_state_interaction(
             txn,
             pdu_entry, state_entry, prev_pdus)
 
     @classmethod
-    def mark_as_processed(clz, txn, pdu_id, pdu_origin):
+    def mark_as_processed(cls, txn, pdu_id, pdu_origin):
         """Mark a received PDU as processed.
 
         Args:
@@ -368,10 +368,10 @@ class PduQueries(object):
             pdu_id (str)
             pdu_origin (str)
         """
-        return clz._mark_as_processed_interaction(txn, pdu_id, pdu_origin)
+        return cls._mark_as_processed_interaction(txn, pdu_id, pdu_origin)
 
     @classmethod
-    def get_prev_pdus(clz, txn, context):
+    def get_prev_pdus(cls, txn, context):
         """Get's a list of the most current pdus for a given context. This is
         used when we are sending a Pdu and need to fill out the `prev_pdus`
         key
@@ -380,10 +380,10 @@ class PduQueries(object):
             txn
             context
         """
-        return clz._get_prev_pdus_interaction(txn, context)
+        return cls._get_prev_pdus_interaction(txn, context)
 
     @classmethod
-    def get_after_transaction(clz, txn, transaction_id, destination,
+    def get_after_transaction(cls, txn, transaction_id, destination,
                               local_server):
         """For a given local transaction_id that we sent to a given destination
         home server, return a list of PDUs that were sent to that destination
@@ -398,11 +398,11 @@ class PduQueries(object):
         Returns
             list: A list of PduTuple
         """
-        return clz._get_pdus_after_transaction(
+        return cls._get_pdus_after_transaction(
             txn, transaction_id, destination, local_server)
 
     @classmethod
-    def paginate(clz, txn, context, pdu_list, limit):
+    def paginate(cls, txn, context, pdu_list, limit):
         """Get a list of Pdus for a given topic that occured before (and
         including) the pdus in pdu_list. Return a list of max size `limit`.
 
@@ -415,10 +415,10 @@ class PduQueries(object):
         Return:
             list: A list of PduTuples
         """
-        return clz._paginate_interaction(txn, context, pdu_list, limit)
+        return cls._paginate_interaction(txn, context, pdu_list, limit)
 
     @classmethod
-    def is_new(clz, txn, pdu_id, origin, context, depth):
+    def is_new(cls, txn, pdu_id, origin, context, depth):
         """For a given Pdu, try and figure out if it's 'new', i.e., if it's
         not something we got randomly from the past, for example when we
         request the current state of the room that will probably return a bunch
@@ -434,10 +434,10 @@ class PduQueries(object):
         Returns:
             bool
         """
-        return clz._is_new_interaction(txn, pdu_id, origin, context, depth)
+        return cls._is_new_interaction(txn, pdu_id, origin, context, depth)
 
     @classmethod
-    def update_min_depth(clz, txn, context, depth):
+    def update_min_depth(cls, txn, context, depth):
         """Update the minimum `depth` of the given context, which is the line
         where we stop paginating backwards on.
 
@@ -446,20 +446,20 @@ class PduQueries(object):
             context (str)
             depth (int)
         """
-        return clz._update_min_depth_interaction(txn, context, depth)
+        return cls._update_min_depth_interaction(txn, context, depth)
 
     @classmethod
-    def get_min_depth(clz, txn, context):
+    def get_min_depth(cls, txn, context):
         """Get the current minimum depth for a context
 
         Args:
             txn
             context (str)
         """
-        return clz._get_min_depth_interaction(txn, context)
+        return cls._get_min_depth_interaction(txn, context)
 
     @classmethod
-    def get_back_extremities(clz, txn, context):
+    def get_back_extremities(cls, txn, context):
         """Get a list of Pdus that we paginated beyond yet (and haven't seen).
         This list is used when we want to paginate backwards and is the list we
         send to the remote server.
@@ -471,10 +471,10 @@ class PduQueries(object):
         Returns:
             list: A list of PduIdTuple.
         """
-        return clz._get_back_extremities_interaction(txn, context)
+        return cls._get_back_extremities_interaction(txn, context)
 
     @classmethod
-    def _get_pdu_interaction(clz, txn, pdu_id, origin):
+    def _get_pdu_interaction(cls, txn, pdu_id, origin):
         query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
         txn.execute(query, (pdu_id, origin))
 
@@ -489,10 +489,10 @@ class PduQueries(object):
         else:
             return None
 
-        return clz._get_pdu_tuple_from_entry(txn, pdu_entry)
+        return cls._get_pdu_tuple_from_entry(txn, pdu_entry)
 
     @classmethod
-    def _get_current_state_interaction(clz, txn, context):
+    def _get_current_state_interaction(cls, txn, context):
         query = (
             "SELECT %(fields)s FROM %(pdus)s as p "
             "INNER JOIN %(curr)s as c ON "
@@ -508,24 +508,24 @@ class PduQueries(object):
         txn.execute(query, (context,))
 
         pdus = PdusTable.decode_results(txn.fetchall())
-        return clz._get_pdu_tuple_from_entries(txn, pdus)
+        return cls._get_pdu_tuple_from_entries(txn, pdus)
 
     @classmethod
-    def _insert_interaction(clz, txn, entry, prev_pdus):
+    def _insert_interaction(cls, txn, entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), entry)
 
-        clz._handle_prev_pdus(
+        cls._handle_prev_pdus(
             txn, entry.outlier, entry.pdu_id, entry.origin,
             prev_pdus, entry.context
         )
 
     @classmethod
-    def _insert_state_interaction(clz, txn, pdu_entry,
+    def _insert_state_interaction(cls, txn, pdu_entry,
                                   state_entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), pdu_entry)
         txn.execute(StatePdusTable.insert_statement(), state_entry)
 
-        clz._handle_prev_pdus(
+        cls._handle_prev_pdus(
             txn,
             pdu_entry.outlier, pdu_entry.pdu_id, pdu_entry.origin, prev_pdus,
             pdu_entry.context
@@ -617,7 +617,7 @@ class PduQueries(object):
         return [(row[0], row[1], row[2]) for row in results]
 
     @classmethod
-    def _get_pdus_after_transaction(clz, txn, transaction_id, destination,
+    def _get_pdus_after_transaction(cls, txn, transaction_id, destination,
                                     local_server):
         pdus_fields = ", ".join(["pdus.%s" % f for f in PdusTable.fields])
 
@@ -648,11 +648,11 @@ class PduQueries(object):
 
         pdus = PdusTable.decode_results(txn.fetchall())
 
-        return clz._get_pdu_tuple_from_entries(txn, pdus)
+        return cls._get_pdu_tuple_from_entries(txn, pdus)
 
     @classmethod
-    def _get_pdu_tuple_from_entries(clz, txn, pdu_entries):
-        return [clz._get_pdu_tuple_from_entry(txn, pdu) for pdu in pdu_entries]
+    def _get_pdu_tuple_from_entries(cls, txn, pdu_entries):
+        return [cls._get_pdu_tuple_from_entry(txn, pdu) for pdu in pdu_entries]
 
     @staticmethod
     def _get_pdu_tuple_from_entry(txn, pdu_entry):
@@ -681,7 +681,7 @@ class PduQueries(object):
         return PduTuple(pdu_entry, state_entry, edges)
 
     @classmethod
-    def _paginate_interaction(clz, txn, context, pdu_list, limit):
+    def _paginate_interaction(cls, txn, context, pdu_list, limit):
         logger.debug(
             "_paginate_interaction: %s, %s, %s",
             context, repr(pdu_list), limit
@@ -747,7 +747,7 @@ class PduQueries(object):
             front = new_front
 
         # We also want to update the `prev_pdus` attributes before returning.
-        return clz._get_pdu_tuple_from_entries(txn, pdu_results)
+        return cls._get_pdu_tuple_from_entries(txn, pdu_results)
 
     @staticmethod
     def _is_new_interaction(txn, pdu_id, origin, context, depth):
@@ -804,8 +804,8 @@ class PduQueries(object):
         return False
 
     @classmethod
-    def _update_min_depth_interaction(clz, txn, context, depth):
-        min_depth = clz._get_min_depth_interaction(txn, context)
+    def _update_min_depth_interaction(cls, txn, context, depth):
+        min_depth = cls._get_min_depth_interaction(txn, context)
 
         do_insert = depth < min_depth if min_depth else True
 
@@ -847,7 +847,7 @@ class StateQueries(object):
     """
 
     @classmethod
-    def get_next_missing_pdu(clz, txn, new_pdu):
+    def get_next_missing_pdu(cls, txn, new_pdu):
         """When we get a new state pdu we need to check whether we need to do
         any conflict resolution, if we do then we need to check if we need
         to go back and request some more state pdus that we haven't seen yet.
@@ -860,10 +860,10 @@ class StateQueries(object):
             PduIdTuple: A pdu that we are missing, or None if we have all the
                 pdus required to do the conflict resolution.
         """
-        return clz._get_next_missing_pdu_interaction(txn, new_pdu)
+        return cls._get_next_missing_pdu_interaction(txn, new_pdu)
 
     @classmethod
-    def handle_new_state(clz, txn, new_pdu):
+    def handle_new_state(cls, txn, new_pdu):
         """Actually perform conflict resolution on the new_pdu on the
         assumption we have all the pdus required to perform it.
 
@@ -874,10 +874,10 @@ class StateQueries(object):
         Returns:
             bool: True if the new_pdu clobbered the current state, False if not
         """
-        return clz._handle_new_state_interaction(txn, new_pdu)
+        return cls._handle_new_state_interaction(txn, new_pdu)
 
     @classmethod
-    def current_state(clz, txn, context, pdu_type, state_key):
+    def current_state(cls, txn, context, pdu_type, state_key):
         """For a given context, pdu_type, state_key 3-tuple, return what is
         currently considered the current state.
 
@@ -890,16 +890,16 @@ class StateQueries(object):
         Returns:
             PduAndStateTuple
         """
-        return clz._get_current_interaction(txn, context, pdu_type, state_key)
+        return cls._get_current_interaction(txn, context, pdu_type, state_key)
 
     @classmethod
-    def _get_next_missing_pdu_interaction(clz, txn, new_pdu):
+    def _get_next_missing_pdu_interaction(cls, txn, new_pdu):
         logger.debug(
             "_get_next_missing_pdu_interaction %s %s",
             new_pdu.pdu_id, new_pdu.origin
         )
 
-        current = clz._get_current_interaction(
+        current = cls._get_current_interaction(
             txn,
             new_pdu.context, new_pdu.pdu_type, new_pdu.state_key
         )
@@ -913,7 +913,7 @@ class StateQueries(object):
                 and new_pdu.prev_state_origin == current.origin):
             return None
 
-        enum_branches = clz._enumerate_state_branches(txn, new_pdu, current)
+        enum_branches = cls._enumerate_state_branches(txn, new_pdu, current)
         for branch, prev_state, state in enum_branches:
             if not state:
                 return PduIdTuple(
@@ -924,7 +924,7 @@ class StateQueries(object):
         return None
 
     @classmethod
-    def _enumerate_state_branches(clz, txn, pdu_a, pdu_b):
+    def _enumerate_state_branches(cls, txn, pdu_a, pdu_b):
         branch_a = pdu_a
         branch_b = pdu_b
 
@@ -993,13 +993,13 @@ class StateQueries(object):
                     depth_b = res[0]
 
     @classmethod
-    def _handle_new_state_interaction(clz, txn, new_pdu):
+    def _handle_new_state_interaction(cls, txn, new_pdu):
         logger.debug(
             "_handle_new_state_interaction %s %s",
             new_pdu.pdu_id, new_pdu.origin
         )
 
-        current = clz._get_current_interaction(
+        current = cls._get_current_interaction(
             txn,
             new_pdu.context, new_pdu.pdu_type, new_pdu.state_key
         )
@@ -1020,7 +1020,7 @@ class StateQueries(object):
             max_new = int(new_pdu.power_level)
             max_current = int(current.power_level)
 
-            enum_branches = clz._enumerate_state_branches(
+            enum_branches = cls._enumerate_state_branches(
                 txn, new_pdu, current
             )
             for branch, prev_state, state in enum_branches:

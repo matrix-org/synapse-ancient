@@ -335,7 +335,7 @@ class Pdu(JsonEncodedObject):
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
 
     @classmethod
-    def _from_pdu_tuple(clz, pdu_tuple):
+    def _from_pdu_tuple(cls, pdu_tuple):
         """ Converts a PduTuple to a Pdu
 
         Args:
@@ -356,7 +356,7 @@ class Pdu(JsonEncodedObject):
             d["content"] = json.loads(d["content_json"])
             del d["content_json"]
 
-            args = {f: d[f] for f in clz.valid_keys if f in d}
+            args = {f: d[f] for f in cls.valid_keys if f in d}
             if "unrecognized_keys" in d and d["unrecognized_keys"]:
                 args.update(json.loads(d["unrecognized_keys"]))
 
