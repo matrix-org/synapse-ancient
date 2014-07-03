@@ -4,3 +4,5 @@ _trial_temp/
 logs/
 dbs/
 *.egg
+dist/
+docs/build/
