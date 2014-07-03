@@ -1,5 +1,12 @@
-To run the example home server, you have to have twisted installed and then run something like:
+To test it out, run the test messaging app, passing in your synapse ID as the parameter, formatted as user@host:port.
 
-    PYTHONPATH=. python example/test_messaging.py foo@localhost:6000
+mkdir dbs  # These should not be necessary as the dirs shoud already exist.
+mkdir logs
 
-where localhost:6000 it binds to and remote home servers can talk to.
+PYTHONPATH=. python example/test_messaging.py user@matthew-vpn.openmarket.com:5000
+
+Then, you can join a room; invite someone to the room, and message them:
+
+join tng
+invite tng erik@wingspar:5000
+send tng hello world

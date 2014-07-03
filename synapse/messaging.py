@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from pdu import PduCallbacks
-from protocol.units import Pdu
+from .pdu import PduCallbacks
+from .protocol.units import Pdu
 
 from twisted.internet import defer
 
@@ -106,10 +106,10 @@ class MessagingLayer(PduCallbacks):
         # Don't send feedback for feedback messages!
         if pdu.pdu_type != "feedback":
             self.send(
-                    context=pdu.context,
-                    pdu_type="feedback",
-                    content={}
-                )
+                context=pdu.context,
+                pdu_type="feedback",
+                content={}
+            )
 
         defer.returnValue(r)
 
@@ -156,8 +156,10 @@ class MessagingLayer(PduCallbacks):
             ``Note``: This does not result in the context state.
         """
         logger.debug("get_context_state")
-        return self.transport_layer.trigger_get_context_state(destination,
-            context)
+        return self.transport_layer.trigger_get_context_state(
+            destination,
+            context
+        )
 
     @defer.inlineCallbacks
     def send_state(self, context, pdu_type, state_key, content):
@@ -176,19 +178,19 @@ class MessagingLayer(PduCallbacks):
 
         destinations = yield self.callback.get_servers_for_context(context)
 
-        logger.debug("Sending pdu (%s, %s) to %s", context, pdu_type,
-                        str(destinations))
+        logger.debug("Sending pdu (%s, %s) to %s",
+                     context, pdu_type, str(destinations))
 
         pdu = Pdu.create_new(
-                    context=context,
-                    origin=self.server_name,
-                    pdu_type=pdu_type,
-                    destinations=destinations,
-                    is_state=True,
-                    state_key=state_key,
-                    power_level=self.power_level,
-                    content=content
-                )
+            context=context,
+            origin=self.server_name,
+            pdu_type=pdu_type,
+            destinations=destinations,
+            is_state=True,
+            state_key=state_key,
+            power_level=self.power_level,
+            content=content
+        )
 
         r = yield self.send_pdu(pdu)
 
@@ -209,16 +211,16 @@ class MessagingLayer(PduCallbacks):
         """
         destinations = yield self.callback.get_servers_for_context(context)
 
-        logger.debug("Sending pdu (%s, %s) to %s", context, pdu_type,
-                        str(destinations))
+        logger.debug("Sending pdu (%s, %s) to %s",
+                     context, pdu_type, str(destinations))
 
         pdu = Pdu.create_new(
-                context=context,
-                origin=self.server_name,
-                pdu_type=pdu_type,
-                destinations=destinations,
-                content=content
-            )
+            context=context,
+            origin=self.server_name,
+            pdu_type=pdu_type,
+            destinations=destinations,
+            content=content
+        )
 
         r = yield self.send_pdu(pdu)
 

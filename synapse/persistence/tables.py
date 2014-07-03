@@ -41,23 +41,23 @@ class Table(object):
         """
         if where_clause:
             return _select_where_clause % (
-                    ", ".join(clz.fields),
-                    clz.table_name,
-                    where_clause
-                )
+                ", ".join(clz.fields),
+                clz.table_name,
+                where_clause
+            )
         else:
             return _select_clause % (
-                    ", ".join(clz.fields),
-                    clz.table_name,
-                )
+                ", ".join(clz.fields),
+                clz.table_name,
+            )
 
     @classmethod
     def insert_statement(clz):
         return _insert_clause % (
-                clz.table_name,
-                ", ".join(clz.fields),
-                ", ".join(["?"] * len(clz.fields)),
-            )
+            clz.table_name,
+            ", ".join(clz.fields),
+            ", ".join(["?"] * len(clz.fields)),
+        )
 
     @classmethod
     def decode_results(clz, results):
@@ -142,7 +142,7 @@ class PdusTable(Table):
         "context",
         "pdu_type",
         "ts",
-        "version",
+        "depth",
         "content_json",
         "unrecognized_keys",
         "outlier",

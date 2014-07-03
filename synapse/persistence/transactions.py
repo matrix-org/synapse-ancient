@@ -5,19 +5,18 @@ database.
 All queries
 """
 
-from tables import (ReceivedTransactionsTable, SentTransactions,
+from .tables import (
+    ReceivedTransactionsTable, SentTransactions,
     TransactionsToPduTable, PdusTable, StatePdusTable, PduEdgesTable,
     PduForwardExtremitiesTable, PduBackwardExtremitiesTable, CurrentStateTable,
-    ContextDepthTable)
+    ContextDepthTable
+)
 from ..util import dbutils
-
-from twisted.internet import defer
 
 from collections import namedtuple
 
 import logging
 
-#dbpool = None  # XXX: We need to do something.
 
 logger = logging.getLogger("synapse.persistence.transactions")
 
@@ -92,7 +91,7 @@ class TransactionQueries(object):
 
     @classmethod
     def set_recieved_txn_response(clz, txn, transaction_id, origin, code,
-    response_json):
+                                  response_json):
         """Persist the response we returened for an incoming transaction, and
         should return for subsequent transactions with the same transaction_id
         and origin.
@@ -109,7 +108,7 @@ class TransactionQueries(object):
 
     @classmethod
     def prep_send_transaction(clz, txn, transaction_id, destination, ts,
-    pdu_list):
+                              pdu_list):
         """Persists an outgoing transaction and calculates the values for the
         previous transaction id list.
 
@@ -126,7 +125,8 @@ class TransactionQueries(object):
         Returns:
             list: A list of previous transaction ids.
         """
-        return clz._prep_send_transaction_interaction(txn,
+        return clz._prep_send_transaction_interaction(
+            txn,
             transaction_id, destination, ts, pdu_list)
 
     @classmethod
@@ -194,40 +194,42 @@ class TransactionQueries(object):
         txn.execute(query, tx_tuple.tx_entry)
 
         query = (
-                "UPDATE %s SET has_been_referenced = 1 "
-                "WHERE transaction_id = ? AND orign = ?"
-                ) % ReceivedTransactionsTable.table_name
+            "UPDATE %s SET has_been_referenced = 1 "
+            "WHERE transaction_id = ? AND orign = ?"
+        ) % ReceivedTransactionsTable.table_name
 
         origin = tx_tuple.tx_entry.origin
 
         txn.executemany(query, [
-                (tx_id, origin) for tx_id in tx_tuple.prev_ids
-            ])
+            (tx_id, origin) for tx_id in tx_tuple.prev_ids
+        ])
 
     @staticmethod
     def _set_recieved_response_interaction(txn, transaction_id, origin,
-    code, response_json):
-        query = ("UPDATE %s "
+                                           code, response_json):
+        query = (
+            "UPDATE %s "
             "SET response_code = ?, response_json = ? "
             "WHERE transaction_id = ? AND origin = ?"
-            ) % ReceivedTransactionsTable.table_name
+        ) % ReceivedTransactionsTable.table_name
 
         txn.execute(query, (code, response_json, transaction_id, origin))
 
     @staticmethod
     def _delivered_txn_interaction(txn, transaction_id, destination,
-    code, response_json):
+                                   code, response_json):
         # Say what response we got.
-        query = ("UPDATE %s "
+        query = (
+            "UPDATE %s "
             "SET response_code = ?, response_json = ? "
             "WHERE transaction_id = ? AND destination = ?"
-            ) % SentTransactions.table_name
+        ) % SentTransactions.table_name
 
         txn.execute(query, (code, response_json, transaction_id, destination))
 
     @staticmethod
     def _prep_send_transaction_interaction(txn, transaction_id, destination,
-    ts, pdu_list):
+                                           ts, pdu_list):
         # First we find out what the prev_txs should be.
         # Since we know that we are only sending one transaction at a time,
         # we can simply take the last one.
@@ -244,20 +246,20 @@ class TransactionQueries(object):
 
         query = SentTransactions.insert_statement()
         txn.execute(query, SentTransactions.EntryType(
-                None,
-                transaction_id=transaction_id,
-                destination=destination,
-                ts=ts,
-                response_code=0,
-                response_json=None
-            ))
+            None,
+            transaction_id=transaction_id,
+            destination=destination,
+            ts=ts,
+            response_code=0,
+            response_json=None
+        ))
 
         # Update the tx id -> pdu id mapping
 
         values = [
-                (transaction_id, destination, pdu[0], pdu[1])
-                for pdu in pdu_list
-            ]
+            (transaction_id, destination, pdu[0], pdu[1])
+            for pdu in pdu_list
+        ]
 
         logger.debug("Inserting: %s", repr(values))
 
@@ -268,11 +270,13 @@ class TransactionQueries(object):
 
     @classmethod
     def _get_transactions_after_interaction(clz, txn, transaction_id,
-    destination):
-        where = ("destination = ? AND id > (select id FROM %s WHERE "
-            "transaction_id = ? AND destination = ?)") % (
-                SentTransactions.table_name
-            )
+                                            destination):
+        where = (
+            "destination = ? AND id > (select id FROM %s WHERE "
+            "transaction_id = ? AND destination = ?)"
+        ) % (
+            SentTransactions.table_name
+        )
         query = SentTransactions.select_statement(where)
 
         txn.execute(query, (destination, transaction_id, destination))
@@ -325,8 +329,8 @@ class PduQueries(object):
             **cols: The columns to insert into the PdusTable.
         """
         entry = PdusTable.EntryType(
-                **{k: cols.get(k, None) for k in PdusTable.fields}
-            )
+            **{k: cols.get(k, None) for k in PdusTable.fields}
+        )
         return clz._insert_interaction(txn, entry, prev_pdus)
 
     @classmethod
@@ -339,16 +343,17 @@ class PduQueries(object):
             **cols: The columns to insert into the PdusTable and StatePdusTable
         """
         pdu_entry = PdusTable.EntryType(
-                **{k: cols.get(k, None) for k in PdusTable.fields}
-            )
+            **{k: cols.get(k, None) for k in PdusTable.fields}
+        )
         state_entry = StatePdusTable.EntryType(
-                **{k: cols.get(k, None) for k in StatePdusTable.fields}
-            )
+            **{k: cols.get(k, None) for k in StatePdusTable.fields}
+        )
 
         logger.debug("Inserting pdu: %s", repr(pdu_entry))
         logger.debug("Inserting state: %s", repr(state_entry))
 
-        return clz._insert_state_interaction(txn,
+        return clz._insert_state_interaction(
+            txn,
             pdu_entry, state_entry, prev_pdus)
 
     @classmethod
@@ -376,7 +381,7 @@ class PduQueries(object):
 
     @classmethod
     def get_after_transaction(clz, txn, transaction_id, destination,
-    local_server):
+                              local_server):
         """For a given local transaction_id that we sent to a given destination
         home server, return a list of PDUs that were sent to that destination
         after it.
@@ -410,7 +415,7 @@ class PduQueries(object):
         return clz._paginate_interaction(txn, context, pdu_list, limit)
 
     @classmethod
-    def is_new(clz, txn, pdu_id, origin, context, version):
+    def is_new(clz, txn, pdu_id, origin, context, depth):
         """For a given Pdu, try and figure out if it's 'new', i.e., if it's
         not something we got randomly from the past, for example when we
         request the current state of the room that will probably return a bunch
@@ -421,12 +426,12 @@ class PduQueries(object):
             pdu_id (str)
             origin (str)
             context (str)
-            version (int)
+            depth (int)
 
         Returns:
             bool
         """
-        return clz._is_new_interaction(txn, pdu_id, origin, context, version)
+        return clz._is_new_interaction(txn, pdu_id, origin, context, depth)
 
     @classmethod
     def update_min_depth(clz, txn, context, depth):
@@ -472,7 +477,8 @@ class PduQueries(object):
 
         results = PdusTable.decode_results(txn.fetchall())
 
-        logger.debug("_get_pdu_interaction: pdu_id=%s, origin=%s results: %s",
+        logger.debug(
+            "_get_pdu_interaction: pdu_id=%s, origin=%s results: %s",
             pdu_id, origin, repr(results))
 
         if len(results) == 1:
@@ -484,15 +490,17 @@ class PduQueries(object):
 
     @classmethod
     def _get_current_state_interaction(clz, txn, context):
-        query = ("SELECT %(fields)s FROM %(pdus)s as p "
-                "INNER JOIN %(curr)s as c ON "
-                    "c.pdu_id = p.pdu_id AND "
-                    "c.origin = p.origin "
-                "WHERE c.context = ?") % {
-                    "fields": PdusTable.get_fields_string(prefix="p"),
-                    "pdus": PdusTable.table_name,
-                    "curr": CurrentStateTable.table_name,
-                }
+        query = (
+            "SELECT %(fields)s FROM %(pdus)s as p "
+            "INNER JOIN %(curr)s as c ON "
+            "c.pdu_id = p.pdu_id AND "
+            "c.origin = p.origin "
+            "WHERE c.context = ?"
+        ) % {
+            "fields": PdusTable.get_fields_string(prefix="p"),
+            "pdus": PdusTable.table_name,
+            "curr": CurrentStateTable.table_name,
+        }
 
         txn.execute(query, (context,))
 
@@ -503,18 +511,22 @@ class PduQueries(object):
     def _insert_interaction(clz, txn, entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), entry)
 
-        clz._handle_prev_pdus(txn, entry.outlier, entry.pdu_id, entry.origin,
-            prev_pdus, entry.context)
+        clz._handle_prev_pdus(
+            txn, entry.outlier, entry.pdu_id, entry.origin,
+            prev_pdus, entry.context
+        )
 
     @classmethod
     def _insert_state_interaction(clz, txn, pdu_entry,
-    state_entry, prev_pdus):
+                                  state_entry, prev_pdus):
         txn.execute(PdusTable.insert_statement(), pdu_entry)
         txn.execute(StatePdusTable.insert_statement(), state_entry)
 
-        clz._handle_prev_pdus(txn,
-             pdu_entry.outlier, pdu_entry.pdu_id, pdu_entry.origin, prev_pdus,
-             pdu_entry.context)
+        clz._handle_prev_pdus(
+            txn,
+            pdu_entry.outlier, pdu_entry.pdu_id, pdu_entry.origin, prev_pdus,
+            pdu_entry.context
+        )
 
     @staticmethod
     def _mark_as_processed_interaction(txn, pdu_id, pdu_origin):
@@ -522,17 +534,20 @@ class PduQueries(object):
 
     @staticmethod
     def _handle_prev_pdus(txn, outlier, pdu_id, origin, prev_pdus,
-    context):
-        txn.executemany(PduEdgesTable.insert_statement(),
-                [(pdu_id, origin, p[0], p[1], context) for p in prev_pdus]
-            )
+                          context):
+        txn.executemany(
+            PduEdgesTable.insert_statement(),
+            [(pdu_id, origin, p[0], p[1], context) for p in prev_pdus]
+        )
 
         ## Update the extremities table if this is not an outlier.
         if not outlier:
 
             # First, we delete the new one from the forwards extremities table.
-            query = ("DELETE FROM %s WHERE pdu_id = ? AND origin = ?" %
-                PduForwardExtremitiesTable.table_name)
+            query = (
+                "DELETE FROM %s WHERE pdu_id = ? AND origin = ?"
+                % PduForwardExtremitiesTable.table_name
+            )
             txn.executemany(query, prev_pdus)
 
             # We only insert as a forward extremety the new pdu if there are no
@@ -543,10 +558,10 @@ class PduQueries(object):
                     "SELECT 1 FROM %(pdu_edges)s WHERE "
                     "prev_pdu_id = ? AND prev_origin = ?"
                 ")"
-                ) % {
-                    "table": PduForwardExtremitiesTable.table_name,
-                    "pdu_edges": PduEdgesTable.table_name
-                }
+            ) % {
+                "table": PduForwardExtremitiesTable.table_name,
+                "pdu_edges": PduEdgesTable.table_name
+            }
 
             logger.debug("query: %s", query)
 
@@ -554,7 +569,8 @@ class PduQueries(object):
 
             # Insert all the prev_pdus as a backwards thing, they'll get
             # deleted in a second if they're incorrect anyway.
-            txn.executemany(PduBackwardExtremitiesTable.insert_statement(),
+            txn.executemany(
+                PduBackwardExtremitiesTable.insert_statement(),
                 [(i, o, context) for i, o in prev_pdus]
             )
 
@@ -568,23 +584,23 @@ class PduQueries(object):
                     "AND %(pdu_back)s.origin = pdus.origin "
                     "AND not pdus.outlier "
                 ")"
-                ) % {
-                    "pdu_back": PduBackwardExtremitiesTable.table_name,
-                    "pdus": PdusTable.table_name,
-                }
+            ) % {
+                "pdu_back": PduBackwardExtremitiesTable.table_name,
+                "pdus": PdusTable.table_name,
+            }
             txn.execute(query)
 
     @staticmethod
     def _get_prev_pdus_interaction(txn, context):
         query = (
-                "SELECT p.pdu_id, p.origin, p.version FROM %(pdus)s as p "
-                "INNER JOIN %(forward)s as f ON p.pdu_id = f.pdu_id "
-                "AND f.origin = p.origin "
-                "WHERE f.context = ?"
-                ) % {
-                        "pdus": PdusTable.table_name,
-                        "forward": PduForwardExtremitiesTable.table_name,
-                    }
+            "SELECT p.pdu_id, p.origin, p.depth FROM %(pdus)s as p "
+            "INNER JOIN %(forward)s as f ON p.pdu_id = f.pdu_id "
+            "AND f.origin = p.origin "
+            "WHERE f.context = ?"
+        ) % {
+            "pdus": PdusTable.table_name,
+            "forward": PduForwardExtremitiesTable.table_name,
+        }
 
         logger.debug("get_prev query: %s" % query)
 
@@ -599,7 +615,7 @@ class PduQueries(object):
 
     @classmethod
     def _get_pdus_after_transaction(clz, txn, transaction_id, destination,
-    local_server):
+                                    local_server):
         pdus_fields = ", ".join(["pdus.%s" % f for f in PdusTable.fields])
 
         # Query that first get's all transaction_ids with an id greater than
@@ -642,8 +658,10 @@ class PduQueries(object):
             (pdu_entry.pdu_id, pdu_entry.origin)
         )
 
-        edges = [(r.prev_pdu_id, r.prev_origin)
-            for r in PduEdgesTable.decode_results(txn.fetchall())]
+        edges = [
+            (r.prev_pdu_id, r.prev_origin)
+            for r in PduEdgesTable.decode_results(txn.fetchall())
+        ]
 
         txn.execute(
             StatePdusTable.select_statement("pdu_id = ? AND origin = ?"),
@@ -660,14 +678,16 @@ class PduQueries(object):
         return PduTuple(pdu_entry, state_entry, edges)
 
     @classmethod
-    def _paginate_interaction(clz, txn, context, version_list, limit):
-        logger.debug("_paginate_interaction: %s, %s, %s",
-            context, repr(version_list), limit)
+    def _paginate_interaction(clz, txn, context, pdu_list, limit):
+        logger.debug(
+            "_paginate_interaction: %s, %s, %s",
+            context, repr(pdu_list), limit
+        )
 
         pdu_results = []
 
-        # We seed the pdu_results with the things from the version_list.
-        for pdu_id, origin in version_list:
+        # We seed the pdu_results with the things from the pdu_list.
+        for pdu_id, origin in pdu_list:
             query = PdusTable.select_statement("pdu_id = ? AND origin = ?")
             txn.execute(query, (pdu_id, origin))
 
@@ -676,7 +696,7 @@ class PduQueries(object):
             if results:
                 pdu_results.append(results[0])
 
-        front = version_list
+        front = pdu_list
 
         pdu_fields = ", ".join(["p.%s" % f for f in PdusTable.fields])
         query = (
@@ -687,13 +707,11 @@ class PduQueries(object):
                 "AND p.context = e.context "
             "WHERE e.context = ? AND e.pdu_id = ? AND e.origin = ? "
             "LIMIT ?"
-            %
-                {
-                    "pdu_fields": pdu_fields,
-                    "pdu_table": PdusTable.table_name,
-                    "edges_table": PduEdgesTable.table_name,
-                }
-            )
+        ) % {
+            "pdu_fields": pdu_fields,
+            "pdu_table": PdusTable.table_name,
+            "edges_table": PduEdgesTable.table_name,
+        }
 
         # We iterate through all pdu_ids in `front` to select their previous
         # pdus. These are dumped in `new_front`. We continue until we reach the
@@ -703,8 +721,10 @@ class PduQueries(object):
 
             new_front = []
             for pdu_id, origin in front:
-                logger.debug("_paginate_interaction: i=%s, o=%s",
-                    pdu_id, origin)
+                logger.debug(
+                    "_paginate_interaction: i=%s, o=%s",
+                    pdu_id, origin
+                )
 
                 txn.execute(
                     query,
@@ -714,8 +734,10 @@ class PduQueries(object):
                 entries = PdusTable.decode_results(txn.fetchall())
 
                 for row in entries:
-                    logger.debug("_paginate_interaction: got i=%s, o=%s",
-                        row.pdu_id, row.origin)
+                    logger.debug(
+                        "_paginate_interaction: got i=%s, o=%s",
+                        row.pdu_id, row.origin
+                    )
                     new_front.append((row.pdu_id, row.origin))
                     pdu_results.append(row)
 
@@ -725,49 +747,55 @@ class PduQueries(object):
         return clz._get_pdu_tuple_from_entries(txn, pdu_results)
 
     @staticmethod
-    def _is_new_interaction(txn, pdu_id, origin, context, version):
-        ## If version > min version in back table, then we classify it as new.
+    def _is_new_interaction(txn, pdu_id, origin, context, depth):
+        ## If depth > min depth in back table, then we classify it as new.
         ## OR if there is nothing in the back table, then it kinda needs to
         ## be a new thing.
         query = (
-            "SELECT min(p.version) FROM %(edges)s as e "
+            "SELECT min(p.depth) FROM %(edges)s as e "
             "INNER JOIN %(back)s as b "
                 "ON e.prev_pdu_id = b.pdu_id AND e.prev_origin = b.origin "
             "INNER JOIN %(pdus)s as p "
                 "ON e.pdu_id = p.pdu_id AND p.origin = e.origin "
             "WHERE p.context = ?"
-            ) % {
-                    "pdus": PdusTable.table_name,
-                    "edges": PduEdgesTable.table_name,
-                    "back": PduBackwardExtremitiesTable.table_name,
-                }
+        ) % {
+            "pdus": PdusTable.table_name,
+            "edges": PduEdgesTable.table_name,
+            "back": PduBackwardExtremitiesTable.table_name,
+        }
 
         txn.execute(query, (context,))
 
-        min_version, = txn.fetchone()
+        min_depth, = txn.fetchone()
 
-        if not min_version or version > int(min_version):
-            logger.debug("is_new true: id=%s, o=%s, v=%s min_ver=%s",
-                pdu_id, origin, version, min_version)
+        if not min_depth or depth > int(min_depth):
+            logger.debug(
+                "is_new true: id=%s, o=%s, d=%s min_depth=%s",
+                pdu_id, origin, depth, min_depth
+            )
             return True
 
         ## If this pdu is in the forwards table, then it also is a new one
         query = (
             "SELECT * FROM %(forward)s WHERE pdu_id = ? AND origin = ?"
-            ) % {
-                    "forward": PduForwardExtremitiesTable.table_name,
-                }
+        ) % {
+            "forward": PduForwardExtremitiesTable.table_name,
+        }
 
         txn.execute(query, (pdu_id, origin))
 
         # Did we get anything?
         if txn.fetchall():
-            logger.debug("is_new true: id=%s, o=%s, v=%s was forward",
-                pdu_id, origin, version)
+            logger.debug(
+                "is_new true: id=%s, o=%s, d=%s was forward",
+                pdu_id, origin, depth
+            )
             return True
 
-        logger.debug("is_new false: id=%s, o=%s, v=%s",
-                pdu_id, origin, version)
+        logger.debug(
+            "is_new false: id=%s, o=%s, d=%s",
+            pdu_id, origin, depth
+        )
 
         ## FINE THEN. It's probably old.
         return False
@@ -779,14 +807,16 @@ class PduQueries(object):
         do_insert = depth < min_depth if min_depth else True
 
         if do_insert:
-            txn.execute("INSERT OR REPLACE INTO %s (context, min_depth) "
+            txn.execute(
+                "INSERT OR REPLACE INTO %s (context, min_depth) "
                 "VALUES (?,?)" % ContextDepthTable.table_name,
                 (context, depth)
             )
 
     @staticmethod
     def _get_min_depth_interaction(txn, context):
-        txn.execute("SELECT min_depth FROM %s WHERE context = ?"
+        txn.execute(
+            "SELECT min_depth FROM %s WHERE context = ?"
             % ContextDepthTable.table_name,
             (context,)
         )
@@ -797,7 +827,8 @@ class PduQueries(object):
 
     @staticmethod
     def _get_back_extremities_interaction(txn, context):
-        txn.execute("SELECT pdu_id, origin FROM %(back)s WHERE context = ?"
+        txn.execute(
+            "SELECT pdu_id, origin FROM %(back)s WHERE context = ?"
             % {"back": PduBackwardExtremitiesTable.table_name, },
             (context,)
         )
@@ -860,11 +891,15 @@ class StateQueries(object):
 
     @classmethod
     def _get_next_missing_pdu_interaction(clz, txn, new_pdu):
-        logger.debug("_get_next_missing_pdu_interaction %s %s",
-            new_pdu.pdu_id, new_pdu.origin)
+        logger.debug(
+            "_get_next_missing_pdu_interaction %s %s",
+            new_pdu.pdu_id, new_pdu.origin
+        )
 
-        current = clz._get_current_interaction(txn,
-            new_pdu.context, new_pdu.pdu_type, new_pdu.state_key)
+        current = clz._get_current_interaction(
+            txn,
+            new_pdu.context, new_pdu.pdu_type, new_pdu.state_key
+        )
 
         if (not current or not current.prev_state_id
                 or not current.prev_state_origin):
@@ -890,19 +925,19 @@ class StateQueries(object):
         branch_a = pdu_a
         branch_b = pdu_b
 
-        version_a = pdu_a.version
-        version_b = pdu_b.version
+        depth_a = pdu_a.depth
+        depth_b = pdu_b.depth
 
         get_query = (
-            "SELECT p.version, %(fields)s FROM %(state)s as s "
+            "SELECT p.depth, %(fields)s FROM %(state)s as s "
             "INNER JOIN %(pdus)s as p "
                 "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
             "WHERE s.pdu_id = ? AND s.origin = ? "
-            ) % {
-                    "fields": StatePdusTable.get_fields_string(prefix="s"),
-                    "state": StatePdusTable.table_name,
-                    "pdus": PdusTable.table_name,
-                }
+        ) % {
+            "fields": StatePdusTable.get_fields_string(prefix="s"),
+            "state": StatePdusTable.table_name,
+            "pdus": PdusTable.table_name,
+        }
 
         while True:
             if (branch_a.pdu_id == branch_b.pdu_id
@@ -910,7 +945,7 @@ class StateQueries(object):
                 # Woo! We found a common ancestor
                 break
 
-            if int(version_a) < int(version_b):
+            if int(depth_a) < int(depth_b):
                 pdu_tuple = PduIdTuple(
                     branch_a.prev_state_id,
                     branch_a.prev_state_origin
@@ -920,8 +955,8 @@ class StateQueries(object):
 
                 res = txn.fetchall()
                 states = StatePdusTable.decode_results(
-                        res[1:]
-                    )
+                    res[1:]
+                )
 
                 prev_branch = branch_a
                 branch_a = states[0] if states else None
@@ -931,7 +966,7 @@ class StateQueries(object):
                 if not branch_a:
                     break
                 else:
-                    version_a = res[0]
+                    depth_a = res[0]
             else:
                 pdu_tuple = PduIdTuple(
                     branch_b.prev_state_id,
@@ -941,8 +976,8 @@ class StateQueries(object):
 
                 res = txn.fetchall()
                 states = StatePdusTable.decode_results(
-                        res[1:]
-                    )
+                    res[1:]
+                )
 
                 prev_branch = branch_b
                 branch_b = states[0] if states else None
@@ -952,15 +987,19 @@ class StateQueries(object):
                 if not states:
                     break
                 else:
-                    version_b = res[0]
+                    depth_b = res[0]
 
     @classmethod
     def _handle_new_state_interaction(clz, txn, new_pdu):
-        logger.debug("_handle_new_state_interaction %s %s",
-            new_pdu.pdu_id, new_pdu.origin)
+        logger.debug(
+            "_handle_new_state_interaction %s %s",
+            new_pdu.pdu_id, new_pdu.origin
+        )
 
-        current = clz._get_current_interaction(txn,
-            new_pdu.context, new_pdu.pdu_type, new_pdu.state_key)
+        current = clz._get_current_interaction(
+            txn,
+            new_pdu.context, new_pdu.pdu_type, new_pdu.state_key
+        )
 
         is_current = False
 
@@ -981,13 +1020,18 @@ class StateQueries(object):
             enum_branches = clz._enumerate_state_branches(txn, new_pdu, current)
             for branch, prev_state, state in enum_branches:
                 if not state:
-                    raise RuntimeError("Could not find state_pdu %s %s" %
-                    (prev_state.prev_state_id, prev_state.prev_state_origin))
+                    raise RuntimeError(
+                        "Could not find state_pdu %s %s" %
+                        (
+                            prev_state.prev_state_id,
+                            prev_state.prev_state_origin
+                        )
+                    )
 
                 if branch == 0:
-                    max_new = max(int(state.version), max_new)
+                    max_new = max(int(state.depth), max_new)
                 else:
-                    max_current = max(int(state.version), max_current)
+                    max_current = max(int(state.depth), max_current)
 
             is_current = max_new > max_current
 
@@ -1015,13 +1059,16 @@ class StateQueries(object):
 
     @staticmethod
     def _get_current_interaction(txn, context, pdu_type, state_key):
-        logger.debug("_get_current_interaction %s %s %s",
-            context, pdu_type, state_key)
+        logger.debug(
+            "_get_current_interaction %s %s %s",
+            context, pdu_type, state_key
+        )
 
         fields = [
-                "p.%s" % r if r in PdusTable.fields else "s.%s" % r
-                for r in pdu_state_fields
-            ]
+            "p.%s" % r if r in PdusTable.fields else "s.%s" % r
+            for r in pdu_state_fields
+        ]
+
         current_query = (
             "SELECT %(fields)s FROM %(state)s as s "
             "INNER JOIN %(pdus)s as p "
@@ -1029,15 +1076,17 @@ class StateQueries(object):
             "INNER JOIN %(curr)s as c "
                 "ON s.pdu_id = c.pdu_id AND s.origin = c.origin "
             "WHERE s.context = ? AND s.pdu_type = ? AND s.state_key = ? "
-            ) % {
-                    "fields": ", ".join(fields),
-                    "curr": CurrentStateTable.table_name,
-                    "state": StatePdusTable.table_name,
-                    "pdus": PdusTable.table_name,
-                }
+        ) % {
+            "fields": ", ".join(fields),
+            "curr": CurrentStateTable.table_name,
+            "state": StatePdusTable.table_name,
+            "pdus": PdusTable.table_name,
+        }
 
-        txn.execute(current_query,
-            (context, pdu_type, state_key))
+        txn.execute(
+            current_query,
+            (context, pdu_type, state_key)
+        )
 
         rows = txn.fetchall()
 
@@ -1048,6 +1097,8 @@ class StateQueries(object):
         # We should only ever get 0 or 1 due to table restraints
         current = PduAndStateTuple(*(rows[0]))
 
-        logger.debug("_get_current_interaction found %s %s",
-            current.pdu_id, current.origin)
+        logger.debug(
+            "_get_current_interaction found %s %s",
+            current.pdu_id, current.origin
+        )
         return current

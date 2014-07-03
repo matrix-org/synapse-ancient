@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from twisted.web.client import Agent, readBody
 from twisted.web.http_headers import Headers
 from twisted.web import server, resource
@@ -127,9 +129,9 @@ def _handle_error(request, e):
 
 
 _HttpClientPathEntry = namedtuple(
-        "_HttpClientPathEntry",
-        ["pattern", "callback"]
-    )
+    "_HttpClientPathEntry",
+    ["pattern", "callback"]
+)
 
 
 # The actual HTTP server impl, using twisted http server
@@ -149,8 +151,8 @@ class TwistedHttpServer(HttpServer, resource.Resource):
 
     def register_path(self, method, path_pattern, callback):
         self.path_regexs.setdefault(method, []).append(
-                _HttpClientPathEntry(path_pattern, callback)
-            )
+            _HttpClientPathEntry(path_pattern, callback)
+        )
 
     def start_listening(self, port):
         """ Registers the http server with the twisted reactor.
@@ -184,19 +186,19 @@ class TwistedHttpServer(HttpServer, resource.Resource):
                     # returned response. We pass both the request and any
                     # matched groups from the regex to the callback.
                     code, response = yield path_entry.callback(
-                            request,
-                            *m.groups()
-                        )
+                        request,
+                        *m.groups()
+                    )
 
                     _send_response(request, code, response)
                     return
 
             # Huh. No one wanted to handle that? Fiiiiiine. Send 400.
             _send_response(
-                    request,
-                    400,
-                    {"error": "Unrecognized request"}
-                )
+                request,
+                400,
+                {"error": "Unrecognized request"}
+            )
         except Exception as e:
             # Awww, what?!
             # FIXME: Insert logging.
@@ -217,10 +219,10 @@ class TwistedHttpClient(HttpClient):
     @defer.inlineCallbacks
     def put_json(self, destination, path, data):
         response = yield self._create_put_request(
-                "http://%s%s" % (destination, path),
-                data,
-                headers_dict={"Content-Type": ["application/json"]}
-            )
+            "http://%s%s" % (destination, path),
+            data,
+            headers_dict={"Content-Type": ["application/json"]}
+        )
 
         logger.debug("Getting resp body")
         body = yield readBody(response)
@@ -245,8 +247,8 @@ class TwistedHttpClient(HttpClient):
             path = "%s?%s" % (path, "&".join(qs))
 
         response = yield self._create_get_request(
-                "http://%s%s" % (destination, path)
-            )
+            "http://%s%s" % (destination, path)
+        )
 
         body = yield readBody(response)
 
@@ -286,11 +288,11 @@ class TwistedHttpClient(HttpClient):
 
         try:
             response = yield self.agent.request(
-                    method,
-                    url.encode("UTF8"),
-                    Headers(headers_dict),
-                    producer
-                )
+                method,
+                url.encode("UTF8"),
+                Headers(headers_dict),
+                producer
+            )
 
             logger.debug("Got response to %s" % method)
         except Exception as e:
@@ -308,8 +310,10 @@ class TwistedHttpClient(HttpClient):
             logger.error(
                 "Got response %d %s", response.code, response.phrase
             )
-            raise RuntimeError("Got response %d %s"
-                    % (response.code, response.phrase))
+            raise RuntimeError(
+                "Got response %d %s"
+                % (response.code, response.phrase)
+            )
 
         defer.returnValue(response)
 

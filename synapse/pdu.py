@@ -9,9 +9,9 @@
 
 from twisted.internet import defer
 
-from transaction import TransactionCallbacks
-from protocol.units import Pdu
-from persistence.transactions import PduQueries, StateQueries, run_interaction
+from .transaction import TransactionCallbacks
+from .protocol.units import Pdu
+from .persistence.transactions import PduQueries, StateQueries, run_interaction
 
 import logging
 
@@ -140,8 +140,8 @@ class PduLayer(TransactionCallbacks):
         if not extremities:
             return
 
-        res = yield self.transport_layer.trigger_paginate(dest, context,
-            extremities, limit)
+        res = yield self.transport_layer.trigger_paginate(
+            dest, context, extremities, limit)
 
         defer.returnValue(res)
 
@@ -196,18 +196,19 @@ class PduLayer(TransactionCallbacks):
 
         defer.returnValue(pdu)
 
-    def on_paginate_request(self, context, versions, limit):
+    def on_paginate_request(self, context, pdus, limit):
         """
         Overrides:
             TransactionCallbacks
         """
 
-        return Pdu.paginate(context, versions, limit)
+        return Pdu.paginate(context, pdus, limit)
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
-        logger.debug("_handle_new_pdu %s from %s",
-                        str(pdu.pdu_id), pdu.origin)
+        logger.debug(
+            "_handle_new_pdu %s from %s", str(pdu.pdu_id), pdu.origin
+        )
 
         # Have we seen this pdu before?
         existing = yield Pdu.get_persisted_pdu(pdu.pdu_id, pdu.origin)
@@ -234,17 +235,17 @@ class PduLayer(TransactionCallbacks):
 
             # If min_depth is None, that means that we haven't seen this
             # context before, so we don't go backwards yet.
-            if min_depth and pdu.version > min_depth:
+            if min_depth and pdu.depth > min_depth:
                 for pdu_id, origin in pdu.prev_pdus:
                     exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
                     if not exists:
                         # Oh no! We better request it.
                         yield self.callback.on_unseen_pdu(
-                                pdu.origin,
-                                pdu_id=pdu_id,
-                                origin=origin,
-                                outlier=pdu.outlier
-                            )
+                            pdu.origin,
+                            pdu_id=pdu_id,
+                            origin=origin,
+                            outlier=pdu.outlier
+                        )
 
         # Persist the Pdu, but don't mark it as processed yet.
         yield pdu.persist_received()

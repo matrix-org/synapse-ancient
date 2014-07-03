@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS pdus(
     context TEXT,
     pdu_type TEXT,
     ts INTEGER,
-    version INTEGER DEFAULT 0 NOT NULL,
+    depth INTEGER DEFAULT 0 NOT NULL,
     content_json TEXT,
     unrecognized_keys TEXT,
     outlier BOOL NOT NULL,

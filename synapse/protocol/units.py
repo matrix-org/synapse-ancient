@@ -4,8 +4,12 @@ server to server protocol.
 """
 
 from twisted.internet import defer
-from ..persistence.transactions import (TransactionQueries, PduQueries,
-    StateQueries, run_interaction)
+from ..persistence.transactions import (
+    TransactionQueries, PduQueries,
+    StateQueries, run_interaction
+)
+
+from ..persistence.tables import ReceivedTransactionsTable
 
 import copy
 import logging
@@ -64,8 +68,10 @@ class JsonEncodedObject(object):
             dict
         """
         d = copy.deepcopy(self.__dict__)
-        d = {k: _encode(v) for (k, v) in d.items()
-                        if k not in self.internal_keys}
+        d = {
+            k: _encode(v) for (k, v) in d.items()
+            if k not in self.internal_keys
+        }
 
         if "unrecognized_keys" in d:
             del d["unrecognized_keys"]
@@ -81,18 +87,18 @@ class Transaction(JsonEncodedObject):
     """
 
     valid_keys = [
-            "transaction_id",
-            "origin",
-            "destination",
-            "ts",
-            "previous_ids",
-            "pdus",  # This get's converted to a list of Pdu's
-        ]
+        "transaction_id",
+        "origin",
+        "destination",
+        "ts",
+        "previous_ids",
+        "pdus",  # This get's converted to a list of Pdu's
+    ]
 
     internal_keys = [
-            "transaction_id",
-            "destination",
-        ]
+        "transaction_id",
+        "destination",
+    ]
 
     # HACK to get unique tx id
     _next_transaction_id = int(time.time() * 1000)
@@ -103,10 +109,10 @@ class Transaction(JsonEncodedObject):
         """
 
         super(Transaction, self).__init__(
-                transaction_id=transaction_id,
-                pdus=pdus,
-                **kwargs
-            )
+            transaction_id=transaction_id,
+            pdus=pdus,
+            **kwargs
+        )
 
         if self.transaction_id:
             for p in self.pdus:
@@ -172,12 +178,12 @@ class Transaction(JsonEncodedObject):
             return defer.succeed(None)
 
         return run_interaction(
-                TransactionQueries.set_recieved_txn_response,
-                self.transaction_id,
-                self.origin,
-                code,
-                json.dumps(response)
-            )
+            TransactionQueries.set_recieved_txn_response,
+            self.transaction_id,
+            self.origin,
+            code,
+            json.dumps(response)
+        )
 
     def persist_as_received(self, response_code, response_json):
         """ Saves this transaction into the received transactions table.
@@ -249,29 +255,29 @@ class Pdu(JsonEncodedObject):
     """
 
     valid_keys = [
-            "pdu_id",
-            "context",
-            "origin",
-            "ts",
-            "pdu_type",
-            "is_state",
-            "state_key",
-            "destinations",
-            "transaction_id",
-            "prev_pdus",
-            "version",
-            "content",
-            "outlier",
-            "power_level",
-            "prev_state_id",
-            "prev_state_origin",
-        ]
+        "pdu_id",
+        "context",
+        "origin",
+        "ts",
+        "pdu_type",
+        "is_state",
+        "state_key",
+        "destinations",
+        "transaction_id",
+        "prev_pdus",
+        "depth",
+        "content",
+        "outlier",
+        "power_level",
+        "prev_state_id",
+        "prev_state_origin",
+    ]
 
     internal_keys = [
-            "destinations",
-            "transaction_id",
-            "outlier",
-        ]
+        "destinations",
+        "transaction_id",
+        "outlier",
+    ]
 
     """ A list of keys that we persist in the database. The column names are
     the same
@@ -284,14 +290,14 @@ class Pdu(JsonEncodedObject):
     # just leaving it as a dict. (OR DO WE?!)
 
     def __init__(self, destinations=[], is_state=False, prev_pdus=[],
-    outlier=False, **kwargs):
+                 outlier=False, **kwargs):
         super(Pdu, self).__init__(
-                destinations=destinations,
-                is_state=is_state,
-                prev_pdus=prev_pdus,
-                outlier=outlier,
-                **kwargs
-            )
+            destinations=destinations,
+            is_state=is_state,
+            prev_pdus=prev_pdus,
+            outlier=outlier,
+            **kwargs
+        )
 
     @staticmethod
     def create_new(**kwargs):
@@ -355,9 +361,9 @@ class Pdu(JsonEncodedObject):
                 args.update(json.loads(d["unrecognized_keys"]))
 
             return Pdu(
-                    prev_pdus=pdu_tuple.prev_pdu_list,
-                    **args
-                )
+                prev_pdus=pdu_tuple.prev_pdu_list,
+                **args
+            )
         else:
             return None
 
@@ -434,18 +440,18 @@ class Pdu(JsonEncodedObject):
 
         if self.is_state:
             ret = yield run_interaction(
-                    PduQueries.insert_state,
-                    **kwargs
-                )
+                PduQueries.insert_state,
+                **kwargs
+            )
         else:
             ret = yield run_interaction(
-                    PduQueries.insert,
-                    **kwargs
-                )
+                PduQueries.insert,
+                **kwargs
+            )
 
         yield run_interaction(
             PduQueries.update_min_depth,
-            self.context, self.version
+            self.context, self.depth
         )
 
         defer.returnValue(ret)
@@ -472,9 +478,9 @@ class Pdu(JsonEncodedObject):
 
         vs = [int(v) for _, _, v in results]
         if vs:
-            self.version = max(vs) + 1
+            self.depth = max(vs) + 1
         else:
-            self.version = 0
+            self.depth = 0
 
         if self.is_state:
             curr = yield run_interaction(
@@ -515,10 +521,10 @@ class Pdu(JsonEncodedObject):
 
     @staticmethod
     @defer.inlineCallbacks
-    def paginate(context, version_list, limit):
+    def paginate(context, pdu_list, limit):
         results = yield run_interaction(
             PduQueries.paginate,
-            context, version_list, limit
+            context, pdu_list, limit
         )
 
         defer.returnValue([Pdu._from_pdu_tuple(p) for p in results])
@@ -529,7 +535,7 @@ class Pdu(JsonEncodedObject):
             pdu_id=self.pdu_id,
             origin=self.origin,
             context=self.context,
-            version=self.version
+            depth=self.depth
         )
 
 

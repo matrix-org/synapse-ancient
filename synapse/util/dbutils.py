@@ -11,4 +11,3 @@ def set_db_pool(pool):
 
 def get_db_pool():
     return DBPOOL
-
