@@ -685,3 +685,8 @@ Outstanding problems / missing spec:
 - Multiple devices on the same account (no shared way to auth e.g. we don't msisdn auth)
 - Spec out standard error responses (malformed json, missing keys, invalid values for keys, unknown users (iff host is home server),
   room id in use, filter query param error / index out of bounds, )
+- Spec out event streaming type (longpoll, long-lived)
+- User level config/settings
+- Push
+- Typing notifications
+- 'IM sync' API (fresh client, get last X msgs f.e room)
