@@ -100,6 +100,9 @@ S                                                           E
 The term 'filtering query parameters' is used to describe an API which can be filtered in this way. The API will also specify what ID to use.
 For example, the event streaming API is compatible with filtering query parameters with the id as the event id.
 
+Unless specified, the default filtering parameters are from=START, to=END, dir=f, without a limit set. This allows you to hit an API like
+/events without any query parameters to get everything.
+
 Event Data
 ----------
 This is a JSON object which looks like:
@@ -679,3 +682,6 @@ Returns:
 
 Outstanding problems / missing spec:
 - No presence spec.
+- Multiple devices on the same account (no shared way to auth e.g. we don't msisdn auth)
+- Spec out standard error responses (malformed json, missing keys, invalid values for keys, unknown users (iff host is home server),
+  room id in use, filter query param error / index out of bounds, )
