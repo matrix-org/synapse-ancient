@@ -374,7 +374,6 @@ class _TransactionQueue(object):
                 origin=self.server_name,
                 destination=destination,
                 pdus=pdus,
-                #previous_ids=prev_txs
             )
 
             yield transaction.prepare_to_send()

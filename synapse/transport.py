@@ -403,8 +403,8 @@ class TransportLayer(object):
             # We should ideally be getting this from the security layer.
             # origin = body["origin"]
 
-            # Add some extra data to the transaction dict that isn't included in
-            # the request body.
+            # Add some extra data to the transaction dict that isn't included
+            # in the request body.
             transaction_data.update(
                 transaction_id=transaction_id,
                 destination=self.server_name
@@ -427,7 +427,8 @@ class TransportLayer(object):
         defer.returnValue((code, response))
 
     @defer.inlineCallbacks
-    def _trigger_transaction(self, destination, path, outlier=False, args=None):
+    def _trigger_transaction(self, destination, path, outlier=False,
+                             args=None):
         """Used when we want to send a GET request to a remote home server
         that will result in them returning a response with a Transaction that
         we want to process.

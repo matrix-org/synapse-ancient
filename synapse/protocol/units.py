@@ -153,7 +153,7 @@ class Transaction(JsonEncodedObject):
             be used as the json response body.
         """
         if not self.transaction_id:
-             # This is a fake transaction, which we always process.
+            # This is a fake transaction, which we always process.
             return defer.succeed(None)
 
         return run_interaction(
@@ -174,7 +174,7 @@ class Transaction(JsonEncodedObject):
             Deferred: Succeeds after we successfully persist the response.
         """
         if not self.transaction_id:
-             # This is a fake transaction, which we can't respond to.
+            # This is a fake transaction, which we can't respond to.
             return defer.succeed(None)
 
         return run_interaction(

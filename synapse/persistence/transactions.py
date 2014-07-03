@@ -20,7 +20,10 @@ import logging
 
 logger = logging.getLogger("synapse.persistence.transactions")
 
-PduTuple = namedtuple("PduTuple", ("pdu_entry", "state_entry", "prev_pdu_list"))
+PduTuple = namedtuple(
+    "PduTuple",
+    ("pdu_entry", "state_entry", "prev_pdu_list")
+)
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
 PduIdTuple = namedtuple("PduIdTuple", ("pdu_id", "origin"))
 
@@ -131,7 +134,7 @@ class TransactionQueries(object):
 
     @classmethod
     def delivered_txn(clz, txn, transaction_id, destination,
-    code, response_json):
+                      code, response_json):
         """Persists the response for an outgoing transaction.
 
         Args:
@@ -540,7 +543,7 @@ class PduQueries(object):
             [(pdu_id, origin, p[0], p[1], context) for p in prev_pdus]
         )
 
-        ## Update the extremities table if this is not an outlier.
+        # Update the extremities table if this is not an outlier.
         if not outlier:
 
             # First, we delete the new one from the forwards extremities table.
@@ -555,8 +558,8 @@ class PduQueries(object):
             query = (
                 "INSERT INTO %(table)s (pdu_id, origin, context) "
                 "SELECT ?, ?, ? WHERE NOT EXISTS ("
-                    "SELECT 1 FROM %(pdu_edges)s WHERE "
-                    "prev_pdu_id = ? AND prev_origin = ?"
+                "SELECT 1 FROM %(pdu_edges)s WHERE "
+                "prev_pdu_id = ? AND prev_origin = ?"
                 ")"
             ) % {
                 "table": PduForwardExtremitiesTable.table_name,
@@ -578,11 +581,11 @@ class PduQueries(object):
             # reference pdus that we have already seen
             query = (
                 "DELETE FROM %(pdu_back)s WHERE EXISTS ("
-                    "SELECT 1 FROM %(pdus)s AS pdus "
-                    "WHERE "
-                    "%(pdu_back)s.pdu_id = pdus.pdu_id "
-                    "AND %(pdu_back)s.origin = pdus.origin "
-                    "AND not pdus.outlier "
+                "SELECT 1 FROM %(pdus)s AS pdus "
+                "WHERE "
+                "%(pdu_back)s.pdu_id = pdus.pdu_id "
+                "AND %(pdu_back)s.origin = pdus.origin "
+                "AND not pdus.outlier "
                 ")"
             ) % {
                 "pdu_back": PduBackwardExtremitiesTable.table_name,
@@ -626,14 +629,14 @@ class PduQueries(object):
         # those PDUs.
         query = (
             "SELECT %(fields)s FROM pdus INNER JOIN ("
-                "SELECT pdu_id, pdu_origin FROM %(tx_pdu)s as tp "
-                "INNER JOIN %(sent_tx)s as st "
-                    "ON tp.transaction_id = st.transaction_id "
-                    "AND tp.destination = st.destination "
-                "WHERE st.id > ("
-                    "SELECT id FROM %(sent_tx)s "
-                    "WHERE transaction_id = ? AND destination = ?"
-                ")"
+            "SELECT pdu_id, pdu_origin FROM %(tx_pdu)s as tp "
+            "INNER JOIN %(sent_tx)s as st "
+            "ON tp.transaction_id = st.transaction_id "
+            "AND tp.destination = st.destination "
+            "WHERE st.id > ("
+            "SELECT id FROM %(sent_tx)s "
+            "WHERE transaction_id = ? AND destination = ?"
+            ")"
             ") AS t ON t.pdu_id = pdus.pdu_id AND pdus.origin = t.pdu_origin;"
         ) % {
             "fields": pdus_fields,
@@ -702,9 +705,9 @@ class PduQueries(object):
         query = (
             "SELECT %(pdu_fields)s from %(pdu_table)s as p "
             "INNER JOIN %(edges_table)s as e ON "
-                "p.pdu_id = e.prev_pdu_id "
-                "AND p.origin = e.prev_origin "
-                "AND p.context = e.context "
+            "p.pdu_id = e.prev_pdu_id "
+            "AND p.origin = e.prev_origin "
+            "AND p.context = e.context "
             "WHERE e.context = ? AND e.pdu_id = ? AND e.origin = ? "
             "LIMIT ?"
         ) % {
@@ -748,15 +751,15 @@ class PduQueries(object):
 
     @staticmethod
     def _is_new_interaction(txn, pdu_id, origin, context, depth):
-        ## If depth > min depth in back table, then we classify it as new.
-        ## OR if there is nothing in the back table, then it kinda needs to
-        ## be a new thing.
+        # If depth > min depth in back table, then we classify it as new.
+        # OR if there is nothing in the back table, then it kinda needs to
+        # be a new thing.
         query = (
             "SELECT min(p.depth) FROM %(edges)s as e "
             "INNER JOIN %(back)s as b "
-                "ON e.prev_pdu_id = b.pdu_id AND e.prev_origin = b.origin "
+            "ON e.prev_pdu_id = b.pdu_id AND e.prev_origin = b.origin "
             "INNER JOIN %(pdus)s as p "
-                "ON e.pdu_id = p.pdu_id AND p.origin = e.origin "
+            "ON e.pdu_id = p.pdu_id AND p.origin = e.origin "
             "WHERE p.context = ?"
         ) % {
             "pdus": PdusTable.table_name,
@@ -775,7 +778,7 @@ class PduQueries(object):
             )
             return True
 
-        ## If this pdu is in the forwards table, then it also is a new one
+        # If this pdu is in the forwards table, then it also is a new one
         query = (
             "SELECT * FROM %(forward)s WHERE pdu_id = ? AND origin = ?"
         ) % {
@@ -797,7 +800,7 @@ class PduQueries(object):
             pdu_id, origin, depth
         )
 
-        ## FINE THEN. It's probably old.
+        # FINE THEN. It's probably old.
         return False
 
     @classmethod
@@ -931,7 +934,7 @@ class StateQueries(object):
         get_query = (
             "SELECT p.depth, %(fields)s FROM %(state)s as s "
             "INNER JOIN %(pdus)s as p "
-                "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
+            "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
             "WHERE s.pdu_id = ? AND s.origin = ? "
         ) % {
             "fields": StatePdusTable.get_fields_string(prefix="s"),
@@ -1017,7 +1020,9 @@ class StateQueries(object):
             max_new = int(new_pdu.power_level)
             max_current = int(current.power_level)
 
-            enum_branches = clz._enumerate_state_branches(txn, new_pdu, current)
+            enum_branches = clz._enumerate_state_branches(
+                txn, new_pdu, current
+            )
             for branch, prev_state, state in enum_branches:
                 if not state:
                     raise RuntimeError(
@@ -1072,9 +1077,9 @@ class StateQueries(object):
         current_query = (
             "SELECT %(fields)s FROM %(state)s as s "
             "INNER JOIN %(pdus)s as p "
-                "ON s.pdu_id = p.pdu_id AND s.origin = p.origin "
+            "ON s.pdu_id = p.pdu_id AND s.origin = p.origin "
             "INNER JOIN %(curr)s as c "
-                "ON s.pdu_id = c.pdu_id AND s.origin = c.origin "
+            "ON s.pdu_id = c.pdu_id AND s.origin = c.origin "
             "WHERE s.context = ? AND s.pdu_type = ? AND s.state_key = ? "
         ) % {
             "fields": ", ".join(fields),
