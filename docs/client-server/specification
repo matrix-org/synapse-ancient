@@ -453,3 +453,10 @@ Returns:
 ]
 
 
+
+Outstanding problems / missing spec:
+- Currently no REST API way of getting any of alice's messages (/rooms/$roomid/messages/$msgid could clash with mutliple users with the same msgid).
+  Realistically, we need to make it /rooms/$roomid/messages/$userid/$msgid but this bloats the url length.
+- No pagination spec.
+- No presence spec.
+- No private message (one to one) spec.
