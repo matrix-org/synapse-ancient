@@ -1,241 +1,120 @@
 Synapse Client-Server API
 =========================
 
+The following specification outlines how a client can send and receive data from a home server.
+
 Terminology
 -----------
-baseVer : The base version of the client. 
-Every event sent to the client has a 'ver' which must be persisted on the client. When the client next connects to the server, they should
-provide the last 'ver' they received from the server. This lets the server know where in the event stream the client is. These versions
-are completely opaque, and the client cannot infer anything from them.
+eventid / eid : The ID of an event sent by the server.
+When using the event streaming API, each event has an associated "eid" which should be persisted on the client. When reconnecting to the
+event stream, this event ID can be used to tell the server where the client got up to in the stream.
 
-eventId : The ID of an event sent by the client.
-Clients can send events to the server to send messages, join and leave rooms, and so on. Each event action should have a unique ID so
-client actions are idempotent.
+msgid : The ID of a message sent by a client in a room.
+Clients send IMs to each other in rooms. Each IM sent by a client must have a unique message ID which is unique for that particular client.
 
-msgId : The ID of a message sent by a client in a room.
-Clients send IMs to each other in rooms. Each IM must have a unique message ID which is unique for that particular client.
-
-userId : The username of the client.
+userid : The username of the client.
 When registering for an account, the client specifies their username. They use this to login and it forms part of their synapseId.
 
-synapseUserId : The userId@host style ID for the client.
+synapseUserId : The userid@host style ID for the client.
 Clients register accounts with home servers. These servers have their own unique hostname. When federating between home servers, the
 synapseId is used to uniquely identify users across multiple home servers.
 
-roomId : The ID of a room on a home server.
+roomid : The ID of a room on a home server.
 When rooms are created, the client either specifies or is allocated a room ID. This room ID must be used to send messages in that room.
 
-synapseRoomId : The roomId@host style ID for the room.
+synapseRoomId : The roomid@host style ID for the room.
 Like with clients, there may be multiple rooms with the same ID across multiple home servers. The synapseRoomId is used to uniquely
 identify a room when federating.
 
 globalMsgId : The globally unique ID for a message.
-This ID is formed from the msgId, the client's synapseUserId and the synapseRoomId. This uniquely identifies any message. It is represented
-with '-' as the delimeter between IDs. The globalMsgId is of the form: synapseRoomId-synapseUserId-msgId
+This ID is formed from the msgid, the client's synapseUserId and the synapseRoomId. This uniquely identifies any message. It is represented
+with '-' as the delimeter between IDs. The globalMsgId is of the form: synapseRoomId-synapseUserId-msgid
 
 
-Data Types
-----------
+REST API and the Event Stream
+-----------------------------
+Clients send data to the server via a RESTful API. They can receive data via this API or from an event stream. An event stream is a 
+special path which streams all events the client may be interested in. This makes it easy to immediately receive updates from the REST API. 
 All data is represented as JSON.
 
-The 'type' key
---------------
-This is the type of event being sent/received. Most data is sent and received as events. The event type is used to differentiate between 
-events, and can be expanded upon by using different namespaces. Every event MUST have a 'type' key.
+The Event Stream
+----------------
+Every event sent to the client has an event id ("eid") which must be persisted on the client. When the client next connects to the event 
+stream, they should provide the last event id they received from the server. This lets the server know where in the event stream the 
+client is. These ids are completely opaque, and the client cannot infer anything from them.
 
-Valid event types:
-  sy.message.* : A message
-  sy.room.create : Create a room
-  sy.room.join : Join a room
-  sy.room.leave : Leave a room
-  sy.room.topic : The topic for a room
-  sy.room.list : A list of rooms
+  GET /events?from=$LAST_EVENT_ID
+  Returns (success): A JSON array of Event Data.
+  Returns (failure): An Error Response
+
+LAST_EVENT_ID is the last event ID obtained from Event Data. If the client is connecting for the first time and does not know any event IDs,
+they can use "START" to request all events from the start.
 
 Event Data
 ----------
-All events are represented in JSON. They follow the format:
+This is a JSON object which looks like:
 {
-  type : $EVENT_TYPE,
-  params : {
-             $TYPE_SPECIFIC_FIELDS
-           }
+  "eid" : $EVENT_ID,
+  "type" : $EVENT_TYPE,
+  $URL_ARGS,
+  "content" : {
+    $EVENT_CONTENT
+  }
 }
-For a list of type specific fields, see the Event Types section.
+
+Where:
+  EVENT_ID = The opaque event ID which can be used with /events?from=$LAST_EVENT_ID
+  EVENT_TYPE = The namespaced event type (sy.*)
+  URL_ARGS = Path specific data from the REST API
+  EVENT_CONTENT = The event content 
+
+Events are differentiated via the event type "type" key. This is the type of event being received. This can be expanded upon 
+by using different namespaces. Every event MUST have a 'type' key.
+
+Most events will have a corresponding REST URL. This URL will generally have data in it to represent the resource being modified,
+e.g. /rooms/$roomid. The event data will contain extra top-level keys to expose this information to clients listening on an event
+stream. The event content maps directly to the contents submitted via the REST API.
+
+For example:
+  Event Type: sy.example.room.members
+  REST Path: /examples/room/$roomid/members/$userid
+  REST Content: { "membership" : "invited" }
+  
+is represented in the event stream as:
+
+{
+  "eid" : "e_some_event_id",
+  "type" : "sy.example.room.members",
+  "roomid" : $roomid,
+  "userid" : $userid,
+  "content" : {
+    "membership" : "invited"
+  }
+}
+
+As convention, the URL variable arg "$varname" should map directly onto the name of the JSON key "varname".
 
 Error Responses
 ---------------
 If the client sends an invalid request, the server MAY respond with an error response. This is of the form:
 {
   "error" : "string",
-  "code" : integer
+  "errcode" : integer
 }
-The 'error' string will be a human-readable error message.
+The 'error' string will be a human-readable error message. There may be additional keys depending on the error, but
+the keys 'error' and 'errcode' will always be present.
 
-
-HTTP API
-========
-
-Events
-------
-To receive all incoming messages and events:
-  GET /events?baseVer=$BASE_VER
-  Returns (success): A JSON array of Event Data (sy.*).
-  Returns (failure): An Error Response
-
-To send an event:
-  PUT /events/$EVENT_ID
-  With: Event Data (sy.*)
-  Returns (success): 200 OK if the event was processed.
-  Returns (failure): An Error Response
-
-Rooms
------
-To create a room with a room ID:
-  PUT /rooms/$ROOM_ID
-  With: Event Data (sy.room.create)
-  Returns (success): 200 OK if the room was created.
-  Returns (failure): An Error Response. If the room ID was taken, this may also contain a 'roomId' key suggesting an 
-                     alternative room ID.
-
-To create a room and have a room ID allocated for you:
-  POST /rooms
-  With: Event Data (sy.room.create)
-  Returns (success): 200 OK if the room was created. This will also return a JSON object with 'roomId' containing the
-                     allocated room ID.
-  Returns (failure): An Error Response.
-
-To join/leave a room:
-  PUT /rooms/$ROOM_ID
-  With: Event Data (sy.room.join or sy.room.leave)
-  Returns (success): 200 OK if the room was joined.
-  Returns (failure): An Error Response.
-
-To see a list of public rooms:
-  GET /rooms
-  With query parameters:
-    limit (integer) : The max number of rooms to return.
-    start (integer) : The 0-based start index to start returning rooms from.
-  Returns (success): A "sy.room.list" Event
-  Returns (failure): An Error Response
-
-
-Event Types
-===========
-For each event, there are additional values which can appear in "params". The following is a list of these parameters. Some of 
-them are REQUIRED, and these have been marked with **. Keys not marked with ** are optional.
-
-Type: sy.room.create
---------------------
-Can optionally specify a topic for the room, and toggle the visibility.
-Params:
-{
-  "topic" : "string",
-  "visibility" : "private|public",
-}
-
-Type: sy.room.join
-------------------
-No additional parameters at this time.
-
-Type: sy.room.leave
--------------------
-No additional parameters at this time.
-
-Type: sy.room.topic
--------------------
-Contains the topic.
-Params:
-{
-  **"topic"** : "string",
-}
-
-Type: sy.room.list
-------------------
-Gets a (partial) list of rooms. If it is a partial list, then there should be a 'total' which is the total number
-of rooms, and 'start' which is the 0-based start index of the rooms in 'rooms'.
-Params:
-{
-  **"rooms"** : JSON array of RoomInfo JSON objects,
-  "total" : integer,
-  "start" : integer
-}
-RoomInfo:
-{
-  **"roomId"** : "string",
-  "topic" : "string",
-  "num_members" : integer
-}
-
-Type: sy.message.*
-------------------
-Contains message content. This can be broken down into sub-types for messages with attachments. However, all message types must have
-the following parameters.
-Params:
-{
-  **"roomId"** : "string [synapseRoomId|roomId]",
-  **"msgId"** : "string",
-  **"from"** : "string [synapseUserId]",
-}
-The server may replace the "from" key with your real synapseUserId if there is a mismatch to prevent clients masquerading as another user.
-There may be additional keys depending on what the message subtype is:
-   
-  sy.message.text:
-    **"body"** : "string"
-
-  sy.message.emote:
-    **"body"** : "string"
-
-  sy.message.location:
-    **"location"** : "string (geo URI)"
-
-  sy.message.image:
-    **"url"** : "string (URL to image)",
-    "info" : JSON object (ImageInfo),
-    "thumbnail_url" : "string (URL to image)",
-    "thumbnail_info" : JSON object (ImageInfo)
-
-    ImageInfo {
-      "size" : integer (size of image in bytes),
-      "w" : integer (width of image in pixels),
-      "h" : integer (height of image in pixels),
-      "mimetype" : "string (e.g. image/jpeg)"
-    }
-
-  sy.message.audio:
-    **"url"** : "string (URL to audio)",
-    "info" : JSON object (AudioInfo)
-
-    AudioInfo {
-      "mimetype" : "string (e.g. audio/aac)",
-      "size" : integer (size of audio in bytes),
-      "duration" : integer (duration of audio in milliseconds)
-    }
-
-  sy.message.video:
-    **"url"** : "string (URL to video)",
-    "info" : JSON object (VideoInfo)
-
-    VideoInfo {
-      "mimetype" : "string (e.g. video/mp4)",
-      "size" : integer (size of video in bytes),
-      "duration" : integer (duration of video in milliseconds),
-      "w" : integer (width of video in pixels),
-      "h" : integer (height of video in pixels),
-      "thumbnail_url" : "string (URL to image)",
-      "thumbanil_info" : JSON object (ImageInfo)
-    }
-    
-If the type is "sy.message", it is assumed to be "sy.message.text".
 
 Registration
 ============
-All requests made to the server must contain an 'access_token' query parameter. You must register to get a token.
+Clients must register with the server in order to use the service. After registering, the client will be given an
+access token which must be used in ALL requests as a query parameter 'access_token'.
 
 Registering for an account
 --------------------------
   PUT /register
-  With: A JSON object containing the key "user_id" which contains the desired userId, or an
-        empty JSON object to have the server allocate a userId automatically.
+  With: A JSON object containing the key "user_id" which contains the desired userid, or an
+        empty JSON object to have the server allocate a userid automatically.
   Returns (success): 200 OK with a JSON object:
                      {
                        "user_id" : "string [synapseUserId]",
@@ -250,5 +129,277 @@ Unregistering an account
   With query parameters: access_token=$ACCESS_TOKEN
   Returns (success): 200 OK
   Returns (failure): An Error Response.
+
+
+========
+REST API
+========
+
+All content must be application/json. Some keys are required, while others are optional. Unless otherwise specified,
+all HTTP PUT/POST/DELETEs will return a 200 OK with an empty response body on success, and a 200 OK with an 
+Error Response on failure.
+
+All POST/PUT/GET/DELETE requests MUST have an 'access_token' query parameter to allow the server to authenticate the client. All
+POST requests MUST be submitted as application/json. 
+
+Rooms
+=====
+A room is a conceptual place where users can send and receive messages. Rooms can be created, joined and left. Messages are sent
+to a room, and all participants in that room will receive the message. Rooms are uniquely identified via the synapseRoomId.
+
+Creating a room (with a room ID)
+--------------------------------
+  Event Type: sy.room.create
+  REST Path: /rooms/$roomid
+  Valid methods: PUT
+  Required keys: 
+    None.
+  Optional keys:
+    visibility : [public|private] - Set whether this room shows up in the public room list.
+  Returns:
+    On Failure: MAY return a suggested alternative room ID if this room ID is taken.
+    {
+      suggested_roomid : $new_roomid
+      error : "Room already in use."
+      errcode : $errcode
+    }
+
+Creating a room (without a room ID)
+-----------------------------------
+  Event Type: sy.room.create
+  REST Path: /rooms
+  Valid methods: POST
+  Required keys: 
+    None.
+  Optional keys:
+    visibility : [public|private] - Set whether this room shows up in the public room list.
+  Returns:
+    On Success: The allocated room ID.
+    {
+      roomid : $roomid
+    }
+
+Setting the topic for a room
+----------------------------
+  Event Type: sy.room.topic
+  REST Path: /rooms/$roomid/topic
+  Valid methods: GET/PUT
+  Required keys: 
+    topic : $topicname - Set the topic to $topicname in room $roomid.
+
+
+See a list of public rooms
+--------------------------
+  Event Type: sy.room.list
+  REST Path: /rooms/list
+  Valid methods: GET
+  Optional query parameters:
+    limit (integer) : The max number of rooms to return.
+    start (integer) : The 0-based start index to start returning rooms from.
+  Returns:
+    {
+      "rooms" : JSON array of RoomInfo JSON objects - Required.
+      "total" : integer - Optional.
+      "start" : integer - Optional.
+    }
+
+RoomInfo: Information about a single room.
+  Servers MUST send the key: roomid
+  Servers MAY send the keys: topic, num_members
+  {
+    "roomid" : "string",
+    "topic" : "string",
+    "num_members" : integer
+  }
+
+Room Members
+============
+
+Invite/Joining/Leaving a room
+-----------------------------
+  Event Type: sy.room.members.state
+  REST Path: /rooms/$roomid/members/$userid/state
+  Valid methods: PUT/GET/DELETE
+  Required keys:
+    membership : [join|invite] - The membership state of $userid in room $roomid
+                  join - Indicate you ($userid) are joining the room $roomid.
+                  invite - Indicate that $userid has been invited to room $roomid.
+
+  User $userid can leave room $roomid by DELETEing this path.
+
+Changing permissions for a member [PROPOSED]
+---------------------------------
+  Event Type: sy.room.members.perms
+  REST Path: /rooms/$roomid/members/$userid/perms
+  Valid methods: GET/PUT
+  Required keys: 
+    oplevel : [user|mod|admin] - Change the permission of $userid in the room $roomid.
+  Optional keys:
+    None.
+
+Checking the user list of a room
+--------------------------------
+  Event Type: sy.room.members.list
+  REST Path: /rooms/$roomid/members/list
+  Valid methods: GET
+  Returns:
+    A JSON object with room member userids as keys and their /members/$userid content as the value. This will
+    be nested for each path below /members/$userid. For example:
+    {
+      "$userid1" : {
+                     "state" : { "membership" : "join" },
+                     "perms" : { "oplevel" : "admin" }
+                   },
+      "$userid2" : { 
+                     "state" : { "membership" : "invite" } 
+                   },
+      "$userid3" : { 
+                     "state" : { "membership" : "join" } 
+                   },
+    }
+
+Messages
+========
+
+Sending messages
+----------------
+  Event Type: sy.room.message
+  REST Path: /rooms/$roomid/messages/$msgid
+  Valid methods: GET/PUT
+  Required keys: 
+    msgtype : [text|image|audio|video|location|file] - The type of message. Not to be confused with the Event 'type'.
+
+There will be an additional key "from" which is attached to all messages by the server. This contains the synapseUserId of the 
+user who sent the message. If a client attempts to PUT a 'from' key when sending a message, it will be clobbered by the server.
+
+Each msgtype may have required fields of their own.
+
+msgtype: text
+-------------
+Required keys:
+  body : "string" - The body of the message.
+Optional keys:
+  None.
+
+msgtype: emote
+--------------
+Required keys:
+  body : "string" - *tries to come up with a witty explanation*.
+Optional keys:
+  None.
+
+msgtype: image
+--------------
+Required keys:
+  url : "string" - The URL to the image.
+Optional keys:
+  info : JSON object (ImageInfo) - The image info for image referred to in 'url'.
+  thumbnail_url : "string" - The URL to the thumbnail.
+  thumbnail_info : JSON object (ImageInfo) - The image info for the image referred to in 'thumbnail_url'.
+
+ImageInfo: Information about an image.
+{
+  "size" : integer (size of image in bytes),
+  "w" : integer (width of image in pixels),
+  "h" : integer (height of image in pixels),
+  "mimetype" : "string (e.g. image/jpeg)"
+}
+
+msgtype: audio
+--------------
+Required keys:
+  url : "string" - The URL to the audio.
+Optional keys:
+  info : JSON object (AudioInfo) - The audio info for the audio referred to in 'url'.
+
+AudioInfo: Information about a piece of audio. 
+{
+  "mimetype" : "string (e.g. audio/aac)",
+  "size" : integer (size of audio in bytes),
+  "duration" : integer (duration of audio in milliseconds)
+}
+
+msgtype: video
+--------------
+Required keys:
+  url : "string" - The URL to the video.
+Optional keys:
+  info : JSON object (VideoInfo) - The video info for the video referred to in 'url'.
+
+VideoInfo: Information about a video.
+{
+  "mimetype" : "string (e.g. video/mp4)",
+  "size" : integer (size of video in bytes),
+  "duration" : integer (duration of video in milliseconds),
+  "w" : integer (width of video in pixels),
+  "h" : integer (height of video in pixels),
+  "thumbnail_url" : "string (URL to image)",
+  "thumbanil_info" : JSON object (ImageInfo)
+}
+
+
+
+Examples
+========
+
+Registering for an account, getting a list of public rooms, joining one of them and sending a message in that room.
+
+
+PUT: /register
+Content: {}
+Returns: { "userid" : "bob" , "access_token" : "abcdef0123456789" }
+
+GET: /rooms/list?access_token=abcdef0123456789
+Returns: 
+{ 
+  "total":3,
+  "rooms":
+  {
+    { "roomid":"room_alpha", "topic":"I am a fish" },
+    { "roomid":"room_beta", "topic":"Hello world" },
+    { "roomid":"room_xyz", "topic":"Goodbye cruel world" }
+  }
+}
+
+PUT /rooms/room_beta/members/bob/state?access_token=abcdef0123456789
+Content: { "membership" : "join" }
+Returns: 200 OK
+
+PUT /rooms/room_beta/messages/m0001?access_token=abcdef0123456789
+Content: { "msgtype" : "text" , "body" : "Hi everyone" }
+Returns: 200 OK
+
+
+Checking the event stream for this user:
+
+
+GET: /events?from=START&access_token=abcdef0123456789
+Returns:
+[
+  { 
+    "eid":"e10f3d2b", 
+    "type":"sy.room.members.state",
+    "roomid":"room_beta",
+    "userid":"bob",
+    "content":{
+      "membership":"join"
+    }
+  },
+  { 
+    "eid":"1b352d32", 
+    "type":"sy.room.message",
+    "roomid":"room_beta",
+    "msgid":"m0001",
+    "from":"bob",
+    "content":{
+      "msgtype":"text",
+      "body":"Hi everyone"
+    }
+  }
+]
+
+
+
+
 
 
