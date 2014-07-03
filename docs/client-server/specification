@@ -275,16 +275,6 @@ Invite/Joining/Leaving a room
 
   User $userid can leave room $roomid by DELETEing this path.
 
-Changing permissions for a member [PROPOSED]
----------------------------------
-  Event Type: sy.room.membsers.perms
-  REST Path: /rooms/$roomid/members/$userid/perms
-  Valid methods: GET/PUT
-  Required keys: 
-    oplevel : [user|mod|admin] - Change the permission of $userid in the room $roomid.
-  Optional keys:
-    None.
-
 Checking the user list of a room
 --------------------------------
   Event Type: sy.room.members.list
@@ -295,8 +285,7 @@ Checking the user list of a room
     be nested for each path below /members/$userid. For example:
     {
       "$userid1" : {
-                     "state" : { "membership" : "join" },
-                     "perms" : { "oplevel" : "admin" }
+                     "state" : { "membership" : "join" }
                    },
       "$userid2" : { 
                      "state" : { "membership" : "invite" } 
@@ -313,18 +302,28 @@ messages by sending feedback, in the form of delivery/read receipts.
 
 Server-attached keys
 --------------------
-The server will attach additional keys to messages and feedback. If a client submits keys with the same name, they will be clobbered by
-the server. These keys are:
-  from : "string [userid]" - The userid of the user who sent the message.
-  hs_ts : integer - A timestamp representing when the message/feedback got to the client's home server.
+The server MAY attach additional keys to messages and feedback. If a client submits keys with the same name, they will be clobbered by
+the server.
+
+Required keys:
+  from : "string [userid]" - The userid of the user who sent the message/feedback.
+Optional keys:
+  hsob_ts : integer - A timestamp (ms resolution) representing when the message/feedback got to the sender's home server 
+                      ("home server outbound timestamp").
+  hsib_ts : integer - A timestamp (ms resolution) representing when the message/feedback got to the receiver's home server 
+                      ("home server inbound timestamp"). This may be the same as hsob_ts if the sender/receiver are on the same home server.
 
 Sending messages
 ----------------
   Event Type: sy.room.message
-  REST Path: /rooms/$roomid/messages/$userid/$msgid
+  REST Path: /rooms/$roomid/messages/$from/$msgid
   Valid methods: GET/PUT
+  URL parameters:
+    $from : userid - The sender's userid. This value will be clobbered by the server before sending.
   Required keys: 
     msgtype : [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - The type of message. Not to be confused with the Event 'type'.
+  Optional keys:
+    sender_ts : integer - A timestamp (ms resolution) representing the wall-clock time when the message was sent from the client.
   Reserved keys:
     body : "string" - The human readable string for compatibility with clients which cannot process a given msgtype. This key is optional, but
                       if it is included, it MUST be human readable text describing the message. See individual msgtypes for more info on what 
@@ -423,14 +422,16 @@ When you receive a message, you may want to send delivery receipt to let the sen
 want to send a read receipt when the user has read the message. These receipts are collectively known as 'feedback'.
 
   Event Type: sy.room.message.feedback
-  REST Path: /rooms/$roomid/messages/$userid/$msgid/feedback/$userid/$feedback
+  REST Path: /rooms/$roomid/messages/$userid/$msgid/feedback/$from/$feedback
   Valid methods: GET/PUT
   URL parameters:
+    $userid - The sender of the message's userid.
+    $from : userid - The sender of the feedback's userid. This value will be clobbered by the server before sending.
     $feedback : [d|r] - Specify if this is a [d]elivery or [r]ead receipt.
   Required keys:
     None.
   Optional keys:
-    client_ts : integer - The wall-clock time when the client sent the receipt.
+    sender_ts : integer - A timestamp (ms resolution) representing the wall-clock time when the receipt was sent from the client.
 
 Receiving messages (bulk/pagination)
 ------------------------------------
@@ -524,7 +525,7 @@ Returns:
         "feedback":"d",
         "hs_ts":139985850,
         "content":{
-          "client_ts":139985843
+          "sender_ts":139985843
         }
       }
     ]
@@ -549,7 +550,7 @@ Returns:
         "feedback":"d",
         "hs_ts":139970144,
         "content":{
-          "client_ts":139970122
+          "sender_ts":139970122
         }
       }
     ]
@@ -557,7 +558,7 @@ Returns:
 ]
 
 SEND MESSAGE IN ROOM
-PUT /rooms/room_beta%40sy.org/messages/m0001?access_token=abcdef0123456789
+PUT /rooms/room_beta%40sy.org/messages/bob%40sy.org/m0001?access_token=abcdef0123456789
 Content: { "msgtype" : "text" , "body" : "Hi everyone" }
 Returns: 200 OK
 
