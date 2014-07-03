@@ -7,6 +7,8 @@ from twisted.internet import defer, reactor
 
 from collections import namedtuple
 
+from ..util import sleep
+
 import logging
 import json
 import urllib
@@ -323,20 +325,28 @@ class TwistedHttpClient(HttpClient):
 
         logger.debug("Sending request: %s %s", method, url)
 
-        try:
-            response = yield self.agent.request(
-                method,
-                url.encode("UTF8"),
-                Headers(headers_dict),
-                producer
-            )
+        retries_left = 5
 
-            logger.debug("Got response to %s" % method)
-        except Exception as e:
-            logger.error("Got error in _create_request")
-            _print_ex(e)
+        while True:
+            try:
+                response = yield self.agent.request(
+                    method,
+                    url.encode("UTF8"),
+                    Headers(headers_dict),
+                    producer
+                )
 
-            raise
+                logger.debug("Got response to %s" % method)
+                break
+            except Exception as e:
+                logger.error("Got error in _create_request")
+                _print_ex(e)
+
+                if retries_left:
+                    yield sleep(2 ** (5 - retries_left))
+                    retries_left -= 1
+                else:
+                    raise
 
         if 200 <= response.code < 300:
             # We need to update the transactions table to say it was sent?
