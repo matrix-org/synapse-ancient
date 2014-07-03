@@ -12,18 +12,13 @@ event stream, this event ID can be used to tell the server where the client got 
 msgid : The ID of a message sent by a client in a room.
 Clients send IMs to each other in rooms. Each IM sent by a client must have a unique message ID which is unique for that particular client.
 
-userid : The username of the client.
-When registering for an account, the client specifies their username. They use this to login and it forms part of their synapseId.
+userid : The user@host style ID of the client.
+When registering for an account, the client specifies their username. The userid is this username along with the home servers unique
+hostname. When federating between home servers, the userid is used to uniquely identify users across multiple home servers.
 
-synapseUserId : The userid@host style ID for the client.
-Clients register accounts with home servers. These servers have their own unique hostname. When federating between home servers, the
-synapseId is used to uniquely identify users across multiple home servers.
-
-roomid : The ID of a room on a home server.
+roomId : The roomid@host style ID for the room.
 When rooms are created, the client either specifies or is allocated a room ID. This room ID must be used to send messages in that room.
-
-synapseRoomId : The roomid@host style ID for the room.
-Like with clients, there may be multiple rooms with the same ID across multiple home servers. The synapseRoomId is used to uniquely
+Like with clients, there may be multiple rooms with the same ID across multiple home servers. The roomId is used to uniquely
 identify a room when federating.
 
 globalMsgId : The globally unique ID for a message.
@@ -342,12 +337,12 @@ VideoInfo: Information about a video.
 Examples
 ========
 
-Registering for an account, getting a list of public rooms, joining one of them and sending a message in that room.
+Registering for an account with sy.org, getting a list of public rooms, joining one of them and sending a message in that room.
 
 
 PUT: /register
 Content: {}
-Returns: { "userid" : "bob" , "access_token" : "abcdef0123456789" }
+Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 
 GET: /rooms/list?access_token=abcdef0123456789
 Returns: 
@@ -355,17 +350,17 @@ Returns:
   "total":3,
   "rooms":
   {
-    { "roomid":"room_alpha", "topic":"I am a fish" },
-    { "roomid":"room_beta", "topic":"Hello world" },
-    { "roomid":"room_xyz", "topic":"Goodbye cruel world" }
+    { "roomid":"room_alpha@sy.org", "topic":"I am a fish" },
+    { "roomid":"room_beta@sy.org", "topic":"Hello world" },
+    { "roomid":"room_xyz@sy.org", "topic":"Goodbye cruel world" }
   }
 }
 
-PUT /rooms/room_beta/members/bob/state?access_token=abcdef0123456789
+PUT /rooms/room_beta%40sy.org/members/bob%40sy.org/state?access_token=abcdef0123456789
 Content: { "membership" : "join" }
 Returns: 200 OK
 
-PUT /rooms/room_beta/messages/m0001?access_token=abcdef0123456789
+PUT /rooms/room_beta%40sy.org/messages/m0001?access_token=abcdef0123456789
 Content: { "msgtype" : "text" , "body" : "Hi everyone" }
 Returns: 200 OK
 
@@ -379,8 +374,8 @@ Returns:
   { 
     "eid":"e10f3d2b", 
     "type":"sy.room.members.state",
-    "roomid":"room_beta",
-    "userid":"bob",
+    "roomid":"room_beta@sy.org",
+    "userid":"bob@sy.org",
     "content":{
       "membership":"join"
     }
@@ -388,9 +383,9 @@ Returns:
   { 
     "eid":"1b352d32", 
     "type":"sy.room.message",
-    "roomid":"room_beta",
+    "roomid":"room_beta@sy.org",
     "msgid":"m0001",
-    "from":"bob",
+    "from":"bob@sy.org",
     "content":{
       "msgtype":"text",
       "body":"Hi everyone"
@@ -398,8 +393,63 @@ Returns:
   }
 ]
 
+Client disconnects for a while and the topic is updated in this room, 3 new messages arrive whilst offline, and bob is invited to another room.
 
-
-
+GET /events?from=1b352d32&access_token=abcdef0123456789
+Returns:
+[
+  { 
+    "eid":"feee0294", 
+    "type":"sy.room.topic",
+    "roomid":"room_beta@sy.org",
+    "from":"alice@randomhost.org",
+    "content":{
+      "topic":"FRIENDS ONLY",
+    }
+  },
+  { 
+    "eid":"a028bd9e", 
+    "type":"sy.room.message",
+    "roomid":"room_beta@sy.org",
+    "msgid":"z839409",
+    "from":"alice@randomhost.org",
+    "content":{
+      "msgtype":"text",
+      "body":"Hello!!!"
+    }
+  },
+  { 
+    "eid":"49372d9e", 
+    "type":"sy.room.message",
+    "roomid":"room_beta@sy.org",
+    "msgid":"z839410",
+    "from":"alice@randomhost.org",
+    "content":{
+      "msgtype":"text",
+      "body":"Lets go to another room"
+    }
+  },
+  { 
+    "eid":"10abdd01", 
+    "type":"sy.room.message",
+    "roomid":"room_beta@sy.org",
+    "msgid":"z839411",
+    "from":"alice@randomhost.org",
+    "content":{
+      "msgtype":"text",
+      "body":"You're not my friend"
+    }
+  },
+  { 
+    "eid":"0018453d", 
+    "type":"sy.room.members.state",
+    "roomid":"commoners@randomhost.org",
+    "from":"alice@randomhost.org",
+    "userid":"bob@sy.org",
+    "content":{
+      "membership":"invite"
+    }
+  },
+]
 
 
