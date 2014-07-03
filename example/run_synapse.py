@@ -7,7 +7,7 @@ from synapse.pdu import PduLayer
 from synapse.messaging import MessagingLayer, MessagingCallbacks
 from synapse.api.server import SynapseHomeServer
 
-from synapse.util import dbutils
+from synapse.util import DbPool
 from synapse.util import stringutils
 
 from twistar.registry import Registry
@@ -55,7 +55,7 @@ def setup_db(db_name):
         cp_min=1, cp_max=1)
 
     # set the dbpool global so other layers can access it
-    dbutils.set_db_pool(pool)
+    DbPool.set(pool)
     Registry.DBPOOL = pool
 
     schemas = [
@@ -107,7 +107,7 @@ def setup_logging(verbosity, location):
 def main(port, db, host, verbose):
     host = host if host else "localhost"
 
-    setup_logging(verbose, "logs/%s"%host)  
+    setup_logging(verbose, "logs/%s"%host)
 
     # setup and run with defaults if not specified
     setup_db(db if db else "proto_synapse.db")
@@ -125,4 +125,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.port, args.db, args.host, args.verbose)
-    
+

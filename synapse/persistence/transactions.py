@@ -11,7 +11,7 @@ from .tables import (
     PduForwardExtremitiesTable, PduBackwardExtremitiesTable, CurrentStateTable,
     ContextDepthTable
 )
-from ..util import dbutils
+from ..util import DbPool
 
 from collections import namedtuple
 
@@ -49,7 +49,7 @@ def run_interaction(transaction_func, *args, **kwargs):
     Returns:
         Deferred: Resolves with the result of `transaction_func`.
     """
-    return dbutils.get_db_pool().runInteraction(
+    return DbPool.get().runInteraction(
         transaction_func, *args, **kwargs)
 
 

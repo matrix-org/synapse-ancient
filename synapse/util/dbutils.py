@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 
-DBPOOL = None
+class DbPool(object):
+    pool = None
 
+    @staticmethod
+    def set(pool):
+        DbPool.pool = pool
 
-def set_db_pool(pool):
-    global DBPOOL
-    DBPOOL = pool
-
-
-def get_db_pool():
-    return DBPOOL
+    @staticmethod
+    def get():
+        return DbPool.pool

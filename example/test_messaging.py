@@ -19,8 +19,7 @@ from synapse.transaction import TransactionLayer
 from synapse.pdu import PduLayer
 from synapse.messaging import MessagingLayer, MessagingCallbacks
 
-from synapse.util import dbutils
-from synapse.util import stringutils
+from synapse.util import DbPool, origin_from_ucid
 
 from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
@@ -120,7 +119,7 @@ class Room(object):
         self.participants.add(participant)
         self.invited.discard(participant)
 
-        server = stringutils.origin_from_ucid(participant)
+        server = origin_from_ucid(participant)
         self.servers.add(server)
 
         if not self.oldest_server:
@@ -130,7 +129,7 @@ class Room(object):
         """ Someone has been invited to the room
         """
         self.invited.add(invitee)
-        self.servers.add(stringutils.origin_from_ucid(invitee))
+        self.servers.add(origin_from_ucid(invitee))
 
 
 class HomeServer(MessagingCallbacks):
@@ -280,7 +279,7 @@ def setup_db(db_name):
         'sqlite3', db_name, check_same_thread=False,
         cp_min=1, cp_max=1)
 
-    dbutils.set_db_pool(pool)
+    DbPool.set(pool)
 
     schemas = [
             "schema/transactions.sql",
@@ -305,7 +304,7 @@ def main(stdscr):
     args = parser.parse_args()
 
     user = args.user
-    server_name = stringutils.origin_from_ucid(user)
+    server_name = origin_from_ucid(user)
 
     ## Set up logging ##
 
