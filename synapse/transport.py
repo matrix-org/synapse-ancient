@@ -9,7 +9,8 @@ over a different (albeit still reliable) protocol.
 """
 
 from twisted.internet import defer
-from protocol.units import Transaction
+
+from .protocol.units import Transaction
 
 import logging
 import json
@@ -198,7 +199,7 @@ class TransportLayer(object):
             The argument passed to the deferred is undefined and may be None.
         """
         logger.debug("trigger_get_context_metadata dest=%s, context=%s",
-             destination, context)
+                     destination, context)
 
         path = "/state/%s/" % context
 
@@ -227,7 +228,7 @@ class TransportLayer(object):
             The result of the deferred is undefined and may be None.
         """
         logger.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
-             destination, pdu_origin, pdu_id)
+                     destination, pdu_origin, pdu_id)
 
         path = "/pdu/%s/%s/" % (pdu_origin, pdu_id)
 
@@ -235,9 +236,10 @@ class TransportLayer(object):
 
     @defer.inlineCallbacks
     def trigger_paginate(self, dest, context, pdu_tuples, limit):
-        logger.debug("trigger_paginate dest=%s, context=%s, pdu_tuples=%s, "
-            "limit=%s",
-            dest, context, repr(pdu_tuples), str(limit))
+        logger.debug(
+            "trigger_paginate dest=%s, context=%s, pdu_tuples=%s, limit=%s",
+            dest, context, repr(pdu_tuples), str(limit)
+        )
 
         if not pdu_tuples:
             return
@@ -271,8 +273,10 @@ class TransportLayer(object):
             (response_code, response_body) where the response_body is a
             python dict decoded from json
         """
-        logger.debug("send_data dest=%s, txid=%s",
-            transaction.destination, transaction.transaction_id)
+        logger.debug(
+            "send_data dest=%s, txid=%s",
+            transaction.destination, transaction.transaction_id
+        )
 
         # We probably don't want to send things to ourselves, as that's just
         # going to confuse things when it comes to the IDs of both transactions
@@ -285,13 +289,15 @@ class TransportLayer(object):
         # Actually send the transation to the remote home server.
         # This will throw if something toooo drastically goes wrong.
         code, response = yield self.client.put_json(
-                transaction.destination,
-                path="/send/%s/" % transaction.transaction_id,
-                data=data
-            )
+            transaction.destination,
+            path="/send/%s/" % transaction.transaction_id,
+            data=data
+        )
 
-        logger.debug("send_data dest=%s, txid=%s, got response: %d",
-             transaction.destination, transaction.transaction_id, code)
+        logger.debug(
+            "send_data dest=%s, txid=%s, got response: %d",
+            transaction.destination, transaction.transaction_id, code
+        )
 
         defer.returnValue((code, response))
 
@@ -334,8 +340,10 @@ class TransportLayer(object):
             "GET",
             re.compile("^/pull/$"),
             lambda request:
-                callback.on_pull_request(request.args["origin"][0],
-                    request.args["v"])
+                callback.on_pull_request(
+                    request.args["origin"][0],
+                    request.args["v"]
+                )
         )
 
         # This is when someone asks for a data item for a given server
@@ -359,8 +367,10 @@ class TransportLayer(object):
             "GET",
             re.compile("^/paginate/([^/]*)/$"),
             lambda request, context:
-                self._on_paginate_request(context, request.args["v"],
-                    request.args["limit"])
+                self._on_paginate_request(
+                    context, request.args["v"],
+                    request.args["limit"]
+                )
         )
 
     @defer.inlineCallbacks
@@ -396,9 +406,9 @@ class TransportLayer(object):
             # Add some extra data to the transaction dict that isn't included in
             # the request body.
             transaction_data.update(
-                    transaction_id=transaction_id,
-                    destination=self.server_name
-                )
+                transaction_id=transaction_id,
+                destination=self.server_name
+            )
 
             transaction = Transaction.decode(transaction_data)
 
@@ -411,7 +421,8 @@ class TransportLayer(object):
 
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield self.received_callbacks.on_transaction(
-                transaction)
+            transaction
+        )
 
         defer.returnValue((code, response))
 
@@ -441,17 +452,17 @@ class TransportLayer(object):
 
         # Get the JSON from the remote server
         data = yield self.client.get_json(
-                destination,
-                path=path,
-                args=args,
-            )
+            destination,
+            path=path,
+            args=args,
+        )
 
         # Add certain keys to the JSON, ready for decoding as a Transaction
         data.update(
-                    origin=destination,
-                    destination=self.server_name,
-                    transaction_id=None,
-                )
+            origin=destination,
+            destination=self.server_name,
+            transaction_id=None,
+        )
 
         # We inform the layers above about the PDU as if we had received it
         # via a PUT.
@@ -464,8 +475,8 @@ class TransportLayer(object):
     def _on_paginate_request(self, context, v_list, limits):
         if not limits:
             return defer.succeed(
-                    (400, {"error": "Did not include limit param"})
-                )
+                (400, {"error": "Did not include limit param"})
+            )
 
         limit = int(limits[-1])
 

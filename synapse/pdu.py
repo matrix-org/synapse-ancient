@@ -9,9 +9,9 @@
 
 from twisted.internet import defer
 
-from transaction import TransactionCallbacks
-from protocol.units import Pdu
-from persistence.transactions import PduQueries, StateQueries, run_interaction
+from .transaction import TransactionCallbacks
+from .protocol.units import Pdu
+from .persistence.transactions import PduQueries, StateQueries, run_interaction
 
 import logging
 
@@ -140,8 +140,8 @@ class PduLayer(TransactionCallbacks):
         if not extremities:
             return
 
-        res = yield self.transport_layer.trigger_paginate(dest, context,
-            extremities, limit)
+        res = yield self.transport_layer.trigger_paginate(
+            dest, context, extremities, limit)
 
         defer.returnValue(res)
 
@@ -206,8 +206,9 @@ class PduLayer(TransactionCallbacks):
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
-        logger.debug("_handle_new_pdu %s from %s",
-                        str(pdu.pdu_id), pdu.origin)
+        logger.debug(
+            "_handle_new_pdu %s from %s", str(pdu.pdu_id), pdu.origin
+        )
 
         # Have we seen this pdu before?
         existing = yield Pdu.get_persisted_pdu(pdu.pdu_id, pdu.origin)
@@ -240,11 +241,11 @@ class PduLayer(TransactionCallbacks):
                     if not exists:
                         # Oh no! We better request it.
                         yield self.callback.on_unseen_pdu(
-                                pdu.origin,
-                                pdu_id=pdu_id,
-                                origin=origin,
-                                outlier=pdu.outlier
-                            )
+                            pdu.origin,
+                            pdu_id=pdu_id,
+                            origin=origin,
+                            outlier=pdu.outlier
+                        )
 
         # Persist the Pdu, but don't mark it as processed yet.
         yield pdu.persist_received()

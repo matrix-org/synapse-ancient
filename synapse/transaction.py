@@ -15,8 +15,8 @@ For outgoing events, we usually pass it straight to the Transport layer
 
 from twisted.internet import defer
 
-from transport import TransportReceivedCallbacks, TransportRequestCallbacks
-from protocol.units import Transaction, Pdu
+from .transport import TransportReceivedCallbacks, TransportRequestCallbacks
+from .protocol.units import Transaction, Pdu
 
 import logging
 import time
@@ -146,9 +146,9 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
 
         # Responsible for batching pdus
         self._transaction_queue = _TransactionQueue(
-                server_name,
-                transport_layer
-            )
+            server_name,
+            transport_layer
+        )
 
     def enqueue_pdu(self, pdu, order):
         """ Schedules the pdu to be sent.
@@ -172,10 +172,10 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
 
     def _wrap_pdus(self, pdu_list):
         return Transaction(
-                pdus=pdu_list,
-                origin=self.server_name,
-                ts=int(time.time() * 1000)
-            ).get_dict()
+            pdus=pdu_list,
+            origin=self.server_name,
+            ts=int(time.time() * 1000)
+        ).get_dict()
 
     def set_callback(self, callback):
         """ Set's the callback.
@@ -198,10 +198,10 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         tx_id = max([int(v) for v in versions])
 
         response = yield Pdu.after_transaction(
-                tx_id,
-                origin,
-                self.server_name
-            )
+            tx_id,
+            origin,
+            self.server_name
+        )
 
         if not response:
             response = []
@@ -259,7 +259,7 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
 
         if response:
             logger.debug("[%s] We've already responed to this request",
-                transaction.transaction_id)
+                         transaction.transaction_id)
             defer.returnValue(response)
             return
 
@@ -268,8 +268,8 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         # Pass request to transaction layer.
         try:
             code, response = yield self.callback.on_received_pdus(
-                    transaction.pdus
-                )
+                transaction.pdus
+            )
         except PduDecodeException as e:
             # Problem decoding one of the PDUs, BAIL BAIL BAIL
             logger.exception(e)
@@ -292,8 +292,8 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         Overrides:
             TransportRequestCallbacks
         """
-        response = yield self.callback.on_paginate_request(context, versions,
-            limit)
+        response = yield self.callback.on_paginate_request(
+            context, versions, limit)
 
         data = self._wrap_pdus(response)
 
@@ -327,8 +327,10 @@ class _TransactionQueue(object):
         # a transaction in progress. If we do, stick it in the pending_pdus
         # table and we'll get back to it later.
 
-        destinations = [d for d in pdu.destinations
-                            if d != self.server_name]
+        destinations = [
+            d for d in pdu.destinations
+            if d != self.server_name
+        ]
 
         logger.debug("Sending to: %s" % str(destinations))
 
@@ -340,8 +342,8 @@ class _TransactionQueue(object):
         for destination in destinations:
             deferred = defer.Deferred()
             self.pending_pdus_list.setdefault(destination, []).append(
-                        (pdu, deferred, order)
-                    )
+                (pdu, deferred, order)
+            )
 
             self._attempt_new_transaction(destination)
 
@@ -369,11 +371,11 @@ class _TransactionQueue(object):
             pdus = [p[0] for p in tuple_list]
 
             transaction = Transaction.create_new(
-                            origin=self.server_name,
-                            destination=destination,
-                            pdus=pdus,
-                            #previous_ids=prev_txs
-                        )
+                origin=self.server_name,
+                destination=destination,
+                pdus=pdus,
+                #previous_ids=prev_txs
+            )
 
             yield transaction.prepare_to_send()
 
@@ -382,8 +384,8 @@ class _TransactionQueue(object):
 
             # Actually send the transaction
             code, response = yield self.transport_layer.send_transaction(
-                    transaction
-                )
+                transaction
+            )
 
             logger.debug("TX [%s] Sent transaction", destination)
             logger.debug("TX [%s] Marking as delivered...", destination)
