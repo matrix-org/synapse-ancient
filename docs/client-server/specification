@@ -1,72 +1,96 @@
 Synapse Client-Server API
 =========================
 
+The following specification outlines how a client can send and receive data from 
+a home server.
+
 4/7/14 Grilling
 ---------------
-- Mechanism for getting historical state changes (e.g. topic updates) - add query param flag?
-- Generic mechanism for linking first class events (e.g. feedback) with other first class events (e.g. messages)?
-- Generic mechanism for updating 'stuff about the room' (e.g. favourite coffee) AND specifying clobbering rules (clobber/add to list/etc)?
+- Mechanism for getting historical state changes (e.g. topic updates) - add 
+  query param flag?
+- Generic mechanism for linking first class events (e.g. feedback) with other 
+  first class events (e.g. messages)?
+- Generic mechanism for updating 'stuff about the room' (e.g. favourite coffee) 
+  AND specifying clobbering rules (clobber/add to list/etc)?
 - Error responses should be HTTP 4xx/5xx, not 200
 - s/eventid/eventversion/g
-- Makes no sense to paginate back on the event stream. We can also avoid having event versions for EACH event, by having a start/end (similar
-  to room list). When paginating back on rooms, just use the start event version (so we don't need to know the event version of the message
+- Makes no sense to paginate back on the event stream. We can also avoid having 
+  event versions for EACH event, by having a start/end (similar
+  to room list). When paginating back on rooms, just use the start event version 
+  (so we don't need to know the event version of the message
   itself). Can possibily then standardise the response JSON for filtering.
 - Scrap the dir=? Work through use cases where we absolutely need to know it.
-- Specify an actual event ID for each event (to de-duplicate unknown event types). Can do this inbound from other home servers on their PDU
+- Specify an actual event ID for each event (to de-duplicate unknown event 
+  types). Can do this inbound from other home servers on their PDU
   ID (e.g. event id = pduid@senderhshost)
-- How to ensure a consistent view for clients paginating through room lists? They aren't really ordered in any way, and if you're paginating
-  through them, how can you show them a consistent result set? Temporary 'room list versions' akin to event version? How does that work?
+- How to ensure a consistent view for clients paginating through room lists? 
+  They aren't really ordered in any way, and if you're paginating
+  through them, how can you show them a consistent result set? Temporary 'room 
+  list versions' akin to event version? How does that work?
 
-
-
-The following specification outlines how a client can send and receive data from a home server.
 
 Terminology
 -----------
 eventid / eid : The ID of an event sent by the server.
-When using the event streaming API, each event has an associated "eid" which should be persisted on the client. When reconnecting to the
-event stream, this event ID can be used to tell the server where the client got up to in the stream.
+When using the event streaming API, each event has an associated "eid" which 
+should be persisted on the client. When reconnecting to the
+event stream, this event ID can be used to tell the server where the client got 
+up to in the stream.
 
 msgid : The ID of a message sent by a client in a room.
-Clients send IMs to each other in rooms. Each IM sent by a client must have a unique message ID which is unique for that particular client.
+Clients send IMs to each other in rooms. Each IM sent by a client must have a 
+unique message ID which is unique for that particular client.
 
 userid : The user@host style ID of the client.
-When registering for an account, the client specifies their username. The userid is this username along with the home servers unique
-hostname. When federating between home servers, the userid is used to uniquely identify users across multiple home servers.
+When registering for an account, the client specifies their username. The userid 
+is this username along with the home servers unique
+hostname. When federating between home servers, the userid is used to uniquely 
+identify users across multiple home servers.
 
 roomId : The roomid@host style ID for the room.
-When rooms are created, the client either specifies or is allocated a room ID. This room ID must be used to send messages in that room.
-Like with clients, there may be multiple rooms with the same ID across multiple home servers. The roomId is used to uniquely
+When rooms are created, the client either specifies or is allocated a room ID. 
+This room ID must be used to send messages in that room.
+Like with clients, there may be multiple rooms with the same ID across multiple 
+home servers. The roomId is used to uniquely
 identify a room when federating.
 
 Global message ID : The globally unique ID for a message.
-This ID is formed from the msgid, the client's synapseUserId and the synapseRoomId. This uniquely identifies any message. It is represented
-with '-' as the delimeter between IDs. The globalMsgId is of the form: synapseRoomId-synapseUserId-msgid
+This ID is formed from the msgid, the client's synapseUserId and the 
+synapseRoomId. This uniquely identifies any message. It is represented
+with '-' as the delimeter between IDs. The globalMsgId is of the form: 
+synapseRoomId-synapseUserId-msgid
 
 
 REST API and the Event Stream
 -----------------------------
-Clients send data to the server via a RESTful API. They can receive data via this API or from an event stream. An event stream is a 
-special path which streams all events the client may be interested in. This makes it easy to immediately receive updates from the REST API. 
-All data is represented as JSON.
+Clients send data to the server via a RESTful API. They can receive data via 
+this API or from an event stream. An event stream is a special path which 
+streams all events the client may be interested in. This makes it easy to 
+immediately receive updates from the REST API. All data is represented as JSON.
 
 The Event Stream
 ----------------
-Every event sent to the client has an event id ("eid") which must be persisted on the client. When the client next connects to the event 
-stream, they should provide the last event id they received from the server. This lets the server know where in the event stream the 
-client is. These ids are completely opaque, and the client cannot infer anything from them.
+Every event sent to the client has an event id ("eid") which must be persisted 
+on the client. When the client next connects to the event stream, they should 
+provide the last event id they received from the server. This lets the server 
+know where in the event stream the client is. These ids are completely opaque, 
+and the client cannot infer anything from them.
 
   GET /events?from=$LAST_EVENT_ID
   Returns (success): A JSON array of Event Data.
   Returns (failure): An Error Response
 
-LAST_EVENT_ID is the last event ID obtained from Event Data. If the client is connecting for the first time and does not know any event IDs,
-they can use "START" to request all events from the start. For more information on this, see "Filtering Query Parameters".
+LAST_EVENT_ID is the last event ID obtained from Event Data. If the client is 
+connecting for the first time and does not know any event IDs,
+they can use "START" to request all events from the start. For more information 
+on this, see "Filtering Query Parameters".
 
 Filtering Query Parameters
 --------------------------
-Clients may wish to filter results from the event stream, or other sources of information where the amount of information may be a problem,
-e.g. in a room with 10,000s messages. The filtering query parameters provide a way to navigate a 'window' around a large set of data. These
+Clients may wish to filter results from the event stream, or other sources of 
+information where the amount of information may be a problem,
+e.g. in a room with 10,000s messages. The filtering query parameters provide a 
+way to navigate a 'window' around a large set of data. These
 parameters are only valid for GET requests.
        
         S e r v e r - s i d e   d a t a
@@ -76,31 +100,39 @@ START      ^               ^                      END
                    |
             Client-extraction
 
-'START' and 'END' are magic values which specify the start and end of the dataset respectively.
+'START' and 'END' are magic values which specify the start and end of the 
+dataset respectively.
 
 Query parameters:
-  from : $id - What item of data to start from. This could be a 0-based index, an event ID, or some other way of uniquely identifying data.
-  to : $id - What item of data to end at. This could be a 0-based index, an event ID, or some other way of uniquely identifying data. Typically,
-       clients will not know the item of data to end at, so this will usually be START or END.
-  limit : integer - An integer representing the maximum number of items to return.
-  dir : [f|b] - The direction to return results in. A direction of [f]orwards would return the items at 'from' first, whereas [b]ackwards would
+  from : $id - What item of data to start from. This could be a 0-based index, 
+  an event ID, or some other way of uniquely identifying data.
+  to : $id - What item of data to end at. This could be a 0-based index, an 
+  event ID, or some other way of uniquely identifying data. Typically,
+       clients will not know the item of data to end at, so this will usually be 
+       START or END.
+  limit : integer - An integer representing the maximum number of items to 
+  return.
+  dir : [f|b] - The direction to return results in. A direction of [f]orwards 
+  would return the items at 'from' first, whereas [b]ackwards would
                 return the items from 'to' first.
   search : NOT_YET_IMPLEMENTED : The search query to perform.
 
-For example, the event stream has events E1 -> E15. The client wants the last 5 events and doesn't know any previous events:
+For example, the event stream has events E1 -> E15. The client wants the last 5 
+events and doesn't know any previous events:
 
-S                                                        E
-|-E1-E2-E3-E4-E5-E6-E7-E8-E9-E10-E11-E12-E13-E14-E14-E15-|
-|                               |<--direction=backwards--|
-|                          _____|   ___|                 |
-|__________________       |        |     ________________|
+S                                                    E
+|-E1-E2-E3-E4-E5-E6-E7-E8-E9-E10-E11-E12-E13-E14-E15-|
+|                               |<---dir=backwards---|
+|                          _____|   ___|             |
+|__________________       |        |     ____________|
                    |      |        |     |
  GET /events?from=START&limit=5&dir=b&to=END
  Returns:
    E15,E14,E13,E12,E11
 
 
-Another example: a public room list has rooms R1 -> R17. The client is showing 5 rooms at a time on screen, and is on page 2. They want to
+Another example: a public room list has rooms R1 -> R17. The client is showing 5 
+rooms at a time on screen, and is on page 2. They want to
 now show page 3 (rooms R11 -> 15):
 
 S                                                           E
@@ -115,10 +147,13 @@ S                                                           E
                          Returns: R11,R12,R13,R14,R15
 
 
-The term 'filtering query parameters' is used to describe an API which can be filtered in this way. The API will also specify what ID to use.
-For example, the event streaming API is compatible with filtering query parameters with the id as the event id.
+The term 'filtering query parameters' is used to describe an API which can be 
+filtered in this way. The API will also specify what ID to use.
+For example, the event streaming API is compatible with filtering query 
+parameters with the id as the event id.
 
-Unless specified, the default filtering parameters are from=START, to=END, dir=f, without a limit set. This allows you to hit an API like
+Unless specified, the default filtering parameters are from=START, to=END, 
+dir=f, without a limit set. This allows you to hit an API like
 /events without any query parameters to get everything.
 
 Event Data
@@ -134,17 +169,22 @@ This is a JSON object which looks like:
 }
 
 Where:
-  EVENT_ID = The opaque event ID which can be used with /events?from=$LAST_EVENT_ID
+  EVENT_ID = The opaque event ID which can be used with 
+  /events?from=$LAST_EVENT_ID
   EVENT_TYPE = The namespaced event type (sy.*)
   URL_ARGS = Path specific data from the REST API
   EVENT_CONTENT = The event content 
 
-Events are differentiated via the event type "type" key. This is the type of event being received. This can be expanded upon 
-by using different namespaces. Every event MUST have a 'type' key.
+Events are differentiated via the event type "type" key. This is the type of 
+event being received. This can be expanded upon by using different namespaces. 
+Every event MUST have a 'type' key.
 
-Most events will have a corresponding REST URL. This URL will generally have data in it to represent the resource being modified,
-e.g. /rooms/$roomid. The event data will contain extra top-level keys to expose this information to clients listening on an event
-stream. The event content maps directly to the contents submitted via the REST API.
+Most events will have a corresponding REST URL. This URL will generally have 
+data in it to represent the resource being modified,
+e.g. /rooms/$roomid. The event data will contain extra top-level keys to expose 
+this information to clients listening on an event
+stream. The event content maps directly to the contents submitted via the REST 
+API.
 
 For example:
   Event Type: sy.example.room.members
@@ -163,28 +203,34 @@ is represented in the event stream as:
   }
 }
 
-As convention, the URL variable arg "$varname" should map directly onto the name of the JSON key "varname".
+As convention, the URL variable arg "$varname" should map directly onto the name 
+of the JSON key "varname".
 
 Error Responses
 ---------------
-If the client sends an invalid request, the server MAY respond with an error response. This is of the form:
+If the client sends an invalid request, the server MAY respond with an error 
+response. This is of the form:
 {
   "error" : "string",
   "errcode" : integer
 }
-The 'error' string will be a human-readable error message. There may be additional keys depending on the error, but
+The 'error' string will be a human-readable error message. There may be 
+additional keys depending on the error, but
 the keys 'error' and 'errcode' will always be present.
 
 
 Registration
 ============
-Clients must register with the server in order to use the service. After registering, the client will be given an
-access token which must be used in ALL requests as a query parameter 'access_token'.
+Clients must register with the server in order to use the service. After 
+registering, the client will be given an
+access token which must be used in ALL requests as a query parameter 
+'access_token'.
 
 Registering for an account
 --------------------------
   PUT /register
-  With: A JSON object containing the key "user_id" which contains the desired userid, or an
+  With: A JSON object containing the key "user_id" which contains the desired 
+  userid, or an
         empty JSON object to have the server allocate a userid automatically.
   Returns (success): 200 OK with a JSON object:
                      {
@@ -206,29 +252,35 @@ Unregistering an account
 REST API
 ========
 
-All content must be application/json. Some keys are required, while others are optional. Unless otherwise specified,
-all HTTP PUT/POST/DELETEs will return a 200 OK with an empty response body on success, and a 200 OK with an 
-Error Response on failure. When sending data, if there are no keys to send, an empty JSON object should be sent.
+All content must be application/json. Some keys are required, while others are 
+optional. Unless otherwise specified,
+all HTTP PUT/POST/DELETEs will return a 200 OK with an empty response body on 
+success, and a 200 OK with an Error Response on failure. When sending data, if 
+there are no keys to send, an empty JSON object should be sent.
 
-All POST/PUT/GET/DELETE requests MUST have an 'access_token' query parameter to allow the server to authenticate the client. All
+All POST/PUT/GET/DELETE requests MUST have an 'access_token' query parameter to 
+allow the server to authenticate the client. All
 POST requests MUST be submitted as application/json. 
 
 Rooms
 =====
-A room is a conceptual place where users can send and receive messages. Rooms can be created, joined and left. Messages are sent
-to a room, and all participants in that room will receive the message. Rooms are uniquely identified via the synapseRoomId.
+A room is a conceptual place where users can send and receive messages. Rooms 
+can be created, joined and left. Messages are sent
+to a room, and all participants in that room will receive the message. Rooms are 
+uniquely identified via the synapseRoomId.
 
 Creating a room (with a room ID)
 --------------------------------
   Event Type: sy.room.create
   REST Path: /rooms/$roomid
   Valid methods: PUT
-  Required keys: 
-    None.
+  Required keys: None.
   Optional keys:
-    visibility : [public|private] - Set whether this room shows up in the public room list.
+    visibility : [public|private] - Set whether this room shows up in the public 
+    room list.
   Returns:
-    On Failure: MAY return a suggested alternative room ID if this room ID is taken.
+    On Failure: MAY return a suggested alternative room ID if this room ID is 
+    taken.
     {
       suggested_roomid : $new_roomid
       error : "Room already in use."
@@ -240,10 +292,10 @@ Creating a room (without a room ID)
   Event Type: sy.room.create
   REST Path: /rooms
   Valid methods: POST
-  Required keys: 
-    None.
+  Required keys: None.
   Optional keys:
-    visibility : [public|private] - Set whether this room shows up in the public room list.
+    visibility : [public|private] - Set whether this room shows up in the public 
+    room list.
   Returns:
     On Success: The allocated room ID.
     {
@@ -255,8 +307,8 @@ Setting the topic for a room
   Event Type: sy.room.topic
   REST Path: /rooms/$roomid/topic
   Valid methods: GET/PUT
-  Required keys: 
-    topic : $topicname - Set the topic to $topicname in room $roomid.
+  Required keys: topic : $topicname - Set the topic to $topicname in room 
+  $roomid.
 
 
 See a list of public rooms
@@ -264,12 +316,14 @@ See a list of public rooms
   Event Type: sy.room.list
   REST Path: /rooms/list?filtering_query_parameters
   Valid methods: GET
-  This API can use filtering query parameters, with the id as the 0-based start index to start returning rooms from.
+  This API can use filtering query parameters, with the id as the 0-based start 
+  index to start returning rooms from.
   Returns:
     {
       "rooms" : JSON array of RoomInfo JSON objects - Required.
       "total" : integer - Optional. The total number of rooms.
-      "start" : integer - Optional. The 0-based index of the first room in "rooms".
+      "start" : integer - Optional. The 0-based index of the first room in 
+      "rooms".
     }
 
 RoomInfo: Information about a single room.
@@ -292,7 +346,8 @@ Invite/Joining/Leaving a room
   Required keys:
     membership : [join|invite] - The membership state of $userid in room $roomid
                   join - Indicate you ($userid) are joining the room $roomid.
-                  invite - Indicate that $userid has been invited to room $roomid.
+                  invite - Indicate that $userid has been invited to room 
+                  $roomid.
 
   User $userid can leave room $roomid by DELETEing this path.
 
@@ -302,37 +357,40 @@ Checking the user list of a room
   REST Path: /rooms/$roomid/members/list
   Valid methods: GET
   Returns:
-    A JSON object with room member userids as keys and their /members/$userid content as the value. This will
+    A JSON object with room member userids as keys and their /members/$userid 
+    content as the value. This will
     be nested for each path below /members/$userid. For example:
     {
       "$userid1" : {
                      "state" : { "membership" : "join" }
                    },
-      "$userid2" : { 
-                     "state" : { "membership" : "invite" } 
-                   },
-      "$userid3" : { 
-                     "state" : { "membership" : "join" } 
-                   },
+      "$userid2" : { "state" : { "membership" : "invite" } },
+      "$userid3" : { "state" : { "membership" : "join" } },
     }
 
 Messages
 ========
-Users send messages to other users in rooms. These messages may be text, images, video, etc. Clients may also want to acknowledge 
-messages by sending feedback, in the form of delivery/read receipts.
+Users send messages to other users in rooms. These messages may be text, images, 
+video, etc. Clients may also want to acknowledge messages by sending feedback, 
+in the form of delivery/read receipts.
 
 Server-attached keys
 --------------------
-The server MAY attach additional keys to messages and feedback. If a client submits keys with the same name, they will be clobbered by
+The server MAY attach additional keys to messages and feedback. If a client 
+submits keys with the same name, they will be clobbered by
 the server.
 
 Required keys:
-  from : "string [userid]" - The userid of the user who sent the message/feedback.
+  from : "string [userid]" - The userid of the user who sent the 
+  message/feedback.
 Optional keys:
-  hsob_ts : integer - A timestamp (ms resolution) representing when the message/feedback got to the sender's home server 
-                      ("home server outbound timestamp").
-  hsib_ts : integer - A timestamp (ms resolution) representing when the message/feedback got to the receiver's home server 
-                      ("home server inbound timestamp"). This may be the same as hsob_ts if the sender/receiver are on the same home server.
+  hsob_ts : integer - A timestamp (ms resolution) representing when the 
+  message/feedback got to the sender's home server ("home server outbound 
+  timestamp").
+  hsib_ts : integer - A timestamp (ms resolution) representing when the 
+  message/feedback got to the receiver's home server ("home server inbound 
+  timestamp"). This may be the same as hsob_ts if the sender/receiver are on the 
+  same home server.
 
 Sending messages
 ----------------
@@ -340,15 +398,20 @@ Sending messages
   REST Path: /rooms/$roomid/messages/$from/$msgid
   Valid methods: GET/PUT
   URL parameters:
-    $from : userid - The sender's userid. This value will be clobbered by the server before sending.
-  Required keys: 
-    msgtype : [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - The type of message. Not to be confused with the Event 'type'.
+    $from : userid - The sender's userid. This value will be clobbered by the 
+    server before sending.
+  Required keys: msgtype : 
+  [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - The type 
+  of message. Not to be confused with the Event 'type'.
   Optional keys:
-    sender_ts : integer - A timestamp (ms resolution) representing the wall-clock time when the message was sent from the client.
+    sender_ts : integer - A timestamp (ms resolution) representing the 
+    wall-clock time when the message was sent from the client.
   Reserved keys:
-    body : "string" - The human readable string for compatibility with clients which cannot process a given msgtype. This key is optional, but
-                      if it is included, it MUST be human readable text describing the message. See individual msgtypes for more info on what 
-                      this means in practice.
+    body : "string" - The human readable string for compatibility with clients 
+    which cannot process a given msgtype. This key is optional, but
+                      if it is included, it MUST be human readable text 
+                      describing the message. See individual msgtypes for more 
+                      info on what this means in practice.
 
 Each msgtype may have required fields of their own.
 
@@ -371,10 +434,11 @@ msgtype: sy.image
 Required keys:
   url : "string" - The URL to the image.
 Optional keys:
-  body : "string" - 
-  info : JSON object (ImageInfo) - The image info for image referred to in 'url'.
+  body : "string" - info : JSON object (ImageInfo) - The image info for image 
+  referred to in 'url'.
   thumbnail_url : "string" - The URL to the thumbnail.
-  thumbnail_info : JSON object (ImageInfo) - The image info for the image referred to in 'thumbnail_url'.
+  thumbnail_info : JSON object (ImageInfo) - The image info for the image 
+  referred to in 'thumbnail_url'.
 
 ImageInfo: Information about an image.
 {
@@ -384,32 +448,34 @@ ImageInfo: Information about an image.
   "mimetype" : "string (e.g. image/jpeg)"
 }
 
-Interpretation of 'body' key: The alt text of the image, or some kind of content description for accessibility 
-                              e.g. "image attachment".
+Interpretation of 'body' key: The alt text of the image, or some kind of content 
+description for accessibility e.g. "image attachment".
 
 msgtype: sy.audio
 -----------------
 Required keys:
   url : "string" - The URL to the audio.
 Optional keys:
-  info : JSON object (AudioInfo) - The audio info for the audio referred to in 'url'.
+  info : JSON object (AudioInfo) - The audio info for the audio referred to in 
+  'url'.
 
-AudioInfo: Information about a piece of audio. 
-{
+AudioInfo: Information about a piece of audio. {
   "mimetype" : "string (e.g. audio/aac)",
   "size" : integer (size of audio in bytes),
   "duration" : integer (duration of audio in milliseconds)
 }
 
-Interpretation of 'body' key: A description of the audio e.g. "Bee Gees - Stayin' Alive", or some kind of content description for 
-                              accessibility e.g. "audio attachment".
+Interpretation of 'body' key: A description of the audio e.g. "Bee Gees - 
+Stayin' Alive", or some kind of content description for accessibility e.g. 
+"audio attachment".
 
 msgtype: sy.video
 -----------------
 Required keys:
   url : "string" - The URL to the video.
 Optional keys:
-  info : JSON object (VideoInfo) - The video info for the video referred to in 'url'.
+  info : JSON object (VideoInfo) - The video info for the video referred to in 
+  'url'.
 
 VideoInfo: Information about a video.
 {
@@ -422,37 +488,44 @@ VideoInfo: Information about a video.
   "thumbanil_info" : JSON object (ImageInfo)
 }
 
-Interpretation of 'body' key: A description of the video e.g. "Gangnam style", or some kind of content description for 
-                              accessibility e.g. "video attachment".
+Interpretation of 'body' key: A description of the video e.g. "Gangnam style", 
+or some kind of content description for accessibility e.g. "video attachment".
 
 msgtype: sy.location
 --------------------
 Required keys:
   geo_uri : "string" - The geo URI representing the location.
 Optional keys:
-  thumbnail_url : "string" - The URL to a thumnail of the location being represented.
-  thumbnail_info : JSON object (ImageInfo) - The image info for the image referred to in 'thumbnail_url'.
+  thumbnail_url : "string" - The URL to a thumnail of the location being 
+  represented.
+  thumbnail_info : JSON object (ImageInfo) - The image info for the image 
+  referred to in 'thumbnail_url'.
 
-Interpretation of 'body' key: A description of the location e.g. "Big Ben, London, UK", or some kind of content description for 
-                              accessibility e.g. "location attachment".
+Interpretation of 'body' key: A description of the location e.g. "Big Ben, 
+London, UK", or some kind of content description for accessibility e.g. 
+"location attachment".
 
 
 Sending feedback
 ----------------
-When you receive a message, you may want to send delivery receipt to let the sender know that the message arrived. You may also
-want to send a read receipt when the user has read the message. These receipts are collectively known as 'feedback'.
+When you receive a message, you may want to send delivery receipt to let the 
+sender know that the message arrived. You may also
+want to send a read receipt when the user has read the message. These receipts 
+are collectively known as 'feedback'.
 
   Event Type: sy.room.message.feedback
   REST Path: /rooms/$roomid/messages/$msgfrom/$msgid/feedback/$from/$feedback
   Valid methods: GET/PUT
   URL parameters:
     $msgfrom - The sender of the message's userid.
-    $from : userid - The sender of the feedback's userid. This value will be clobbered by the server before sending.
+    $from : userid - The sender of the feedback's userid. This value will be 
+    clobbered by the server before sending.
     $feedback : [d|r] - Specify if this is a [d]elivery or [r]ead receipt.
   Required keys:
     None.
   Optional keys:
-    sender_ts : integer - A timestamp (ms resolution) representing the wall-clock time when the receipt was sent from the client.
+    sender_ts : integer - A timestamp (ms resolution) representing the 
+    wall-clock time when the receipt was sent from the client.
 
 Receiving messages (bulk/pagination)
 ------------------------------------
@@ -460,14 +533,20 @@ Receiving messages (bulk/pagination)
   REST Path: /rooms/$roomid/messages/list
   Valid methods: GET
   Query Parameters:
-    feedback : [true|false] - Specify if feedback should be bundled with each message.
-  This API can use filtering query parameters, with the id as the event ID of a known message.
+    feedback : [true|false] - Specify if feedback should be bundled with each 
+    message.
+  This API can use filtering query parameters, with the id as the event ID of a 
+  known message.
   Returns:
-    A JSON array of Event Data. If the "feedback" parameter was set, this will also contain a "feedback" key which
-   contains a JSON array of feedback, with each element as Event Data with compressed feedback for this message.
+    A JSON array of Event Data. If the "feedback" parameter was set, this will 
+    also contain a "feedback" key which
+   contains a JSON array of feedback, with each element as Event Data with 
+   compressed feedback for this message.
 
-Event Data with compressed feedback is a special type of feedback with contextual keys removed. It is designed to limit the 
-amount of redundant data being sent for feedback. This removes the type, room ID, message sender ID and message ID keys.
+Event Data with compressed feedback is a special type of feedback with 
+contextual keys removed. It is designed to limit the amount of redundant data 
+being sent for feedback. This removes the type, room ID, message sender ID and 
+message ID keys.
 
      ORIGINAL (via event streaming)
 {
@@ -493,20 +572,27 @@ amount of redundant data being sent for feedback. This removes the type, room ID
   }
 }
 
-When you join a room $roomid, you may want the last 10 messages with feedback. This is represented as:
-  GET /rooms/$roomid/messages/list?from=START&to=END&dir=b&limit=10&feedback=true
+When you join a room $roomid, you may want the last 10 messages with feedback. 
+This is represented as:
+  GET 
+  /rooms/$roomid/messages/list?from=START&to=END&dir=b&limit=10&feedback=true
 
-You may want to get 10 messages even earlier than that without feedback. If the last message had an event ID of e12345678, this 
-request would be:
-  GET /rooms/$roomid/messages/list?from=START&to=e12345678&dir=b&limit=10&feedback=false
+You may want to get 10 messages even earlier than that without feedback. If the 
+last message had an event ID of e12345678, this request would be:
+  GET 
+  /rooms/$roomid/messages/list?from=START&to=e12345678&dir=b&limit=10&
+                               feedback=false
   
-NOTE: Care must be taken when using this API in conjunction with event streaming. It is possible that this will return a message which will
-      then come down the event stream, resulting in a duplicate message. Clients should clobber based on the global message ID.
+NOTE: Care must be taken when using this API in conjunction with event 
+streaming. It is possible that this will return a message which will
+      then come down the event stream, resulting in a duplicate message. Clients 
+      should clobber based on the global message ID.
 
 Examples
 ========
 
-The following example is the story of "bob", who signs up at "sy.org" and joins the public room "room_beta@sy.org". They get the 2 most recent
+The following example is the story of "bob", who signs up at "sy.org" and joins 
+the public room "room_beta@sy.org". They get the 2 most recent
 messages (with feedback) in that room and then send a message in that room. 
 
 For context, here is the complete chat log for room_beta@sy.org:
@@ -514,16 +600,20 @@ For context, here is the complete chat log for room_beta@sy.org:
 Room: "Hello world" (room_beta@sy.org)
 Members: (2) alice@randomhost.org, friend_of_alice@randomhost.org
 Messages:
-  alice@randomhost.org : hi friend!                     [friend_of_alice@randomhost.org DELIVERED]
-  alice@randomhost.org : you're my only friend          [friend_of_alice@randomhost.org DELIVERED]
-  alice@randomhost.org : afk                            [friend_of_alice@randomhost.org DELIVERED]
+  alice@randomhost.org : hi friend!                     
+  [friend_of_alice@randomhost.org DELIVERED]
+  alice@randomhost.org : you're my only friend          
+  [friend_of_alice@randomhost.org DELIVERED]
+  alice@randomhost.org : afk                            
+  [friend_of_alice@randomhost.org DELIVERED]
   [ bob@sy.org joins ]
   bob@sy.org : Hi everyone
   [ alice@randomhost.org changes the topic to "FRIENDS ONLY" ]
   alice@randomhost.org : Hello!!!!
   alice@randomhost.org : Let's go to another room
   alice@randomhost.org : You're not my friend
-  [ alice@randomhost.org invites bob@sy.org to the room commoners@randomhost.org]
+  [ alice@randomhost.org invites bob@sy.org to the room 
+  commoners@randomhost.org]
 
 
 REGISTER FOR AN ACCOUNT
@@ -533,9 +623,7 @@ Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 
 GET PUBLIC ROOM LIST
 GET: /rooms/list?access_token=abcdef0123456789
-Returns: 
-{ 
-  "total":3,
+Returns: { "total":3,
   "rooms":
   {
     { "roomid":"room_alpha@sy.org", "topic":"I am a fish" },
@@ -545,17 +633,19 @@ Returns:
 }
 
 JOIN ROOM room_beta@sy.org
-PUT /rooms/room_beta%40sy.org/members/bob%40sy.org/state?access_token=abcdef0123456789
+PUT 
+/rooms/room_beta%40sy.org/members/bob%40sy.org/state?
+                                    access_token=abcdef0123456789
 Content: { "membership" : "join" }
 Returns: 200 OK
 
 GET LATEST 2 MESSAGES WITH FEEDBACK
-GET /rooms/room_beta%40sy.org/messages/list?from=START&to=END&dir=b&limit=2&feedback=true&access_token=abcdef0123456789
+GET 
+/rooms/room_beta%40sy.org/messages/list?from=START&to=END&dir=b&limit=2&
+                                    feedback=true&access_token=abcdef0123456789
 Returns:
 [
-  { 
-    "eid":"01948374", 
-    "type":"sy.room.message",
+  { "eid":"01948374", "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"avefifu",
     "from":"alice@randomhost.org",
@@ -576,9 +666,7 @@ Returns:
       }
     ]
   },
-  { 
-    "eid":"028dfe8373", 
-    "type":"sy.room.message",
+  { "eid":"028dfe8373", "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"afhgfff",
     "from":"alice@randomhost.org",
@@ -602,7 +690,9 @@ Returns:
 ]
 
 SEND MESSAGE IN ROOM
-PUT /rooms/room_beta%40sy.org/messages/bob%40sy.org/m0001?access_token=abcdef0123456789
+PUT 
+/rooms/room_beta%40sy.org/messages/bob%40sy.org/m0001?
+                            access_token=abcdef0123456789
 Content: { "msgtype" : "text" , "body" : "Hi everyone" }
 Returns: 200 OK
 
@@ -611,18 +701,14 @@ Checking the event stream for this user:
 GET: /events?from=START&access_token=abcdef0123456789
 Returns:
 [
-  { 
-    "eid":"e10f3d2b", 
-    "type":"sy.room.members.state",
+  { "eid":"e10f3d2b", "type":"sy.room.members.state",
     "roomid":"room_beta@sy.org",
     "userid":"bob@sy.org",
     "content":{
       "membership":"join"
     }
   },
-  { 
-    "eid":"1b352d32", 
-    "type":"sy.room.message",
+  { "eid":"1b352d32", "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"m0001",
     "from":"bob@sy.org",
@@ -634,23 +720,20 @@ Returns:
   }
 ]
 
-Client disconnects for a while and the topic is updated in this room, 3 new messages arrive whilst offline, and bob is invited to another room.
+Client disconnects for a while and the topic is updated in this room, 3 new 
+messages arrive whilst offline, and bob is invited to another room.
 
 GET /events?from=1b352d32&access_token=abcdef0123456789
 Returns:
 [
-  { 
-    "eid":"feee0294", 
-    "type":"sy.room.topic",
+  { "eid":"feee0294", "type":"sy.room.topic",
     "roomid":"room_beta@sy.org",
     "from":"alice@randomhost.org",
     "content":{
       "topic":"FRIENDS ONLY",
     }
   },
-  { 
-    "eid":"a028bd9e", 
-    "type":"sy.room.message",
+  { "eid":"a028bd9e", "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"z839409",
     "from":"alice@randomhost.org",
@@ -660,9 +743,7 @@ Returns:
       "body":"Hello!!!"
     }
   },
-  { 
-    "eid":"49372d9e", 
-    "type":"sy.room.message",
+  { "eid":"49372d9e", "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"z839410",
     "from":"alice@randomhost.org",
@@ -672,9 +753,7 @@ Returns:
       "body":"Let's go to another room"
     }
   },
-  { 
-    "eid":"10abdd01", 
-    "type":"sy.room.message",
+  { "eid":"10abdd01", "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"z839411",
     "from":"alice@randomhost.org",
@@ -684,9 +763,7 @@ Returns:
       "body":"You're not my friend"
     }
   },
-  { 
-    "eid":"0018453d", 
-    "type":"sy.room.members.state",
+  { "eid":"0018453d", "type":"sy.room.members.state",
     "roomid":"commoners@randomhost.org",
     "from":"alice@randomhost.org",
     "userid":"bob@sy.org",
@@ -700,8 +777,10 @@ Returns:
 
 Outstanding problems / missing spec:
 - No presence spec.
-- Multiple devices on the same account (no shared way to auth e.g. we don't msisdn auth)
-- Spec out standard error responses (malformed json, missing keys, invalid values for keys, unknown users (iff host is home server),
+- Multiple devices on the same account (no shared way to auth e.g. we don't 
+  msisdn auth)
+- Spec out standard error responses (malformed json, missing keys, invalid 
+  values for keys, unknown users (iff host is home server),
   room id in use, filter query param error / index out of bounds, )
 - Spec out event streaming type (longpoll, long-lived)
 - User level config/settings
