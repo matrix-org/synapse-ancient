@@ -12,8 +12,6 @@ a home server.
   first class events (e.g. messages)?
 - Generic mechanism for updating 'stuff about the room' (e.g. favourite coffee) 
   AND specifying clobbering rules (clobber/add to list/etc)?
-- Error responses should be HTTP 4xx/5xx, not 200
-- s/eventid/eventversion/g
 - Makes no sense to paginate back on the event stream. We can also avoid having 
   event versions for EACH event, by having a start/end (similar
   to room list). When paginating back on rooms, just use the start event version 
@@ -31,11 +29,11 @@ a home server.
 
 Terminology
 -----------
-eventid / eid : The ID of an event sent by the server.
-When using the event streaming API, each event has an associated "eid" which 
+eventver / ever : The version of an event sent by the server.
+When using the event streaming API, each event has an associated version which 
 should be persisted on the client. When reconnecting to the
-event stream, this event ID can be used to tell the server where the client got 
-up to in the stream.
+event stream, this event version can be used to tell the server where the client 
+got up to in the stream.
 
 msgid : The ID of a message sent by a client in a room.
 Clients send IMs to each other in rooms. Each IM sent by a client must have a 
@@ -70,18 +68,18 @@ immediately receive updates from the REST API. All data is represented as JSON.
 
 The Event Stream
 ----------------
-Every event sent to the client has an event id ("eid") which must be persisted 
-on the client. When the client next connects to the event stream, they should 
-provide the last event id they received from the server. This lets the server 
-know where in the event stream the client is. These ids are completely opaque, 
-and the client cannot infer anything from them.
+Every event sent to the client has an event version ("ever") which must be 
+persisted on the client. When the client next connects to the event stream, they 
+should provide the last event ver they received from the server. This lets the 
+server know where in the event stream the client is. These vers are completely 
+opaque, and the client cannot infer anything from them.
 
-  GET /events?from=$LAST_EVENT_ID
+  GET /events?from=$LAST_EVENT_VERSION
   Returns (success): A JSON array of Event Data.
   Returns (failure): An Error Response
 
-LAST_EVENT_ID is the last event ID obtained from Event Data. If the client is 
-connecting for the first time and does not know any event IDs,
+LAST_EVENT_VERSION is the last event version obtained from Event Data. If the 
+client is connecting for the first time and does not know any event versions,
 they can use "START" to request all events from the start. For more information 
 on this, see "Filtering Query Parameters".
 
@@ -105,16 +103,16 @@ dataset respectively.
 
 Query parameters:
   from : $id - What item of data to start from. This could be a 0-based index, 
-  an event ID, or some other way of uniquely identifying data.
+         an event version, or some other way of uniquely identifying data.
   to : $id - What item of data to end at. This could be a 0-based index, an 
-  event ID, or some other way of uniquely identifying data. Typically,
+       event version, or some other way of uniquely identifying data. Typically,
        clients will not know the item of data to end at, so this will usually be 
        START or END.
   limit : integer - An integer representing the maximum number of items to 
-  return.
+          return.
   dir : [f|b] - The direction to return results in. A direction of [f]orwards 
-  would return the items at 'from' first, whereas [b]ackwards would
-                return the items from 'to' first.
+        would return the items at 'from' first, whereas [b]ackwards would
+        return the items from 'to' first.
   search : NOT_YET_IMPLEMENTED : The search query to perform.
 
 For example, the event stream has events E1 -> E15. The client wants the last 5 
@@ -150,7 +148,7 @@ S                                                           E
 The term 'filtering query parameters' is used to describe an API which can be 
 filtered in this way. The API will also specify what ID to use.
 For example, the event streaming API is compatible with filtering query 
-parameters with the id as the event id.
+parameters with the id as the event version.
 
 Unless specified, the default filtering parameters are from=START, to=END, 
 dir=f, without a limit set. This allows you to hit an API like
@@ -160,7 +158,7 @@ Event Data
 ----------
 This is a JSON object which looks like:
 {
-  "eid" : $EVENT_ID,
+  "ever" : $EVENT_VERSION,
   "type" : $EVENT_TYPE,
   $URL_ARGS,
   "content" : {
@@ -169,8 +167,8 @@ This is a JSON object which looks like:
 }
 
 Where:
-  EVENT_ID = The opaque event ID which can be used with 
-  /events?from=$LAST_EVENT_ID
+  EVENT_VERSION = The opaque event version which can be used with 
+                  /events?from=$LAST_EVENT_VERSION
   EVENT_TYPE = The namespaced event type (sy.*)
   URL_ARGS = Path specific data from the REST API
   EVENT_CONTENT = The event content 
@@ -194,7 +192,7 @@ For example:
 is represented in the event stream as:
 
 {
-  "eid" : "e_some_event_id",
+  "ever" : "e_some_event_version",
   "type" : "sy.example.room.members",
   "roomid" : $roomid,
   "userid" : $userid,
@@ -230,8 +228,8 @@ Registering for an account
 --------------------------
   PUT /register
   With: A JSON object containing the key "user_id" which contains the desired 
-  userid, or an
-        empty JSON object to have the server allocate a userid automatically.
+        userid, or an empty JSON object to have the server allocate a userid 
+        automatically.
   Returns (success): 200 OK with a JSON object:
                      {
                        "user_id" : "string [synapseUserId]",
@@ -255,8 +253,8 @@ REST API
 All content must be application/json. Some keys are required, while others are 
 optional. Unless otherwise specified,
 all HTTP PUT/POST/DELETEs will return a 200 OK with an empty response body on 
-success, and a 200 OK with an Error Response on failure. When sending data, if 
-there are no keys to send, an empty JSON object should be sent.
+success, and a 4xx/5xx with an optional Error Response on failure. When sending 
+data, if there are no keys to send, an empty JSON object should be sent.
 
 All POST/PUT/GET/DELETE requests MUST have an 'access_token' query parameter to 
 allow the server to authenticate the client. All
@@ -307,8 +305,8 @@ Setting the topic for a room
   Event Type: sy.room.topic
   REST Path: /rooms/$roomid/topic
   Valid methods: GET/PUT
-  Required keys: topic : $topicname - Set the topic to $topicname in room 
-  $roomid.
+  Required keys: 
+    topic : $topicname - Set the topic to $topicname in room $roomid.
 
 
 See a list of public rooms
@@ -400,18 +398,18 @@ Sending messages
   URL parameters:
     $from : userid - The sender's userid. This value will be clobbered by the 
     server before sending.
-  Required keys: msgtype : 
-  [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - The type 
-  of message. Not to be confused with the Event 'type'.
+  Required keys: 
+    msgtype: [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - 
+             The type of message. Not to be confused with the Event 'type'.
   Optional keys:
     sender_ts : integer - A timestamp (ms resolution) representing the 
-    wall-clock time when the message was sent from the client.
+                wall-clock time when the message was sent from the client.
   Reserved keys:
     body : "string" - The human readable string for compatibility with clients 
-    which cannot process a given msgtype. This key is optional, but
-                      if it is included, it MUST be human readable text 
-                      describing the message. See individual msgtypes for more 
-                      info on what this means in practice.
+           which cannot process a given msgtype. This key is optional, but
+           if it is included, it MUST be human readable text 
+           describing the message. See individual msgtypes for more 
+           info on what this means in practice.
 
 Each msgtype may have required fields of their own.
 
@@ -435,10 +433,10 @@ Required keys:
   url : "string" - The URL to the image.
 Optional keys:
   body : "string" - info : JSON object (ImageInfo) - The image info for image 
-  referred to in 'url'.
+         referred to in 'url'.
   thumbnail_url : "string" - The URL to the thumbnail.
   thumbnail_info : JSON object (ImageInfo) - The image info for the image 
-  referred to in 'thumbnail_url'.
+                   referred to in 'thumbnail_url'.
 
 ImageInfo: Information about an image.
 {
@@ -457,9 +455,10 @@ Required keys:
   url : "string" - The URL to the audio.
 Optional keys:
   info : JSON object (AudioInfo) - The audio info for the audio referred to in 
-  'url'.
+         'url'.
 
-AudioInfo: Information about a piece of audio. {
+AudioInfo: Information about a piece of audio. 
+{
   "mimetype" : "string (e.g. audio/aac)",
   "size" : integer (size of audio in bytes),
   "duration" : integer (duration of audio in milliseconds)
@@ -475,7 +474,7 @@ Required keys:
   url : "string" - The URL to the video.
 Optional keys:
   info : JSON object (VideoInfo) - The video info for the video referred to in 
-  'url'.
+         'url'.
 
 VideoInfo: Information about a video.
 {
@@ -497,9 +496,9 @@ Required keys:
   geo_uri : "string" - The geo URI representing the location.
 Optional keys:
   thumbnail_url : "string" - The URL to a thumnail of the location being 
-  represented.
+                  represented.
   thumbnail_info : JSON object (ImageInfo) - The image info for the image 
-  referred to in 'thumbnail_url'.
+                   referred to in 'thumbnail_url'.
 
 Interpretation of 'body' key: A description of the location e.g. "Big Ben, 
 London, UK", or some kind of content description for accessibility e.g. 
@@ -535,7 +534,7 @@ Receiving messages (bulk/pagination)
   Query Parameters:
     feedback : [true|false] - Specify if feedback should be bundled with each 
     message.
-  This API can use filtering query parameters, with the id as the event ID of a 
+  This API can use filtering query parameters, with the id as the event ver of a 
   known message.
   Returns:
     A JSON array of Event Data. If the "feedback" parameter was set, this will 
@@ -550,7 +549,7 @@ message ID keys.
 
      ORIGINAL (via event streaming)
 {
-  "eid":"e1247632487",
+  "ever":"e1247632487",
   "type":"sy.room.message.feedback",
   "from":"string [userid]",
   "feedback":"string [d|r]",
@@ -564,7 +563,7 @@ message ID keys.
 
      COMPRESSED (via /messages/list)
 {
-  "eid":"e1247632487",
+  "ever":"e1247632487",
   "from":"string [userid]",
   "feedback":"string [d|r]",
   "content":{
@@ -578,7 +577,7 @@ This is represented as:
   /rooms/$roomid/messages/list?from=START&to=END&dir=b&limit=10&feedback=true
 
 You may want to get 10 messages even earlier than that without feedback. If the 
-last message had an event ID of e12345678, this request would be:
+last message had an event version of e12345678, this request would be:
   GET 
   /rooms/$roomid/messages/list?from=START&to=e12345678&dir=b&limit=10&
                                feedback=false
@@ -623,7 +622,8 @@ Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 
 GET PUBLIC ROOM LIST
 GET: /rooms/list?access_token=abcdef0123456789
-Returns: { "total":3,
+Returns: 
+{ "total":3,
   "rooms":
   {
     { "roomid":"room_alpha@sy.org", "topic":"I am a fish" },
@@ -645,7 +645,9 @@ GET
                                     feedback=true&access_token=abcdef0123456789
 Returns:
 [
-  { "eid":"01948374", "type":"sy.room.message",
+  { 
+    "ever":"01948374", 
+    "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"avefifu",
     "from":"alice@randomhost.org",
@@ -656,7 +658,7 @@ Returns:
     }
     "feedback": [
       {
-        "eid":"e93742763",
+        "ever":"e93742763",
         "from":"friend_of_alice@randomhost.org",
         "feedback":"d",
         "hs_ts":139985850,
@@ -666,7 +668,9 @@ Returns:
       }
     ]
   },
-  { "eid":"028dfe8373", "type":"sy.room.message",
+  { 
+    "ever":"028dfe8373", 
+    "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"afhgfff",
     "from":"alice@randomhost.org",
@@ -677,7 +681,7 @@ Returns:
     }
     "feedback": [
       {
-        "eid":"e93742763",
+        "ever":"e93742763",
         "from":"friend_of_alice@randomhost.org",
         "feedback":"d",
         "hs_ts":139970144,
@@ -701,14 +705,18 @@ Checking the event stream for this user:
 GET: /events?from=START&access_token=abcdef0123456789
 Returns:
 [
-  { "eid":"e10f3d2b", "type":"sy.room.members.state",
+  { 
+    "ever":"e10f3d2b", 
+    "type":"sy.room.members.state",
     "roomid":"room_beta@sy.org",
     "userid":"bob@sy.org",
     "content":{
       "membership":"join"
     }
   },
-  { "eid":"1b352d32", "type":"sy.room.message",
+  { 
+    "ever":"1b352d32", 
+    "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"m0001",
     "from":"bob@sy.org",
@@ -726,14 +734,18 @@ messages arrive whilst offline, and bob is invited to another room.
 GET /events?from=1b352d32&access_token=abcdef0123456789
 Returns:
 [
-  { "eid":"feee0294", "type":"sy.room.topic",
+  { 
+    "ever":"feee0294", 
+    "type":"sy.room.topic",
     "roomid":"room_beta@sy.org",
     "from":"alice@randomhost.org",
     "content":{
       "topic":"FRIENDS ONLY",
     }
   },
-  { "eid":"a028bd9e", "type":"sy.room.message",
+  { 
+    "ever":"a028bd9e", 
+    "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"z839409",
     "from":"alice@randomhost.org",
@@ -743,7 +755,9 @@ Returns:
       "body":"Hello!!!"
     }
   },
-  { "eid":"49372d9e", "type":"sy.room.message",
+  { 
+    "ever":"49372d9e", 
+    "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"z839410",
     "from":"alice@randomhost.org",
@@ -753,7 +767,9 @@ Returns:
       "body":"Let's go to another room"
     }
   },
-  { "eid":"10abdd01", "type":"sy.room.message",
+  { 
+    "ever":"10abdd01", 
+    "type":"sy.room.message",
     "roomid":"room_beta@sy.org",
     "msgid":"z839411",
     "from":"alice@randomhost.org",
@@ -763,7 +779,9 @@ Returns:
       "body":"You're not my friend"
     }
   },
-  { "eid":"0018453d", "type":"sy.room.members.state",
+  { 
+    "ever":"0018453d", 
+    "type":"sy.room.members.state",
     "roomid":"commoners@randomhost.org",
     "from":"alice@randomhost.org",
     "userid":"bob@sy.org",
