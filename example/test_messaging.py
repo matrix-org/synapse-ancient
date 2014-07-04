@@ -13,6 +13,7 @@ Currently assumes the local address is localhost:<port>
 
 """
 
+import synapse.db.schema
 from synapse.protocol.http import TwistedHttpServer, TwistedHttpClient
 from synapse.transport import TransportLayer
 from synapse.transaction import TransactionLayer
@@ -28,6 +29,7 @@ from twisted.python.log import PythonLoggingObserver
 import argparse
 import json
 import logging
+import os
 import re
 import sqlite3
 
@@ -282,8 +284,8 @@ def setup_db(db_name):
     DbPool.set(pool)
 
     schemas = [
-            "schema/transactions.sql",
-            "schema/pdu.sql"
+            synapse.db.schema.schema_path("transactions"),
+            synapse.db.schema.schema_path("pdu"),
         ]
 
     for sql_loc in schemas:
@@ -312,6 +314,8 @@ def main(stdscr):
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - '
             '%(message)s')
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
     fh = logging.FileHandler("logs/%s" % user)
     fh.setFormatter(formatter)
 
@@ -331,6 +335,8 @@ def main(stdscr):
 
     ## Set up db ##
 
+    if not os.path.exists("dbs"):
+        os.makedirs("dbs")
     setup_db("dbs/%s" % user)
 
     ## Set up synapse server
