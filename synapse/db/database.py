@@ -8,17 +8,19 @@ from synapse.api.messages import Message, RoomMembership
 import os
 import sqlite3
 
+
 class Database(object):
 
     def __init__(self, db_name):
         self._db_pool = adbapi.ConnectionPool(
             'sqlite3',
-            db_name,                                  
+            db_name,
             check_same_thread=False)
         self.db_name = db_name
 
     def make_default_db_pool(self):
-        """ Makes this database the default db pool when saving Twistar objects. """
+        """ Makes this database the default db pool when saving Twistar objects.
+         """
         Registry.DBPOOL = self._db_pool
 
     def init_from_file(self, schema_file_path, db_name):
@@ -70,7 +72,8 @@ class Database(object):
         max_ver = to_version
         where = "1"
         where_arr = []
-        if from_version > to_version and to_version is not None: # going backwards
+        # going backwards
+        if from_version > to_version and to_version is not None:
             forwards = False
             orderby = "id DESC"
             min_ver = to_version
@@ -83,18 +86,18 @@ class Database(object):
             where += " AND id < ?"
             where_arr.append(max_ver)
 
-        return { "where" : where, "params" : where_arr, "orderby" : orderby }
-        
+        return {"where": where, "params": where_arr, "orderby": orderby}
 
-    def get_messages(self, room_id=None, from_version=None, to_version=None, **kwargs):
+    def get_messages(self, room_id=None, from_version=None, to_version=None,
+                     **kwargs):
         where_dict = self._build_where_version(from_version, to_version)
         if room_id:
             where_dict["where"] += " AND room_id = ?"
             where_dict["params"].append(room_id)
 
-
-        where_arr = [ where_dict["where"] ] + where_dict["params"]
-        return Message.find(where=where_arr, orderby=where_dict["orderby"], **kwargs)
+        where_arr = [where_dict["where"]] + where_dict["params"]
+        return Message.find(where=where_arr, orderby=where_dict["orderby"],
+                            **kwargs)
 
     def get_room_membership(self, room_id=None, synid=None):
         """ Retrieves the latest RoomMembership for the given room member.
@@ -108,7 +111,8 @@ class Database(object):
         if not room_id or not synid:
             return None
 
-        return RoomMembership.find(where=["synid=? AND room_id=?",synid,room_id], limit=1, orderby="id DESC")
+        return RoomMembership.find(where=["synid=? AND room_id=?", synid,
+                                   room_id], limit=1, orderby="id DESC")
 
     def store_message(self, message):
         pass
@@ -131,7 +135,7 @@ def _setup_db(deferred, schema_file_path, db_name):
             return
 
         statements = ""
-        with open(schema_file_path,'r') as schema:
+        with open(schema_file_path, 'r') as schema:
             statements = schema.read()
 
         try:
@@ -142,16 +146,17 @@ def _setup_db(deferred, schema_file_path, db_name):
     except Exception as e:
         deferred.errback(e)
 
+
 def _execute(db_name, statements):
     db_conn = sqlite3.connect(db_name)
     cursor = db_conn.cursor()
     try:
         if not sqlite3.complete_statement(statements):
-            raise SyntaxError("The provided statements are syntactically incorrect.")
+            raise SyntaxError(
+                "The provided statements are syntactically incorrect.")
         cursor.executescript(statements)
         db_conn.commit()
         db_conn.close()
     except Exception as e:
         cursor.close()
         raise e
-    

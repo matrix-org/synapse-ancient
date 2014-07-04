@@ -3,6 +3,7 @@ from twisted.internet import reactor, defer
 from synapse.api.messages import Message
 from synapse.api.messages import Presence
 
+
 class SynapseApi(object):
 
     def __init__(self, database, notifier):
@@ -18,7 +19,8 @@ class SynapseApi(object):
             event_id : The validated event_id from the path of the request.
             json : The syntactically-validated JSON from the body of the request
         Returns:
-            A Deferred which on success contains a tuple of (code, dict) to respond with.
+            A Deferred which on success contains a tuple of (code, dict) to
+            respond with.
             The dict will be converted into JSON for you before responding.
         """
         print "SynapseApi: Event ID %s : %s" % (event_id, json)
@@ -32,11 +34,11 @@ class SynapseApi(object):
             body = json["params"]["body"]
             msg = Message(sender_synid=msg_from, body=body, type=type)
             yield msg.save()
-            defer.returnValue((200, { "state" : "Saved" })) 
+            defer.returnValue((200, {"state": "Saved"}))
         except KeyError as ke:
-            defer.returnValue((400, { "error" : "Missing JSON keys." } ))
+            defer.returnValue((400, {"error": "Missing JSON keys."}))
 
-        defer.returnValue((200, { "state" : "Not yet implemented" }) )
+        defer.returnValue((200, {"state": "Not yet implemented"}))
 
     def process_event_get(self, request, ver):
         """ Called when there is a GET to /events.
@@ -45,11 +47,12 @@ class SynapseApi(object):
             request : The twisted Request
             ver : The base version requested, extracted from the GET parameters.
         Returns:
-            A Deferred which on success contains a tuple of (code, dict) to respond with.
+            A Deferred which on success contains a tuple of (code, dict) to
+            respond with.
             The dict will be converted into JSON for you before responding.
         """
         print "SynapseApi: Version %s" % ver
-        return defer.succeed((200, { "request" : "Not yet implemented"}))
+        return defer.succeed((200, {"request": "Not yet implemented"}))
 
     def process_incoming_data(self, data):
         if data.type == Message.TEXT:
@@ -61,4 +64,3 @@ class SynapseApi(object):
                 self.notifier.notify_user_for_messages(msgs)
 
         return defer.succeed(True)
-

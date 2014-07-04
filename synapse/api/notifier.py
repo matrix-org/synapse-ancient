@@ -5,7 +5,8 @@ class Notifier(object):
         pass
 
     def notify_user_for_messages(self, user, messages):
-        """ Notifies the given user for the given messages if and only if they are online.
+        """ Notifies the given user for the given messages if and only if they
+        are online.
 
         Args:
             user: The user being notified
