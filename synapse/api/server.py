@@ -3,6 +3,7 @@ import re
 
 from twisted.internet import defer
 
+from synapse.api.events import EventFactory
 from synapse.api.messages import Message
 from synapse.messaging import MessagingCallbacks
 
@@ -12,6 +13,9 @@ class SynapseHomeServer(MessagingCallbacks):
         self.http_server = http_server
         self.messaging_layer = messaging_layer
         self.messaging_layer.set_callback(self)
+
+        self.event_factory = EventFactory()
+        self.event_factory.register_paths(self.http_server)
 
         self.http_server.register_path(
                 "PUT", re.compile("^/events/([^/]*)$"), self._on_PUT)
@@ -44,7 +48,7 @@ class SynapseHomeServer(MessagingCallbacks):
         print msg
         defer.returnValue((200, { "state" : "saved" }))
 
-        
+
     # @defer.inlineCallbacks
     def _on_GET(self, request):
         print "GET Req %s" % request
@@ -53,6 +57,6 @@ class SynapseHomeServer(MessagingCallbacks):
             return (400, error("Missing baseVer"))
         # defer.returnValue((200, { "data" : "Not yet implemented." } ))
         return (200, { "data" : "Not yet implemented." })
-    
+
 def error(msg):
     return { "error" : msg }
