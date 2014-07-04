@@ -12,11 +12,6 @@ a home server.
   first class events (e.g. messages)?
 - Generic mechanism for updating 'stuff about the room' (e.g. favourite coffee) 
   AND specifying clobbering rules (clobber/add to list/etc)?
-- Makes no sense to paginate back on the event stream. We can also avoid having 
-  event versions for EACH event, by having a start/end (similar
-  to room list). When paginating back on rooms, just use the start event version 
-  (so we don't need to know the event version of the message
-  itself). Can possibily then standardise the response JSON for filtering.
 - Scrap the dir=? Work through use cases where we absolutely need to know it.
 - Specify an actual event ID for each event (to de-duplicate unknown event 
   types). Can do this inbound from other home servers on their PDU
@@ -29,11 +24,16 @@ a home server.
 
 Terminology
 -----------
-eventver / ever : The version of an event sent by the server.
-When using the event streaming API, each event has an associated version which 
-should be persisted on the client. When reconnecting to the
-event stream, this event version can be used to tell the server where the client 
-got up to in the stream.
+stream tokens : An opaque token used to make further streaming requests.
+When using any filter streaming API, responses will contain a start and end
+streaming token. When reconnecting to the stream, these tokens can be used to 
+tell the server where the client got up to in the stream.
+
+eventid / eid : The ID of the event.
+Every event that comes down the event stream or that is returned from the REST
+API has an associated event ID. This ID will be the same between the REST API
+and the event stream, so any duplicate events can be clobbered correctly without
+knowing anything else about the event.
 
 msgid : The ID of a message sent by a client in a room.
 Clients send IMs to each other in rooms. Each IM sent by a client must have a 
@@ -66,25 +66,19 @@ this API or from an event stream. An event stream is a special path which
 streams all events the client may be interested in. This makes it easy to 
 immediately receive updates from the REST API. All data is represented as JSON.
 
-The Event Stream
-----------------
-Every event sent to the client has an event version ("ever") which must be 
-persisted on the client. When the client next connects to the event stream, they 
-should provide the last event ver they received from the server. This lets the 
-server know where in the event stream the client is. These vers are completely 
-opaque, and the client cannot infer anything from them.
+Filter streaming API
+====================
+Clients are often interested in very large datasets. The data itself could
+be 1000s of messages in a given room, 1000s of rooms in a public room list, or
+1000s of events (presence, typing, messages, etc) in the system. It is not
+practical to send vast quantities of data to the client every time they
+request a list of public rooms for example. There needs to be a way to show a
+subset of this data, and apply various filters to it. This is what the filter
+streaming API is. This API defines standard request/response parameters which 
+can be used when navigating this stream of data.
 
-  GET /events?from=$LAST_EVENT_VERSION
-  Returns (success): A JSON array of Event Data.
-  Returns (failure): An Error Response
-
-LAST_EVENT_VERSION is the last event version obtained from Event Data. If the 
-client is connecting for the first time and does not know any event versions,
-they can use "START" to request all events from the start. For more information 
-on this, see "Filtering Query Parameters".
-
-Filtering Query Parameters
---------------------------
+Filtering Request Query Parameters
+----------------------------------
 Clients may wish to filter results from the event stream, or other sources of 
 information where the amount of information may be a problem,
 e.g. in a room with 10,000s messages. The filtering query parameters provide a 
@@ -98,14 +92,12 @@ START      ^               ^                      END
                    |
             Client-extraction
 
-'START' and 'END' are magic values which specify the start and end of the 
+'START' and 'END' are magic token values which specify the start and end of the 
 dataset respectively.
 
 Query parameters:
-  from : $id - What item of data to start from. This could be a 0-based index, 
-         an event version, or some other way of uniquely identifying data.
-  to : $id - What item of data to end at. This could be a 0-based index, an 
-       event version, or some other way of uniquely identifying data. Typically,
+  from : $streamtoken - The opaque token to start streaming from.
+  to : $streamtoken - The opaque token to end streaming at. Typically,
        clients will not know the item of data to end at, so this will usually be 
        START or END.
   limit : integer - An integer representing the maximum number of items to 
@@ -134,7 +126,7 @@ rooms at a time on screen, and is on page 2. They want to
 now show page 3 (rooms R11 -> 15):
 
 S                                                           E
-|  0  1  2  3  4  5  6  7  8  9  10  11  12  13  14  15  16 | index
+|  0  1  2  3  4  5  6  7  8  9  10  11  12  13  14  15  16 | stream token
 |-R1-R2-R3-R4-R5-R6-R7-R8-R9-R10-R11-R12-R13-R14-R15-R16-R17| room
                   |____________| |________________|
                         |                |
@@ -144,21 +136,48 @@ S                                                           E
                          GET /rooms/list?from=9&to=END&dir=f&limit=5
                          Returns: R11,R12,R13,R14,R15
 
+Filter Response
+---------------
+Responses to filtering requests MUST follow the format:
+{
+  "chunk": [ ... , Responses , ... ],
+  "start" : $streamtoken,
+  "end" : $streamtoken
+}
+Where $streamtoken is an opaque token which can be used in another query to
+get the next set of results. The "start" and "end" keys can only be omitted if
+the complete dataset is provided in "chunk".
 
-The term 'filtering query parameters' is used to describe an API which can be 
-filtered in this way. The API will also specify what ID to use.
-For example, the event streaming API is compatible with filtering query 
-parameters with the id as the event version.
+If the client wants earlier results, they should use from=$start_streamtoken,
+to=START. Likewise, if the client wants later results, they should use
+from=$end_streamtoken, to=END.
 
 Unless specified, the default filtering parameters are from=START, to=END, 
 dir=f, without a limit set. This allows you to hit an API like
 /events without any query parameters to get everything.
 
+The Event Stream
+----------------
+The event stream returns events using the filter streaming API. When the client
+disconnects for a while and wants to reconnect to the event stream, they should
+specify from=$end_streamtoken. This lets the server know where in the event 
+stream the client is. These tokens are completely opaque, and the client cannot 
+infer anything from them.
+
+  GET /events?from=$LAST_STREAM_TOKEN
+  Returns (success): A JSON array of Event Data.
+  Returns (failure): An Error Response
+
+LAST_STREAM_TOKEN is the last stream token obtained from the event stream. If the 
+client is connecting for the first time and does not know any stream tokens,
+they can use "START" to request all events from the start. For more information 
+on this, see "Filtering Request Query Parameters".
+
 Event Data
 ----------
 This is a JSON object which looks like:
 {
-  "ever" : $EVENT_VERSION,
+  "eid" : $EVENT_ID,
   "type" : $EVENT_TYPE,
   $URL_ARGS,
   "content" : {
@@ -167,8 +186,8 @@ This is a JSON object which looks like:
 }
 
 Where:
-  EVENT_VERSION = The opaque event version which can be used with 
-                  /events?from=$LAST_EVENT_VERSION
+  EVENT_ID = An ID identifying this event. This is so duplicate events can be
+             suppressed on the client.
   EVENT_TYPE = The namespaced event type (sy.*)
   URL_ARGS = Path specific data from the REST API
   EVENT_CONTENT = The event content 
@@ -192,7 +211,7 @@ For example:
 is represented in the event stream as:
 
 {
-  "ever" : "e_some_event_version",
+  "eid" : "e_some_event_id",
   "type" : "sy.example.room.members",
   "roomid" : $roomid,
   "userid" : $userid,
@@ -314,14 +333,13 @@ See a list of public rooms
   Event Type: sy.room.list
   REST Path: /rooms/list?filtering_query_parameters
   Valid methods: GET
-  This API can use filtering query parameters, with the id as the 0-based start 
-  index to start returning rooms from.
+  This API can use filtering query parameters.
   Returns:
     {
-      "rooms" : JSON array of RoomInfo JSON objects - Required.
+      "chunk" : JSON array of RoomInfo JSON objects - Required.
+      "start" : "string (start token)" - See Filter Response.
+      "end" : "string (end token)" - See Filter Response.
       "total" : integer - Optional. The total number of rooms.
-      "start" : integer - Optional. The 0-based index of the first room in 
-      "rooms".
     }
 
 RoomInfo: Information about a single room.
@@ -534,22 +552,21 @@ Receiving messages (bulk/pagination)
   Query Parameters:
     feedback : [true|false] - Specify if feedback should be bundled with each 
     message.
-  This API can use filtering query parameters, with the id as the event ver of a 
-  known message.
+  This API can use filtering query parameters.
   Returns:
-    A JSON array of Event Data. If the "feedback" parameter was set, this will 
-    also contain a "feedback" key which
-   contains a JSON array of feedback, with each element as Event Data with 
-   compressed feedback for this message.
+    A JSON array of Event Data in "chunk" (see Filter Response). If the 
+    "feedback" parameter was set, the Event Data will also contain a "feedback" 
+    key which contains a JSON array of feedback, with each element as Event Data 
+    with compressed feedback for this message.
 
 Event Data with compressed feedback is a special type of feedback with 
 contextual keys removed. It is designed to limit the amount of redundant data 
-being sent for feedback. This removes the type, room ID, message sender ID and 
-message ID keys.
+being sent for feedback. This removes the type, eid, room ID, message sender ID 
+and message ID keys.
 
      ORIGINAL (via event streaming)
 {
-  "ever":"e1247632487",
+  "eid":"e1247632487",
   "type":"sy.room.message.feedback",
   "from":"string [userid]",
   "feedback":"string [d|r]",
@@ -563,7 +580,6 @@ message ID keys.
 
      COMPRESSED (via /messages/list)
 {
-  "ever":"e1247632487",
   "from":"string [userid]",
   "feedback":"string [d|r]",
   "content":{
@@ -577,15 +593,16 @@ This is represented as:
   /rooms/$roomid/messages/list?from=START&to=END&dir=b&limit=10&feedback=true
 
 You may want to get 10 messages even earlier than that without feedback. If the 
-last message had an event version of e12345678, this request would be:
+start stream token from the previous request was stok_019173, this request would 
+be:
   GET 
-  /rooms/$roomid/messages/list?from=START&to=e12345678&dir=b&limit=10&
+  /rooms/$roomid/messages/list?from=START&to=stok_019173&dir=b&limit=10&
                                feedback=false
   
 NOTE: Care must be taken when using this API in conjunction with event 
-streaming. It is possible that this will return a message which will
+      streaming. It is possible that this will return a message which will
       then come down the event stream, resulting in a duplicate message. Clients 
-      should clobber based on the global message ID.
+      should clobber based on the global message ID, or event ID.
 
 Examples
 ========
@@ -623,13 +640,14 @@ Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 GET PUBLIC ROOM LIST
 GET: /rooms/list?access_token=abcdef0123456789
 Returns: 
-{ "total":3,
-  "rooms":
-  {
+{ 
+  "total":3,
+  "chunk":
+  [
     { "roomid":"room_alpha@sy.org", "topic":"I am a fish" },
     { "roomid":"room_beta@sy.org", "topic":"Hello world" },
     { "roomid":"room_xyz@sy.org", "topic":"Goodbye cruel world" }
-  }
+  ]
 }
 
 JOIN ROOM room_beta@sy.org
@@ -644,54 +662,57 @@ GET
 /rooms/room_beta%40sy.org/messages/list?from=START&to=END&dir=b&limit=2&
                                     feedback=true&access_token=abcdef0123456789
 Returns:
-[
-  { 
-    "ever":"01948374", 
-    "type":"sy.room.message",
-    "roomid":"room_beta@sy.org",
-    "msgid":"avefifu",
-    "from":"alice@randomhost.org",
-    "hs_ts":139985736,
-    "content":{
-      "msgtype":"sy.text",
-      "body":"afk"
-    }
-    "feedback": [
-      {
-        "ever":"e93742763",
-        "from":"friend_of_alice@randomhost.org",
-        "feedback":"d",
-        "hs_ts":139985850,
+{
+  "chunk":
+    [
+      { 
+        "eid":"01948374", 
+        "type":"sy.room.message",
+        "roomid":"room_beta@sy.org",
+        "msgid":"avefifu",
+        "from":"alice@randomhost.org",
+        "hs_ts":139985736,
         "content":{
-          "sender_ts":139985843
+          "msgtype":"sy.text",
+          "body":"afk"
         }
-      }
-    ]
-  },
-  { 
-    "ever":"028dfe8373", 
-    "type":"sy.room.message",
-    "roomid":"room_beta@sy.org",
-    "msgid":"afhgfff",
-    "from":"alice@randomhost.org",
-    "hs_ts":139970006,
-    "content":{
-      "msgtype":"sy.text",
-      "body":"you're my only friend"
-    }
-    "feedback": [
-      {
-        "ever":"e93742763",
-        "from":"friend_of_alice@randomhost.org",
-        "feedback":"d",
-        "hs_ts":139970144,
+        "feedback": [
+          {
+            "from":"friend_of_alice@randomhost.org",
+            "feedback":"d",
+            "hs_ts":139985850,
+            "content":{
+              "sender_ts":139985843
+            }
+          }
+        ]
+      },
+      { 
+        "eid":"028dfe8373", 
+        "type":"sy.room.message",
+        "roomid":"room_beta@sy.org",
+        "msgid":"afhgfff",
+        "from":"alice@randomhost.org",
+        "hs_ts":139970006,
         "content":{
-          "sender_ts":139970122
+          "msgtype":"sy.text",
+          "body":"you're my only friend"
         }
-      }
-    ]
-  },
-]
+        "feedback": [
+          {
+            "from":"friend_of_alice@randomhost.org",
+            "feedback":"d",
+            "hs_ts":139970144,
+            "content":{
+              "sender_ts":139970122
+            }
+          }
+        ]
+      },
+    ],
+  "start": "stok_04823947",
+  "end": "etok_1426425"
+}
 
 SEND MESSAGE IN ROOM
 PUT 
@@ -704,92 +725,102 @@ Returns: 200 OK
 Checking the event stream for this user:
 GET: /events?from=START&access_token=abcdef0123456789
 Returns:
-[
-  { 
-    "ever":"e10f3d2b", 
-    "type":"sy.room.members.state",
-    "roomid":"room_beta@sy.org",
-    "userid":"bob@sy.org",
-    "content":{
-      "membership":"join"
-    }
-  },
-  { 
-    "ever":"1b352d32", 
-    "type":"sy.room.message",
-    "roomid":"room_beta@sy.org",
-    "msgid":"m0001",
-    "from":"bob@sy.org",
-    "hs_ts":140193857,
-    "content":{
-      "msgtype":"sy.text",
-      "body":"Hi everyone"
-    }
-  }
-]
+{
+  "chunk": 
+    [
+      { 
+        "eid":"e10f3d2b", 
+        "type":"sy.room.members.state",
+        "roomid":"room_beta@sy.org",
+        "userid":"bob@sy.org",
+        "content":{
+          "membership":"join"
+        }
+      },
+      { 
+        "eid":"1b352d32", 
+        "type":"sy.room.message",
+        "roomid":"room_beta@sy.org",
+        "msgid":"m0001",
+        "from":"bob@sy.org",
+        "hs_ts":140193857,
+        "content":{
+          "msgtype":"sy.text",
+          "body":"Hi everyone"
+        }
+      }
+    ],
+  "start": "stok_9348635",
+  "end": "etok_1984723"
+}
 
 Client disconnects for a while and the topic is updated in this room, 3 new 
 messages arrive whilst offline, and bob is invited to another room.
 
-GET /events?from=1b352d32&access_token=abcdef0123456789
+GET /events?from=etok_1984723&access_token=abcdef0123456789
 Returns:
-[
-  { 
-    "ever":"feee0294", 
-    "type":"sy.room.topic",
-    "roomid":"room_beta@sy.org",
-    "from":"alice@randomhost.org",
-    "content":{
-      "topic":"FRIENDS ONLY",
-    }
-  },
-  { 
-    "ever":"a028bd9e", 
-    "type":"sy.room.message",
-    "roomid":"room_beta@sy.org",
-    "msgid":"z839409",
-    "from":"alice@randomhost.org",
-    "hs_ts":140195000,
-    "content":{
-      "msgtype":"sy.text",
-      "body":"Hello!!!"
-    }
-  },
-  { 
-    "ever":"49372d9e", 
-    "type":"sy.room.message",
-    "roomid":"room_beta@sy.org",
-    "msgid":"z839410",
-    "from":"alice@randomhost.org",
-    "hs_ts":140196000,
-    "content":{
-      "msgtype":"sy.text",
-      "body":"Let's go to another room"
-    }
-  },
-  { 
-    "ever":"10abdd01", 
-    "type":"sy.room.message",
-    "roomid":"room_beta@sy.org",
-    "msgid":"z839411",
-    "from":"alice@randomhost.org",
-    "hs_ts":140197000,
-    "content":{
-      "msgtype":"sy.text",
-      "body":"You're not my friend"
-    }
-  },
-  { 
-    "ever":"0018453d", 
-    "type":"sy.room.members.state",
-    "roomid":"commoners@randomhost.org",
-    "from":"alice@randomhost.org",
-    "userid":"bob@sy.org",
-    "content":{
-      "membership":"invite"
-    }
-  },
-]
+{
+  "chunk": 
+    [
+      { 
+        "eid":"feee0294", 
+        "type":"sy.room.topic",
+        "roomid":"room_beta@sy.org",
+        "from":"alice@randomhost.org",
+        "content":{
+          "topic":"FRIENDS ONLY",
+        }
+      },
+      { 
+        "eid":"a028bd9e", 
+        "type":"sy.room.message",
+        "roomid":"room_beta@sy.org",
+        "msgid":"z839409",
+        "from":"alice@randomhost.org",
+        "hs_ts":140195000,
+        "content":{
+          "msgtype":"sy.text",
+          "body":"Hello!!!"
+        }
+      },
+      { 
+        "eid":"49372d9e", 
+        "type":"sy.room.message",
+        "roomid":"room_beta@sy.org",
+        "msgid":"z839410",
+        "from":"alice@randomhost.org",
+        "hs_ts":140196000,
+        "content":{
+          "msgtype":"sy.text",
+          "body":"Let's go to another room"
+        }
+      },
+      { 
+        "eid":"10abdd01", 
+        "type":"sy.room.message",
+        "roomid":"room_beta@sy.org",
+        "msgid":"z839411",
+        "from":"alice@randomhost.org",
+        "hs_ts":140197000,
+        "content":{
+          "msgtype":"sy.text",
+          "body":"You're not my friend"
+        }
+      },
+      { 
+        "eid":"0018453d", 
+        "type":"sy.room.members.state",
+        "roomid":"commoners@randomhost.org",
+        "from":"alice@randomhost.org",
+        "userid":"bob@sy.org",
+        "content":{
+          "membership":"invite"
+        }
+      },
+    ],
+  "start": "stok_0184288",
+  "end": "etok_1348723"
+}
 
 
 
