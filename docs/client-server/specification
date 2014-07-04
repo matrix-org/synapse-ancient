@@ -1,6 +1,24 @@
 Synapse Client-Server API
 =========================
 
+4/7/14 Grilling
+---------------
+- Mechanism for getting historical state changes (e.g. topic updates) - add query param flag?
+- Generic mechanism for linking first class events (e.g. feedback) with other first class events (e.g. messages)?
+- Generic mechanism for updating 'stuff about the room' (e.g. favourite coffee) AND specifying clobbering rules (clobber/add to list/etc)?
+- Error responses should be HTTP 4xx/5xx, not 200
+- s/eventid/eventversion/g
+- Makes no sense to paginate back on the event stream. We can also avoid having event versions for EACH event, by having a start/end (similar
+  to room list). When paginating back on rooms, just use the start event version (so we don't need to know the event version of the message
+  itself). Can possibily then standardise the response JSON for filtering.
+- Scrap the dir=? Work through use cases where we absolutely need to know it.
+- Specify an actual event ID for each event (to de-duplicate unknown event types). Can do this inbound from other home servers on their PDU
+  ID (e.g. event id = pduid@senderhshost)
+- How to ensure a consistent view for clients paginating through room lists? They aren't really ordered in any way, and if you're paginating
+  through them, how can you show them a consistent result set? Temporary 'room list versions' akin to event version? How does that work?
+
+
+
 The following specification outlines how a client can send and receive data from a home server.
 
 Terminology
