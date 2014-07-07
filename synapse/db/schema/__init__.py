@@ -1,5 +1,6 @@
 import os
 
+
 def schema_path(schema):
     dirPath = os.path.dirname(__file__)
     schemaPath = os.path.join(dirPath, schema + ".sql")
