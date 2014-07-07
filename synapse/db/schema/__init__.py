@@ -2,11 +2,26 @@ import os
 
 
 def schema_path(schema):
-    dirPath = os.path.dirname(__file__)
-    schemaPath = os.path.join(dirPath, schema + ".sql")
+    """ Get a filesystem path for the named database schema
+
+    Args:
+        schema: Name of the database schema.
+    Returns:
+        A filesystem path pointing at a ".sql" file.
+
+    """
+    dir_path = os.path.dirname(__file__)
+    schemaPath = os.path.join(dir_path, schema + ".sql")
     return schemaPath
 
 
 def read_schema(schema):
-    with open(schema_path(schema)) as schemaFile:
-        return schemaFile.read()
+    """ Read the named database schema.
+
+    Args:
+        schema: Name of the datbase schema.
+    Returns:
+        A string containing the database schema.
+    """
+    with open(schema_path(schema)) as schema_file:
+        return schema_file.read()
