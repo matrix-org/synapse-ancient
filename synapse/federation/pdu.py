@@ -98,7 +98,6 @@ class PduLayer(TransactionCallbacks):
 
         logger.debug("[%s] Persisting PDU", pdu.pdu_id)
 
-        # Populate the prev_pdus
         yield pdu.populate_previous_pdus()
 
         # Save *before* trying to send
@@ -194,11 +193,9 @@ class PduLayer(TransactionCallbacks):
             "_handle_new_pdu %s from %s", str(pdu.pdu_id), pdu.origin
         )
 
-        # Have we seen this pdu before?
-        existing = yield Pdu.get_persisted_pdu(pdu.pdu_id, pdu.origin)
-
         # Check if we've seen it before. If we have then we ignore
         # it (unless we have only seen an outlier before)
+        existing = yield Pdu.get_persisted_pdu(pdu.pdu_id, pdu.origin)
         if existing and (not existing.outlier or pdu.outlier):
             # We've already seen it, so we ignore it.
             defer.returnValue({})
@@ -242,10 +239,8 @@ class PduLayer(TransactionCallbacks):
             defer.returnValue(res)
             return
         else:
-            # Inform callback
             ret = yield self.callback.on_receive_pdu(pdu)
 
-            # Mark this Pdu as processed
             yield pdu.mark_as_processed()
 
             defer.returnValue(ret)
