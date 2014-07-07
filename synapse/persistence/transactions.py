@@ -18,7 +18,7 @@ from collections import namedtuple
 import logging
 
 
-logger = logging.getLogger("synapse.persistence.transactions")
+logger = logging.getLogger(__name__)
 
 PduTuple = namedtuple(
     "PduTuple",

@@ -14,7 +14,7 @@ import json
 import urllib
 
 
-logger = logging.getLogger("synapse.protocol.http")
+logger = logging.getLogger(__name__)
 
 
 def generate_qs(d):
