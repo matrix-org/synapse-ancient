@@ -9,8 +9,6 @@ Welcome to Synapse's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
-
    synapse
 
 Indices and tables

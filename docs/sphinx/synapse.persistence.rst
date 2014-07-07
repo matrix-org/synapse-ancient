@@ -4,26 +4,18 @@ synapse.persistence package
 Submodules
 ----------
 
-synapse.persistence.pdu module
-------------------------------
+synapse.persistence.tables module
+---------------------------------
 
-.. automodule:: synapse.persistence.pdu
+.. automodule:: synapse.persistence.tables
     :members:
     :undoc-members:
     :show-inheritance:
 
-synapse.persistence.queries module
-----------------------------------
+synapse.persistence.transactions module
+---------------------------------------
 
-.. automodule:: synapse.persistence.queries
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.persistence.transaction module
---------------------------------------
-
-.. automodule:: synapse.persistence.transaction
+.. automodule:: synapse.persistence.transactions
     :members:
     :undoc-members:
     :show-inheritance:
