@@ -18,7 +18,7 @@ from synapse.persistence.transactions import (
 import logging
 
 
-logger = logging.getLogger("synapse.pdu")
+logger = logging.getLogger(__name__)
 
 
 class PduCallbacks(object):

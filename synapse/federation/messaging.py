@@ -15,7 +15,7 @@ import logging
 import random
 
 
-logger = logging.getLogger("synapse.messaging")
+logger = logging.getLogger(__name__)
 
 
 class MessagingCallbacks(object):

@@ -17,7 +17,7 @@ import json
 import time
 
 
-logger = logging.getLogger("synapse.federation.protocol.units")
+logger = logging.getLogger(__name__)
 
 
 class JsonEncodedObject(object):

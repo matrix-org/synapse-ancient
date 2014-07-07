@@ -22,7 +22,7 @@ import logging
 import time
 
 
-logger = logging.getLogger("synapse.transaction")
+logger = logging.getLogger(__name__)
 
 
 class PduDecodeException(Exception):

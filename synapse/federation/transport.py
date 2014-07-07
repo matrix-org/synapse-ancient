@@ -17,7 +17,7 @@ import json
 import re
 
 
-logger = logging.getLogger("synapse.transport")
+logger = logging.getLogger(__name__)
 
 
 class TransportReceivedCallbacks(object):
