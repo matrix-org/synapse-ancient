@@ -89,7 +89,7 @@ class MessagingLayer(PduCallbacks):
         self.transaction_layer = TransactionLayer(
             server_name, self.transport_layer)
 
-        self.pdu_layer = PduLayer(self.transport_layer, self.transaction_layer)
+        self.pdu_layer = PduLayer(self.transaction_layer)
 
         self.server_name = server_name
         self.callback = callback

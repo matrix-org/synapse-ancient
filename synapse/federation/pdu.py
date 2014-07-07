@@ -59,17 +59,14 @@ class PduLayer(TransactionCallbacks):
         callback (synapse.pdu.PduCallbacks): The currently registered callback.
     """
 
-    def __init__(self, transport_layer, transaction_layer):
+    def __init__(self, transaction_layer):
         """
         Args:
-            transport_layer (synapse.transport.TransportLayer): The transport
-                layer to hit to request PDUs from other home servers.
             transaction_layer (synapse.transaction.TransactionLayer): The
                 transaction layer we use to to send PDUs.
         """
 
         self.transaction_layer = transaction_layer
-        self.transport_layer = transport_layer
 
         self.transaction_layer.set_callback(self)
 
@@ -123,7 +120,7 @@ class PduLayer(TransactionCallbacks):
         if not extremities:
             return
 
-        res = yield self.transport_layer.trigger_paginate(
+        res = yield self.transaction_layer.trigger_paginate(
             dest, context, extremities, limit)
 
         defer.returnValue(res)
@@ -221,7 +218,7 @@ class PduLayer(TransactionCallbacks):
                     exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
                     if not exists:
                         # Oh no! We better request it.
-                        yield self.transport_layer.trigger_get_pdu(
+                        yield self.transaction_layer.trigger_get_pdu(
                             pdu.origin,
                             pdu_id=pdu_id,
                             pdu_origin=origin,
@@ -269,7 +266,7 @@ class PduLayer(TransactionCallbacks):
                         "_handle_state getting pdu: %s %s",
                         r.pdu_id, r.origin
                     )
-                    yield self.transport_layer.trigger_get_pdu(
+                    yield self.transaction_layer.trigger_get_pdu(
                         pdu.origin,
                         pdu_id=r.pdu_id,
                         origin=r.origin,

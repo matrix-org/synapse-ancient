@@ -300,6 +300,62 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
 
         defer.returnValue((200, data))
 
+    def trigger_get_context_state(self, destination, context):
+        """Requests all state for a given context (i.e. room) from the
+        given server.
+
+        This will *not* return the state, but will pass the received state
+        to the TransportReceivedCallbacks.on_transaction callback in the same
+        way as if it had been sent them in a Transaction.
+
+        Args:
+            destination (str): The host name of the remote home server we want
+                to get the state from.
+            context (str): The name of the context we want the state of
+
+        Returns:
+            Deferred: Succeeds when we have finished processing the
+            response of the request.
+
+            The argument passed to the deferred is undefined and may be None.
+        """
+        logger.debug("trigger_get_context_metadata dest=%s, context=%s",
+                     destination, context)
+
+        return self.transport_layer.trigger_get_context_state(
+            destination, context)
+
+    def trigger_get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
+        """ Requests the pdu with give id and origin from the given server.
+
+        This will *not* return the PDU, but will pass the received state
+        to the TransportReceivedCallbacks.on_transaction callback in the same
+        way as if it had been sent them in a Transaction.
+
+        Args:
+            destination (str): The host name of the remote home server we want
+                to get the state from.
+            pdu_origin (str): The home server which created the PDU.
+            pdu_id (str): The id of the PDU being requested.
+            outlier (bool): Should the returned PDUs be considered an outlier?
+                Default: False
+
+        Returns:
+            Deferred: Succeeds when we have finished processing the
+            response of the request.
+
+            The result of the deferred is undefined and may be None.
+        """
+        logger.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
+                     destination, pdu_origin, pdu_id)
+
+        return self.transport_layer.trigger_get_pdu(
+            destination, pdu_origin, pdu_id, outlier)
+
+    def trigger_paginate(self, dest, context, pdu_tuples, limit):
+        return self.transport_layer.trigger_paginate(
+            dest, context, pdu_tuples, limit)
+
 
 class _TransactionQueue(object):
     """ This class makes sure we only have one transaction in flight at
