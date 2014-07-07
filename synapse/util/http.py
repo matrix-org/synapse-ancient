@@ -50,14 +50,12 @@ def generate_qs(d):
 
     # First we generate a list of lists, and then flatten it using
     # the "fun" list comprehension syntax.
-    qs = [
-        i for s in
-        [
-            ["%s=%s" % (k, urllib.quote_plus(w)) for w in v]
-            for k, v in d.items()
-        ]
-        for i in s
+    parts = [
+        ["%s=%s" % (k, urllib.quote_plus(w)) for w in v]
+        for k, v in d.items()
     ]
+
+    qs = [i for s in parts for i in s]
     return "&".join(qs)
 
 
@@ -283,7 +281,7 @@ class TwistedHttpClient(HttpClient):
             # First we generate a list of lists, and then flatten it using
             # the "fun" list comprehension syntax.
             qs = generate_qs(args)
-            path = "%s?%s" % (path, "&".join(qs))
+            path = "%s?%s" % (path, qs)
 
         response = yield self._create_get_request(
             "http://%s%s" % (destination, path)
