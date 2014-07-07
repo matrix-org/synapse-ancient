@@ -1,27 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from synapse.util.http import TwistedHttpServer, TwistedHttpClient
+from synapse.protocol.http import TwistedHttpServer, TwistedHttpClient
 from synapse.transport import TransportLayer
 from synapse.transaction import TransactionLayer
 from synapse.pdu import PduLayer
-from synapse.messaging import MessagingLayer, MessagingCallbacks
+from synapse.messaging import MessagingLayer
 from synapse.api.server import SynapseHomeServer
 from synapse.db import read_schema
 
 from synapse.util import DbPool
-from synapse.util import stringutils
 
 from twistar.registry import Registry
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from twisted.python.log import PythonLoggingObserver
 
 import argparse
 import logging
-import os
-import re
 import sqlite3
+
+
+logger = logging.getLogger(__name__)
 
 
 def setup_server(hostname):
@@ -32,7 +32,7 @@ def setup_server(hostname):
     Returns:
         A synapse home server
     """
-    print "Server hostname: %s" % hostname
+    logger.info("Server hostname: %s", hostname)
     http_server = TwistedHttpServer()
     http_client = TwistedHttpClient()
 
@@ -53,7 +53,7 @@ def setup_db(db_name):
     Args:
         db_name : The path to the database.
     """
-    print "Preparing database: %s..." % db_name
+    logging.info("Preparing database: %s...", db_name)
     pool = adbapi.ConnectionPool(
         'sqlite3', db_name, check_same_thread=False,
         cp_min=1, cp_max=1)
@@ -79,61 +79,52 @@ def setup_db(db_name):
             db_conn.commit()
 
 
-def setup_logging(verbosity, location):
-    """ Sets up logging with set verbosity levels.
+def setup_logging(verbosity=0, filename=None, config_path=None):
+    """ Sets up logging with verbosity levels.
 
     Args:
-        verbosity : The verbosity level.
-        location : The location to write logs to.
+        verbosity: The verbosity level.
+        filename: Log to the given file rather than to the console.
+        config_path: Path to a python logging config file.
     """
-    print "Logs stored at %s" % location
-    root_logger = logging.getLogger()
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - '
-            '%(message)s')
-    fh = logging.FileHandler(location)
-    fh.setFormatter(formatter)
+    if config_path is None:
+        if verbosity == 0:
+            level = logging.WARNING
+        elif verbosity == 1:
+            level = logging.INFO
+        else:
+            level = logging.DEBUG
 
-    root_logger.addHandler(fh)
-    root_logger.setLevel(logging.DEBUG)
-
-    sh = logging.StreamHandler()
-    sh.setFormatter(formatter)
-
-    if verbosity > 1:
-        root_logger.addHandler(sh)
-    elif verbosity == 1:
-        logger.addHandler(sh)
+        logging.basicConfig(level=level, filename=filename)
+    else:
+        logging.config.fileConfig(config_path)
 
     observer = PythonLoggingObserver()
     observer.start()
 
 
-def main(port, db, host, verbose):
-    host = host if host else "localhost"
+def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--port", dest="port", type=int, default=8080,
+                        help="The port to listen on.")
+    parser.add_argument("-d", "--database", dest="db", default="synapse.db",
+                        help="The database name.")
+    parser.add_argument("-H", "--host", dest="host", default="localhost",
+                        help="The hostname of the server.")
+    parser.add_argument('-v', '--verbose', dest="verbose", action='count',
+                        help="The verbosity level.")
+    args = parser.parse_args()
 
-    if not os.path.exists("logs"):
-        os.makedirs("logs")
-    setup_logging(verbose, "logs/%s"%host)
+    setup_logging(args.verbose)
 
     # setup and run with defaults if not specified
-    setup_db(db if db else "proto_synapse.db")
-    server = setup_server(host)
-    server.start_listening(port if port else 8080)
+    setup_db(args.db)
+    server = setup_server(args.host)
+    server.start_listening(args.port)
 
     reactor.run()
 
 
-def run():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--port", dest="port", type=int, help="The port to listen on.")
-    parser.add_argument("-d", "--database", dest="db", help="The database name.")
-    parser.add_argument("-H", "--host", dest="host", help="The hostname of the server.")
-    parser.add_argument('-v', '--verbose', dest="verbose", action='count', help="The verbosity level.")
-    args = parser.parse_args()
-    main(args.port, args.db, args.host, args.verbose)
-
-
 if __name__ == '__main__':
     run()
-
