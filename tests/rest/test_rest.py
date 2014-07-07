@@ -68,6 +68,10 @@ class MessageTestCase(unittest.TestCase):
         self.assertEquals(400, code)
 
         (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '[{"_name":"bob"},{"_name":"jill"}]')
+        self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("PUT",
                            path, 'text only')
         self.assertEquals(400, code)
 
@@ -81,6 +85,10 @@ class MessageTestCase(unittest.TestCase):
         self._test_invalid_puts(path)
 
         (code, response) = yield self.mock_server.trigger("PUT", path,
+                           '{"membership":["join","leave","invite"]}')
+        self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("PUT", path,
                            '{"membership":"join"}')
         self.assertEquals(200, code)
 
@@ -88,6 +96,15 @@ class MessageTestCase(unittest.TestCase):
     def test_messages_in_room(self):
         path = "/rooms/rid1/messages/sid1/mid1"
         self._test_invalid_puts(path)
+
+        # valid keys, wrong types
+        (code, response) = yield self.mock_server.trigger("PUT", path,
+                           '{"body":["test"],"msgtype":"a"}')
+        self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("PUT", path,
+                           '{"body":"test","msgtype":{"type":"a"}}')
+        self.assertEquals(400, code)
 
         # custom message types
         (code, response) = yield self.mock_server.trigger("PUT", path,

@@ -44,13 +44,14 @@ class BaseEvent(object):
         pass
 
     @staticmethod
-    def get_valid_json(content, required_keys):
+    def get_valid_json(content, required_keys_values):
         """ Utility method to check if the content contains the required keys
         and return the content as JSON.
 
         Args:
             content : The raw HTTP content
-            required_keys : A list of required top-level JSON keys.
+            required_keys_values : A list of tuples containing the required
+                                   top-level JSON key and a python type.
         Returns:
             The content as JSON.
         Raises:
@@ -58,9 +59,12 @@ class BaseEvent(object):
             ValueError if the content isn't JSON.
         """
         content_json = json.loads(content)
-        for key in required_keys:
+        for (key, typ) in required_keys_values:
             if key not in content_json:
                 raise KeyError("Missing %s key" % key)
+            if type(content_json[key]) != typ:
+                raise KeyError("Key %s is of the wrong type." % key)
+
         return content_json
 
     @staticmethod

@@ -6,6 +6,8 @@ from synapse.api.messages import Message, RoomMembership
 import json
 import re
 
+# TODO: Can on_PUTs which just check keys > dump in db be factored out somehow?
+
 
 class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
 
@@ -22,7 +24,8 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
 
     def on_PUT(self, request, *url_args):
         try:
-            req = BaseEvent.get_valid_json(request.content.read(), ["topic"])
+            req = BaseEvent.get_valid_json(request.content.read(),
+                                           [("topic", unicode)])
         except ValueError:
             return (400, BaseEvent.error("Content must be JSON."))
         except KeyError:
@@ -53,7 +56,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_PUT(self, request, roomid, userid):
         try:
             content = BaseEvent.get_valid_json(request.content.read(),
-                                           ["membership"])
+                                           [("membership", unicode)])
         except ValueError:
             defer.returnValue((400, BaseEvent.error("Content must be JSON.")))
         except KeyError:
@@ -88,7 +91,8 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_PUT(self, request, room_id, sender_id, msg_id):
         try:
             req = BaseEvent.get_valid_json(request.content.read(),
-                                           ["msgtype", "body"])
+                                           [("msgtype", unicode),
+                                            ("body", unicode)])
         except ValueError:
             defer.returnValue((400, BaseEvent.error("Content must be JSON.")))
         except KeyError:
