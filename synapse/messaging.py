@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""This is the entry point for the rest of the HomeServer to interact with
+the server to server stack.
+"""
 
 from .pdu import PduCallbacks
 from .protocol.units import Pdu
@@ -93,6 +96,17 @@ class MessagingLayer(PduCallbacks):
         self.callback = callback
 
     def paginate(self, dest, context, limit):
+        """Requests from `dest` to paginate backwards on `context` by `limit`
+        PDUs
+
+        Args:
+            dest (str)
+            context (str)
+            limit (int)
+
+        Returns:
+            deferred
+        """
         return self.pdu_layer.paginate(dest, context, limit)
 
     @defer.inlineCallbacks
@@ -101,7 +115,7 @@ class MessagingLayer(PduCallbacks):
         Overrides:
             synapse.pdu.PduCallbacks
         """
-        r = yield defer.maybeDeferred(self.callback.on_receive_pdu, pdu)
+        result = yield defer.maybeDeferred(self.callback.on_receive_pdu, pdu)
 
         # Don't send feedback for feedback messages!
         if pdu.pdu_type != "feedback":
@@ -111,7 +125,7 @@ class MessagingLayer(PduCallbacks):
                 content={}
             )
 
-        defer.returnValue(r)
+        defer.returnValue(result)
 
     @defer.inlineCallbacks
     def on_state_change(self, pdu):
@@ -192,9 +206,9 @@ class MessagingLayer(PduCallbacks):
             content=content
         )
 
-        r = yield self.send_pdu(pdu)
+        result = yield self.send_pdu(pdu)
 
-        defer.returnValue(r)
+        defer.returnValue(result)
 
     @defer.inlineCallbacks
     def send(self, context, pdu_type, content):
@@ -222,6 +236,6 @@ class MessagingLayer(PduCallbacks):
             content=content
         )
 
-        r = yield self.send_pdu(pdu)
+        result = yield self.send_pdu(pdu)
 
-        defer.returnValue(r)
+        defer.returnValue(result)
