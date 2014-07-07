@@ -1,5 +1,4 @@
 import json
-import re
 
 
 class EventFactory(object):
@@ -10,7 +9,9 @@ class EventFactory(object):
     events = []
 
     def __init__(self):
-        self.events.append(RoomTopicEvent())
+        import room_events
+        self.events.append(room_events.RoomTopicEvent())
+        self.events.append(room_events.RoomMemberEvent())
 
     def register_paths(self, http_server):
         """ Registers paths for all known events.
@@ -149,30 +150,7 @@ class EventStreamMixin(object):
         # pattern. Ideally, http_server would return the raw SRE_Pattern which
         # would preserve group names, but we don't currently.
         for group_name, group_pos in self._ev_pattern.groupindex.iteritems():
-            # group pos starts at 1, and *url_args are actually a group tuple,
+            # group pos starts at 1, and *url_args are actually a tuple,
             # hence needing to index again to the first element
-            event[group_name] = url_args[group_pos - 1][0]
+            event[group_name] = url_args[0][group_pos - 1]
         return event
-
-
-class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
-
-    @classmethod
-    def get_pattern(cls):
-        return re.compile("^/rooms/(?P<roomid>[^/]*)$")
-
-    def get_event_type(self):
-        return "sy.room.topic"
-
-    def on_GET(self, request, *url_args):
-        print "dict: %s" % self.get_event_stream_dict(url_args)
-        return (200, {"rooms": "None"})
-
-    def on_PUT(self, request, *url_args):
-        try:
-            print BaseEvent.get_valid_json(request.content.read(), ["name"])
-        except ValueError:
-            return (400, BaseEvent.error("Content must be JSON."))
-        except KeyError:
-            return (400, BaseEvent.error("Missing required keys."))
-        return (200, {"room": "topic"})
