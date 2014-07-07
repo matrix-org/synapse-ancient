@@ -54,6 +54,7 @@ class MessageTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_messages_in_room(self):
+        # missing keys or invalid json
         (code, response) = yield self.mock_server.trigger("PUT",
                            "/rooms/rid1/messages/sid1/mid1", '{}')
         self.assertEquals(400, code)
@@ -62,6 +63,15 @@ class MessageTestCase(unittest.TestCase):
                            "/rooms/rid1/messages/sid1/mid1", '{"name":"bob"}')
         self.assertEquals(400, code)
 
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           "/rooms/rid1/messages/sid1/mid1", '{"nao')
+        self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           "/rooms/rid1/messages/sid1/mid1", 'text only')
+        self.assertEquals(400, code)
+
+        # custom message types
         (code, response) = yield self.mock_server.trigger("PUT",
                            "/rooms/rid1/messages/sid1/mid1",
                            '{"body":"test","msgtype":"test.custom.text"}')
@@ -72,6 +82,18 @@ class MessageTestCase(unittest.TestCase):
         self.assertEquals(200, code)
         self.assertEquals(json.loads('{"body":"test","msgtype":' +
                           '"test.custom.text"}'), response)
+
+        # sy.text message type
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           "/rooms/rid1/messages/sid1/mid2",
+                           '{"body":"test2","msgtype":"sy.text"}')
+        self.assertEquals(200, code)
+
+        (code, response) = yield self.mock_server.trigger("GET",
+                           "/rooms/rid1/messages/sid1/mid2", None)
+        self.assertEquals(200, code)
+        self.assertEquals(json.loads('{"body":"test2","msgtype":' +
+                          '"sy.text"}'), response)
 
 
 class MockHttpServer(HttpServer):
