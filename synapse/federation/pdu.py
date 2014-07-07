@@ -11,7 +11,9 @@ from twisted.internet import defer
 
 from .transaction import TransactionCallbacks
 from .protocol.units import Pdu
-from .persistence.transactions import PduQueries, StateQueries, run_interaction
+from synapse.persistence.transactions import (
+    PduQueries, StateQueries, run_interaction
+)
 
 import logging
 
@@ -28,7 +30,7 @@ class PduCallbacks(object):
         """ We received a PDU. Someone should handle that.
 
         Args:
-            pdu (synapse.protocol.units.Pdu): The PDU we received.
+            pdu (synapse.federation.protocol.units.Pdu): The PDU we received.
 
         Returns:
             Deferred: Results in a dict that used as the response to the PDU.
@@ -39,7 +41,8 @@ class PduCallbacks(object):
         """ A state change occured.
 
         Args:
-            pdu (synapse.protocol.units.Pdu): The pdu of the new state.
+            pdu (synapse.federation.protocol.units.Pdu): The pdu of the new
+                state.
 
         Returns:
             Deferred
@@ -82,7 +85,7 @@ class PduLayer(TransactionCallbacks):
         """ Sends a PDU. This takes care of handling the versions.
 
         Args:
-            pdu (synapse.protocol.units.Pdu): The PDU to send
+            pdu (synapse.federation.protocol.units.Pdu): The PDU to send
 
         Returns:
             Deferred: That succeeds when we have successfully sent the PDU

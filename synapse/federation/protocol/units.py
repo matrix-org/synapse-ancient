@@ -4,12 +4,12 @@ server to server protocol.
 """
 
 from twisted.internet import defer
-from ..persistence.transactions import (
+from synapse.persistence.transactions import (
     TransactionQueries, PduQueries,
     StateQueries, run_interaction
 )
 
-from ..persistence.tables import ReceivedTransactionsTable
+from synapse.persistence.tables import ReceivedTransactionsTable
 
 import copy
 import logging
@@ -17,11 +17,11 @@ import json
 import time
 
 
-logger = logging.getLogger("synapse.protocol.units")
+logger = logging.getLogger("synapse.federation.protocol.units")
 
 
 class JsonEncodedObject(object):
-    """ A common base class for the protocol units. Handles encoding and
+    """ A common base class for the protocol units Handles encoding and
     decoding them as JSON.
 
     This is useful when we are sending json data backwards and forwards,

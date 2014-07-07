@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from synapse.protocol.http import TwistedHttpServer, TwistedHttpClient
+from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.transport import TransportLayer
 from synapse.transaction import TransactionLayer
 from synapse.pdu import PduLayer
@@ -111,7 +111,7 @@ def setup_logging(verbosity, location):
 
 def main(port, db, host, verbose):
     host = host if host else "localhost"
-    
+
     if not os.path.exists("logs"):
         os.makedirs("logs")
     setup_logging(verbose, "logs/%s"%host)

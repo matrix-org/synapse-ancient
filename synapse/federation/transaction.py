@@ -38,8 +38,8 @@ class TransactionCallbacks(object):
         """ Get's called when we receive pdus via a transaction.
 
         Args:
-            pdu_list (list): A list of synapse.protocol.units.Pdu that we
-                received as part of a transaction
+            pdu_list (list): A list of synapse.federation.protocol.units.Pdu
+                that we received as part of a transaction
 
         Returns:
             Deferred: Called back when they have been
@@ -72,8 +72,8 @@ class TransactionCallbacks(object):
             pdu_id (str): The id of the Pdu being requested.
 
         Returns:
-            Deferred: Results in a synapse.protocol.units.Pdu, or `None` if
-            we couldn't find a matching Pdu.
+            Deferred: Results in a synapse.federation.protocol.units.Pdu, or
+            `None` if we couldn't find a matching Pdu.
         """
         pass
 
@@ -159,7 +159,8 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         having to know what the versions look like at this layer.
 
         Args:
-            pdu (synapse.protocol.units.Pdu): The pdu we want to send.
+            pdu (synapse.federation.protocol.units.Pdu): The pdu we want to
+                send.
 
             order (int): An integer that is used to order the sending of Pdus
                 to the same remote home server

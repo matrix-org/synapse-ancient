@@ -261,9 +261,9 @@ class TransportLayer(object):
         """ Sends the given Transaction
 
         Args:
-            transaction (synapse.protocol.units.Transaction): The transaction
-                to send. The Transaction instance includes the destination to
-                send it to.
+            transaction (synapse.federation.protocol.units.Transaction): The
+                transaction to send. The Transaction instance includes the
+                destination to send it to.
 
         Returns:
             Deferred: Succeeds when we have finished processing the response

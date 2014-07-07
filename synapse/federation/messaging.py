@@ -23,7 +23,7 @@ class MessagingCallbacks(object):
         """ We received a PDU. Someone should handle that.
 
         Args:
-            pdu (synapse.protocol.units.Pdu): The PDU we received.
+            pdu (synapse.federation.protocol.units.Pdu): The PDU we received.
 
         Returns:
             Deferred: Results in a dict that used as the response to the PDU.
@@ -34,7 +34,8 @@ class MessagingCallbacks(object):
         """ A state change occured.
 
         Args:
-            pdu (synapse.protocol.units.Pdu): The pdu of the new state.
+            pdu (synapse.federation.protocol.units.Pdu): The pdu of the new
+                state.
 
         Returns:
             Deferred
@@ -140,7 +141,7 @@ class MessagingLayer(PduCallbacks):
     def send_pdu(self, pdu):
         """ Send a PDU.
         Args:
-            pdu (synapse.protocol.units.Pdu): The pdu to send.
+            pdu (synapse.federation.protocol.units.Pdu): The pdu to send.
 
         Returns:
             Deferred: Succeeds when we have finished attempting to deliver the

@@ -14,11 +14,11 @@ Currently assumes the local address is localhost:<port>
 """
 
 import synapse.db.schema
-from synapse.protocol.http import TwistedHttpServer, TwistedHttpClient
-from synapse.transport import TransportLayer
-from synapse.transaction import TransactionLayer
-from synapse.pdu import PduLayer
-from synapse.messaging import MessagingLayer, MessagingCallbacks
+from synapse.util.http import TwistedHttpServer, TwistedHttpClient
+from synapse.federation.transport import TransportLayer
+from synapse.federation.transaction import TransactionLayer
+from synapse.federation.pdu import PduLayer
+from synapse.federation.messaging import MessagingLayer, MessagingCallbacks
 
 from synapse.util import DbPool, origin_from_ucid
 
