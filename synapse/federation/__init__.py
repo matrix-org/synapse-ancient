@@ -4,4 +4,4 @@
 The entry point from the rest of the home server is the messaging package.
 """
 
-from .messaging import MessagingLayer, MessaginCallbacks
+from .messaging import MessagingLayer, MessagingCallbacks
