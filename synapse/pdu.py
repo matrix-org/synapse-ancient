@@ -224,7 +224,7 @@ class PduLayer(TransactionCallbacks):
                         yield self.transport_layer.trigger_get_pdu(
                             pdu.origin,
                             pdu_id=pdu_id,
-                            origin=origin,
+                            pdu_origin=origin,
                             outlier=pdu.outlier
                         )
 
