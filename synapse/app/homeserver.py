@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from synapse.protocol.http import TwistedHttpServer, TwistedHttpClient
-from synapse.transport import TransportLayer
-from synapse.transaction import TransactionLayer
-from synapse.pdu import PduLayer
-from synapse.messaging import MessagingLayer
+from synapse.util.http import TwistedHttpServer, TwistedHttpClient
+from synapse.federation import MessagingLayer
 from synapse.api.server import SynapseHomeServer
 from synapse.db import read_schema
 
@@ -36,11 +33,7 @@ def setup_server(hostname):
     http_server = TwistedHttpServer()
     http_client = TwistedHttpClient()
 
-    transport_layer = TransportLayer(hostname, http_server, http_client)
-    transaction_layer = TransactionLayer(hostname, transport_layer)
-    pdu_layer = PduLayer(transport_layer, transaction_layer)
-
-    messaging = MessagingLayer(hostname, transport_layer, pdu_layer)
+    messaging = MessagingLayer(hostname, http_client, http_server)
 
     hs = SynapseHomeServer(http_server, hostname, messaging)
     return http_server
