@@ -7,7 +7,7 @@ from twistar.registry import Registry
 from twisted.trial import unittest
 
 from synapse.db import read_schema
-from synapse.api.room_events import MessageEvent
+from synapse.api.room_events import MessageEvent, RoomMemberEvent
 from synapse.util.http import HttpServer
 
 # python imports
@@ -43,8 +43,8 @@ class MessageTestCase(unittest.TestCase):
     def setUp(self):
         self._setup_db("_temp.db")
         self.mock_server = MockHttpServer()
-        self.message_event = MessageEvent()
-        self.message_event.register(self.mock_server)
+        MessageEvent().register(self.mock_server)
+        RoomMemberEvent().register(self.mock_server)
 
     def tearDown(self):
         try:
@@ -53,44 +53,59 @@ class MessageTestCase(unittest.TestCase):
             pass
 
     @defer.inlineCallbacks
-    def test_messages_in_room(self):
+    def _test_invalid_puts(self, path):
         # missing keys or invalid json
         (code, response) = yield self.mock_server.trigger("PUT",
-                           "/rooms/rid1/messages/sid1/mid1", '{}')
+                           path, '{}')
         self.assertEquals(400, code)
 
         (code, response) = yield self.mock_server.trigger("PUT",
-                           "/rooms/rid1/messages/sid1/mid1", '{"name":"bob"}')
+                           path, '{"_name":"bob"}')
         self.assertEquals(400, code)
 
         (code, response) = yield self.mock_server.trigger("PUT",
-                           "/rooms/rid1/messages/sid1/mid1", '{"nao')
+                           path, '{"nao')
         self.assertEquals(400, code)
 
         (code, response) = yield self.mock_server.trigger("PUT",
-                           "/rooms/rid1/messages/sid1/mid1", 'text only')
+                           path, 'text only')
         self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '')
+        self.assertEquals(400, code)
+
+    @defer.inlineCallbacks
+    def test_room_members(self):
+        path = "/rooms/rid1/members/sid1/state"
+        self._test_invalid_puts(path)
+
+        (code, response) = yield self.mock_server.trigger("PUT", path,
+                           '{"membership":"join"}')
+        self.assertEquals(200, code)
+
+    @defer.inlineCallbacks
+    def test_messages_in_room(self):
+        path = "/rooms/rid1/messages/sid1/mid1"
+        self._test_invalid_puts(path)
 
         # custom message types
-        (code, response) = yield self.mock_server.trigger("PUT",
-                           "/rooms/rid1/messages/sid1/mid1",
+        (code, response) = yield self.mock_server.trigger("PUT", path,
                            '{"body":"test","msgtype":"test.custom.text"}')
         self.assertEquals(200, code)
 
-        (code, response) = yield self.mock_server.trigger("GET",
-                           "/rooms/rid1/messages/sid1/mid1", None)
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code)
         self.assertEquals(json.loads('{"body":"test","msgtype":' +
                           '"test.custom.text"}'), response)
 
         # sy.text message type
-        (code, response) = yield self.mock_server.trigger("PUT",
-                           "/rooms/rid1/messages/sid1/mid2",
+        path = "/rooms/rid1/messages/sid1/mid2"
+        (code, response) = yield self.mock_server.trigger("PUT", path,
                            '{"body":"test2","msgtype":"sy.text"}')
         self.assertEquals(200, code)
 
-        (code, response) = yield self.mock_server.trigger("GET",
-                           "/rooms/rid1/messages/sid1/mid2", None)
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code)
         self.assertEquals(json.loads('{"body":"test2","msgtype":' +
                           '"sy.text"}'), response)
@@ -112,8 +127,9 @@ class MockHttpServer(HttpServer):
             mock_request : Mocked request to pass to the event so it can get
                            content.
         Returns:
-            A tuple of (code, response) or None if no registered events were
-            found.
+            A tuple of (code, response)
+        Raises:
+            KeyError If no event is found which will handle the path.
         """
 
         # annoyingly we return a twisted http request which has chained calls
@@ -131,7 +147,7 @@ class MockHttpServer(HttpServer):
             if matcher:
                 (code, response) = yield func(mock_request, *matcher.groups())
                 defer.returnValue((code, response))
-        defer.returnValue(None)
+        raise KeyError("No event can handle %s" % path)
 
     def register_path(self, method, path_pattern, callback):
         self.callbacks.append((method, path_pattern, callback))
