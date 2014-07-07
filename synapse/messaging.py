@@ -137,14 +137,6 @@ class MessagingLayer(PduCallbacks):
 
         # TODO: Add state feedback.
 
-    def on_unseen_pdu(self, originating_server, pdu_id, origin, outlier):
-        """
-        Overrides:
-            synapse.pdu.PduCallbacks
-        """
-        return self.transport_layer.trigger_get_pdu(
-            originating_server, origin, pdu_id, outlier)
-
     def send_pdu(self, pdu):
         """ Send a PDU.
         Args:

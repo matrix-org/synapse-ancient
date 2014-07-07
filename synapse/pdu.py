@@ -46,25 +46,6 @@ class PduCallbacks(object):
         """
         pass
 
-    def on_unseen_pdu(self, originating_server, pdu_id, origin, outlier):
-        """ We have seen a reference to a PDU we don't have. Usually someone
-        specifically asks some remote home server for it.
-
-        Should result in the PDU being in the DB by the time this finishes.
-
-        Args:
-            originating_server (str): The home server that referenced the
-                unrecognized PDU.
-
-            pdu_id (str): The pdu id of the unseen PDU
-
-            origin (str): The origin of the unseen PDU.
-
-        Returns:
-            Deferred
-        """
-        pass
-
 
 class PduLayer(TransactionCallbacks):
     """
@@ -240,7 +221,7 @@ class PduLayer(TransactionCallbacks):
                     exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
                     if not exists:
                         # Oh no! We better request it.
-                        yield self.callback.on_unseen_pdu(
+                        yield self.transport_layer.trigger_get_pdu(
                             pdu.origin,
                             pdu_id=pdu_id,
                             origin=origin,
@@ -290,7 +271,7 @@ class PduLayer(TransactionCallbacks):
                         "_handle_state getting pdu: %s %s",
                         r.pdu_id, r.origin
                     )
-                    yield self.callback.on_unseen_pdu(
+                    yield self.transport_layer.trigger_get_pdu(
                         pdu.origin,
                         pdu_id=r.pdu_id,
                         origin=r.origin,
