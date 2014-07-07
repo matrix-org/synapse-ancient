@@ -14,7 +14,7 @@ setup(
     version="0.1",
     packages=find_packages(exclude=["tests"]),
     description="Reference Synapse Home Server",
-    install_requires=["Twisted", "twistar"],
+    install_requires=["Twisted>=14.0.0", "twistar>=1.3"],
     setup_requires=["setuptools_trial", "sphinx", "sphinxcontrib-napoleon", "mock"],
     include_package_data=True,
     long_description=read("README"),
