@@ -13,7 +13,6 @@ Currently assumes the local address is localhost:<port>
 
 """
 
-import synapse.db.schema
 from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.federation.transport import TransportLayer
 from synapse.federation.transaction import TransactionLayer
@@ -21,6 +20,8 @@ from synapse.federation.pdu import PduLayer
 from synapse.federation.messaging import MessagingLayer, MessagingCallbacks
 
 from synapse.util import DbPool, origin_from_ucid
+
+from synapse.db import schema_path
 
 from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
@@ -284,8 +285,8 @@ def setup_db(db_name):
     DbPool.set(pool)
 
     schemas = [
-            synapse.db.schema.schema_path("transactions"),
-            synapse.db.schema.schema_path("pdu"),
+            schema_path("transactions"),
+            schema_path("pdu"),
         ]
 
     for sql_loc in schemas:

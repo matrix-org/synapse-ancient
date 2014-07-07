@@ -10,7 +10,7 @@ from twistar.dbobject import DBObject
 from twisted.trial import unittest
 
 # synapse imports
-from synapse.db.schema import schema_path
+from synapse.db import schema_path
 from synapse.db.database import Database
 from synapse.api.messages import Message
 from synapse.api.core import SynapseApi
@@ -45,7 +45,7 @@ class DatabaseSetupTestCase(unittest.TestCase):
         # where the schema folder is. We assume that these tests are being run from
         # _trial_temp and therefore the schema folder is a directory up.
         self.assertTrue(os.path.exists(SCHEMA_SQL), msg="Cannot find %s. Execution directory: %s"%(SCHEMA_SQL,os.getcwd()))
-        
+
         self.database = Database(TEST_DB)
         d = self.database.init_from_file(SCHEMA_SQL, TEST_DB)
 
@@ -66,7 +66,7 @@ class DatabaseSetupTestCase(unittest.TestCase):
         malformed = "malformed.sql"
         with open(malformed, "w") as mal:
             mal.write("CREATE TABLE boo VALUES (aaa,bbb,cc); CREATE TABLE IF NOT EXISTS BLARGH")
-        
+
         database = Database(TEST_DB)
         d = database.init_from_file(malformed, TEST_DB)
         self.assertFailure(d, SyntaxError)
@@ -85,7 +85,7 @@ class DatabaseSetupTestCase(unittest.TestCase):
             self.assertFalse(db_setup, "Database unexpectedly didn't exist.")
         d.addCallback(_cb)
         return d
-       
+
 class DatabaseCrudTestCase(unittest.TestCase):
     """ Checks that the database can perform CRUD operations on data. """
 
@@ -120,7 +120,7 @@ class DatabaseCrudTestCase(unittest.TestCase):
         yield msgs[0].delete()
         msgs = yield Message.findBy(sender_synid="s@syn.org") # verify
         self.assertEquals(0, len(msgs))
-        
+
 class DatabaseVersionQueriesTestCase(unittest.TestCase):
     """ Checks that the correct data is pulled out for a given version. """
 
@@ -189,5 +189,5 @@ class DatabaseVersionQueriesTestCase(unittest.TestCase):
         msg = yield self.database.get_messages(from_version=5, to_version=1, room_id="room2", limit=1)
         self.assertEquals(4, msg.id)
 
-    
+
 

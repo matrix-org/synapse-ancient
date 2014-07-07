@@ -6,6 +6,7 @@ from synapse.transaction import TransactionLayer
 from synapse.pdu import PduLayer
 from synapse.messaging import MessagingLayer, MessagingCallbacks
 from synapse.api.server import SynapseHomeServer
+from synapse.db import read_schema
 
 from synapse.util import DbPool
 from synapse.util import stringutils
@@ -21,7 +22,6 @@ import logging
 import os
 import re
 import sqlite3
-import synapse.db.schema
 
 
 def setup_server(hostname):
@@ -70,7 +70,7 @@ def setup_db(db_name):
     ]
 
     for sql_loc in schemas:
-        sql_script = synapse.db.schema.read_schema(sql_loc)
+        sql_script = read_schema(sql_loc)
 
         with sqlite3.connect(db_name) as db_conn:
             c = db_conn.cursor()
