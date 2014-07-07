@@ -89,7 +89,7 @@ class PutEventMixin(object):
         http_server.register_path("PUT", self.__class__.get_pattern(),
                                   self.on_PUT)
 
-    def on_PUT(self, request, groups):
+    def on_PUT(self, request, *url_args):
         raise NotImplementedError("on_PUT callback not implemented")
 
 
@@ -102,7 +102,7 @@ class GetEventMixin(object):
         http_server.register_path("GET", self.__class__.get_pattern(),
                                   self.on_GET)
 
-    def on_GET(self, request, groups):
+    def on_GET(self, request, *url_args):
         raise NotImplementedError("on_GET callback not implemented")
 
 
@@ -118,7 +118,11 @@ class EventStreamMixin(object):
     _ev_pattern = None
 
     def get_event_type(self):
-        """ Specify the namespaced event type. """
+        """ Specify the namespaced event type.
+
+        Returns:
+            A string representing the event type, e.g. sy.room.message
+        """
         raise NotImplementedError()
 
     def get_event_stream_dict(self, *url_args, **kwargs):
