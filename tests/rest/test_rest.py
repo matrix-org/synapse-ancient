@@ -28,9 +28,6 @@ class MessageTestCase(unittest.TestCase):
             cp_min=1, cp_max=1)
 
         schemas = [
-            "transactions",
-            "pdu",
-            "users",
             "im"
         ]
 
