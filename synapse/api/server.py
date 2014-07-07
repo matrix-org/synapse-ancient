@@ -5,7 +5,7 @@ from twisted.internet import defer
 
 from synapse.api.events import EventFactory
 from synapse.api.messages import Message
-from synapse.messaging import MessagingCallbacks
+from synapse.federation import MessagingCallbacks
 
 
 class SynapseHomeServer(MessagingCallbacks):
