@@ -349,11 +349,7 @@ def main(stdscr):
     http_server = TwistedHttpServer()
     http_client = TwistedHttpClient()
 
-    transport_layer = TransportLayer(server_name, http_server, http_client)
-    transaction_layer = TransactionLayer(server_name, transport_layer)
-    pdu_layer = PduLayer(transport_layer, transaction_layer)
-
-    messaging = MessagingLayer(server_name, transport_layer, pdu_layer)
+    messaging = MessagingLayer(server_name, http_client, http_server)
 
     hs = HomeServer(server_name, messaging, curses_stdio)
 

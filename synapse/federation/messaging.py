@@ -5,6 +5,9 @@ the server to server stack.
 
 from .pdu import PduCallbacks
 from .protocol.units import Pdu
+from .transport import TransportLayer
+from .pdu import PduLayer
+from .transaction import TransactionLayer
 
 from twisted.internet import defer
 
@@ -62,24 +65,32 @@ class MessagingLayer(PduCallbacks):
 
     Args:
         server_name (str): The local host.
-        transport_layer (synapse.transport.TransportLayer): The transport layer
-            to use to send requests.
-        pdu_layer (synapse.pdu.PduLayer): The pdu layer we use to send PDUs.
+        http_client (synapse.util.http.HttpClient): The http client to use to
+            make requests.
+        http_server (synapse.util.http.HttpServer): The http server to listen
+            for incoming requests on.
         callack (MessagingCallbacks, optional): The callback to use to inform
             the application about new PDUs. Defaults to None.
 
     Attributes:
         server_name (str): The local host.
-        transport_layer (synapse.transport.TransportLayer): The transport layer
-            to use to send requests.
-        pdu_layer (synapse.pdu.PduLayer): The pdu layer we use to send PDUs.
+        transport_layer (synapse.federation.transport.TransportLayer): The
+            transport layer to use to send requests.
+        pdu_layer (synapse.federation.pdu.PduLayer): The pdu layer we use to
+            send PDUs.
         callack (MessagingCallbacks, optional): The callback to use. Defaults
             to None.
 
     """
-    def __init__(self, server_name, transport_layer, pdu_layer, callback=None):
-        self.transport_layer = transport_layer
-        self.pdu_layer = pdu_layer
+    def __init__(self, server_name, http_client, http_server, callback=None):
+        self.transport_layer = TransportLayer(
+            server_name, http_server, http_client)
+
+        self.transaction_layer = TransactionLayer(
+            server_name, self.transport_layer)
+
+        self.pdu_layer = PduLayer(self.transport_layer, self.transaction_layer)
+
         self.server_name = server_name
         self.callback = callback
 

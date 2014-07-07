@@ -254,7 +254,7 @@ class TransportLayer(object):
             path,
             outlier=False,
             args=args,
-            )
+        )
 
     @defer.inlineCallbacks
     def send_transaction(self, transaction):
