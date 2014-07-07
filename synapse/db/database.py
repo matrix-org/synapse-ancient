@@ -19,8 +19,8 @@ class Database(object):
         self.db_name = db_name
 
     def make_default_db_pool(self):
-        """ Makes this database the default db pool when saving Twistar objects.
-         """
+        """ Makes this the default db pool to use when saving Twistar objects.
+        """
         Registry.DBPOOL = self._db_pool
 
     def init_from_file(self, schema_file_path, db_name):
@@ -53,8 +53,8 @@ class Database(object):
             from_version : The version to start from
             to_version : The version to end up at.
         Returns:
-            A dict with keys "where", "params", "orderby" whose values can be used
-            with DBObject.find : E.g.
+            A dict with keys "where", "params", "orderby" whose values can be
+            used with DBObject.find : E.g.
             {
               "where" : "id < ? AND id > ?",
               "params" : [from_version, to_version]
@@ -66,15 +66,13 @@ class Database(object):
         if not from_version and to_version:
             raise IndexError("Cannot have to version without from version.")
 
-        forwards = True
         orderby = "id ASC"
         min_ver = from_version
         max_ver = to_version
         where = "1"
         where_arr = []
-        # going backwards
         if from_version > to_version and to_version is not None:
-            forwards = False
+            # going backwards
             orderby = "id DESC"
             min_ver = to_version
             max_ver = from_version
@@ -96,8 +94,11 @@ class Database(object):
             where_dict["params"].append(room_id)
 
         where_arr = [where_dict["where"]] + where_dict["params"]
-        return Message.find(where=where_arr, orderby=where_dict["orderby"],
-                            **kwargs)
+        return Message.find(
+            where=where_arr,
+            orderby=where_dict["orderby"],
+            **kwargs
+        )
 
     def get_room_membership(self, room_id=None, synid=None):
         """ Retrieves the latest RoomMembership for the given room member.
@@ -111,8 +112,11 @@ class Database(object):
         if not room_id or not synid:
             return None
 
-        return RoomMembership.find(where=["synid=? AND room_id=?", synid,
-                                   room_id], limit=1, orderby="id DESC")
+        return RoomMembership.find(
+            where=["synid=? AND room_id=?", synid, room_id],
+            limit=1,
+            orderby="id DESC"
+        )
 
     def store_message(self, message):
         pass
@@ -135,14 +139,11 @@ def _setup_db(deferred, schema_file_path, db_name):
             return
 
         statements = ""
-        with open(schema_file_path, 'r') as schema:
+        with open(schema_file_path) as schema:
             statements = schema.read()
 
-        try:
-            _execute(db_name, statements)
-            deferred.callback(True)
-        except Exception as e:
-            deferred.errback(e)
+        _execute(db_name, statements)
+        deferred.callback(True)
     except Exception as e:
         deferred.errback(e)
 
@@ -153,10 +154,12 @@ def _execute(db_name, statements):
     try:
         if not sqlite3.complete_statement(statements):
             raise SyntaxError(
-                "The provided statements are syntactically incorrect.")
+                "The provided statements are syntactically incorrect."
+            )
         cursor.executescript(statements)
         db_conn.commit()
         db_conn.close()
     except Exception as e:
         cursor.close()
         raise e
+
