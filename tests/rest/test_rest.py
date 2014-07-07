@@ -84,13 +84,19 @@ class MessageTestCase(unittest.TestCase):
         path = "/rooms/rid1/members/sid1/state"
         self._test_invalid_puts(path)
 
+        # valid keys, wrong types
         (code, response) = yield self.mock_server.trigger("PUT", path,
                            '{"membership":["join","leave","invite"]}')
         self.assertEquals(400, code)
 
+        # valid join message
         (code, response) = yield self.mock_server.trigger("PUT", path,
                            '{"membership":"join"}')
         self.assertEquals(200, code)
+
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
+        self.assertEquals(200, code)
+        self.assertEquals(json.loads('{"membership":"join"}'), response)
 
     @defer.inlineCallbacks
     def test_messages_in_room(self):
