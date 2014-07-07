@@ -1,12 +1,31 @@
-To test it out, run the test messaging app, passing in your synapse ID as the parameter, formatted as user@host:port.
+Installation
+------------
 
-mkdir dbs  # These should not be necessary as the dirs shoud already exist.
-mkdir logs
+To install the synapse module run:
 
-PYTHONPATH=. python example/test_messaging.py user@matthew-vpn.openmarket.com:5000
+    $ python setup.py install
 
-Then, you can join a room; invite someone to the room, and message them:
+To setup a development version run:
 
-join tng
-invite tng erik@wingspar:5000
-send tng hello world
+    $ python setup.py develop
+
+To run the tests run:
+
+    $ python setup.py test
+
+Basic Usage
+-----------
+
+To run a home server:
+
+    $ python -m synapse.app.homeserver
+
+Or:
+
+    $ synapse-homeserver
+
+For a complete list of parameters run
+    
+    $ synapse-homeserver -h
+
+
