@@ -14,11 +14,10 @@ CREATE TABLE IF NOT EXISTS room_memberships(
 
 CREATE TABLE IF NOT EXISTS messages(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender_synid TEXT, 
+    sender_id TEXT, 
     room_id TEXT,
     msg_id TEXT,
-    type TEXT,
-    body TEXT
+    msg_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS feedback(
