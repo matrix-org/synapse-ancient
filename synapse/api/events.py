@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+""" Contains base components for constructing events. """
+
 import json
 
 

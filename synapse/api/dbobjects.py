@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from twistar.dbobject import DBObject
 
 
@@ -8,19 +9,11 @@ class Message(DBObject):
     This refers to messages sent between humans, rather than meta-messages like
     presence, room metadata, etc.
     """
-    TEXT = "text"
-
-
-class Presence(DBObject):
-
-    """ A presence event. """
-    TYPE = "presence"
+    TABLENAME = "messages"
 
 
 class RoomMembership(DBObject):
-
-    """ A room membership change event. """
-    TYPE = "room_membership"
+    TABLENAME = "room_memberships"
 
 
 class RoomData(DBObject):

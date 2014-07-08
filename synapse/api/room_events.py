@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+""" Contains events to do with rooms. """
 from twisted.internet import defer
 
 from events import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
