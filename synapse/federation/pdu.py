@@ -131,6 +131,8 @@ class PduLayer(TransactionCallbacks):
         Overrides:
             TransactionCallbacks
         """
+        pdu_list = [Pdu(**p) for p in pdu_list]
+
         # We got a bunch of pdus. Handle them "concurrently" (i.e., don't
         # indvidually yield), so pass them off to the _handle_new_pdu and then
         # yield on the deferred list

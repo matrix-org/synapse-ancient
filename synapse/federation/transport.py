@@ -398,7 +398,10 @@ class TransportLayer(object):
 
             transaction_data = json.loads(data)
 
-            logger.debug("Decoded: %s" % (str(transaction_data)))
+            logger.debug(
+                "Decoded %s: %s",
+                transaction_id, str(transaction_data)
+            )
 
             # We should ideally be getting this from the security layer.
             # origin = body["origin"]
@@ -410,7 +413,7 @@ class TransportLayer(object):
                 destination=self.server_name
             )
 
-            transaction = Transaction.decode(transaction_data)
+            transaction = Transaction(**transaction_data)
 
         except Exception as e:
             logger.exception(e)
@@ -462,12 +465,12 @@ class TransportLayer(object):
         data.update(
             origin=destination,
             destination=self.server_name,
-            transaction_id=None,
+            transaction_id=None
         )
 
         # We inform the layers above about the PDU as if we had received it
         # via a PUT.
-        transaction = Transaction.decode(data, outlier=outlier)
+        transaction = Transaction(**data)
 
         # We yield so that if the caller of this method want to wait for the
         # processing of the PDU to complete they can do so.
