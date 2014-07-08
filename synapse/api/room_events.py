@@ -3,7 +3,7 @@ from twisted.internet import defer
 from events import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
 from auth import AccessTokenAuth
-from synapse.api.messages import Message, RoomMembership, RoomData
+from synapse.api.dbobjects import Message, RoomMembership, RoomData
 
 import json
 import re
@@ -36,7 +36,6 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, auth_user_id=None):
-        print "Authed as %s" % auth_user_id
         try:
             # TODO check they are joined in the room
 

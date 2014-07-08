@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from synapse.api.messages import Message
+from synapse.api.dbobjects import Message
 
 
 @staticmethod

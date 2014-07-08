@@ -4,7 +4,7 @@ import re
 from twisted.internet import defer
 
 from synapse.api.events import EventFactory
-from synapse.api.messages import Message
+from synapse.api.dbobjects import Message
 from synapse.federation import MessagingCallbacks
 
 
