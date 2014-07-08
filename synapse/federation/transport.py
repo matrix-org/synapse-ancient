@@ -18,129 +18,6 @@ import re
 logger = logging.getLogger(__name__)
 
 
-class TransportReceivedCallbacks(object):
-    """ Callbacks used when we receive a transaction
-    """
-    def on_transaction(self, transaction):
-        """ Called on PUT /send/<transaction_id>, or on response to a request
-        that we sent (e.g. a pagination request)
-
-        Args:
-            transaction (synapse.transaction.Transaction): The transaction that
-                was sent to us.
-
-        Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            the transaction has finished being processed.
-
-            The result should be a tuple in the form of
-            `(response_code, respond_body)`, where `response_body` is a python
-            dict that will get serialized to JSON.
-
-            On errors, the dict should have an `error` key with a brief message
-            of what went wrong.
-        """
-        pass
-
-
-class TransportRequestCallbacks(object):
-    """ Callbacks used when someone want's data from us
-    """
-    def on_pull_request(self, versions):
-        """ Called on GET /pull/?v=...
-
-        This is hit when a remote home server wants to received all data
-        after a given transaction. This is used when a home server comes back
-        online and wants to get everything it has missed.
-
-        Args:
-            versions (list): A list of transaction_ids that should be used to
-                determine what PDUs the remote side have not yet seen.
-
-        Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            we have a response ready to send.
-
-            The result should be a tuple in the form of
-            `(response_code, respond_body)`, where `response_body` is a python
-            dict that will get serialized to JSON.
-
-            On errors, the dict should have an `error` key with a brief message
-            of what went wrong.
-        """
-        pass
-
-    def on_pdu_request(self, pdu_origin, pdu_id):
-        """ Called on GET /pdu/<pdu_origin>/<pdu_id>/
-
-        Someone wants a particular PDU. This PDU may or may not have originated
-        from us.
-
-        Args:
-            pdu_origin (str): The home server that generated the PDU
-            pdu_id (str): The id that the origination home server assigned it.
-
-        Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            we have a response ready to send.
-
-            The result should be a tuple in the form of
-            `(response_code, respond_body)`, where `response_body` is a python
-            dict that will get serialized to JSON.
-
-            On errors, the dict should have an `error` key with a brief message
-            of what went wrong.
-        """
-        pass
-
-    def on_context_state_request(self, context):
-        """ Called on GET /state/<context>/
-
-        Get's hit when someone wants all the *current* state for a given
-        contexts.
-
-        Args:
-            context (str): The name of the context that we're interested in.
-
-        Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            the transaction has finished being processed.
-
-            The result should be a tuple in the form of
-            `(response_code, respond_body)`, where `response_body` is a python
-            dict that will get serialized to JSON.
-
-            On errors, the dict should have an `error` key with a brief message
-            of what went wrong.
-        """
-        pass
-
-    def on_paginate_request(self, context, versions, limit):
-        """ Called on GET /paginate/<context>/?v=...&limit=...
-
-        Get's hit when we want to paginate backwards on a given context from
-        the given point.
-
-        Args:
-            context (str): The context to paginate on
-            versions (list): A list of 2-tuple's representing where to paginate
-                from, in the form `(pdu_id, origin)`
-            limit (int): How many pdus to return.
-
-        Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            we have a response ready to send.
-
-            The result should be a tuple in the form of
-            `(response_code, respond_body)`, where `response_body` is a python
-            dict that will get serialized to JSON.
-
-            On errors, the dict should have an `error` key with a brief message
-            of what went wrong.
-        """
-        pass
-
-
 class TransportLayer(object):
     """This is a basic implementation of the transport layer that translates
     transactions and other requests to/from HTTP.
@@ -173,8 +50,8 @@ class TransportLayer(object):
         self.server_name = server_name
         self.server = server
         self.client = client
-        self.request_callbacks = None
-        self.received_callbacks = None
+        self.request_handler = None
+        self.received_handler = None
 
     def trigger_get_context_state(self, destination, context):
         """Requests all state for a given context (i.e. room) from the
@@ -295,7 +172,7 @@ class TransportLayer(object):
 
         defer.returnValue((code, response))
 
-    def register_received_callbacks(self, callback):
+    def register_received_handler(self, handler):
         """ Register a callback that will be fired when we receive data.
 
         Args:
@@ -305,7 +182,7 @@ class TransportLayer(object):
         Returns:
             None
         """
-        self.received_callbacks = callback
+        self.received_handler = handler
 
         # This is when someone is trying to send us a bunch of data.
         self.server.register_path(
@@ -317,7 +194,7 @@ class TransportLayer(object):
                 self._on_send_request(request, transaction_id)
         )
 
-    def register_request_callbacks(self, callback):
+    def register_request_handler(self, handler):
         """ Register a callback that will be fired when we get asked for data.
 
         Args:
@@ -327,14 +204,14 @@ class TransportLayer(object):
         Returns:
             None
         """
-        self.request_callbacks = callback
+        self.request_handler = handler
 
         # This is for when someone asks us for everything since version X
         self.server.register_path(
             "GET",
             re.compile("^/pull/$"),
             lambda request:
-                callback.on_pull_request(
+                handler.on_pull_request(
                     request.args["origin"][0],
                     request.args["v"]
                 )
@@ -346,7 +223,7 @@ class TransportLayer(object):
             "GET",
             re.compile("^/pdu/([^/]*)/([^/]*)/$"),
             lambda request, pdu_origin, pdu_id:
-                callback.on_pdu_request(pdu_origin, pdu_id)
+                handler.on_pdu_request(pdu_origin, pdu_id)
         )
 
         # This is when someone asks for all data for a given context.
@@ -354,7 +231,7 @@ class TransportLayer(object):
             "GET",
             re.compile("^/state/([^/]*)/$"),
             lambda request, context:
-                callback.on_context_state_request(context)
+                handler.on_context_state_request(context)
         )
 
         self.server.register_path(
@@ -415,7 +292,7 @@ class TransportLayer(object):
         logger.debug("Converted to transaction.")
 
         # OK, now tell the transaction layer about this bit of data.
-        code, response = yield self.received_callbacks.on_transaction(
+        code, response = yield self.received_handler.on_transaction(
             transaction_data
         )
 
@@ -471,5 +348,128 @@ class TransportLayer(object):
 
         versions = [v.split(",", 1) for v in v_list]
 
-        return self.request_callbacks.on_paginate_request(
+        return self.request_handler.on_paginate_request(
             context, versions, limit)
+
+
+class TransportReceivedHandler(object):
+    """ Callbacks used when we receive a transaction
+    """
+    def on_transaction(self, transaction):
+        """ Called on PUT /send/<transaction_id>, or on response to a request
+        that we sent (e.g. a pagination request)
+
+        Args:
+            transaction (synapse.transaction.Transaction): The transaction that
+                was sent to us.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            the transaction has finished being processed.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
+        """
+        pass
+
+
+class TransportRequestHandler(object):
+    """ Callbacks used when someone want's data from us
+    """
+    def on_pull_request(self, versions):
+        """ Called on GET /pull/?v=...
+
+        This is hit when a remote home server wants to received all data
+        after a given transaction. This is used when a home server comes back
+        online and wants to get everything it has missed.
+
+        Args:
+            versions (list): A list of transaction_ids that should be used to
+                determine what PDUs the remote side have not yet seen.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            we have a response ready to send.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
+        """
+        pass
+
+    def on_pdu_request(self, pdu_origin, pdu_id):
+        """ Called on GET /pdu/<pdu_origin>/<pdu_id>/
+
+        Someone wants a particular PDU. This PDU may or may not have originated
+        from us.
+
+        Args:
+            pdu_origin (str): The home server that generated the PDU
+            pdu_id (str): The id that the origination home server assigned it.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            we have a response ready to send.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
+        """
+        pass
+
+    def on_context_state_request(self, context):
+        """ Called on GET /state/<context>/
+
+        Get's hit when someone wants all the *current* state for a given
+        contexts.
+
+        Args:
+            context (str): The name of the context that we're interested in.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            the transaction has finished being processed.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
+        """
+        pass
+
+    def on_paginate_request(self, context, versions, limit):
+        """ Called on GET /paginate/<context>/?v=...&limit=...
+
+        Get's hit when we want to paginate backwards on a given context from
+        the given point.
+
+        Args:
+            context (str): The context to paginate on
+            versions (list): A list of 2-tuple's representing where to paginate
+                from, in the form `(pdu_id, origin)`
+            limit (int): How many pdus to return.
+
+        Returns:
+            twisted.internet.defer.Deferred: A deferred that get's fired when
+            we have a response ready to send.
+
+            The result should be a tuple in the form of
+            `(response_code, respond_body)`, where `response_body` is a python
+            dict that will get serialized to JSON.
+
+            On errors, the dict should have an `error` key with a brief message
+            of what went wrong.
+        """
+        pass

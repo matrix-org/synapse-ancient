@@ -21,8 +21,8 @@ class ReplicationLayer(object):
         self.server_name = server_name
 
         self.transport_layer = transport_layer
-        self.transport_layer.register_received_callbacks(self)
-        self.transport_layer.register_request_callbacks(self)
+        self.transport_layer.register_received_handler(self)
+        self.transport_layer.register_request_handler(self)
 
         self._transaction_queue = _TransactionQueue(
             server_name,
@@ -210,7 +210,8 @@ class ReplicationLayer(object):
         return Transaction(
             pdus=[p.get_dict() for p in pdu_list],
             origin=self.server_name,
-            ts=int(time.time() * 1000)
+            ts=int(time.time() * 1000),
+            destination=None,
         ).get_dict()
 
     @defer.inlineCallbacks
