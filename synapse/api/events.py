@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+""" Contains base components for constructing events. """
+
 import json
 
 
@@ -9,10 +12,18 @@ class EventFactory(object):
     events = []
 
     def __init__(self):
+        # You get import errors if you try to import before the classes in this
+        # file are defined, hence importing here instead.
         import room_events
         self.events.append(room_events.RoomTopicEvent())
         self.events.append(room_events.RoomMemberEvent())
         self.events.append(room_events.MessageEvent())
+
+        import event_stream
+        self.events.append(event_stream.EventStream())
+
+        import register_events
+        self.events.append(register_events.RegisterEvent())
 
     def register_paths(self, http_server):
         """ Registers paths for all known events.
@@ -39,6 +50,11 @@ class BaseEvent(object):
         """
         raise NotImplementedError("Event must specify a URL pattern.")
 
+    # TODO This feels wrong, there is no concept of an instance of a base event
+    # so having this as an instance method doesn't feel right. Likewise for
+    # on_PUT and on_GET: should these be @classmethod instead? Do we even *want*
+    # a single event instance per request, or can we work with it being purely
+    # functional?
     def register(self, http_server):
         """ Register a method, path and callback with the HTTP server. """
         pass
@@ -63,6 +79,15 @@ class BaseEvent(object):
                 raise InvalidHttpRequestError(
                     400,
                     BaseEvent.error("Missing %s key" % key))
+            # TODO This is a little brittle at the moment since we can only
+            # inspect top level keys and can't assert values. It would be nice
+            # to have some kind of template which can be checked rather than a
+            # list of tuples, e.g:
+            # {
+            #   foo : ["string","string"],
+            #   bar : { "colour" : "red|green|blue" }
+            # }
+            # allow_extra_top_level_keys : True
             if type(content_json[key]) != typ:
                 raise InvalidHttpRequestError(
                     400,
@@ -111,6 +136,19 @@ class GetEventMixin(object):
 
     def on_GET(self, request, *url_args):
         raise NotImplementedError("on_GET callback not implemented")
+
+
+class PostEventMixin(object):
+
+    """ A mixin with the ability to handle POSTs. """
+
+    def register(self, http_server):
+        super(PostEventMixin, self).register(http_server)
+        http_server.register_path("POST", self.__class__.get_pattern(),
+                                  self.on_POST)
+
+    def on_POST(self, request, *url_args):
+        raise NotImplementedError("on_POST callback not implemented")
 
 
 class EventStreamMixin(object):
