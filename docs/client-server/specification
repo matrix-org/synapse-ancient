@@ -245,7 +245,7 @@ access token which must be used in ALL requests as a query parameter
 
 Registering for an account
 --------------------------
-  PUT /register
+  POST /register
   With: A JSON object containing the key "user_id" which contains the desired 
         userid, or an empty JSON object to have the server allocate a userid 
         automatically.
@@ -259,7 +259,7 @@ Registering for an account
 
 Unregistering an account
 ------------------------
-  PUT /unregister
+  POST /unregister
   With query parameters: access_token=$ACCESS_TOKEN
   Returns (success): 200 OK
   Returns (failure): An Error Response.
@@ -633,7 +633,7 @@ Messages:
 
 
 REGISTER FOR AN ACCOUNT
-PUT: /register
+POST: /register
 Content: {}
 Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 

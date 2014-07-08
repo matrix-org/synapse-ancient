@@ -22,6 +22,9 @@ class EventFactory(object):
         import event_stream
         self.events.append(event_stream.EventStream())
 
+        import register_events
+        self.events.append(register_events.RegisterEvent())
+
     def register_paths(self, http_server):
         """ Registers paths for all known events.
 
@@ -133,6 +136,19 @@ class GetEventMixin(object):
 
     def on_GET(self, request, *url_args):
         raise NotImplementedError("on_GET callback not implemented")
+
+
+class PostEventMixin(object):
+
+    """ A mixin with the ability to handle POSTs. """
+
+    def register(self, http_server):
+        super(PostEventMixin, self).register(http_server)
+        http_server.register_path("POST", self.__class__.get_pattern(),
+                                  self.on_POST)
+
+    def on_POST(self, request, *url_args):
+        raise NotImplementedError("on_POST callback not implemented")
 
 
 class EventStreamMixin(object):

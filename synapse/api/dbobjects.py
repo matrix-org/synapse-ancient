@@ -18,3 +18,7 @@ class RoomMembership(DBObject):
 
 class RoomData(DBObject):
     TABLENAME = "room_data"
+
+
+class User(DBObject):
+    TABLENAME = "users"

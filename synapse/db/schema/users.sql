@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS users(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
-    creation_ts INTEGER
+    creation_ts INTEGER,
+    UNIQUE(name) ON CONFLICT ROLLBACK
 );
 
 CREATE TABLE IF NOT EXISTS access_tokens(
