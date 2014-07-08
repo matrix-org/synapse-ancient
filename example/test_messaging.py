@@ -313,8 +313,8 @@ def main(stdscr):
 
     root_logger = logging.getLogger()
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - '
-            '%(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(lineno)d - '
+            '%(levelname)s - %(message)s')
     if not os.path.exists("logs"):
         os.makedirs("logs")
     fh = logging.FileHandler("logs/%s" % user)

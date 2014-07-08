@@ -174,7 +174,7 @@ class MessagingLayer(PduCallbacks):
             ``Note``: This does not result in the context state.
         """
         logger.debug("get_context_state")
-        return self.transport_layer.trigger_get_context_state(
+        return self.pdu_layer.get_context_state(
             destination,
             context
         )

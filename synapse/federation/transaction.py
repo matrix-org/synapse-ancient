@@ -72,7 +72,7 @@ class TransactionCallbacks(object):
             pdu_id (str): The id of the Pdu being requested.
 
         Returns:
-            Deferred: Results in a synapse.federation.protocol.units.Pdu, or
+            Deferred: Results in a dict representing a PDU, or
             `None` if we couldn't find a matching Pdu.
         """
         pass
@@ -99,6 +99,21 @@ class TransactionCallbacks(object):
 
             On errors, the dict should have an `error` key with a brief message
             of what went wrong.
+        """
+        pass
+
+    def get_pdus_after_transaction(self, transaction_id, origin):
+        """ Called when we want to get a pull request, and so want to get all
+        the PDUs that were sent to the given destination after a given
+        transaction id.
+
+        Args:
+            transaction_id (str)
+            origin (str)
+
+        Returns:
+            Deferred: Results in a list of `dict`s representing the appropriate
+            PDUs.
         """
         pass
 
@@ -198,11 +213,8 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         # integers and thus can just take the max
         tx_id = max([int(v) for v in versions])
 
-        response = yield Pdu.after_transaction(
-            tx_id,
-            origin,
-            self.server_name
-        )
+        response = yield self.callback.get_pdus_after_transaction(
+            tx_id, origin)
 
         if not response:
             response = []
@@ -300,6 +312,7 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
 
         defer.returnValue((200, data))
 
+    @defer.inlineCallbacks
     def trigger_get_context_state(self, destination, context):
         """Requests all state for a given context (i.e. room) from the
         given server.
@@ -322,10 +335,13 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         logger.debug("trigger_get_context_metadata dest=%s, context=%s",
                      destination, context)
 
-        return self.transport_layer.trigger_get_context_state(
+        transaction = yield self.transport_layer.trigger_get_context_state(
             destination, context)
 
-    def trigger_get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
+        defer.returnValue(transaction.pdus)
+
+    @defer.inlineCallbacks
+    def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
         """ Requests the pdu with give id and origin from the given server.
 
         This will *not* return the PDU, but will pass the received state
@@ -349,12 +365,20 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         logger.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
                      destination, pdu_origin, pdu_id)
 
-        return self.transport_layer.trigger_get_pdu(
-            destination, pdu_origin, pdu_id, outlier)
+        transaction = yield self.transport_layer.trigger_get_pdu(
+            destination, pdu_origin, pdu_id)
 
+        if transaction.pdus:
+            defer.returnValue(transaction.pdus[0])
+        else:
+            defer.returnValue(None)
+
+    @defer.inlineCallbacks
     def trigger_paginate(self, dest, context, pdu_tuples, limit):
-        return self.transport_layer.trigger_paginate(
+        transaction = yield self.transport_layer.trigger_paginate(
             dest, context, pdu_tuples, limit)
+
+        defer.returnValue(transaction.pdus)
 
 
 class _TransactionQueue(object):

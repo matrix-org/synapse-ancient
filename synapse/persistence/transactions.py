@@ -628,7 +628,7 @@ class PduQueries(object):
         # Finally, JOIN that from the `pdus` table to get all the attributes of
         # those PDUs.
         query = (
-            "SELECT %(fields)s FROM pdus INNER JOIN ("
+            "SELECT %(fields)s FROM %(pdus)s INNER JOIN ("
             "SELECT pdu_id, pdu_origin FROM %(tx_pdu)s as tp "
             "INNER JOIN %(sent_tx)s as st "
             "ON tp.transaction_id = st.transaction_id "
@@ -640,6 +640,7 @@ class PduQueries(object):
             ") AS t ON t.pdu_id = pdus.pdu_id AND pdus.origin = t.pdu_origin;"
         ) % {
             "fields": pdus_fields,
+            "pdus": PdusTables.table_name,
             "tx_pdu": TransactionsToPduTable.table_name,
             "sent_tx": SentTransactions.table_name,
         }

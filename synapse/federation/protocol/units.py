@@ -114,23 +114,8 @@ class Transaction(JsonEncodedObject):
             **kwargs
         )
 
-        if self.transaction_id:
-            for p in self.pdus:
-                p.transaction_id = p
-
     @staticmethod
-    def decode(transaction_dict, outlier=False):
-        """ Used to convert a dict from the interwebs to a Transaction
-            object. It converts the Pdu dicts into Pdu objects too!
-        """
-        pdus = [Pdu(outlier=outlier, **p)
-                for p in transaction_dict.setdefault("pdus", [])]
-        transaction_dict.update(pdus=pdus)
-
-        return Transaction(**transaction_dict)
-
-    @staticmethod
-    def create_new(**kwargs):
+    def create_new(pdus, **kwargs):
         """ Used to create a new transaction. Will auto fill out
             transaction_id and ts keys.
         """
@@ -139,6 +124,11 @@ class Transaction(JsonEncodedObject):
         if "transaction_id" not in kwargs:
             kwargs["transaction_id"] = Transaction._next_transaction_id
             Transaction._next_transaction_id += 1
+
+        for p in pdus:
+            p.transaction_id = kwargs["transaction_id"]
+
+        kwargs["pdus"] = [p.get_dict() for p in pdus]
 
         return Transaction(**kwargs)
 
@@ -222,7 +212,7 @@ class Transaction(JsonEncodedObject):
             self.transaction_id,
             self.destination,
             self.ts,
-            [(p.pdu_id, p.origin) for p in self.pdus]
+            [(p["pdu_id"], p["origin"]) for p in self.pdus]
         )
 
     def delivered(self, response_code, response_json):
