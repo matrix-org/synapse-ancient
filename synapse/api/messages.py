@@ -21,3 +21,7 @@ class RoomMembership(DBObject):
 
     """ A room membership change event. """
     TYPE = "room_membership"
+
+
+class RoomData(DBObject):
+    TABLENAME = "room_data"

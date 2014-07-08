@@ -1,8 +1,7 @@
 CREATE TABLE IF NOT EXISTS rooms(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id TEXT NOT NULL,
-    is_public INTEGER,
-    topic TEXT
+    is_public INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS room_memberships(
@@ -25,4 +24,11 @@ CREATE TABLE IF NOT EXISTS feedback(
     type TEXT,
     sender_synid TEXT,
     msg_id INTEGER -- no foreign key, we may receive feedback before messages
+);
+
+CREATE TABLE IF NOT EXISTS room_data(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    content TEXT
 );
