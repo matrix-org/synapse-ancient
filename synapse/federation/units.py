@@ -81,6 +81,163 @@ class JsonEncodedObject(object):
         return d
 
 
+class Pdu(JsonEncodedObject):
+    """ A Pdu represents a piece of data sent from a server and is associated
+    with a context.
+
+    A Pdu can be classified as "state". For a given context, we can efficiently
+    retrieve all state pdu's that haven't been clobbered. Clobbering is done
+    via a unique constraint on the tuple (context, pdu_type, state_key). A pdu
+    is a state pdu if `is_state` is True.
+    """
+
+    valid_keys = [
+        "pdu_id",
+        "context",
+        "origin",
+        "ts",
+        "pdu_type",
+        "is_state",
+        "state_key",
+        "destinations",
+        "transaction_id",
+        "prev_pdus",
+        "depth",
+        "content",
+        "outlier",
+        "power_level",
+        "prev_state_id",
+        "prev_state_origin",
+    ]
+
+    internal_keys = [
+        "destinations",
+        "transaction_id",
+        "outlier",
+    ]
+
+    """ A list of keys that we persist in the database. The column names are
+    the same
+    """
+
+    # HACK to get unique tx id
+    _next_pdu_id = int(time.time() * 1000)
+
+    # TODO: We need to make this properly load content rather than
+    # just leaving it as a dict. (OR DO WE?!)
+
+    def __init__(self, destinations=[], is_state=False, prev_pdus=[],
+                 outlier=False, **kwargs):
+        super(Pdu, self).__init__(
+            destinations=destinations,
+            is_state=is_state,
+            prev_pdus=prev_pdus,
+            outlier=outlier,
+            **kwargs
+        )
+
+    @staticmethod
+    def create_new(**kwargs):
+        """ Used to create a new pdu. Will auto fill out pdu_id and ts keys.
+
+        Returns:
+            Pdu
+        """
+        if "ts" not in kwargs:
+            kwargs["ts"] = int(time.time() * 1000)
+
+        if "pdu_id" not in kwargs:
+            kwargs["pdu_id"] = Pdu._next_pdu_id
+            Pdu._next_pdu_id += 1
+
+        return Pdu(**kwargs)
+
+    @classmethod
+    def from_pdu_tuple(cls, pdu_tuple):
+        """ Converts a PduTuple to a Pdu
+
+        Args:
+            pdu_tuple (synapse.persistence.transactions.PduTuple): The tuple to
+                convert
+
+        Returns:
+            Pdu
+        """
+        if pdu_tuple:
+            d = copy.copy(pdu_tuple.pdu_entry._asdict())
+
+            if pdu_tuple.state_entry:
+                s = copy.copy(pdu_tuple.state_entry._asdict())
+                d.update(s)
+                d["is_state"] = True
+
+            d["content"] = json.loads(d["content_json"])
+            del d["content_json"]
+
+            args = {f: d[f] for f in cls.valid_keys if f in d}
+            if "unrecognized_keys" in d and d["unrecognized_keys"]:
+                args.update(json.loads(d["unrecognized_keys"]))
+
+            return Pdu(
+                prev_pdus=pdu_tuple.prev_pdu_list,
+                **args
+            )
+        else:
+            return None
+
+
+class Transaction(JsonEncodedObject):
+    """ A transaction is a list of Pdus to be sent to a remote home
+        server with some extra metadata.
+    """
+
+    valid_keys = [
+        "transaction_id",
+        "origin",
+        "destination",
+        "ts",
+        "previous_ids",
+        "pdus",  # This get's converted to a list of Pdu's
+    ]
+
+    internal_keys = [
+        "transaction_id",
+        "destination",
+    ]
+
+    # HACK to get unique tx id
+    _next_transaction_id = int(time.time() * 1000)
+
+    def __init__(self, transaction_id=None, pdus=[], **kwargs):
+        """ If we include a list of pdus then we decode then as PDU's
+        automatically.
+        """
+
+        super(Transaction, self).__init__(
+            transaction_id=transaction_id,
+            pdus=pdus,
+            **kwargs
+        )
+
+    @staticmethod
+    def create_new(pdus, **kwargs):
+        """ Used to create a new transaction. Will auto fill out
+            transaction_id and ts keys.
+        """
+        if "ts" not in kwargs:
+            kwargs["ts"] = int(time.time() * 1000)
+        if "transaction_id" not in kwargs:
+            kwargs["transaction_id"] = Transaction._next_transaction_id
+            Transaction._next_transaction_id += 1
+
+        for p in pdus:
+            p.transaction_id = kwargs["transaction_id"]
+
+        kwargs["pdus"] = [p.get_dict() for p in pdus]
+
+        return Transaction(**kwargs)
+
+
 def _encode(obj):
     if type(obj) is list:
         return [_encode(o) for o in obj]
