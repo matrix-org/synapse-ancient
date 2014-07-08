@@ -4,7 +4,7 @@ the server to server stack.
 """
 
 from .transport import TransportLayer
-from .protocol import ProtocolLayer, Pdu
+from .replication import ReplicationLayer, Pdu
 
 from twisted.internet import defer
 
@@ -83,8 +83,9 @@ class MessagingLayer(object):
         self.transport_layer = TransportLayer(
             server_name, http_server, http_client)
 
-        self.protocol_layer = ProtocolLayer(server_name, self.transport_layer)
-        self.protocol_layer.set_handler(self)
+        self.replication_layer = ReplicationLayer(
+            server_name, self.transport_layer)
+        self.replication_layer.set_handler(self)
 
         self.server_name = server_name
         self.callback = callback
@@ -112,7 +113,7 @@ class MessagingLayer(object):
         Returns:
             deferred
         """
-        return self.protocol_layer.paginate(dest, context, limit)
+        return self.replication_layer.paginate(dest, context, limit)
 
     @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
@@ -151,7 +152,7 @@ class MessagingLayer(object):
             Deferred: Succeeds when we have finished attempting to deliver the
                 PDU.
         """
-        return self.protocol_layer.send_pdu(pdu)
+        return self.replication_layer.send_pdu(pdu)
 
     def get_context_state(self, destination, context):
         """ Triggers a request to get the current state for a context from
@@ -167,7 +168,7 @@ class MessagingLayer(object):
             ``Note``: This does not result in the context state.
         """
         logger.debug("get_context_state")
-        return self.protocol_layer.get_state_for_context(
+        return self.replication_layer.get_state_for_context(
             destination,
             context
         )

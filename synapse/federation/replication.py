@@ -16,7 +16,7 @@ import time
 logger = logging.getLogger(__name__)
 
 
-class ProtocolLayer(object):
+class ReplicationLayer(object):
 
     def __init__(self, server_name, transport_layer):
         self.server_name = server_name
@@ -337,7 +337,7 @@ class ProtocolLayer(object):
             defer.returnValue({})
 
 
-class ProtocolHandler(object):
+class ReplicationHandler(object):
     def on_receive_pdu(self, pdu):
         raise NotImplementedError("on_receive_pdu")
 
