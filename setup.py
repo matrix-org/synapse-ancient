@@ -18,7 +18,7 @@ setup(
         "Twisted>=14.0.0",
         "twistar>=1.3",
         "service_identity>=1.0.0",
-        "pyasm1",
+        "pyasn1",
     ],
     setup_requires=[
         "setuptools_trial",
