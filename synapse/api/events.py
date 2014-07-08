@@ -17,6 +17,9 @@ class EventFactory(object):
         self.events.append(room_events.RoomMemberEvent())
         self.events.append(room_events.MessageEvent())
 
+        import event_stream
+        self.events.append(event_stream.EventStream())
+
     def register_paths(self, http_server):
         """ Registers paths for all known events.
 
