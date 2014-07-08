@@ -20,19 +20,21 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
     def get_event_type(self):
         return "sy.room.topic"
 
-    def on_GET(self, request, *url_args):
+    @AccessTokenAuth.authenticate
+    def on_GET(self, request, room_id, auth_user_id=None):
         # TODO:
         # Auth user & check they are invited/joined in the room if private. If
         # public, anyone can view the topic.
         return (200, {"rooms": "None"})
 
     @AccessTokenAuth.authenticate
-    def on_PUT(self, request, *url_args):
+    def on_PUT(self, request, room_id, auth_user_id=None):
         # TODO:
         # Auth user & check they are joined in the room
         # store topic
         # poke notifier
         # send to s2s layer
+        print "Authed as %s" % auth_user_id
         try:
             BaseEvent.get_valid_json(request.content.read(),
                                      [("topic", unicode)])
@@ -52,8 +54,9 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return "sy.room.members.state"
 
+    @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_GET(self, request, roomid, userid):
+    def on_GET(self, request, roomid, userid, auth_user_id=None):
         # TODO:
         # Auth user & check they are joined in the room
         result = yield RoomMembership.find(where=["sender_id=? AND room_id=?",
@@ -62,9 +65,9 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((404, BaseEvent.error("Member not found.")))
         defer.returnValue((200, json.loads(result.content)))
 
-    @AccessTokenAuth.deferAuthenticate
+    @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_PUT(self, request, roomid, userid):
+    def on_PUT(self, request, roomid, userid, auth_user_id=None):
         # TODO
         # Auth the user
         # invites = they != userid & they are currently joined
@@ -96,8 +99,10 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return "sy.room.message"
 
+    @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, msg_sender_id, msg_id):
+    def on_GET(self, request, room_id, msg_sender_id, msg_id,
+               auth_user_id=None):
         # TODO:
         # Auth user & check they are joined in the room
         results = yield Message.find(where=["room_id=? AND msg_id=? AND " +
@@ -106,9 +111,10 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((404, BaseEvent.error("Message not found.")))
         defer.returnValue((200, json.loads(results[0].content)))
 
-    @AccessTokenAuth.deferAuthenticate
+    @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_PUT(self, request, room_id, sender_id, msg_id):
+    def on_PUT(self, request, room_id, sender_id, msg_id,
+               auth_user_id=None):
         # TODO:
         # Auth the user somehow (access token) & verify they == sender_id
         # Check if sender_id is in room room_id
