@@ -155,13 +155,15 @@ class PduLayer(TransactionCallbacks):
 
         defer.returnValue((200, ret))
 
+    @defer.inlineCallbacks
     def on_context_state_request(self, context):
         """
         Overrides:
             TransactionCallbacks
         """
 
-        return Pdu.current_state(context)
+        pdus = yield Pdu.current_state(context)
+        defer.returnValue([p.get_dict() for p in pdus])
 
     @defer.inlineCallbacks
     def on_pdu_request(self, pdu_origin, pdu_id):
@@ -176,15 +178,34 @@ class PduLayer(TransactionCallbacks):
             defer.returnValue(None)
             return
 
-        defer.returnValue(pdu)
+        defer.returnValue(pdu.get_dict())
 
+    @defer.inlineCallbacks
     def on_paginate_request(self, context, pdus, limit):
         """
         Overrides:
             TransactionCallbacks
         """
 
-        return Pdu.paginate(context, pdus, limit)
+        pdus = yield Pdu.paginate(context, pdus, limit)
+        defer.returnValue([p.get_dict() for p in pdus])
+
+    @defer.inlineCallbacks
+    def on_pull_request(self, transaction_id, origin):
+        """
+        Overrides:
+            TransactionCallbacks
+        """
+        response = yield Pdu.after_transaction(
+            transaction_id,
+            origin,
+            self.server_name
+        )
+
+        if not response:
+            response = []
+
+        defer.returnValue([p.get_dict() for p in response])
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):

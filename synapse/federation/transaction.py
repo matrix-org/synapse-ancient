@@ -72,7 +72,7 @@ class TransactionCallbacks(object):
             pdu_id (str): The id of the Pdu being requested.
 
         Returns:
-            Deferred: Results in a synapse.federation.protocol.units.Pdu, or
+            Deferred: Results in a dict representing a PDU, or
             `None` if we couldn't find a matching Pdu.
         """
         pass
@@ -99,6 +99,21 @@ class TransactionCallbacks(object):
 
             On errors, the dict should have an `error` key with a brief message
             of what went wrong.
+        """
+        pass
+
+    def on_pull_request(self, transaction_id, origin):
+        """ Called when we want to get a pull request, and so want to get all
+        the PDUs that were sent to the given destination after a given
+        transaction id.
+
+        Args:
+            transaction_id (str)
+            origin (str)
+
+        Returns:
+            Deferred: Results in a list of `dict`s representing the appropriate
+            PDUs.
         """
         pass
 
@@ -198,11 +213,7 @@ class TransactionLayer(TransportReceivedCallbacks, TransportRequestCallbacks):
         # integers and thus can just take the max
         tx_id = max([int(v) for v in versions])
 
-        response = yield Pdu.after_transaction(
-            tx_id,
-            origin,
-            self.server_name
-        )
+        response = yield self.callback.on_pull_request(tx_id, origin)
 
         if not response:
             response = []
