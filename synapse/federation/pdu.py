@@ -120,10 +120,28 @@ class PduLayer(TransactionCallbacks):
         if not extremities:
             return
 
-        res = yield self.transaction_layer.trigger_paginate(
+        pdus = yield self.transaction_layer.trigger_paginate(
             dest, context, extremities, limit)
 
-        defer.returnValue(res)
+        pdus = [Pdu(outlier=False, **p) for p in pdus]
+        for pdu in pdus:
+            yield self._handle_new_pdu(pdu)
+
+        defer.returnValue(pdus)
+
+    @defer.inlineCallbacks
+    def get_context_state(self, destination, context):
+        logger.debug(
+            "get_context_state context=%s, dest=%s", context, destination)
+
+        pdus = yield self.transaction_layer.trigger_get_context_state(
+            destination, context)
+
+        pdus = [Pdu(outlier=True, **p) for p in pdus]
+        for pdu in pdus:
+            yield self._handle_new_pdu(pdu)
+
+        defer.returnValue(pdus)
 
     @defer.inlineCallbacks
     def on_received_pdus(self, pdu_list):
@@ -191,7 +209,7 @@ class PduLayer(TransactionCallbacks):
         defer.returnValue([p.get_dict() for p in pdus])
 
     @defer.inlineCallbacks
-    def on_pull_request(self, transaction_id, origin):
+    def get_pdus_after_transaction(self, transaction_id, origin):
         """
         Overrides:
             TransactionCallbacks
@@ -240,13 +258,16 @@ class PduLayer(TransactionCallbacks):
                 for pdu_id, origin in pdu.prev_pdus:
                     exists = yield Pdu.get_persisted_pdu(pdu_id, origin)
                     if not exists:
+                        logger.debug("Requesting pdu %s %s", pdu_id, origin)
                         # Oh no! We better request it.
-                        yield self.transaction_layer.trigger_get_pdu(
+                        n_pdu_d = yield self.transaction_layer.trigger_get_pdu(
                             pdu.origin,
                             pdu_id=pdu_id,
-                            pdu_origin=origin,
-                            outlier=pdu.outlier
+                            pdu_origin=origin
                         )
+                        n_pdu = Pdu(outlier=pdu.outlier, **n_pdu_d)
+                        yield self._handle_new_pdu(n_pdu)
+                        logger.debug("Proceseed pdu %s %s", pdu_id, origin)
 
         # Persist the Pdu, but don't mark it as processed yet.
         yield pdu.persist_received()
@@ -289,12 +310,14 @@ class PduLayer(TransactionCallbacks):
                         "_handle_state getting pdu: %s %s",
                         r.pdu_id, r.origin
                     )
-                    yield self.transaction_layer.trigger_get_pdu(
+                    n_pdu_d = yield self.transaction_layer.trigger_get_pdu(
                         pdu.origin,
                         pdu_id=r.pdu_id,
                         origin=r.origin,
-                        outlier=True,
                     )
+
+                    n_pdu = Pdu(outlier=True, **n_pdu_d)
+                    yield self._handle_new_pdu(n_pdu)
                 else:
                     break
 

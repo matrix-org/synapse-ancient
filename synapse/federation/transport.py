@@ -178,7 +178,6 @@ class TransportLayer(object):
         self.request_callbacks = None
         self.received_callbacks = None
 
-    @defer.inlineCallbacks
     def trigger_get_context_state(self, destination, context):
         """Requests all state for a given context (i.e. room) from the
         given server.
@@ -203,10 +202,9 @@ class TransportLayer(object):
 
         path = "/state/%s/" % context
 
-        yield self._trigger_transaction(destination, path, outlier=True)
+        return self._trigger_transaction(destination, path)
 
-    @defer.inlineCallbacks
-    def trigger_get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
+    def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
         """ Requests the pdu with give id and origin from the given server.
 
         This will *not* return the PDU, but will pass the received state
@@ -232,9 +230,8 @@ class TransportLayer(object):
 
         path = "/pdu/%s/%s/" % (pdu_origin, pdu_id)
 
-        yield self._trigger_transaction(destination, path, outlier=outlier)
+        return self._trigger_transaction(destination, path)
 
-    @defer.inlineCallbacks
     def trigger_paginate(self, dest, context, pdu_tuples, limit):
         logger.debug(
             "trigger_paginate dest=%s, context=%s, pdu_tuples=%s, limit=%s",
@@ -249,10 +246,9 @@ class TransportLayer(object):
         args = {"v": ["%s,%s" % (i, o) for i, o in pdu_tuples]}
         args["limit"] = [str(limit)]
 
-        yield self._trigger_transaction(
+        return self._trigger_transaction(
             dest,
             path,
-            outlier=False,
             args=args,
         )
 
@@ -430,8 +426,7 @@ class TransportLayer(object):
         defer.returnValue((code, response))
 
     @defer.inlineCallbacks
-    def _trigger_transaction(self, destination, path, outlier=False,
-                             args=None):
+    def _trigger_transaction(self, destination, path, args=None):
         """Used when we want to send a GET request to a remote home server
         that will result in them returning a response with a Transaction that
         we want to process.
@@ -468,13 +463,9 @@ class TransportLayer(object):
             transaction_id=None
         )
 
-        # We inform the layers above about the PDU as if we had received it
-        # via a PUT.
         transaction = Transaction(**data)
 
-        # We yield so that if the caller of this method want to wait for the
-        # processing of the PDU to complete they can do so.
-        yield self.received_callbacks.on_transaction(transaction)
+        defer.returnValue(transaction)
 
     def _on_paginate_request(self, context, v_list, limits):
         if not limits:
