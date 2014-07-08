@@ -10,8 +10,6 @@ over a different (albeit still reliable) protocol.
 
 from twisted.internet import defer
 
-from .protocol.units import Transaction
-
 import logging
 import json
 import re
@@ -409,8 +407,6 @@ class TransportLayer(object):
                 destination=self.server_name
             )
 
-            transaction = Transaction(**transaction_data)
-
         except Exception as e:
             logger.exception(e)
             defer.returnValue(400, {"error": "Invalid transaction"})
@@ -420,7 +416,7 @@ class TransportLayer(object):
 
         # OK, now tell the transaction layer about this bit of data.
         code, response = yield self.received_callbacks.on_transaction(
-            transaction
+            transaction_data
         )
 
         defer.returnValue((code, response))
@@ -463,9 +459,7 @@ class TransportLayer(object):
             transaction_id=None
         )
 
-        transaction = Transaction(**data)
-
-        defer.returnValue(transaction)
+        defer.returnValue(data)
 
     def _on_paginate_request(self, context, v_list, limits):
         if not limits:

@@ -3,11 +3,8 @@
 the server to server stack.
 """
 
-from .pdu import PduCallbacks
-from .protocol.units import Pdu
 from .transport import TransportLayer
-from .pdu import PduLayer
-from .transaction import TransactionLayer
+from .protocol import ProtocolLayer, Pdu
 
 from twisted.internet import defer
 
@@ -59,7 +56,7 @@ class MessagingCallbacks(object):
         pass
 
 
-class MessagingLayer(PduCallbacks):
+class MessagingLayer(object):
     """ This is (for now) simply providing a nice interface for people who want
     to use the server to server stuff.
 
@@ -86,17 +83,13 @@ class MessagingLayer(PduCallbacks):
         self.transport_layer = TransportLayer(
             server_name, http_server, http_client)
 
-        self.transaction_layer = TransactionLayer(
-            server_name, self.transport_layer)
-
-        self.pdu_layer = PduLayer(self.transaction_layer)
+        self.protocol_layer = ProtocolLayer(server_name, self.transport_layer)
+        self.protocol_layer.set_handler(self)
 
         self.server_name = server_name
         self.callback = callback
 
         self.power_level = random.randint(10, 100000)
-
-        self.pdu_layer.set_callback(self)
 
     def set_callback(self, callback):
         """ Change the current callback
@@ -119,7 +112,7 @@ class MessagingLayer(PduCallbacks):
         Returns:
             deferred
         """
-        return self.pdu_layer.paginate(dest, context, limit)
+        return self.protocol_layer.paginate(dest, context, limit)
 
     @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
@@ -158,7 +151,7 @@ class MessagingLayer(PduCallbacks):
             Deferred: Succeeds when we have finished attempting to deliver the
                 PDU.
         """
-        return self.pdu_layer.send_pdu(pdu)
+        return self.protocol_layer.send_pdu(pdu)
 
     def get_context_state(self, destination, context):
         """ Triggers a request to get the current state for a context from
@@ -174,7 +167,7 @@ class MessagingLayer(PduCallbacks):
             ``Note``: This does not result in the context state.
         """
         logger.debug("get_context_state")
-        return self.pdu_layer.get_context_state(
+        return self.protocol_layer.get_state_for_context(
             destination,
             context
         )
