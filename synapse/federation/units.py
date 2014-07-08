@@ -20,6 +20,76 @@ import time
 logger = logging.getLogger(__name__)
 
 
+class JsonEncodedObject(object):
+    """ A common base class for the protocol units Handles encoding and
+    decoding them as JSON.
+
+    This is useful when we are sending json data backwards and forwards,
+    and we want a nice way to encode/decode them.
+
+    Attributes:
+        unrecognized_keys (dict): A dict containing all the key/value pairs we
+            don't recognize.
+    """
+
+    valid_keys = []  # keys we will store
+    """A list of strings that represent keys we know about
+    and can handle. If we have values for these keys they will be
+    included in the __dict__ of the class.
+    """
+
+    internal_keys = []  # keys to ignore while building dict
+    """A list of strings that should *not* be encoded into JSON.
+    """
+
+    required_keys = []
+    """A list of strings that we require to exist. If they are not given upon
+    construction it raises an exception.
+    """
+
+    def __init__(self, **kwargs):
+        """ Takes the dict of `kwargs` and loads all keys that are *valid*
+        (i.e., are included in the `valid_keys` list) into the class's
+        `__dict__`.
+
+        Any keys that aren't recognized are added to the `unrecognized_keys`
+        attribute.
+
+        Args:
+            **kwargs: Attributes associated with this protocol unit.
+        """
+        for required_key in self.required_keys:
+            if required_key not in kwargs:
+                raise RuntimeError("Key %s is required" % required_key)
+
+        self.unrecognized_keys = {}  # Keys we were given not listed as valid
+        for k, v in kwargs.items():
+            if k in self.valid_keys:
+                self.__dict__[k] = v
+            else:
+                self.unrecognized_keys[k] = v
+
+    def get_dict(self):
+        """ Converts this protocol unit into a dict, ready to be encoded
+        as json
+
+        Returns
+            dict
+        """
+        d = copy.deepcopy(self.__dict__)
+        d = {
+            k: _encode(v) for (k, v) in d.items()
+            if k not in self.internal_keys
+        }
+
+        if "unrecognized_keys" in d:
+            del d["unrecognized_keys"]
+            if self.unrecognized_keys:
+                d.update(self.unrecognized_keys)
+
+        return d
+
+
 class Pdu(JsonEncodedObject):
     """ A Pdu represents a piece of data sent from a server and is associated
     with a context.
@@ -55,6 +125,15 @@ class Pdu(JsonEncodedObject):
         "outlier",
     ]
 
+    required_keys = [
+        "pdu_id",
+        "context",
+        "origin",
+        "ts",
+        "pdu_type",
+        "content",
+    ]
+
     """ A list of keys that we persist in the database. The column names are
     the same
     """
@@ -67,6 +146,11 @@ class Pdu(JsonEncodedObject):
 
     def __init__(self, destinations=[], is_state=False, prev_pdus=[],
                  outlier=False, **kwargs):
+        if is_state:
+            for required_key in ["state_key"]:
+                if required_key not in kwargs:
+                    raise RuntimeError("Key %s is required" % required_key)
+
         super(Pdu, self).__init__(
             destinations=destinations,
             is_state=is_state,
@@ -136,12 +220,20 @@ class Transaction(JsonEncodedObject):
         "destination",
         "ts",
         "previous_ids",
-        "pdus",  # This get's converted to a list of Pdu's
+        "pdus",
     ]
 
     internal_keys = [
         "transaction_id",
         "destination",
+    ]
+
+    required_keys = [
+        "transaction_id",
+        "origin",
+        "destination",
+        "ts",
+        "pdus",
     ]
 
     # HACK to get unique tx id
@@ -175,67 +267,6 @@ class Transaction(JsonEncodedObject):
         kwargs["pdus"] = [p.get_dict() for p in pdus]
 
         return Transaction(**kwargs)
-
-
-class JsonEncodedObject(object):
-    """ A common base class for the protocol units Handles encoding and
-    decoding them as JSON.
-
-    This is useful when we are sending json data backwards and forwards,
-    and we want a nice way to encode/decode them.
-
-    Attributes:
-        unrecognized_keys (dict): A dict containing all the key/value pairs we
-            don't recognize.
-    """
-
-    valid_keys = []  # keys we will store
-    """A list of strings that represent keys we know about
-    and can handle. If we have values for these keys they will be
-    included in the __dict__ of the class.
-    """
-
-    internal_keys = []  # keys to ignore while building dict
-    """ A list of strings that should *not* be encoded into JSON.
-    """
-
-    def __init__(self, **kwargs):
-        """ Takes the dict of `kwargs` and loads all keys that are *valid*
-        (i.e., are included in the `valid_keys` list) into the class's
-        `__dict__`.
-
-        Any keys that aren't recognized are added to the `unrecognized_keys`
-        attribute.
-
-        Args:
-            **kwargs: Attributes associated with this protocol unit.
-        """
-        self.unrecognized_keys = {}  # Keys we were given not listed as valid
-        for k, v in kwargs.items():
-            if k in self.valid_keys:
-                self.__dict__[k] = v
-            else:
-                self.unrecognized_keys[k] = v
-
-    def get_dict(self):
-        """ Converts this protocol unit into a dict, ready to be encoded
-        as json
-
-        Returns
-            dict
-        """
-        d = copy.deepcopy(self.__dict__)
-        d = {
-            k: _encode(v) for (k, v) in d.items()
-            if k not in self.internal_keys
-        }
-
-        if "unrecognized_keys" in d:
-            del d["unrecognized_keys"]
-            if self.unrecognized_keys:
-                d.update(self.unrecognized_keys)
-
-        return d
 
 
 def _encode(obj):
