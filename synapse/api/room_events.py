@@ -10,8 +10,6 @@ from synapse.api.dbobjects import Message, RoomMembership, RoomData
 import json
 import re
 
-# TODO: Can on_PUTs which just check keys > dump in db be factored out somehow?
-
 
 class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
 
@@ -82,23 +80,26 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
     def on_PUT(self, request, roomid, userid, auth_user_id=None):
-        # TODO
-        # invites = they != userid & they are currently joined
-        # joins = they == userid & they are invited or it's a new room by them
-        # leaves = they == userid & they are currently joined
-        # store membership
-        # poke notifier
-        # send to s2s layer
         try:
+            # validate json
             content = BaseEvent.get_valid_json(request.content.read(),
                                            [("membership", unicode)])
+
+            # TODO
+            # invite = they != userid & they are currently joined
+            # join = they == userid & they are invited or its a new room by them
+            # leave = they == userid & they are currently joined
+
+            # store membership
+            yield RoomMembership(sender_id=userid, room_id=roomid,
+                             content=json.dumps(content)).save()
+
+            # TODO poke notifier
+            # TODO send to s2s layer
+            defer.returnValue((200, ""))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
-
-        member = RoomMembership(sender_id=userid, room_id=roomid,
-                                content=json.dumps(content))
-        yield member.save()
-        defer.returnValue((200, ""))
+        defer.returnValue((500, ""))
 
 
 class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,

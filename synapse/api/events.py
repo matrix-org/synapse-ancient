@@ -12,6 +12,8 @@ class EventFactory(object):
     events = []
 
     def __init__(self):
+        # You get import errors if you try to import before the classes in this
+        # file are defined, hence importing here instead.
         import room_events
         self.events.append(room_events.RoomTopicEvent())
         self.events.append(room_events.RoomMemberEvent())
@@ -45,6 +47,11 @@ class BaseEvent(object):
         """
         raise NotImplementedError("Event must specify a URL pattern.")
 
+    # TODO This feels wrong, there is no concept of an instance of a base event
+    # so having this as an instance method doesn't feel right. Likewise for
+    # on_PUT and on_GET: should these be @classmethod instead? Do we even *want*
+    # a single event instance per request, or can we work with it being purely
+    # functional?
     def register(self, http_server):
         """ Register a method, path and callback with the HTTP server. """
         pass
@@ -69,6 +76,15 @@ class BaseEvent(object):
                 raise InvalidHttpRequestError(
                     400,
                     BaseEvent.error("Missing %s key" % key))
+            # TODO This is a little brittle at the moment since we can only
+            # inspect top level keys and can't assert values. It would be nice
+            # to have some kind of template which can be checked rather than a
+            # list of tuples, e.g:
+            # {
+            #   foo : ["string","string"],
+            #   bar : { "colour" : "red|green|blue" }
+            # }
+            # allow_extra_top_level_keys : True
             if type(content_json[key]) != typ:
                 raise InvalidHttpRequestError(
                     400,
