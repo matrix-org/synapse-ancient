@@ -89,7 +89,7 @@ class BaseEvent(object):
 
 class PutEventMixin(object):
 
-    """ A BaseEvent mixed with the ability to handle PUTs. """
+    """ A mixin with the ability to handle PUTs. """
 
     def register(self, http_server):
         super(PutEventMixin, self).register(http_server)
@@ -102,7 +102,7 @@ class PutEventMixin(object):
 
 class GetEventMixin(object):
 
-    """ A BaseEvent mixed with the ability to handle GETs. """
+    """ A mixin with the ability to handle GETs. """
 
     def register(self, http_server):
         super(GetEventMixin, self).register(http_server)
@@ -115,7 +115,7 @@ class GetEventMixin(object):
 
 class EventStreamMixin(object):
 
-    """ A BaseEvent mixed with the ability to be used in the event stream.
+    """ A mixin with the ability to be used in the event stream.
 
     REST events need to undergo some standard transformations to be
     represented as events in an event stream, such as moving URL args and

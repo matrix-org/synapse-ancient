@@ -2,6 +2,7 @@ from twisted.internet import defer
 
 from events import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
+from auth import AccessTokenAuth
 from synapse.api.messages import Message, RoomMembership
 
 import json
@@ -25,6 +26,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
         # public, anyone can view the topic.
         return (200, {"rooms": "None"})
 
+    @AccessTokenAuth.authenticate
     def on_PUT(self, request, *url_args):
         # TODO:
         # Auth user & check they are joined in the room
@@ -60,6 +62,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((404, BaseEvent.error("Member not found.")))
         defer.returnValue((200, json.loads(result.content)))
 
+    @AccessTokenAuth.deferAuthenticate
     @defer.inlineCallbacks
     def on_PUT(self, request, roomid, userid):
         # TODO
@@ -103,6 +106,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((404, BaseEvent.error("Message not found.")))
         defer.returnValue((200, json.loads(results[0].content)))
 
+    @AccessTokenAuth.deferAuthenticate
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, sender_id, msg_id):
         # TODO:
