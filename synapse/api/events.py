@@ -55,15 +55,18 @@ class BaseEvent(object):
         Returns:
             The content as JSON.
         Raises:
-            KeyError if a required key is missing.
-            ValueError if the content isn't JSON.
+            InvalidHttpRequestError if there is a problem with the JSON.
         """
         content_json = json.loads(content)
         for (key, typ) in required_keys_values:
             if key not in content_json:
-                raise KeyError("Missing %s key" % key)
+                raise InvalidHttpRequestError(
+                    400,
+                    BaseEvent.error("Missing %s key" % key))
             if type(content_json[key]) != typ:
-                raise KeyError("Key %s is of the wrong type." % key)
+                raise InvalidHttpRequestError(
+                    400,
+                    BaseEvent.error("Key %s is of the wrong type." % key))
 
         return content_json
 
@@ -163,3 +166,24 @@ class EventStreamMixin(object):
             # hence needing to index again to the first element
             event[group_name] = url_args[0][group_pos - 1]
         return event
+
+
+class InvalidHttpRequestError(Exception):
+    """ Raised when an invalid request was submitted from the client.
+
+    This class provides the ability to get a suitable return HTTP status
+    code and body to send back to the client.
+    """
+
+    def __init__(self, code, body):
+        super(InvalidHttpRequestError, self).__init__()
+        self.http_code = code
+        self.http_body = body
+
+    def get_status_code(self):
+        """ Returns a suitable HTTP status code for this exception. """
+        return self.http_code
+
+    def get_response_body(self):
+        """ Returns a suitable HTTP response body for this exception. """
+        return self.http_body

@@ -1,6 +1,7 @@
 from twisted.internet import defer
 
-from events import EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent
+from events import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
+                    InvalidHttpRequestError)
 from synapse.api.messages import Message, RoomMembership
 
 import json
@@ -22,7 +23,6 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
         # TODO:
         # Auth user & check they are invited/joined in the room if private. If
         # public, anyone can view the topic.
-        print "dict: %s" % self.get_event_stream_dict(url_args)
         return (200, {"rooms": "None"})
 
     def on_PUT(self, request, *url_args):
@@ -32,13 +32,11 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
         # poke notifier
         # send to s2s layer
         try:
-            req = BaseEvent.get_valid_json(request.content.read(),
-                                           [("topic", unicode)])
-        except ValueError:
-            return (400, BaseEvent.error("Content must be JSON."))
-        except KeyError:
-            return (400, BaseEvent.error("Missing required keys."))
-        return (200, {"topic": req["topic"]})
+            BaseEvent.get_valid_json(request.content.read(),
+                                     [("topic", unicode)])
+        except InvalidHttpRequestError as e:
+            return (e.get_status_code(), e.get_response_body())
+        return (200, "")
 
 
 class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
@@ -75,10 +73,8 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             content = BaseEvent.get_valid_json(request.content.read(),
                                            [("membership", unicode)])
-        except ValueError:
-            defer.returnValue((400, BaseEvent.error("Content must be JSON.")))
-        except KeyError:
-            defer.returnValue((400, BaseEvent.error("Missing required keys.")))
+        except InvalidHttpRequestError as e:
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
 
         member = RoomMembership(sender_id=userid, room_id=roomid,
                                 content=json.dumps(content))
@@ -120,10 +116,8 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             req = BaseEvent.get_valid_json(request.content.read(),
                                            [("msgtype", unicode),
                                             ("body", unicode)])
-        except ValueError:
-            defer.returnValue((400, BaseEvent.error("Content must be JSON.")))
-        except KeyError:
-            defer.returnValue((400, BaseEvent.error("Missing required keys.")))
+        except InvalidHttpRequestError as e:
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
 
         msg = Message(sender_id=sender_id, room_id=room_id,
                       msg_id=msg_id, content=json.dumps(req))
