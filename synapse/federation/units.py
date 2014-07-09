@@ -99,6 +99,7 @@ class Pdu(JsonEncodedObject):
     is a state pdu if `is_state` is True.
 
     Example pdu::
+
         {
             "pdu_id": "78c",
             "ts": 1404835423000,
@@ -109,6 +110,7 @@ class Pdu(JsonEncodedObject):
             ],
             "content": { ... },
         }
+
     """
 
     valid_keys = [
@@ -219,9 +221,10 @@ class Pdu(JsonEncodedObject):
 
 class Transaction(JsonEncodedObject):
     """ A transaction is a list of Pdus to be sent to a remote home
-        server with some extra metadata.
+    server with some extra metadata.
 
-        Example transaction::
+    Example transaction::
+
         {
             "origin": "foo",
             "prev_ids": ["abc", "def"],
@@ -229,6 +232,7 @@ class Transaction(JsonEncodedObject):
                 ...
             ],
         }
+
     """
 
     valid_keys = [
@@ -270,7 +274,7 @@ class Transaction(JsonEncodedObject):
     @staticmethod
     def create_new(pdus, **kwargs):
         """ Used to create a new transaction. Will auto fill out
-            transaction_id and ts keys.
+        transaction_id and ts keys.
         """
         if "ts" not in kwargs:
             kwargs["ts"] = int(time.time() * 1000)

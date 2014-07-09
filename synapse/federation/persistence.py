@@ -223,7 +223,7 @@ class TransactionActions(object):
         origin?
 
         Returns:
-            Deferred: Results in `Non`e if we have not previously responded to
+            Deferred: Results in `None` if we have not previously responded to
             this transaction or a 2-tuple of `(int, dict)` representing the
             response code and response body.
         """
