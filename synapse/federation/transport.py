@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """The transport layer is responsible for both sending transactions to remote
 home servers and receiving a variety of requests from other home servers.
 
@@ -25,17 +24,17 @@ class TransportLayer(object):
     Attributes:
         server_name (str): Local home server host
 
-        server (synapse.protocol.http.HttpServer): the http server to
+        server (synapse.util.http.HttpServer): the http server to
                 register listeners on
 
-        client (synapse.protocol.http.HttpClient): the http client used to
+        client (synapse.util.http.HttpClient): the http client used to
                 send requests
 
-        request_callbacks (synapse.transport.TransportRequestCallbacks): The
-                callback to fire when we receive requests for data.
+        request_handler (TransportRequestHandler): The handler to fire when we
+            receive requests for data.
 
-        received_callbacks (synapse.transport.TransportReceivedCallbacks): The
-                callback to fire when we receive data.
+        received_handler (TransportReceivedHandler): The handler to fire when
+            we receive data.
     """
 
     def __init__(self, server_name, server, client):
@@ -53,13 +52,9 @@ class TransportLayer(object):
         self.request_handler = None
         self.received_handler = None
 
-    def trigger_get_context_state(self, destination, context):
-        """Requests all state for a given context (i.e. room) from the
+    def get_context_state(self, destination, context):
+        """ Requests all state for a given context (i.e. room) from the
         given server.
-
-        This will *not* return the state, but will pass the received state
-        to the TransportReceivedCallbacks.on_transaction callback in the same
-        way as if it had been sent them in a Transaction.
 
         Args:
             destination (str): The host name of the remote home server we want
@@ -67,47 +62,47 @@ class TransportLayer(object):
             context (str): The name of the context we want the state of
 
         Returns:
-            Deferred: Succeeds when we have finished processing the
-            response of the request.
-
-            The argument passed to the deferred is undefined and may be None.
+            Deferred: Results in a dict received from the remote homeserver.
         """
-        logger.debug("trigger_get_context_metadata dest=%s, context=%s",
+        logger.debug("get_context_state dest=%s, context=%s",
                      destination, context)
 
         path = "/state/%s/" % context
 
-        return self._trigger_transaction(destination, path)
+        return self._do_request_for_transaction(destination, path)
 
-    def trigger_get_pdu(self, destination, pdu_origin, pdu_id):
+    def get_pdu(self, destination, pdu_origin, pdu_id):
         """ Requests the pdu with give id and origin from the given server.
-
-        This will *not* return the PDU, but will pass the received state
-        to the TransportReceivedCallbacks.on_transaction callback in the same
-        way as if it had been sent them in a Transaction.
 
         Args:
             destination (str): The host name of the remote home server we want
                 to get the state from.
             pdu_origin (str): The home server which created the PDU.
             pdu_id (str): The id of the PDU being requested.
-            outlier (bool): Should the returned PDUs be considered an outlier?
-                Default: False
 
         Returns:
-            Deferred: Succeeds when we have finished processing the
-            response of the request.
-
-            The result of the deferred is undefined and may be None.
+            Deferred: Results in a dict received from the remote homeserver.
         """
-        logger.debug("trigger_get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
+        logger.debug("get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
                      destination, pdu_origin, pdu_id)
 
         path = "/pdu/%s/%s/" % (pdu_origin, pdu_id)
 
-        return self._trigger_transaction(destination, path)
+        return self._do_request_for_transaction(destination, path)
 
     def trigger_paginate(self, dest, context, pdu_tuples, limit):
+        """ Requests `limit` previous PDUs in a given context before list of
+        PDUs.
+
+        Args:
+            dest (str)
+            context (str)
+            pdu_tuples (list)
+            limt (int)
+
+        Returns:
+            Deferred: Results in a dict received from the remote homeserver.
+        """
         logger.debug(
             "trigger_paginate dest=%s, context=%s, pdu_tuples=%s, limit=%s",
             dest, context, repr(pdu_tuples), str(limit)
@@ -121,7 +116,7 @@ class TransportLayer(object):
         args = {"v": ["%s,%s" % (i, o) for i, o in pdu_tuples]}
         args["limit"] = [str(limit)]
 
-        return self._trigger_transaction(
+        return self._do_request_for_transaction(
             dest,
             path,
             args=args,
@@ -129,18 +124,13 @@ class TransportLayer(object):
 
     @defer.inlineCallbacks
     def send_transaction(self, transaction):
-        """ Sends the given Transaction
+        """ Sends the given Transaction to it's destination
 
         Args:
-            transaction (synapse.federation.protocol.units.Transaction): The
-                transaction to send. The Transaction instance includes the
-                destination to send it to.
+            transaction (Transaction)
 
         Returns:
-            Deferred: Succeeds when we have finished processing the response
-            of the request.
-
-            The result of the deferred is a tuple in the form of
+            Deferred: Results of the deferred is a tuple in the form of
             (response_code, response_body) where the response_body is a
             python dict decoded from json
         """
@@ -149,16 +139,11 @@ class TransportLayer(object):
             transaction.destination, transaction.transaction_id
         )
 
-        # We probably don't want to send things to ourselves, as that's just
-        # going to confuse things when it comes to the IDs of both transactions
-        # and PDUs
         if transaction.destination == self.server_name:
             raise RuntimeError("Transport layer cannot send to itself!")
 
         data = transaction.get_dict()
 
-        # Actually send the transation to the remote home server.
-        # This will throw if something toooo drastically goes wrong.
         code, response = yield self.client.put_json(
             transaction.destination,
             path="/send/%s/" % transaction.transaction_id,
@@ -173,14 +158,10 @@ class TransportLayer(object):
         defer.returnValue((code, response))
 
     def register_received_handler(self, handler):
-        """ Register a callback that will be fired when we receive data.
+        """ Register a handler that will be fired when we receive data.
 
         Args:
-            callback (synapse.transport.TransportReceivedCallbacks): The
-                callback to fire when we receive data.
-
-        Returns:
-            None
+            handler (TransportReceivedHandler)
         """
         self.received_handler = handler
 
@@ -195,14 +176,10 @@ class TransportLayer(object):
         )
 
     def register_request_handler(self, handler):
-        """ Register a callback that will be fired when we get asked for data.
+        """ Register a handler that will be fired when we get asked for data.
 
         Args:
-            callback (synapse.transport.TransportRequestCallbacks): The
-                callback to fire when we receive requests for data.
-
-        Returns:
-            None
+            handler (TransportRequestHandler)
         """
         self.request_handler = handler
 
@@ -247,18 +224,16 @@ class TransportLayer(object):
     @defer.inlineCallbacks
     def _on_send_request(self, request, transaction_id):
         """ Called on PUT /send/<transaction_id>/
-            We need to call on_transaction on callback, but we first
-            want to decode the request to a TransportData
 
-            Args:
-                request (twisted.web.http.Request): The HTTP request.
-                transaction_id (str): The transaction_id associated with this
-                    request. This is *not* None.
+        Args:
+            request (twisted.web.http.Request): The HTTP request.
+            transaction_id (str): The transaction_id associated with this
+                request. This is *not* None.
 
-            Returns:
-                Deferred: Succeeds with a tuple of `(code, response)`, where
-                `response` is a python dict to be converted into JSON that is
-                used as the response body.
+        Returns:
+            Deferred: Results in a tuple of `(code, response)`, where
+            `response` is a python dict to be converted into JSON that is
+            used as the response body.
         """
         # Parse the request
         try:
@@ -289,9 +264,6 @@ class TransportLayer(object):
             defer.returnValue(400, {"error": "Invalid transaction"})
             return
 
-        logger.debug("Converted to transaction.")
-
-        # OK, now tell the transaction layer about this bit of data.
         code, response = yield self.received_handler.on_transaction(
             transaction_data
         )
@@ -299,30 +271,17 @@ class TransportLayer(object):
         defer.returnValue((code, response))
 
     @defer.inlineCallbacks
-    def _trigger_transaction(self, destination, path, args=None):
-        """Used when we want to send a GET request to a remote home server
-        that will result in them returning a response with a Transaction that
-        we want to process.
-
-        This will send a GET request to the `destination` home server and
-        attempt to decode the response as a Transaction, if successful it will
-        fire synapse.transport.TransportReceivedCallbacks
-
+    def _do_request_for_transaction(self, destination, path, args=None):
+        """
         Args:
-            destination (str): The desteination home server to send the request
-                to.
-            path (str): The path to GET.
-            outlier (bool): Should the returned PDUs be considered an outlier?
-                Default: False
-            args (dict): This is parsed directlye to the HttpClient.
-                Defaults: False
+            destination (str)
+            path (str)
+            args (dict): This is parsed directly to the HttpClient.
 
         Returns:
-            Deferred: Succeeds when we have finished processing the repsonse.
-
+            Deferred: Results in a dict.
         """
 
-        # Get the JSON from the remote server
         data = yield self.client.get_json(
             destination,
             path=path,
@@ -378,13 +337,13 @@ class TransportReceivedHandler(object):
 
 
 class TransportRequestHandler(object):
-    """ Callbacks used when someone want's data from us
+    """ Handlers used when someone want's data from us
     """
     def on_pull_request(self, versions):
         """ Called on GET /pull/?v=...
 
-        This is hit when a remote home server wants to received all data
-        after a given transaction. This is used when a home server comes back
+        This is hit when a remote home server wants to get all data
+        after a given transaction. Mainly used when a home server comes back
         online and wants to get everything it has missed.
 
         Args:
@@ -392,10 +351,7 @@ class TransportRequestHandler(object):
                 determine what PDUs the remote side have not yet seen.
 
         Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            we have a response ready to send.
-
-            The result should be a tuple in the form of
+            Deferred: Resultsin a tuple in the form of
             `(response_code, respond_body)`, where `response_body` is a python
             dict that will get serialized to JSON.
 
@@ -411,14 +367,11 @@ class TransportRequestHandler(object):
         from us.
 
         Args:
-            pdu_origin (str): The home server that generated the PDU
-            pdu_id (str): The id that the origination home server assigned it.
+            pdu_origin (str)
+            pdu_id (str)
 
         Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            we have a response ready to send.
-
-            The result should be a tuple in the form of
+            Deferred: Resultsin a tuple in the form of
             `(response_code, respond_body)`, where `response_body` is a python
             dict that will get serialized to JSON.
 
@@ -462,10 +415,7 @@ class TransportRequestHandler(object):
             limit (int): How many pdus to return.
 
         Returns:
-            twisted.internet.defer.Deferred: A deferred that get's fired when
-            we have a response ready to send.
-
-            The result should be a tuple in the form of
+            Deferred: Resultsin a tuple in the form of
             `(response_code, respond_body)`, where `response_body` is a python
             dict that will get serialized to JSON.
 

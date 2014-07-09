@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-""" Defines various classes to represent the common protocol units used by the
-server to server protocol.
+""" Defines the JSON structure of the protocol units used by the server to
+server protocol.
 """
 
 from twisted.internet import defer
@@ -21,11 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 class JsonEncodedObject(object):
-    """ A common base class for the protocol units Handles encoding and
-    decoding them as JSON.
-
-    This is useful when we are sending json data backwards and forwards,
-    and we want a nice way to encode/decode them.
+    """ A common base class for defining protocol units that are represented
+    as JSON.
 
     Attributes:
         unrecognized_keys (dict): A dict containing all the key/value pairs we
@@ -70,8 +67,10 @@ class JsonEncodedObject(object):
                 self.unrecognized_keys[k] = v
 
     def get_dict(self):
-        """ Converts this protocol unit into a dict, ready to be encoded
-        as json
+        """ Converts this protocol unit into a :py:class:`dict`, ready to be
+        encoded as JSON.
+
+        The keys it encodes are: `valid_keys` - `internal_keys`
 
         Returns
             dict
@@ -98,6 +97,18 @@ class Pdu(JsonEncodedObject):
     retrieve all state pdu's that haven't been clobbered. Clobbering is done
     via a unique constraint on the tuple (context, pdu_type, state_key). A pdu
     is a state pdu if `is_state` is True.
+
+    Example pdu::
+        {
+            "pdu_id": "78c",
+            "ts": 1404835423000,
+            "origin": "bar",
+            "prev_ids": [
+                ["23b", "foo"],
+                ["56a", "bar"],
+            ],
+            "content": { ... },
+        }
     """
 
     valid_keys = [
@@ -106,14 +117,14 @@ class Pdu(JsonEncodedObject):
         "origin",
         "ts",
         "pdu_type",
-        "is_state",
-        "state_key",
         "destinations",
         "transaction_id",
         "prev_pdus",
         "depth",
         "content",
         "outlier",
+        "is_state",  # Below this are keys valid only for State Pdus.
+        "state_key",
         "power_level",
         "prev_state_id",
         "prev_state_origin",
@@ -133,10 +144,6 @@ class Pdu(JsonEncodedObject):
         "pdu_type",
         "content",
     ]
-
-    """ A list of keys that we persist in the database. The column names are
-    the same
-    """
 
     # HACK to get unique tx id
     _next_pdu_id = int(time.time() * 1000)
@@ -161,7 +168,8 @@ class Pdu(JsonEncodedObject):
 
     @staticmethod
     def create_new(**kwargs):
-        """ Used to create a new pdu. Will auto fill out pdu_id and ts keys.
+        """ Used to create a new pdu. Will auto fill out the required `pdu_id`
+        and `ts` keys.
 
         Returns:
             Pdu
@@ -212,6 +220,15 @@ class Pdu(JsonEncodedObject):
 class Transaction(JsonEncodedObject):
     """ A transaction is a list of Pdus to be sent to a remote home
         server with some extra metadata.
+
+        Example transaction::
+        {
+            "origin": "foo",
+            "prev_ids": ["abc", "def"],
+            "pdus": [
+                ...
+            ],
+        }
     """
 
     valid_keys = [

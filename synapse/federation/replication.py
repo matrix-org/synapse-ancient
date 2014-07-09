@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""This layer is responsible for replicating with remote home servers using
+a given transport.
+"""
 
 from twisted.internet import defer
 
@@ -16,6 +19,22 @@ logger = logging.getLogger(__name__)
 
 
 class ReplicationLayer(object):
+    """This layer is responsible for replicating with remote home servers over
+    the given transport. I.e., does the sending and receiving of PDUs to
+    remote home servers.
+
+    The layer communicates with the rest of the server via a registered
+    ReplicationHandler.
+
+    In more detail, the layer:
+        * Receives incoming data and processes it into transactions and pdus.
+        * Fetches any PDUs it thinks it might have missed.
+        * Keeps the current state for contexts up to date by applying the
+          suitable conflict resolution.
+        * Sends outgoing pdus wrapped in transactions.
+        * Fills out the references to previous pdus/transactions appropriately
+          for outgoing data.
+    """
 
     def __init__(self, server_name, transport_layer):
         self.server_name = server_name
@@ -34,10 +53,33 @@ class ReplicationLayer(object):
         self._order = 0
 
     def set_handler(self, handler):
+        """ Sets the handler that the replication layer will use to
+        communicate recepit of new Pdus. The required methods are documented
+        on :py:class:`.ReplicationHandler`.
+        """
         self.handler = handler
 
     @defer.inlineCallbacks
     def send_pdu(self, pdu):
+        """Informs the replication layer about a new PDU.
+
+        This will fill out various attributes on the Pdu object, e.g. the
+        `prev_pdus` key.
+
+        *Note:* The home server should always call `send_pdu` even if it knows
+        that it does not need to be replicated to other home servers. This is
+        in case e.g. someone else joins via a remote home server and then
+        paginates.
+
+        TODO: Figure out when we should actually resolve the deferred.
+
+        Args:
+            pdu (Pdu): The new Pdu.
+
+        Returns:
+            Deferred: Completes when we have successfully processed the PDU
+            and replicated it to any interested remote home servers.
+        """
         order = self._order
         self._order += 1
 
@@ -57,6 +99,17 @@ class ReplicationLayer(object):
 
     @defer.inlineCallbacks
     def paginate(self, dest, context, limit):
+        """ Requests some more historic PDUs for the given context from the
+        given destination server.
+
+        Args:
+            dest (str): The remote home server to ask.
+            context (str): The context to paginate back on.
+            limit (int): The maximum number of PDUs to return.
+
+        Returns:
+            Deferred: Results in the received PDUs.
+        """
         logger.debug("paginate context=%s, dest=%s", context, dest)
         extremities = yield run_interaction(
             PduQueries.get_back_extremities,
@@ -65,6 +118,7 @@ class ReplicationLayer(object):
 
         logger.debug("paginate extrem=%s", extremities)
 
+        # If there are no extremeties then we've (probably) reached the start.
         if not extremities:
             return
 
@@ -83,6 +137,22 @@ class ReplicationLayer(object):
 
     @defer.inlineCallbacks
     def get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
+        """ Requests the PDU with given origin and ID from the remote home
+        server.
+
+        This will persist the PDU locally upon receipt.
+
+        Args:
+            destination (str): Which home server to query
+            pdu_origin (str): The home server that originally sent the pdu.
+            pdu_id (str)
+            outlier (bool): Indicates whether the PDU is an `outlier`, i.e. if
+                it's from an arbitary point in the context as opposed to part
+                of the current block of PDUs.
+
+        Returns:
+            Deferred: Results in the requested PDU.
+        """
         logger.debug("get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
                      destination, pdu_origin, pdu_id)
 
@@ -102,6 +172,16 @@ class ReplicationLayer(object):
 
     @defer.inlineCallbacks
     def get_state_for_context(self, destination, context):
+        """ Requests all of the `current` state PDUs for a given context from
+        a remote home server.
+
+        Args:
+            destination (str): The remote homeserver to query for the state.
+            context (str): The context we're interested in.
+
+        Returns:
+            Deferred: Results in a list of PDUs.
+        """
         logger.debug(
             "get_state_for_context context=%s, dest=%s", context, destination)
 
@@ -329,6 +409,9 @@ class ReplicationLayer(object):
 
 
 class ReplicationHandler(object):
+    """ This defines the methods that the :py:class:`.ReplciationLayer` will
+    use to communicate with the rest of the home server.
+    """
     def on_receive_pdu(self, pdu):
         raise NotImplementedError("on_receive_pdu")
 
@@ -338,9 +421,9 @@ class ReplicationHandler(object):
 
 class _TransactionQueue(object):
     """ This class makes sure we only have one transaction in flight at
-        a time for a given destination.
+    a time for a given destination.
 
-        It batches pending PDUs into single transactions.
+    It batches pending PDUs into single transactions.
     """
 
     def __init__(self, server_name, transport_layer):

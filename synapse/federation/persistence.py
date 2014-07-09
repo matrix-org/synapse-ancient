@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
+""" This module contains all the persistence actions done by the federation
+package.
 
+These actions are mostly only used by the :py:mod:`.replication` module.
+"""
 
 from twisted.internet import defer
 
@@ -7,8 +11,6 @@ from synapse.persistence.transactions import (
     TransactionQueries, PduQueries,
     StateQueries, run_interaction
 )
-
-from synapse.persistence.tables import ReceivedTransactionsTable
 
 from .units import Pdu
 
@@ -21,9 +23,17 @@ logger = logging.getLogger(__name__)
 
 
 class PduActions(object):
+    """ Defines persistence actions that relate to handling PDUs.
+    """
+
     @staticmethod
     @defer.inlineCallbacks
     def current_state(context):
+        """ For the given context return what we think is the current state.
+
+        Returns:
+            Deferred: Results in a list of state `Pdu`s.
+        """
         results = yield run_interaction(
             PduQueries.get_current_state,
             context
@@ -34,6 +44,11 @@ class PduActions(object):
     @staticmethod
     @defer.inlineCallbacks
     def get_persisted_pdu(pdu_id, pdu_origin):
+        """ Get a PDU from the database with given origin and id.
+
+        Returns:
+            Deferred: Results in a `Pdu`.
+        """
         pdu_tuple = yield run_interaction(
             PduQueries.get_pdu,
             pdu_id, pdu_origin
@@ -43,11 +58,22 @@ class PduActions(object):
 
     @classmethod
     def persist_received(cls, pdu):
+        """ Persists the given `Pdu` that was received from a remote home
+        server.
+
+        Returns:
+            Deferred
+        """
         return cls._persist(pdu)
 
     @classmethod
     @defer.inlineCallbacks
     def persist_outgoing(cls, pdu):
+        """ Persists the given `Pdu` that this home server created.
+
+        Returns:
+            Deferred
+        """
         ret = yield cls._persist(pdu)
 
         # This is safe to do since if *we* are sending something, then we must
@@ -60,36 +86,13 @@ class PduActions(object):
 
         defer.returnValue(ret)
 
-    @classmethod
-    @defer.inlineCallbacks
-    def _persist(cls, pdu):
-        kwargs = copy.copy(pdu.__dict__)
-        del kwargs["content"]
-        kwargs["content_json"] = json.dumps(pdu.content)
-        kwargs["unrecognized_keys"] = json.dumps(kwargs["unrecognized_keys"])
-
-        logger.debug("Persisting: %s", repr(kwargs))
-
-        if pdu.is_state:
-            ret = yield run_interaction(
-                PduQueries.insert_state,
-                **kwargs
-            )
-        else:
-            ret = yield run_interaction(
-                PduQueries.insert,
-                **kwargs
-            )
-
-        yield run_interaction(
-            PduQueries.update_min_depth,
-            pdu.context, pdu.depth
-        )
-
-        defer.returnValue(ret)
-
     @staticmethod
     def mark_as_processed(pdu):
+        """ Persist the fact that we have fully processed the given `Pdu`
+
+        Returns:
+            Deferred
+        """
         return run_interaction(
             PduQueries.mark_as_processed,
             pdu.pdu_id, pdu.origin
@@ -98,6 +101,12 @@ class PduActions(object):
     @classmethod
     @defer.inlineCallbacks
     def populate_previous_pdus(cls, pdu):
+        """ Given an outgoing `Pdu` fill out its `prev_ids` key with the `Pdu`s
+        that we have received.
+
+        Returns:
+            Deferred
+        """
         results = yield run_interaction(
             PduQueries.get_prev_pdus,
             pdu.context
@@ -127,6 +136,12 @@ class PduActions(object):
     @staticmethod
     @defer.inlineCallbacks
     def after_transaction(transaction_id, destination, origin):
+        """ Returns all `Pdu`s that we sent to the given remote home server
+        after a given transaction id.
+
+        Returns:
+            Deferred: Results in a list of `Pdu`s
+        """
         results = yield run_interaction(
             PduQueries.get_after_transaction,
             transaction_id,
@@ -139,6 +154,12 @@ class PduActions(object):
     @staticmethod
     @defer.inlineCallbacks
     def paginate(context, pdu_list, limit):
+        """ For a given list of PDU id and origins return the proceeding
+        `limit` `Pdu`s in the given `context`.
+
+        Returns:
+            Deferred: Results in a list of `Pdu`s.
+        """
         results = yield run_interaction(
             PduQueries.paginate,
             context, pdu_list, limit
@@ -148,6 +169,13 @@ class PduActions(object):
 
     @staticmethod
     def is_new(pdu):
+        """ When we receive a `Pdu` from a remote home server, we want to
+        figure out whether it is `new`, i.e. it is not some historic PDU that
+        we haven't seen simply because we haven't paginated back that far.
+
+        Returns:
+            Deferred: Results in a `bool`
+        """
         return run_interaction(
             PduQueries.is_new,
             pdu_id=pdu.pdu_id,
@@ -156,10 +184,49 @@ class PduActions(object):
             depth=pdu.depth
         )
 
+    @classmethod
+    @defer.inlineCallbacks
+    def _persist(cls, pdu):
+        kwargs = copy.copy(pdu.__dict__)
+        del kwargs["content"]
+        kwargs["content_json"] = json.dumps(pdu.content)
+        kwargs["unrecognized_keys"] = json.dumps(kwargs["unrecognized_keys"])
+
+        logger.debug("Persisting: %s", repr(kwargs))
+
+        if pdu.is_state:
+            ret = yield run_interaction(
+                PduQueries.insert_state,
+                **kwargs
+            )
+        else:
+            ret = yield run_interaction(
+                PduQueries.insert,
+                **kwargs
+            )
+
+        yield run_interaction(
+            PduQueries.update_min_depth,
+            pdu.context, pdu.depth
+        )
+
+        defer.returnValue(ret)
+
 
 class TransactionActions(object):
+    """ Defines persistence actions that relate to handling Transactions.
+    """
+
     @staticmethod
     def have_responded(transaction):
+        """ Have we already responded to a transaction with the same id and
+        origin?
+
+        Returns:
+            Deferred: Results in `Non`e if we have not previously responded to
+            this transaction or a 2-tuple of `(int, dict)` representing the
+            response code and response body.
+        """
         if not transaction.transaction_id:
             raise RuntimeError("Cannot persist a transaction with no "
                                "transaction_id")
@@ -171,6 +238,11 @@ class TransactionActions(object):
 
     @staticmethod
     def set_response(transaction, code, response):
+        """ Persist how we responded to a transaction.
+
+        Returns:
+            Deferred
+        """
         if not transaction.transaction_id:
             raise RuntimeError("Cannot persist a transaction with no "
                                "transaction_id")
@@ -184,22 +256,14 @@ class TransactionActions(object):
         )
 
     @staticmethod
-    def persist_as_received(transaction, response_code, response_json):
-        return run_interaction(
-            TransactionQueries.insert_received,
-            ReceivedTransactionsTable.EntryType(
-                transaction_id=transaction.transaction_id,
-                origin=transaction.origin,
-                ts=transaction.ts,
-                response_code=response_code,
-                response_json=json.dumps(response_json)
-            ),
-            transaction.previous_ids
-        )
-
-    @staticmethod
     @defer.inlineCallbacks
     def prepare_to_send(transaction):
+        """ Persists the `Transaction` we are about to send and works out the
+        correct value for the `prev_ids` key.
+
+        Returns:
+            Deferred
+        """
         transaction.prev_ids = yield run_interaction(
             TransactionQueries.prep_send_transaction,
             transaction.transaction_id,
@@ -209,11 +273,17 @@ class TransactionActions(object):
         )
 
     @staticmethod
-    def delivered(transaction, response_code, response_json):
+    def delivered(transaction, response_code, response_dict):
+        """ Marks the given `Transaction` as having been successfully
+        delivered to the remote homeserver, and what the response was.
+
+        Returns:
+            Deferred
+        """
         return run_interaction(
             TransactionQueries.delivered_txn,
             transaction.transaction_id,
             transaction.destination,
             response_code,
-            json.dumps(response_json)
+            json.dumps(response_dict)
         )
