@@ -51,8 +51,8 @@ class AccessTokenAuth(object):
         # get query parameters and check access_token
         try:
             user_id = yield DbPool.get().runInteraction(
-                          AccessTokenAuth._query_for_auth,
-                          request.args["access_token"])
+                AccessTokenAuth._query_for_auth,
+                request.args["access_token"])
             defer.returnValue(user_id)
         except KeyError:  # request has no access_token query param
             raise InvalidHttpRequestError(403, "No access_token")
@@ -67,4 +67,3 @@ class AccessTokenAuth(object):
             return row[0]
 
         raise InvalidHttpRequestError(403, "Unrecognised access token.")
-

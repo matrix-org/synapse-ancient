@@ -36,19 +36,19 @@ class RegisterEvent(PostEventMixin, BaseEvent):
         except ValueError:
             defer.returnValue((400, "No JSON object."))
         except InvalidHttpRequestError as e:
-                defer.returnValue((e.get_status_code(), e.get_response_body()))
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
         except KeyError:
             pass
 
         if desired_user_id:
             try:
                 (user_id, token) = yield DbPool.get().runInteraction(
-                                       self._register, desired_user_id)
+                    self._register, desired_user_id)
             except InvalidHttpRequestError as e:
                 defer.returnValue((e.get_status_code(), e.get_response_body()))
 
             defer.returnValue((200,
-                              {"user_id": user_id, "access_token": token}))
+                               {"user_id": user_id, "access_token": token}))
         else:
             # autogen a random user ID
             (user_id, token) = (None, None)
@@ -56,8 +56,8 @@ class RegisterEvent(PostEventMixin, BaseEvent):
             while not user_id and not token:
                 try:
                     (user_id, token) = yield DbPool.get().runInteraction(
-                                            self._register,
-                                            self._generate_user_id())
+                        self._register,
+                        self._generate_user_id())
                 except InvalidHttpRequestError:
                     # if user id is taken, just generate another
                     attempts += 1
@@ -65,7 +65,7 @@ class RegisterEvent(PostEventMixin, BaseEvent):
                         defer.returnValue((500, "Cannot generate user ID."))
 
             defer.returnValue((200,
-                              {"user_id": user_id, "access_token": token}))
+                               {"user_id": user_id, "access_token": token}))
 
     # TODO this should probably be shifted out to another module
     def _register(self, txn, user_id):

@@ -41,11 +41,11 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
 
             # validate JSON
             content = BaseEvent.get_valid_json(request.content.read(),
-                                     [("topic", unicode)])
+                                               [("topic", unicode)])
 
             # store in db
             yield RoomData(room_id=room_id, path=request.path,
-                    content=json.dumps(content)).save()
+                           content=json.dumps(content)).save()
 
             # TODO poke notifier
             # TODO send to s2s layer
@@ -72,7 +72,8 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
         # Pull out the membership from the db
         result = yield RoomMembership.find(where=["sender_id=? AND room_id=?",
-                                userid, roomid], limit=1, orderby="id DESC")
+                                                  userid, roomid], limit=1,
+                                                  orderby="id DESC")
         if not result:
             defer.returnValue((404, BaseEvent.error("Member not found.")))
         defer.returnValue((200, json.loads(result.content)))
@@ -83,7 +84,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             # validate json
             content = BaseEvent.get_valid_json(request.content.read(),
-                                           [("membership", unicode)])
+                                               [("membership", unicode)])
 
             # TODO
             # invite = they != userid & they are currently joined
@@ -92,7 +93,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
             # store membership
             yield RoomMembership(sender_id=userid, room_id=roomid,
-                             content=json.dumps(content)).save()
+                                 content=json.dumps(content)).save()
 
             # TODO poke notifier
             # TODO send to s2s layer
@@ -103,7 +104,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
 
 class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                      BaseEvent):
+                   BaseEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -121,7 +122,8 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
         # Pull out the message from the db
         results = yield Message.find(where=["room_id=? AND msg_id=? AND " +
-                          "sender_id=?", room_id, msg_id, msg_sender_id])
+                                            "sender_id=?", room_id, msg_id,
+                                             msg_sender_id])
         if len(results) == 0:
             defer.returnValue((404, BaseEvent.error("Message not found.")))
         defer.returnValue((200, json.loads(results[0].content)))
@@ -134,7 +136,8 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # verify they are sending msgs under their own user id
             if sender_id != auth_user_id:
                 raise InvalidHttpRequestError(403,
-                          BaseEvent.error("Invalid userid."))
+                                              BaseEvent.error(
+                                              "Invalid userid."))
             # check the json
             req = BaseEvent.get_valid_json(request.content.read(),
                                            [("msgtype", unicode)])
