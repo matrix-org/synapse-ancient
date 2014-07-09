@@ -4,6 +4,7 @@ from twisted.internet import defer
 from synapse.util.dbutils import DbPool
 from auth import AccessTokenAuth
 from dbobjects import Message
+from room_events import MessageEvent
 from events import GetEventMixin, BaseEvent, InvalidHttpRequestError
 from stream import FilterStream, StreamData
 
@@ -68,9 +69,32 @@ class MessagesStreamData(StreamData):
     def _get_rows(self, txn, user_id, from_pkey, to_pkey):
         # work out which rooms this user is joined in on and join them with
         # the room id on the messages table, bounded by the specified pkeys
-        print "uid %s from %s to %s" % (user_id, from_pkey, to_pkey)
-        # txn.execute("SELECT * FROM messages WHERE id")
-        return ("stuf", 2342)
+
+        query = ("SELECT messages.* FROM messages JOIN room_memberships " +
+            "ON messages.room_id=room_memberships.room_id WHERE " +
+            "room_memberships.membership=? AND room_memberships.sender_id=? " +
+            "AND messages.id > ?")
+        query_args = ["join", user_id, from_pkey]
+
+        if to_pkey != -1:
+            query += " AND messages.id < ?"
+            query_args.append(to_pkey)
+
+        txn.execute(query, query_args)
+
+        col_headers = [i[0] for i in txn.description]
+        result_set = txn.fetchall()
+        data = []
+        last_pkey = from_pkey
+        for result in result_set:
+            event = MessageEvent()
+            result_dict = dict(zip(col_headers, result))
+            last_pkey = result_dict["id"]
+            event_data = event.get_event_data(result_dict)
+            data.append(event_data)
+
+
+        return (data, last_pkey)
 
 
 class EventStream(FilterStream):
@@ -153,7 +177,7 @@ class EventStream(FilterStream):
             (event_chunk, max_pkey) = yield EventStream.STREAM_DATA[i].get_rows(
                                         self.user_id, ifrom, ito)
 
-            chunk.append(event_chunk)
+            chunk += event_chunk
             next_ver.append(str(max_pkey))
 
         defer.returnValue((chunk, EventStream.SEPARATOR.join(next_ver)))

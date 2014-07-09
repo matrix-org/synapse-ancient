@@ -86,6 +86,10 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             content = BaseEvent.get_valid_json(request.content.read(),
                                                [("membership", unicode)])
 
+            if content["membership"] not in ["join", "invite", "leave"]:
+                raise InvalidHttpRequestError(400,
+                    "Bad membership value. Must be one of join/invite/leave.")
+
             # TODO
             # invite = they != userid & they are currently joined
             # join = they == userid & they are invited or its a new room by them
@@ -93,6 +97,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
             # store membership
             yield RoomMembership(sender_id=userid, room_id=roomid,
+                                 membership=content["membership"],
                                  content=json.dumps(content)).save()
 
             # TODO poke notifier

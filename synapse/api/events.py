@@ -170,6 +170,11 @@ class EventStreamMixin(object):
         """
         raise NotImplementedError()
 
+    def get_event_data(self, db_dict):
+        db_dict.pop("id")
+        db_dict["type"] = self.get_event_type()
+        return db_dict
+
     def get_event_stream_dict(self, *url_args, **kwargs):
         """ Constructs a dict which can be streamed as event JSON.
 
