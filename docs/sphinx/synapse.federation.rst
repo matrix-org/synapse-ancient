@@ -1,48 +1,16 @@
 synapse.federation package
 ==========================
 
-Subpackages
------------
-
-.. toctree::
-
-    synapse.federation.protocol
-
 Submodules
 ----------
 
-synapse.federation.messaging module
------------------------------------
+.. toctree::
 
-.. automodule:: synapse.federation.messaging
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.federation.pdu module
------------------------------
-
-.. automodule:: synapse.federation.pdu
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.federation.transaction module
--------------------------------------
-
-.. automodule:: synapse.federation.transaction
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.federation.transport module
------------------------------------
-
-.. automodule:: synapse.federation.transport
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   synapse.federation.messaging
+   synapse.federation.persistence
+   synapse.federation.replication
+   synapse.federation.transport
+   synapse.federation.units
 
 Module contents
 ---------------

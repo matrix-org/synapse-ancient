@@ -4,14 +4,9 @@ synapse.app package
 Submodules
 ----------
 
-synapse.app.homeserver module
------------------------------
+.. toctree::
 
-.. automodule:: synapse.app.homeserver
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   synapse.app.homeserver
 
 Module contents
 ---------------

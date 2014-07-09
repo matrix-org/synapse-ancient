@@ -4,22 +4,10 @@ synapse.persistence package
 Submodules
 ----------
 
-synapse.persistence.tables module
----------------------------------
+.. toctree::
 
-.. automodule:: synapse.persistence.tables
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.persistence.transactions module
----------------------------------------
-
-.. automodule:: synapse.persistence.transactions
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   synapse.persistence.tables
+   synapse.persistence.transactions
 
 Module contents
 ---------------

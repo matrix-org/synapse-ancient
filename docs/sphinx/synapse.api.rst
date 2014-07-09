@@ -4,54 +4,17 @@ synapse.api package
 Submodules
 ----------
 
-synapse.api.events module
--------------------------
+.. toctree::
 
-.. automodule:: synapse.api.events
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.api.messages module
----------------------------
-
-.. automodule:: synapse.api.messages
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.api.notifier module
----------------------------
-
-.. automodule:: synapse.api.notifier
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.api.room_events module
-------------------------------
-
-.. automodule:: synapse.api.room_events
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.api.server module
--------------------------
-
-.. automodule:: synapse.api.server
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-synapse.api.versions module
----------------------------
-
-.. automodule:: synapse.api.versions
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   synapse.api.auth
+   synapse.api.dbobjects
+   synapse.api.event_stream
+   synapse.api.events
+   synapse.api.notifier
+   synapse.api.register_events
+   synapse.api.room_events
+   synapse.api.server
+   synapse.api.stream
 
 Module contents
 ---------------
