@@ -20,7 +20,7 @@ class EventFactory(object):
         self.events.append(room_events.MessageEvent())
 
         import event_stream
-        self.events.append(event_stream.EventStream())
+        self.events.append(event_stream.EventStreamEvent())
 
         import register_events
         self.events.append(register_events.RegisterEvent())
