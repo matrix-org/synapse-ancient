@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
-from dbobjects import Message
-from events import GetEventMixin, BaseEvent, InvalidHttpRequestError
+from synapse.util.dbutils import DbPool
 from auth import AccessTokenAuth
+from dbobjects import Message
+from room_events import MessageEvent
+from events import GetEventMixin, BaseEvent, InvalidHttpRequestError
+from stream import FilterStream, StreamData
 
 import re
 
 
-class EventStream(GetEventMixin, BaseEvent):
+class EventStreamEvent(GetEventMixin, BaseEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -18,19 +21,170 @@ class EventStream(GetEventMixin, BaseEvent):
     @defer.inlineCallbacks
     def on_GET(self, request, auth_user_id=None):
         try:
-            self._check_query_parameters(request)
+            event_stream = EventStream(auth_user_id)
+            params = self._get_stream_parameters(request)
+            chunk = yield event_stream.get_chunk(**params)
+            defer.returnValue((200, chunk))
         except InvalidHttpRequestError as e:
-            return (e.get_status_code(), e.get_response_body())
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
 
-        return (200, "This is not the stream you are looking for.")
+        defer.returnValue((500, "This is not the stream you are looking for."))
 
-    def _check_query_parameters(self, request):
+    def _get_stream_parameters(self, request):
+        params = {
+            "from_tok": FilterStream.TOK_START,
+            "to_tok": FilterStream.TOK_END,
+            "limit": None,
+            "direction": 'f'
+        }
         try:
-            if request.args["dir"][0] not in ["f", "b", "forwards",
-                                              "backwards"]:
+            if request.args["dir"][0] not in ["f", "b"]:
                 raise InvalidHttpRequestError(400, "Unknown dir value.")
+            params["direction"] = request.args["dir"][0]
         except KeyError:
             pass  # dir is optional
+
+        if "from" in request.args:
+            params["from_tok"] = request.args["from"][0]
+        if "to" in request.args:
+            params["to_tok"] = request.args["to"][0]
+        if "limit" in request.args:
+            try:
+                params["limit"] = request.args["limit"][0]
+            except ValueError:
+                raise InvalidHttpRequestError(400,
+                    "limit cannot be used with this stream.")
+
+        return params
+
+
+class MessagesStreamData(StreamData):
+
+    @defer.inlineCallbacks
+    def get_rows(self, user_id, from_pkey, to_pkey):
+        (rows, pkey) = yield DbPool.get().runInteraction(self._get_rows,
+                                                    user_id, from_pkey, to_pkey)
+        defer.returnValue((rows, pkey))
+
+    def _get_rows(self, txn, user_id, from_pkey, to_pkey):
+        # work out which rooms this user is joined in on and join them with
+        # the room id on the messages table, bounded by the specified pkeys
+
+        query = ("SELECT messages.* FROM messages JOIN room_memberships " +
+            "ON messages.room_id=room_memberships.room_id WHERE " +
+            "room_memberships.membership=? AND room_memberships.sender_id=? " +
+            "AND messages.id > ?")
+        query_args = ["join", user_id, from_pkey]
+
+        if to_pkey != -1:
+            query += " AND messages.id < ?"
+            query_args.append(to_pkey)
+
+        txn.execute(query, query_args)
+
+        col_headers = [i[0] for i in txn.description]
+        result_set = txn.fetchall()
+        data = []
+        last_pkey = from_pkey
+        for result in result_set:
+            event = MessageEvent()
+            result_dict = dict(zip(col_headers, result))
+            last_pkey = result_dict["id"]
+            event_data = event.get_event_data(result_dict)
+            data.append(event_data)
+
+
+        return (data, last_pkey)
+
+
+class EventStream(FilterStream):
+
+    # order here maps onto tokens
+    STREAM_DATA = [MessagesStreamData()]
+
+    SEPARATOR = '_'
+
+    def __init__(self, user_id):
+        super(EventStream, self).__init__()
+        self.user_id = user_id
+
+    @defer.inlineCallbacks
+    def get_chunk(self, from_tok=None, to_tok=None, direction=None, limit=None):
+        # TODO add support for limit and dir=b
+        if limit or direction != 'f':
+            raise InvalidHttpRequestError(400, "Limit and dir=b not supported.")
+
+        if from_tok == FilterStream.TOK_START:
+            from_tok = EventStream.SEPARATOR.join(
+                           ["0"] * len(EventStream.STREAM_DATA))
+
+        if to_tok == FilterStream.TOK_END:
+            to_tok = EventStream.SEPARATOR.join(
+                           ["-1"] * len(EventStream.STREAM_DATA))
+
+        try:
+            (chunk_data, next_tok) = yield self._get_chunk_data(from_tok,
+                                                                to_tok)
+
+            defer.returnValue({
+                "chunk": chunk_data,
+                "start": from_tok,
+                "end": next_tok
+            })
+        except EventStreamError as e:
+            print e
+            raise InvalidHttpRequestError(400, "Bad tokens supplied.")
+
+    @defer.inlineCallbacks
+    def _get_chunk_data(self, from_tok, to_tok):
+        """ Get event data between the two tokens.
+
+        Tokens are SEPARATOR separated values representing pkey values of
+        certain tables, and the position determines the StreamData invoked
+        according to the STREAM_DATA list.
+
+        The magic value '-1' can be used to get the latest value.
+
+        Args:
+            from_tok - The token to start from.
+            to_tok - The token to end at. Must have values > from_tok or be -1.
+        Returns:
+            A list of event data.
+        Raises:
+            EventStreamError if something went wrong.
+        """
+        # sanity check
+        if (from_tok.count(EventStream.SEPARATOR) !=
+                to_tok.count(EventStream.SEPARATOR) or
+                (from_tok.count(EventStream.SEPARATOR) + 1) !=
+                len(EventStream.STREAM_DATA)):
+            raise EventStreamError("Token lengths don't match.")
+
+        chunk = []
+        next_ver = []
+        for i, (from_pkey, to_pkey) in enumerate(zip(
+                                        from_tok.split(EventStream.SEPARATOR),
+                                        to_tok.split(EventStream.SEPARATOR))):
+            # convert to ints and sanity check
+            try:
+                ifrom = int(from_pkey)
+                ito = int(to_pkey)
+                if ifrom < 0 or ifrom > ito and ito != -1:
+                    raise EventStreamError("Bad index.")
+            except ValueError:
+                raise EventStreamError("Index not integer.")
+
+            (event_chunk, max_pkey) = yield EventStream.STREAM_DATA[i].get_rows(
+                                        self.user_id, ifrom, ito)
+
+            chunk += event_chunk
+            next_ver.append(str(max_pkey))
+
+        defer.returnValue((chunk, EventStream.SEPARATOR.join(next_ver)))
+
+
+class EventStreamError(Exception):
+    pass
 
 
 @staticmethod

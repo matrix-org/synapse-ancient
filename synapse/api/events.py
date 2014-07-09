@@ -20,7 +20,7 @@ class EventFactory(object):
         self.events.append(room_events.MessageEvent())
 
         import event_stream
-        self.events.append(event_stream.EventStream())
+        self.events.append(event_stream.EventStreamEvent())
 
         import register_events
         self.events.append(register_events.RegisterEvent())
@@ -169,6 +169,11 @@ class EventStreamMixin(object):
             A string representing the event type, e.g. sy.room.message
         """
         raise NotImplementedError()
+
+    def get_event_data(self, db_dict):
+        db_dict.pop("id")
+        db_dict["type"] = self.get_event_type()
+        return db_dict
 
     def get_event_stream_dict(self, *url_args, **kwargs):
         """ Constructs a dict which can be streamed as event JSON.
