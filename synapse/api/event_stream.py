@@ -4,7 +4,7 @@ from twisted.internet import defer
 from synapse.util.dbutils import DbPool
 from auth import AccessTokenAuth
 from dbobjects import Message
-from room_events import MessageEvent
+from room_events import MessageEvent, RoomMemberEvent
 from events import GetEventMixin, BaseEvent, InvalidHttpRequestError
 from stream import FilterStream, StreamData
 
@@ -70,6 +70,7 @@ class MessagesStreamData(StreamData):
         # work out which rooms this user is joined in on and join them with
         # the room id on the messages table, bounded by the specified pkeys
 
+        # FIXME this doesn't take the *latest* membership state of user_id
         query = ("SELECT messages.* FROM messages JOIN room_memberships " +
             "ON messages.room_id=room_memberships.room_id WHERE " +
             "room_memberships.membership=? AND room_memberships.sender_id=? " +
@@ -93,6 +94,43 @@ class MessagesStreamData(StreamData):
             event_data = event.get_event_data(result_dict)
             data.append(event_data)
 
+        return (data, last_pkey)
+
+
+class RoomMemberStreamData(StreamData):
+
+    @defer.inlineCallbacks
+    def get_rows(self, user_id, from_pkey, to_pkey):
+        (rows, pkey) = yield DbPool.get().runInteraction(self._get_rows,
+                                                    user_id, from_pkey, to_pkey)
+        defer.returnValue((rows, pkey))
+
+    def _get_rows(self, txn, user_id, from_pkey, to_pkey):
+        # work out which rooms this user is joined in on, bounded by the
+        # specified pkeys
+
+        # FIXME this doesn't take the *latest* membership state of user_id
+        query = ("SELECT room_memberships.* FROM room_memberships WHERE " +
+            "room_memberships.membership=? AND room_memberships.sender_id=? " +
+            "AND room_memberships.id > ?")
+        query_args = ["join", user_id, from_pkey]
+
+        if to_pkey != -1:
+            query += " AND room_memberships.id < ?"
+            query_args.append(to_pkey)
+
+        txn.execute(query, query_args)
+
+        col_headers = [i[0] for i in txn.description]
+        result_set = txn.fetchall()
+        data = []
+        last_pkey = from_pkey
+        for result in result_set:
+            event = RoomMemberEvent()
+            result_dict = dict(zip(col_headers, result))
+            last_pkey = result_dict["id"]
+            event_data = event.get_event_data(result_dict)
+            data.append(event_data)
 
         return (data, last_pkey)
 
@@ -100,7 +138,8 @@ class MessagesStreamData(StreamData):
 class EventStream(FilterStream):
 
     # order here maps onto tokens
-    STREAM_DATA = [MessagesStreamData()]
+    STREAM_DATA = [MessagesStreamData(),
+                   RoomMemberStreamData()]
 
     SEPARATOR = '_'
 
