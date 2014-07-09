@@ -2,10 +2,11 @@
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
-from dbobjects import User
 from events import PostEventMixin, BaseEvent
 
 from sqlite3 import IntegrityError
+
+import synapse.util.stringutils as stringutils
 
 import json
 import re
@@ -42,9 +43,10 @@ class RegisterEvent(PostEventMixin, BaseEvent):
         else:
             defer.returnValue((500, "Uh oh"))
 
+    # TODO this should probably be shifted out to another module
     def _register(self, txn, user_id):
         now = int(time.time())
-        token = "0123456789ABCDEF"
+        token = stringutils.random_string(24)
         device_id = "NO_DEVICE_ID"
 
         try:
@@ -54,9 +56,10 @@ class RegisterEvent(PostEventMixin, BaseEvent):
             return (None, None)
 
         txn.execute("INSERT INTO access_tokens(user_id, device_id, token) " +
-                    "VALUES (?,?,?)", [user_id, device_id, token])
+                    "VALUES (?,?,?)", [txn.lastrowid, device_id, token])
 
         return (user_id, token)
 
+    # TODO how to autogen a non-conflicting userid
     def _generate_user_id(self):
         return "fluffle"

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from twisted.internet import defer
+
 from dbobjects import Message
 from events import GetEventMixin, BaseEvent, InvalidHttpRequestError
 from auth import AccessTokenAuth
@@ -12,7 +14,8 @@ class EventStream(GetEventMixin, BaseEvent):
     def get_pattern(cls):
         return re.compile("^/events$")
 
-    @AccessTokenAuth.authenticate
+    @AccessTokenAuth.defer_authenticate
+    @defer.inlineCallbacks
     def on_GET(self, request, auth_user_id=None):
         try:
             self._check_query_parameters(request)
