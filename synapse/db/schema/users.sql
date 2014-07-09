@@ -8,9 +8,9 @@ CREATE TABLE IF NOT EXISTS users(
 CREATE TABLE IF NOT EXISTS access_tokens(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    device_id TEXT NOT NULL,
+    device_id TEXT,
     token TEXT NOT NULL,
     last_used INTEGER,
     FOREIGN KEY(user_id) REFERENCES users(id),
-    UNIQUE(user_id, device_id) ON CONFLICT REPLACE
+    UNIQUE(token) ON CONFLICT ROLLBACK
 );
