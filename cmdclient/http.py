@@ -3,6 +3,8 @@ from twisted.web.client import Agent, readBody
 from twisted.web.http_headers import Headers
 from twisted.internet import defer, reactor
 
+from pprint import pformat
+
 import json
 import urllib
 
@@ -140,6 +142,10 @@ class TwistedHttpClient(HttpClient):
                     retries_left -= 1
                 else:
                     raise e
+
+        if self.verbose:
+            print "Status %s %s" % (response.code, response.phrase)
+            print pformat(list(response.headers.getAllRawHeaders()))
         defer.returnValue(response)
 
     def sleep(self, seconds):

@@ -10,7 +10,7 @@ import json
 import shlex
 import sys
 import time
-
+import urllib
 
 class SynapseCmd(cmd.Cmd):
 
@@ -22,6 +22,7 @@ class SynapseCmd(cmd.Cmd):
     def __init__(self, http_client, server_url, username, password):
         cmd.Cmd.__init__(self)
         self.http_client = http_client
+        self.http_client.verbose = True
         self.config = {
             "url": server_url,
             "user": username,
@@ -36,9 +37,6 @@ class SynapseCmd(cmd.Cmd):
 
     def emptyline(self):
         pass  # else it repeats the previous command
-
-    def is_verbose(self):
-        return self.config["verbose"].lower() == "on"
 
     def _usr(self):
         return self.config["user"]
@@ -64,6 +62,11 @@ class SynapseCmd(cmd.Cmd):
 
         try:
             args = self._parse(line, ["key", "val"], force_keys=True)
+            if args["key"] == "verbose":
+                if args["val"] not in ["on", "off"]:
+                    print "Value must be 'on' or 'off'."
+                    return
+                self.http_client.verbose = "on" == args["val"]
             self.config[args["key"]] = args["val"]
             print json.dumps(self.config, indent=4)
         except Exception as e:
@@ -175,7 +178,7 @@ class SynapseCmd(cmd.Cmd):
             self.token = res["end"]
 
     def _do_membership_change(self, roomid, membership, userid):
-        path = "/rooms/%s/members/%s/state" % (roomid, userid)
+        path = "/rooms/%s/members/%s/state" % (urllib.quote(roomid), userid)
         data = {
             "membership": membership
         }
@@ -214,6 +217,7 @@ class SynapseCmd(cmd.Cmd):
         json_res = yield self.http_client.do_request(method, url,
                                                     data=data,
                                                     qparams=query_params)
+
         print json.dumps(json_res, indent=4)
 
 
