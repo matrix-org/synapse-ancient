@@ -204,7 +204,7 @@ class ReplicationLayer(object):
 
         pdus = yield PduActions.paginate(context, versions, limit)
 
-        defer.returnValue((200, self._wrap_pdus(pdus)))
+        defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
     def on_transaction(self, transaction_data):
@@ -255,7 +255,7 @@ class ReplicationLayer(object):
     def on_context_state_request(self, context):
         logger.debug("on_context_state_request context=%s", context)
         pdus = yield PduActions.current_state(context)
-        defer.returnValue((200, self._wrap_pdus(pdus)))
+        defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
     def on_pdu_request(self, pdu_origin, pdu_id):
@@ -268,7 +268,7 @@ class ReplicationLayer(object):
         if not pdu:
             pdus = [pdu]
 
-        defer.returnValue((200, self._wrap_pdus(pdus)))
+        defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
     def on_pull_request(self, origin, versions):
@@ -285,15 +285,20 @@ class ReplicationLayer(object):
         if not response:
             response = []
 
-        defer.returnValue((200, self._wrap_pdus(response)))
+        defer.returnValue((200,
+            self._transaction_from_pdus(response).get_dict()
+        ))
 
-    def _wrap_pdus(self, pdu_list):
+    def _transaction_from_pdus(self, pdu_list):
+        """Returns a new Transaction containing the given PDUs suitable for
+        transmission.
+        """
         return Transaction(
             pdus=[p.get_dict() for p in pdu_list],
             origin=self.server_name,
             ts=int(time.time() * 1000),
             destination=None,
-        ).get_dict()
+        )
 
     @defer.inlineCallbacks
     def _handle_new_pdu(self, pdu):
