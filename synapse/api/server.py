@@ -10,7 +10,7 @@ class SynapseHomeServer(ReplicationHandler):
         self.server_name = server_name
         self.http_server = http_server
         self.replication_layer = replication_layer
-        self.replication_layer.set_callback(self)
+        self.replication_layer.set_handler(self)
 
         self.event_factory = EventFactory()
         self.event_factory.register_paths(self.http_server)

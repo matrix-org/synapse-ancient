@@ -7,5 +7,9 @@ from .transport import TransportLayer
 
 
 def initialize_http_federation(server_name, http_client, http_server):
-    transport = TransportLayer(server_name, http_client, http_server)
+    transport = TransportLayer(
+        server_name,
+        server=http_server,
+        client=http_client
+    )
     return ReplicationLayer(server_name, transport)

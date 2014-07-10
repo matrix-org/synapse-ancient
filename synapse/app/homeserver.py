@@ -34,7 +34,7 @@ def setup_server(hostname):
     http_client = TwistedHttpClient()
 
     replication = initialize_http_federation(
-        hostname, http_client, http_server)
+        hostname, http_client=http_client, http_server=http_server)
 
     hs = SynapseHomeServer(http_server, hostname, replication)
     return http_server
