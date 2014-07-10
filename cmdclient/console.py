@@ -12,6 +12,7 @@ import sys
 import time
 import urllib
 
+
 class SynapseCmd(cmd.Cmd):
 
     """Basic synapse command-line processor.
@@ -29,7 +30,7 @@ class SynapseCmd(cmd.Cmd):
             "token": password,
             "verbose": "on"
         }
-        self.token = "START"
+        self.event_stream_token = "START"
         self.prompt = ">>> "
 
     def do_EOF(self, line):  # allows CTRL+D quitting
@@ -161,21 +162,21 @@ class SynapseCmd(cmd.Cmd):
                                                      args["data"],
                                                      query_params=qp)
 
-    def do_connect(self, line):
-        """Connects to the server: "connect" """
-        reactor.callFromThread(self._do_connect, line)
+    def do_stream(self, line):
+        """Stream data from the server: "stream" """
+        reactor.callFromThread(self._do_event_stream, line)
 
     @defer.inlineCallbacks
-    def _do_connect(self, line):
+    def _do_event_stream(self, line):
         res = yield self.http_client.get_json(
                 self._url() + "/events",
                 {
                     "access_token": self._tok(),
-                    "from": self.token
+                    "from": self.event_stream_token
                 })
         print json.dumps(res, indent=4)
         if "end" in res:
-            self.token = res["end"]
+            self.event_stream_token = res["end"]
 
     def _do_membership_change(self, roomid, membership, userid):
         path = "/rooms/%s/members/%s/state" % (urllib.quote(roomid), userid)
