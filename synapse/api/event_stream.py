@@ -70,10 +70,11 @@ class MessagesStreamData(StreamData):
         # work out which rooms this user is joined in on and join them with
         # the room id on the messages table, bounded by the specified pkeys
 
-        # FIXME this doesn't take the *latest* membership state of user_id
-        query = ("SELECT messages.* FROM messages JOIN room_memberships " +
-            "ON messages.room_id=room_memberships.room_id WHERE " +
-            "room_memberships.membership=? AND room_memberships.sender_id=? " +
+        # get all messages where the *current* membership state is 'join' for
+        # this user in that room.
+        query = ("SELECT messages.* FROM messages WHERE ? IN " +
+            "(SELECT membership from room_memberships WHERE sender_id=? AND " +
+            "room_id = messages.room_id ORDER BY id DESC LIMIT 1) " +
             "AND messages.id > ?")
         query_args = ["join", user_id, from_pkey]
 
@@ -106,17 +107,16 @@ class RoomMemberStreamData(StreamData):
         defer.returnValue((rows, pkey))
 
     def _get_rows(self, txn, user_id, from_pkey, to_pkey):
-        # work out which rooms this user is joined in on, bounded by the
-        # specified pkeys
-
-        # FIXME this doesn't take the *latest* membership state of user_id
-        query = ("SELECT room_memberships.* FROM room_memberships WHERE " +
-            "room_memberships.membership=? AND room_memberships.sender_id=? " +
-            "AND room_memberships.id > ?")
+        # get all room membership events for rooms which the user is *currently*
+        # joined in on.
+        query = ("SELECT rm.* FROM room_memberships rm WHERE ? IN " +
+            "(SELECT membership from room_memberships WHERE sender_id=? AND " +
+            "room_id = rm.room_id ORDER BY id DESC LIMIT 1) " +
+            "AND rm.id > ?")
         query_args = ["join", user_id, from_pkey]
 
         if to_pkey != -1:
-            query += " AND room_memberships.id < ?"
+            query += " AND rm.id < ?"
             query_args.append(to_pkey)
 
         txn.execute(query, query_args)
