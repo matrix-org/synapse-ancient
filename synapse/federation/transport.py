@@ -90,7 +90,7 @@ class TransportLayer(object):
 
         return self._do_request_for_transaction(destination, path)
 
-    def trigger_paginate(self, dest, context, pdu_tuples, limit):
+    def paginate(self, dest, context, pdu_tuples, limit):
         """ Requests `limit` previous PDUs in a given context before list of
         PDUs.
 
@@ -104,7 +104,7 @@ class TransportLayer(object):
             Deferred: Results in a dict received from the remote homeserver.
         """
         logger.debug(
-            "trigger_paginate dest=%s, context=%s, pdu_tuples=%s, limit=%s",
+            "paginate dest=%s, context=%s, pdu_tuples=%s, limit=%s",
             dest, context, repr(pdu_tuples), str(limit)
         )
 

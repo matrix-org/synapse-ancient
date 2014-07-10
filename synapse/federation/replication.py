@@ -122,7 +122,7 @@ class ReplicationLayer(object):
         if not extremities:
             return
 
-        transaction_data = yield self.transport_layer.trigger_paginate(
+        transaction_data = yield self.transport_layer.paginate(
             dest, context, extremities, limit)
 
         logger.debug("paginate transaction_data=%s", repr(transaction_data))
@@ -148,7 +148,7 @@ class ReplicationLayer(object):
             pdu_id (str)
             outlier (bool): Indicates whether the PDU is an `outlier`, i.e. if
                 it's from an arbitary point in the context as opposed to part
-                of the current block of PDUs.
+                of the current block of PDUs. Defaults to `False`
 
         Returns:
             Deferred: Results in the requested PDU.
@@ -156,7 +156,7 @@ class ReplicationLayer(object):
         logger.debug("get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
                      destination, pdu_origin, pdu_id)
 
-        transaction_data = yield self.transport_layer.trigger_get_pdu(
+        transaction_data = yield self.transport_layer.get_pdu(
             destination, pdu_origin, pdu_id)
 
         transaction = Transaction(**transaction_data)
@@ -185,7 +185,7 @@ class ReplicationLayer(object):
         logger.debug(
             "get_state_for_context context=%s, dest=%s", context, destination)
 
-        transaction_data = yield self.transport_layer.trigger_get_context_state(
+        transaction_data = yield self.transport_layer.get_context_state(
             destination, context)
 
         transaction = Transaction(**transaction_data)
