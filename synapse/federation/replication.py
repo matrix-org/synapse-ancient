@@ -53,17 +53,18 @@ class ReplicationLayer(object):
         self._order = 0
 
     def set_handler(self, handler):
-        """ Sets the handler that the replication layer will use to
-        communicate recepit of new Pdus. The required methods are documented
-        on :py:class:`.ReplicationHandler`.
+        """Sets the handler that the replication layer will use to communicate
+        receipt of new PDUs from other home servers. The required methods are
+        documented on :py:class:`.ReplicationHandler`.
         """
         self.handler = handler
 
     @defer.inlineCallbacks
     def send_pdu(self, pdu):
-        """Informs the replication layer about a new PDU.
+        """Informs the replication layer about a new PDU generated within the
+        home server that should be transmitted to others.
 
-        This will fill out various attributes on the Pdu object, e.g. the
+        This will fill out various attributes on the PDU object, e.g. the
         `prev_pdus` key.
 
         *Note:* The home server should always call `send_pdu` even if it knows
@@ -99,7 +100,7 @@ class ReplicationLayer(object):
 
     @defer.inlineCallbacks
     def paginate(self, dest, context, limit):
-        """ Requests some more historic PDUs for the given context from the
+        """Requests some more historic PDUs for the given context from the
         given destination server.
 
         Args:
@@ -137,7 +138,7 @@ class ReplicationLayer(object):
 
     @defer.inlineCallbacks
     def get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
-        """ Requests the PDU with given origin and ID from the remote home
+        """Requests the PDU with given origin and ID from the remote home
         server.
 
         This will persist the PDU locally upon receipt.
@@ -172,7 +173,7 @@ class ReplicationLayer(object):
 
     @defer.inlineCallbacks
     def get_state_for_context(self, destination, context):
-        """ Requests all of the `current` state PDUs for a given context from
+        """Requests all of the `current` state PDUs for a given context from
         a remote home server.
 
         Args:
@@ -409,7 +410,7 @@ class ReplicationLayer(object):
 
 
 class ReplicationHandler(object):
-    """ This defines the methods that the :py:class:`.ReplciationLayer` will
+    """This defines the methods that the :py:class:`.ReplicationLayer` will
     use to communicate with the rest of the home server.
     """
     def on_receive_pdu(self, pdu):
@@ -420,7 +421,7 @@ class ReplicationHandler(object):
 
 
 class _TransactionQueue(object):
-    """ This class makes sure we only have one transaction in flight at
+    """This class makes sure we only have one transaction in flight at
     a time for a given destination.
 
     It batches pending PDUs into single transactions.
