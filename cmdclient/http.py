@@ -61,6 +61,9 @@ class TwistedHttpClient(HttpClient):
 
     @defer.inlineCallbacks
     def put_json(self, url, data):
+        if self.verbose:
+            print json.dumps(data, indent=4)
+
         response = yield self._create_put_request(
             url,
             data,
@@ -109,6 +112,9 @@ class TwistedHttpClient(HttpClient):
             url = "%s?%s" % (url, urllib.urlencode(qparams, True))
 
         if method in ["POST", "PUT"]:
+            if self.verbose:
+                print json.dumps(data, indent=4)
+
             response = yield self._create_request(method, url,
                     producer=_JsonProducer(data),
                     headers_dict={"Content-Type": ["application/json"]})
