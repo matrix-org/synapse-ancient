@@ -18,7 +18,7 @@ from synapse.federation.messaging import MessagingLayer, MessagingCallbacks
 
 from synapse.util import DbPool, origin_from_ucid
 
-from synapse.db import schema_path
+from synapse.persistence import schema_path
 
 from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
