@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 """ This package includes all the federation specific logic.
-
-The entry point from the rest of the home server is the messaging package.
 """
 
-from .messaging import MessagingLayer, MessagingCallbacks
+from .replication import ReplicationLayer, ReplicationHandler
+from .transport import TransportLayer
+
+
+def initialize_http_federation(server_name, http_client, http_server):
+    transport = TransportLayer(server_name, http_client, http_server)
+    return ReplicationLayer(server_name, transport)

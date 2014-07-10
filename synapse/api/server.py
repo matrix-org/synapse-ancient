@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
 from synapse.api.events import EventFactory
-from synapse.federation import MessagingCallbacks
+from synapse.federation import ReplicationHandler
 
 
-class SynapseHomeServer(MessagingCallbacks):
+class SynapseHomeServer(ReplicationHandler):
 
-    def __init__(self, http_server, server_name, messaging_layer):
+    def __init__(self, http_server, server_name, replication_layer):
         self.server_name = server_name
         self.http_server = http_server
-        self.messaging_layer = messaging_layer
-        self.messaging_layer.set_callback(self)
+        self.replication_layer = replication_layer
+        self.replication_layer.set_callback(self)
 
         self.event_factory = EventFactory()
         self.event_factory.register_paths(self.http_server)
