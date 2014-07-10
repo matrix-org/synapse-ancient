@@ -172,6 +172,8 @@ class EventStreamMixin(object):
 
     def get_event_data(self, db_dict):
         db_dict.pop("id")
+        if "content" in db_dict:
+            db_dict["content"] = json.loads(db_dict["content"])
         db_dict["type"] = self.get_event_type()
         return db_dict
 
