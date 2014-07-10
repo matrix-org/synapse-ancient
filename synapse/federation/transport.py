@@ -114,7 +114,7 @@ class TransportLayer(object):
         path = "/paginate/%s/" % context
 
         args = {"v": ["%s,%s" % (i, o) for i, o in pdu_tuples]}
-        args["limit"] = [str(limit)]
+        args["limit"] = limit
 
         return self._do_request_for_transaction(
             dest,

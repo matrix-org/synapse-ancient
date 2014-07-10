@@ -17,48 +17,6 @@ import urllib
 logger = logging.getLogger(__name__)
 
 
-def generate_qs(d):
-    """Given a dict of lists, convert them into a query string.
-
-    This is the opposite of :py:class:`urlparse.parse_qs`
-
-    Args:
-        d (dict): A dict where all the values are lists of strings.
-
-    Returns:
-        str: A string suitable for appending to a path.
-
-        For every item under a key, we include in the resulting query string
-        that key/value pair.
-
-        Does *not* include a leading '?'.
-
-    Examples:
-        For example if we were given a `dict` of the form::
-
-            {
-                "a": ["b"],
-                "x": ["y", "z"],
-            }
-
-        We would return the string::
-
-            a=b&x=y&x=z
-
-    """
-    # Generates a list of strings of form "k=v".
-
-    # First we generate a list of lists, and then flatten it using
-    # the "fun" list comprehension syntax.
-    parts = [
-        ["%s=%s" % (k, urllib.quote_plus(w)) for w in v]
-        for k, v in d.items()
-    ]
-
-    qs = [i for s in parts for i in s]
-    return "&".join(qs)
-
-
 class HttpServer(object):
     """ Interface for registering callbacks on a HTTP server
     """
@@ -280,7 +238,7 @@ class TwistedHttpClient(HttpClient):
             # generates a list of strings of form "k=v".
             # First we generate a list of lists, and then flatten it using
             # the "fun" list comprehension syntax.
-            qs = generate_qs(args)
+            qs = urllib.urlencode(args, True)
             path = "%s?%s" % (path, qs)
 
         response = yield self._create_get_request(
