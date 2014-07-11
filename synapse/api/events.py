@@ -25,14 +25,15 @@ class EventFactory(object):
         import register_events
         self.events.append(register_events.RegisterEvent())
 
-    def register_paths(self, http_server):
-        """ Registers paths for all known events.
+    def register_events(self, http_server, data_store):
+        """ Registers all events with contextual modules.
 
         Args:
-            http_server : The server to register paths to.
+            http_server : The server that events can register paths to.
+            data_store : The data store that events can CRUD to.
         """
         for event in self.events:
-            event.register(http_server)
+            event.register(http_server, data_store)
 
 
 class BaseEvent(object):
@@ -51,9 +52,10 @@ class BaseEvent(object):
         raise NotImplementedError("Event must specify a URL pattern.")
 
     @classmethod
-    def register(cls, http_server):
-        """ Register a method, path and callback with the HTTP server. """
-        pass
+    def register(cls, http_server, data_store):
+        """ Register this event with the server and perform CRUD operations
+        on the specified data store. """
+        cls.data_store = data_store
 
     @staticmethod
     def get_valid_json(content, required_keys_values):
@@ -113,8 +115,8 @@ class PutEventMixin(object):
     """ A mixin with the ability to handle PUTs. """
 
     @classmethod
-    def register(cls, http_server):
-        super(PutEventMixin, cls).register(http_server)
+    def register(cls, http_server, data_store):
+        super(PutEventMixin, cls).register(http_server, data_store)
         http_server.register_path("PUT", cls.get_pattern(),
                                   cls.on_PUT)
 
@@ -128,8 +130,8 @@ class GetEventMixin(object):
     """ A mixin with the ability to handle GETs. """
 
     @classmethod
-    def register(cls, http_server):
-        super(GetEventMixin, cls).register(http_server)
+    def register(cls, http_server, data_store):
+        super(GetEventMixin, cls).register(http_server, data_store)
         http_server.register_path("GET", cls.get_pattern(),
                                   cls.on_GET)
 
@@ -143,7 +145,8 @@ class PostEventMixin(object):
     """ A mixin with the ability to handle POSTs. """
 
     @classmethod
-    def register(cls, http_server):
+    def register(cls, http_server, data_store):
+        super(PostEventMixin, cls).register(http_server, data_store)
         http_server.register_path("POST", cls.get_pattern(),
                                   cls.on_POST)
 

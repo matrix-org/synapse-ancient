@@ -12,8 +12,11 @@ class SynapseHomeServer(ReplicationHandler):
         self.replication_layer = replication_layer
         self.replication_layer.set_handler(self)
 
+        self.event_data_store = None  # FIXME database
+
         self.event_factory = EventFactory()
-        self.event_factory.register_paths(self.http_server)
+        self.event_factory.register_events(self.http_server,
+                                           self.event_data_store)
 
     def on_receive_pdu(self, pdu):
         pdu_type = pdu.pdu_type
