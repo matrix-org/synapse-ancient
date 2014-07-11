@@ -17,12 +17,13 @@ class EventStreamEvent(GetEventMixin, BaseEvent):
     def get_pattern(cls):
         return re.compile("^/events$")
 
+    @classmethod
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_GET(self, request, auth_user_id=None):
+    def on_GET(cls, request, auth_user_id=None):
         try:
             event_stream = EventStream(auth_user_id)
-            params = self._get_stream_parameters(request)
+            params = cls._get_stream_parameters(request)
             chunk = yield event_stream.get_chunk(**params)
             defer.returnValue((200, chunk))
         except InvalidHttpRequestError as e:
@@ -30,7 +31,8 @@ class EventStreamEvent(GetEventMixin, BaseEvent):
 
         defer.returnValue((500, "This is not the stream you are looking for."))
 
-    def _get_stream_parameters(self, request):
+    @classmethod
+    def _get_stream_parameters(cls, request):
         params = {
             "from_tok": FilterStream.TOK_START,
             "to_tok": FilterStream.TOK_END,
