@@ -25,9 +25,14 @@ PduTuple = namedtuple(
     ("pdu_entry", "prev_pdu_list")
 )
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
+
+# This should probably be put somewhere more sensible
 PduIdTuple = namedtuple("PduIdTuple", ("pdu_id", "origin"))
 
 PduEntry = _pdu_state_joiner.EntryType
+""" We are always interested in the join of the PdusTable and StatePdusTable,
+rather than just the PdusTable.
+"""
 
 
 def run_interaction(transaction_func, *args, **kwargs):
