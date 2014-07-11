@@ -39,20 +39,20 @@ depth        Integer            The maximum depth of the previous PDUs plus one.
 
 Keys for state updates:
 
-============ ================== ================================================
-    Key            Type                         Description
-============ ================== ================================================
-is_state     Boolean            True if this PDU is updating state.
-state_key    String             Optional key identifing the updated state within
+================== ============ ================================================
+    Key               Type                      Description
+================== ============ ================================================
+is_state           Boolean      True if this PDU is updating state.
+state_key          String       Optional key identifing the updated state within
                                 the context.
-power_level  Integer            The asserted power level of the user performing
+power_level        Integer      The asserted power level of the user performing
                                 the update.
-min_update   Integer            The required power level needed to replace this
+min_update         Integer      The required power level needed to replace this
                                 update.
-prev_state   Pair of Strings    The originating homeserver and PDU id of the 
-                                update to the state this replaces.
-user         String             The user updating the state.
-============ ================== ================================================
+prev_state_id      String       The homeserver of the update this replaces
+prev_state_origin  String       The PDU id of the update this replaces.
+user               String       The user updating the state.
+================== ============ ================================================
 
 
 
