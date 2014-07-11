@@ -2,7 +2,7 @@
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
-from events import PostEventMixin, BaseEvent, InvalidHttpRequestError
+from base import PostEventMixin, BaseEvent, InvalidHttpRequestError
 
 from sqlite3 import IntegrityError
 

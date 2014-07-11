@@ -14,16 +14,16 @@ class EventFactory(object):
     def __init__(self):
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
-        import room_events
-        self.events.append(room_events.RoomTopicEvent())
-        self.events.append(room_events.RoomMemberEvent())
-        self.events.append(room_events.MessageEvent())
+        import room
+        self.events.append(room.RoomTopicEvent())
+        self.events.append(room.RoomMemberEvent())
+        self.events.append(room.MessageEvent())
 
-        import event_stream
-        self.events.append(event_stream.EventStreamEvent())
+        from synapse.api.streams.event import EventStreamEvent
+        self.events.append(EventStreamEvent())
 
-        import register_events
-        self.events.append(register_events.RegisterEvent())
+        import register
+        self.events.append(register.RegisterEvent())
 
     def register_events(self, http_server, data_store):
         """ Registers all events with contextual modules.

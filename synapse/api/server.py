@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from synapse.api.events import EventFactory
+from synapse.api.events.base import EventFactory
 from synapse.federation import ReplicationHandler
 
 

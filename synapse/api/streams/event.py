@@ -2,11 +2,12 @@
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
-from auth import AccessTokenAuth
-from dbobjects import Message
-from room_events import MessageEvent, RoomMemberEvent
-from events import GetEventMixin, BaseEvent, InvalidHttpRequestError
-from stream import FilterStream, StreamData
+from synapse.api.auth import AccessTokenAuth
+from synapse.api.dbobjects import Message
+from synapse.api.events.room import MessageEvent, RoomMemberEvent
+from synapse.api.events.base import (GetEventMixin, BaseEvent,
+                                     InvalidHttpRequestError)
+from base import FilterStream, StreamData
 
 import re
 

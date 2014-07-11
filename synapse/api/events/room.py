@@ -2,9 +2,9 @@
 """ Contains events to do with rooms. """
 from twisted.internet import defer
 
-from events import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
+from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
-from auth import AccessTokenAuth
+from synapse.api.auth import AccessTokenAuth
 from synapse.api.dbobjects import Message, RoomMembership, RoomData
 
 import json
