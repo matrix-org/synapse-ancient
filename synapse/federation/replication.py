@@ -8,7 +8,7 @@ from twisted.internet import defer
 from .units import Transaction, Pdu
 
 from synapse.persistence.transactions import (
-    PduQueries, StateQueries, run_interaction
+    PduQueries, run_interaction
 )
 from .persistence import PduActions, TransactionActions
 
@@ -337,81 +337,11 @@ class ReplicationLayer(object):
         # Persist the Pdu, but don't mark it as processed yet.
         yield PduActions.persist_received(pdu)
 
-        if pdu.is_state:
-            res = yield self._handle_state(pdu, existing)
-            defer.returnValue(res)
-            return
-        else:
-            ret = yield self.handler.on_receive_pdu(pdu)
+        ret = yield self.handler.on_receive_pdu(pdu)
 
-            yield PduActions.mark_as_processed(pdu)
+        yield PduActions.mark_as_processed(pdu)
 
-            defer.returnValue(ret)
-
-    @defer.inlineCallbacks
-    def _handle_state(self, pdu, existing):
-        logger.debug(
-            "_handle_state pdu: %s %s",
-            pdu.pdu_id, pdu.origin
-        )
-
-        if not existing:
-            # Work out if the state has changed. If so hit the state change
-            # callback.
-
-            # XXX: RACES?!
-
-            # Fetch any missing state pdus we might be missing
-            while True:
-                r = yield run_interaction(
-                    StateQueries.get_next_missing_pdu,
-                    pdu
-                )
-                if r:
-                    logger.debug(
-                        "_handle_state getting pdu: %s %s",
-                        r.pdu_id, r.origin
-                    )
-                    yield self.get_pdu(
-                        pdu.origin,
-                        pdu_id=r.pdu_id,
-                        origin=r.origin,
-                        outlier=True
-                    )
-                else:
-                    break
-
-            logger.debug("_handle_state updating state")
-
-            was_updated = yield run_interaction(
-                StateQueries.handle_new_state,
-                pdu
-            )
-
-            logger.debug("_handle_state was_updated %s", repr(was_updated))
-
-            if was_updated:
-                logger.debug(
-                    "Notifying about new state: %s %s",
-                    pdu.pdu_id, pdu.origin
-                )
-                yield self.handler.on_state_change(pdu)
-
-        if not pdu.outlier:
-            logger.debug(
-                "Notifying about new pdu: %s %s",
-                pdu.pdu_id, pdu.origin
-            )
-
-            # Inform callback
-            ret = yield self.handler.on_receive_pdu(pdu)
-
-            # Mark this Pdu as processed
-            yield PduActions.mark_as_processed(pdu)
-
-            defer.returnValue(ret)
-        else:
-            defer.returnValue({})
+        defer.returnValue(ret)
 
 
 class ReplicationHandler(object):
@@ -420,9 +350,6 @@ class ReplicationHandler(object):
     """
     def on_receive_pdu(self, pdu):
         raise NotImplementedError("on_receive_pdu")
-
-    def on_state_change(self, pdu):
-        raise NotImplementedError("on_state_change")
 
 
 class _TransactionQueue(object):

@@ -347,8 +347,7 @@ class PduQueries(object):
         return [(row[0], row[1], row[2]) for row in results]
 
     @classmethod
-    def get_after_transaction(cls, txn, transaction_id, destination,
-                              local_server):
+    def get_after_transaction(cls, txn, transaction_id, destination):
         """For a given local transaction_id that we sent to a given destination
         home server, return a list of PDUs that were sent to that destination
         after it.
@@ -357,7 +356,6 @@ class PduQueries(object):
             txn
             transaction_id (str)
             destination (str)
-            local_server (str)
 
         Returns
             list: A list of PduTuple
@@ -689,6 +687,56 @@ class StateQueries(object):
     All functions are executed synchrously. To run them in an asynchronous
     fashion use `run_interaction`
     """
+
+    @classmethod
+    def get_unresolved_state_tree(cls, txn, new_pdu):
+        current = cls._get_current_interaction(
+            txn,
+            new_pdu.context, new_pdu.pdu_type, new_pdu.state_key
+        )
+
+        ReturnType = namedtuple(
+            "StateReturnType", ["new_branch", "current_branch"]
+        )
+        return_value = ReturnType([new_pdu], [])
+
+        if not current:
+            return return_value
+
+        return_value.current_branch.append(current)
+
+        enum_branches = cls._enumerate_state_branches(
+            txn, new_pdu, current
+        )
+
+        for branch, prev_state, state in enum_branches:
+            if state:
+                return_value[branch].append(state)
+            else:
+                break
+
+        return return_value
+
+    def update_current_state(clx, txn, pdu_id, origin, context, pdu_type,
+                             state_key):
+
+        query = (
+            "INSERT OR REPLACE INTO %(curr)s (%(fields)s) VALUES (%(qs)s)"
+        ) % {
+            "curr": CurrentStateTable.table_name,
+            "fields": CurrentStateTable.get_fields_string(),
+            "qs": ", ".join(["?"] * len(CurrentStateTable.fields))
+        }
+
+        query_args = CurrentStateTable.EntryType(
+                pdu_id=pdu_id,
+                origin=origin,
+                context=context,
+                pdu_type=pdu_type,
+                state_key=state_key
+            )
+
+        txn.execute(query, query_args)
 
     @classmethod
     def get_next_missing_pdu(cls, txn, new_pdu):

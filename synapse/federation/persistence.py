@@ -145,8 +145,7 @@ class PduActions(object):
         results = yield run_interaction(
             PduQueries.get_after_transaction,
             transaction_id,
-            destination,
-            origin
+            destination
         )
 
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
