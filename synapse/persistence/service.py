@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+""" We funnel all persistence queries through a single interface to make it
+easier to mock or swap to a different persistence service.
+"""
 
 
 from .transactions import (
