@@ -21,8 +21,9 @@ class RegisterEvent(PostEventMixin, BaseEvent):
     def get_pattern(cls):
         return re.compile("^/register$")
 
+    @classmethod
     @defer.inlineCallbacks
-    def on_POST(self, request):
+    def on_POST(cls, request):
         desired_user_id = None
         try:
             register_json = json.loads(request.content.read())
@@ -43,7 +44,7 @@ class RegisterEvent(PostEventMixin, BaseEvent):
         if desired_user_id:
             try:
                 (user_id, token) = yield DbPool.get().runInteraction(
-                    self._register, desired_user_id)
+                    cls._register, desired_user_id)
             except InvalidHttpRequestError as e:
                 defer.returnValue((e.get_status_code(), e.get_response_body()))
 
@@ -56,8 +57,8 @@ class RegisterEvent(PostEventMixin, BaseEvent):
             while not user_id and not token:
                 try:
                     (user_id, token) = yield DbPool.get().runInteraction(
-                        self._register,
-                        self._generate_user_id())
+                        cls._register,
+                        cls._generate_user_id())
                 except InvalidHttpRequestError:
                     # if user id is taken, just generate another
                     attempts += 1
@@ -68,7 +69,8 @@ class RegisterEvent(PostEventMixin, BaseEvent):
                                {"user_id": user_id, "access_token": token}))
 
     # TODO this should probably be shifted out to another module
-    def _register(self, txn, user_id):
+    @classmethod
+    def _register(cls, txn, user_id):
         now = int(time.time())
 
         try:
@@ -88,5 +90,5 @@ class RegisterEvent(PostEventMixin, BaseEvent):
 
         return (user_id, token)
 
-    def _generate_user_id(self):
+    def _generate_user_id(cls):
         return "-" + stringutils.random_string(18)

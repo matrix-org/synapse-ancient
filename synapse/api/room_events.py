@@ -20,9 +20,10 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
     def get_event_type(self):
         return "sy.room.topic"
 
+    @classmethod
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, auth_user_id=None):
+    def on_GET(cls, request, room_id, auth_user_id=None):
         # TODO check they are invited/joined in the room if private. If
         # public, anyone can view the topic.
 
@@ -33,9 +34,10 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
             defer.returnValue((404, BaseEvent.error("Topic not found.")))
         defer.returnValue((200, json.loads(result.content)))
 
+    @classmethod
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_PUT(self, request, room_id, auth_user_id=None):
+    def on_PUT(cls, request, room_id, auth_user_id=None):
         try:
             # TODO check they are joined in the room
 
@@ -65,9 +67,10 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return "sy.room.members.state"
 
+    @classmethod
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_GET(self, request, roomid, userid, auth_user_id=None):
+    def on_GET(cls, request, roomid, userid, auth_user_id=None):
         # TODO check they are joined in the room
 
         # Pull out the membership from the db
@@ -78,9 +81,10 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((404, BaseEvent.error("Member not found.")))
         defer.returnValue((200, json.loads(result.content)))
 
+    @classmethod
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_PUT(self, request, roomid, userid, auth_user_id=None):
+    def on_PUT(cls, request, roomid, userid, auth_user_id=None):
         try:
             # validate json
             content = BaseEvent.get_valid_json(request.content.read(),
@@ -119,9 +123,10 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return "sy.room.message"
 
+    @classmethod
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, msg_sender_id, msg_id,
+    def on_GET(cls, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
         # TODO check they are joined in the room
 
@@ -133,9 +138,10 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((404, BaseEvent.error("Message not found.")))
         defer.returnValue((200, json.loads(results[0].content)))
 
+    @classmethod
     @AccessTokenAuth.defer_authenticate
     @defer.inlineCallbacks
-    def on_PUT(self, request, room_id, sender_id, msg_id,
+    def on_PUT(cls, request, room_id, sender_id, msg_id,
                auth_user_id=None):
         try:
             # verify they are sending msgs under their own user id

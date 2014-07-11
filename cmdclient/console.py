@@ -20,14 +20,14 @@ class SynapseCmd(cmd.Cmd):
     This processes commands from the user and calls the relevant HTTP methods.
     """
 
-    def __init__(self, http_client, server_url, username, password):
+    def __init__(self, http_client, server_url, username, token):
         cmd.Cmd.__init__(self)
         self.http_client = http_client
         self.http_client.verbose = True
         self.config = {
             "url": server_url,
             "user": username,
-            "token": password,
+            "token": token,
             "verbose": "on"
         }
         self.event_stream_token = "START"
@@ -222,21 +222,21 @@ class SynapseCmd(cmd.Cmd):
         print json.dumps(json_res, indent=4)
 
 
-def main(server_url, username, password):
+def main(server_url, username, token):
     print "Synapse command line client"
     print "==========================="
     print "Server: %s" % server_url
     print "Type 'help' to get started."
     print "Close this console with CTRL+C then CTRL+D."
-    if not username or not password:
+    if not username or not token:
         print "-  Register an account: 'register <username>'"
-        print "-  Connect to the event stream: 'connect'"
+        print "-  Connect to the event stream: 'stream'"
         print "-  Join a room: 'join <roomid>'"
         print "-  Send a message: 'send <roomid> <message>'"
     http_client = TwistedHttpClient()
 
     # the command line client
-    syn_cmd = SynapseCmd(http_client, server_url, username, password)
+    syn_cmd = SynapseCmd(http_client, server_url, username, token)
 
     # Twisted-specific: Runs the command processor in Twisted's event loop
     # to maintain a single thread for both commands and event processing.
@@ -254,8 +254,8 @@ if __name__ == '__main__':
         "-u", "--username", dest="username",
         help="Your username on the server.")
     parser.add_argument(
-        "-p", "--password", dest="password",
-        help="Your password on the server.")
+        "-t", "--token", dest="token",
+        help="Your access token.")
     args = parser.parse_args()
 
     if not args.server:
@@ -267,4 +267,4 @@ if __name__ == '__main__':
     if not server.startswith("http://"):
         server = "http://" + args.server
 
-    main(server, args.username, args.password)
+    main(server, args.username, args.token)
