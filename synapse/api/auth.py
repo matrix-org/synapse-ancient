@@ -7,10 +7,13 @@ from events.base import InvalidHttpRequestError
 from synapse.util.dbutils import DbPool
 
 
-class AccessTokenAuth(object):
+class Auth(object):
 
-    @staticmethod
-    def defer_authenticate(func):
+    mod_registered_user = None
+    """A RegisteredUserModule."""
+
+    @classmethod
+    def defer_registered_user(cls, func):
         """ A decorator for authenticating the user's access_token.
 
         The decorated function MUST have a twisted Request as an arg, which
@@ -27,7 +30,7 @@ class AccessTokenAuth(object):
             for arg in args:
                 if isinstance(arg, Request):
                     try:
-                        userid = yield AccessTokenAuth._authenticate(arg)
+                        userid = yield cls.mod_registered_user.get_user_by_req(arg)
                     except InvalidHttpRequestError as e:
                         defer.returnValue((e.get_status_code(),
                                            e.get_response_body()))
@@ -37,29 +40,46 @@ class AccessTokenAuth(object):
 
         return defer_auth
 
-    @staticmethod
-    @defer.inlineCallbacks
-    def _authenticate(request):
-        """ Authenticates the user.
+
+class RegisteredUserModule(object):
+
+    def __init__(self, data_store):
+        self.data_store = data_store
+
+    def get_user_by_req(self, request):
+        """ Get a registered user's ID.
 
         Args:
-            request - The HTTP request
+            request - An HTTP request with an access_token query parameter.
         Returns:
-            The user ID of the user.
+            The user ID of the user who has that access token.
         Raises:
-            InvalidHttpRequestError if there is something wrong with the request
-         """
-        # get query parameters and check access_token
+            InvalidHttpRequestError if no user by that token exists.
+        """
+        # Can optionally look elsewhere in the request (e.g. headers)
         try:
-            user_id = yield DbPool.get().runInteraction(
-                AccessTokenAuth._query_for_auth,
-                request.args["access_token"])
-            defer.returnValue(user_id)
-        except KeyError:  # request has no access_token query param
-            raise InvalidHttpRequestError(403, "No access_token")
+            return self.get_user_by_token(request.args["access_token"])
+        except KeyError:
+            raise InvalidHttpRequestError(403, "Missing access token.")
 
-    @classmethod
-    def _query_for_auth(cls, txn, token):
+    @defer.inlineCallbacks
+    def get_user_by_token(self, token):
+        """ Get a registered user's ID.
+
+        Args:
+            token - The access token to get the user by.
+        Returns:
+            The user ID of the user who has that access token.
+        Raises:
+            InvalidHttpRequestError if no user by that token exists.
+        """
+        # TODO use self.data_store
+        user_id = yield DbPool.get().runInteraction(
+            self._query_for_auth,
+            token)
+        defer.returnValue(user_id)
+
+    def _query_for_auth(self, txn, token):
         txn.execute("SELECT users.name FROM access_tokens LEFT JOIN users" +
                     " ON users.id = access_tokens.user_id WHERE token = ?",
                     token)

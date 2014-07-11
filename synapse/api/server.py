@@ -2,6 +2,7 @@
 """This module serves as the top-level injection point for client-server
 interactions."""
 
+from synapse.api.auth import Auth, RegisteredUserModule
 from synapse.api.events.base import EventFactory
 from synapse.federation import ReplicationHandler
 
@@ -15,6 +16,9 @@ class SynapseHomeServer(ReplicationHandler):
         self.replication_layer.set_handler(self)
 
         self.event_data_store = None  # FIXME database
+
+        # configure auth
+        Auth.mod_registered_user = RegisteredUserModule(self.event_data_store)
 
         self.event_factory = EventFactory()
         self.event_factory.register_events(self.http_server,
