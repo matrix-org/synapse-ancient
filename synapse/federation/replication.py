@@ -10,7 +10,6 @@ from .units import Transaction, Pdu
 from synapse.persistence.transactions import (
     PduQueries, run_interaction
 )
-from .persistence import PduActions, TransactionActions
 
 import logging
 import time
@@ -36,8 +35,8 @@ class ReplicationLayer(object):
           for outgoing data.
     """
 
-    def __init__(self, server_name, transport_layer, pdu_actions=PduActions(),
-            transaction_actions=TransactionActions()):
+    def __init__(self, server_name, transport_layer, pdu_actions,
+            transaction_actions):
         self.server_name = server_name
 
         self.transport_layer = transport_layer
