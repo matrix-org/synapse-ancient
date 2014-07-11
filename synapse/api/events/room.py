@@ -6,6 +6,7 @@ from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
 from synapse.api.auth import Auth
 from synapse.api.dbobjects import Message, RoomMembership, RoomData
+from synapse.api.event_store import RoomEventStore
 
 import json
 import re
@@ -27,12 +28,11 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
         # TODO check they are invited/joined in the room if private. If
         # public, anyone can view the topic.
 
-        # pull out topic from db
-        result = yield RoomData.find(where=["path=?", request.path],
-                                     limit=1, orderby="id DESC")
-        if not result:
+        data = yield RoomEventStore().get_path_data(request.path)
+
+        if not data:
             defer.returnValue((404, BaseEvent.error("Topic not found.")))
-        defer.returnValue((200, json.loads(result.content)))
+        defer.returnValue((200, json.loads(data[0].content)))
 
     @classmethod
     @Auth.defer_registered_user
@@ -46,8 +46,9 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
                                                [("topic", unicode)])
 
             # store in db
-            yield RoomData(room_id=room_id, path=request.path,
-                           content=json.dumps(content)).save()
+            yield RoomEventStore().store_path_data(room_id=room_id,
+                path=request.path,
+                content=json.dumps(content))
 
             # TODO poke notifier
             # TODO send to s2s layer

@@ -259,3 +259,17 @@ class ContextDepthTable(Table):
     EntryType = namedtuple("ContextDepthEntry", fields)
 
     CoumnNames = EntryType(*fields)
+
+
+class RoomDataTable(Table):
+    table_name = "room_data"
+
+    fields = [
+        "id",
+        "room_id",
+        "path",
+        "content"
+    ]
+
+    EntryType = namedtuple("RoomDataEntry", fields)
+    CoumnNames = EntryType(*fields)
