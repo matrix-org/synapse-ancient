@@ -2,8 +2,9 @@
 from twisted.internet import defer
 
 from synapse.persistence.transactions import run_interaction
-from synapse.persistence.tables import RoomDataTable
+from synapse.persistence.tables import RoomDataTable, RoomMemberTable
 
+import json
 
 def exec_single_with_result(txn, query, func, *args):
     """Runs a single query for a result set.
@@ -26,12 +27,36 @@ def exec_single(txn, query, *args):
     txn.execute(query, args)
 
 
+class RoomMemberStore(object):
+
+    def __init__(self):
+        super(RoomMemberStore, self).__init__()
+
+    @defer.inlineCallbacks
+    def get_room_member(self, user_id=None, room_id=None):
+        query = RoomMemberTable.select_statement(
+            "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
+        res = yield run_interaction(exec_single_with_result, query,
+                                    RoomMemberTable.decode_results,
+                                    room_id, user_id)
+        defer.returnValue(res)
+
+    @defer.inlineCallbacks
+    def store_room_member(self, user_id=None, room_id=None, content=None):
+        membership = content["membership"]
+        content_json = json.dumps(content)
+        query = ("INSERT INTO " + RoomMemberTable.table_name +
+                "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
+        yield run_interaction(exec_single, query, user_id, room_id,
+                              membership, content_json)
+
+
 class RoomPathStore(object):
 
     """Provides various CRUD operations for Room Events. """
 
     def __init__(self):
-        pass
+        super(RoomPathStore, self).__init__()
 
     @defer.inlineCallbacks
     def get_path_data(self, path):
@@ -61,7 +86,7 @@ class RoomPathStore(object):
         yield run_interaction(exec_single, query, path, room_id, content)
 
 
-class EventStore(RoomPathStore):
+class EventStore(RoomPathStore, RoomMemberStore):
 
     def __init__(self):
         super(EventStore, self).__init__()

@@ -5,7 +5,7 @@ from twisted.internet import defer
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
 from synapse.api.auth import Auth
-from synapse.api.dbobjects import Message, RoomMembership
+from synapse.api.dbobjects import Message
 
 import json
 import re
@@ -74,12 +74,12 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         # TODO check they are joined in the room
 
         # Pull out the membership from the db
-        result = yield RoomMembership.find(where=["sender_id=? AND room_id=?",
-                                                  userid, roomid], limit=1,
-                                                  orderby="id DESC")
+
+        result = yield cls.data_store.get_room_member(user_id=userid,
+                                                      room_id=roomid)
         if not result:
             defer.returnValue((404, BaseEvent.error("Member not found.")))
-        defer.returnValue((200, json.loads(result.content)))
+        defer.returnValue((200, json.loads(result[0].content)))
 
     @classmethod
     @Auth.defer_registered_user
@@ -100,9 +100,9 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # leave = they == userid & they are currently joined
 
             # store membership
-            yield RoomMembership(sender_id=userid, room_id=roomid,
-                                 membership=content["membership"],
-                                 content=json.dumps(content)).save()
+            yield cls.data_store.store_room_member(user_id=userid,
+                                                   room_id=roomid,
+                                                   content=content)
 
             # TODO poke notifier
             # TODO send to s2s layer
@@ -132,7 +132,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
         # Pull out the message from the db
         results = yield Message.find(where=["room_id=? AND msg_id=? AND " +
-                                            "sender_id=?", room_id, msg_id,
+                                            "user_id=?", room_id, msg_id,
                                              msg_sender_id])
         if len(results) == 0:
             defer.returnValue((404, BaseEvent.error("Message not found.")))
@@ -153,7 +153,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # TODO Check if sender_id is in room room_id
 
             # store message in db
-            yield Message(sender_id=sender_id, room_id=room_id,
+            yield Message(user_id=sender_id, room_id=room_id,
                           msg_id=msg_id, content=json.dumps(req)).save()
 
             # TODO poke notifier to send message to online users

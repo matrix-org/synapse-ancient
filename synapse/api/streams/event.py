@@ -76,7 +76,7 @@ class MessagesStreamData(StreamData):
         # get all messages where the *current* membership state is 'join' for
         # this user in that room.
         query = ("SELECT messages.* FROM messages WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE sender_id=? AND " +
+            "(SELECT membership from room_memberships WHERE user_id=? AND " +
             "room_id = messages.room_id ORDER BY id DESC LIMIT 1) " +
             "AND messages.id > ?")
         query_args = ["join", user_id, from_pkey]
@@ -113,7 +113,7 @@ class RoomMemberStreamData(StreamData):
         # get all room membership events for rooms which the user is *currently*
         # joined in on.
         query = ("SELECT rm.* FROM room_memberships rm WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE sender_id=? AND " +
+            "(SELECT membership from room_memberships WHERE user_id=? AND " +
             "room_id = rm.room_id ORDER BY id DESC LIMIT 1) " +
             "AND rm.id > ?")
         query_args = ["join", user_id, from_pkey]

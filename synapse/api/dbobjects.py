@@ -11,14 +11,3 @@ class Message(DBObject):
     """
     TABLENAME = "messages"
 
-
-class RoomMembership(DBObject):
-    TABLENAME = "room_memberships"
-
-
-class RoomData(DBObject):
-    TABLENAME = "room_data"
-
-
-class User(DBObject):
-    TABLENAME = "users"
