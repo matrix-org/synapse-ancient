@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
-from synapse.api.auth import AccessTokenAuth
+from synapse.api.auth import Auth
 from synapse.api.dbobjects import Message, RoomMembership, RoomData
 
 import json
@@ -21,7 +21,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
         return "sy.room.topic"
 
     @classmethod
-    @AccessTokenAuth.defer_authenticate
+    @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_GET(cls, request, room_id, auth_user_id=None):
         # TODO check they are invited/joined in the room if private. If
@@ -35,7 +35,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
         defer.returnValue((200, json.loads(result.content)))
 
     @classmethod
-    @AccessTokenAuth.defer_authenticate
+    @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_PUT(cls, request, room_id, auth_user_id=None):
         try:
@@ -68,7 +68,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         return "sy.room.members.state"
 
     @classmethod
-    @AccessTokenAuth.defer_authenticate
+    @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_GET(cls, request, roomid, userid, auth_user_id=None):
         # TODO check they are joined in the room
@@ -82,7 +82,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         defer.returnValue((200, json.loads(result.content)))
 
     @classmethod
-    @AccessTokenAuth.defer_authenticate
+    @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_PUT(cls, request, roomid, userid, auth_user_id=None):
         try:
@@ -124,7 +124,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         return "sy.room.message"
 
     @classmethod
-    @AccessTokenAuth.defer_authenticate
+    @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_GET(cls, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
@@ -139,7 +139,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         defer.returnValue((200, json.loads(results[0].content)))
 
     @classmethod
-    @AccessTokenAuth.defer_authenticate
+    @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_PUT(cls, request, room_id, sender_id, msg_id,
                auth_user_id=None):

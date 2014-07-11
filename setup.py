@@ -22,8 +22,6 @@ setup(
     ],
     setup_requires=[
         "setuptools_trial",
-        "sphinx",
-        "sphinxcontrib-napoleon",
         "mock"
     ],
     include_package_data=True,

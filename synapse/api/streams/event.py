@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
-from synapse.api.auth import AccessTokenAuth
+from synapse.api.auth import Auth
 from synapse.api.events.room import MessageEvent, RoomMemberEvent
 from synapse.api.events.base import (GetEventMixin, BaseEvent,
                                      InvalidHttpRequestError)
@@ -19,7 +19,7 @@ class EventStreamEvent(GetEventMixin, BaseEvent):
         return re.compile("^/events$")
 
     @classmethod
-    @AccessTokenAuth.defer_authenticate
+    @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_GET(cls, request, auth_user_id=None):
         try:

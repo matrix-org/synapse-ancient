@@ -6,8 +6,9 @@ from twisted.internet import defer
 from twistar.registry import Registry
 from twisted.trial import unittest
 
-from synapse.db import read_schema
-from synapse.api.room_events import MessageEvent, RoomMemberEvent
+from synapse.api.auth import Auth
+from synapse.api.events.room import MessageEvent, RoomMemberEvent
+from synapse.persistence import read_schema
 from synapse.util.http import HttpServer
 
 # python imports
@@ -43,8 +44,10 @@ class MessageTestCase(unittest.TestCase):
     def setUp(self):
         self._setup_db("_temp.db")
         self.mock_server = MockHttpServer()
-        MessageEvent().register(self.mock_server)
-        RoomMemberEvent().register(self.mock_server)
+        self.mock_data_store = None  # TODO
+        Auth.mod_registered_user = MockRegisteredUserModule("sid1")
+        MessageEvent().register(self.mock_server, self.mock_data_store)
+        RoomMemberEvent().register(self.mock_server, self.mock_data_store)
 
     def tearDown(self):
         try:
@@ -103,11 +106,6 @@ class MessageTestCase(unittest.TestCase):
         path = "/rooms/rid1/messages/sid1/mid1"
         self._test_invalid_puts(path)
 
-        # valid keys, wrong types
-        (code, response) = yield self.mock_server.trigger("PUT", path,
-                           '{"body":["test"],"msgtype":"a"}')
-        self.assertEquals(400, code)
-
         (code, response) = yield self.mock_server.trigger("PUT", path,
                            '{"body":"test","msgtype":{"type":"a"}}')
         self.assertEquals(400, code)
@@ -132,6 +130,18 @@ class MessageTestCase(unittest.TestCase):
         self.assertEquals(200, code)
         self.assertEquals(json.loads('{"body":"test2","msgtype":' +
                           '"sy.text"}'), response)
+
+
+class MockRegisteredUserModule():
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+    def get_user_by_req(self, request):
+        return self.user_id
+
+    def get_user_by_token(self, token):
+        return self.user_id
 
 
 class MockHttpServer(HttpServer):
@@ -161,7 +171,6 @@ class MockHttpServer(HttpServer):
         config = {'read.return_value': content}
         mock_content.configure_mock(**config)
         mock_request.content = mock_content
-
         for (method, pattern, func) in self.callbacks:
             if http_method != method:
                 continue

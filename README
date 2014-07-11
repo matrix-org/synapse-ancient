@@ -1,31 +1,41 @@
 Installation
 ------------
 
-To install the synapse module run:
+To install the synapse module run::
 
     $ python setup.py install
 
-To setup a development version run:
+To setup a development version run::
 
     $ python setup.py develop
 
-To run the tests run:
+To run the tests run::
 
     $ python setup.py test
 
 Basic Usage
 -----------
 
-To run a home server:
+To run a home server::
 
     $ python -m synapse.app.homeserver
 
-Or:
+Or::
 
     $ synapse-homeserver
 
-For a complete list of parameters run
+For a complete list of parameters run::
     
     $ synapse-homeserver -h
 
+Building Documentation
+----------------------
 
+Before building documentation install spinx and sphinxcontrib-napoleon::
+
+    $ pip install sphinx
+    $ pip install sphinxcontrib-napoleon
+
+Building documentation::
+
+    $ python setup.py build_sphinx
