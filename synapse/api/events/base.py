@@ -71,25 +71,25 @@ class BaseEvent(object):
         Raises:
             InvalidHttpRequestError if there is a problem with the JSON.
         """
-        content_json = json.loads(content)
-        for (key, typ) in required_keys_values:
-            if key not in content_json:
-                raise InvalidHttpRequestError(
-                    400,
-                    "Missing %s key" % key)
-            # TODO This is a little brittle at the moment since we can only
-            # inspect top level keys and can't assert values. It would be nice
-            # to have some kind of template which can be checked rather than a
-            # list of tuples, e.g:
-            # {
-            #   foo : ["string","string"],
-            #   bar : { "colour" : "red|green|blue" }
-            # }
-            # allow_extra_top_level_keys : True
-            if type(content_json[key]) != typ:
-                raise InvalidHttpRequestError(
-                    400,
-                    "Key %s is of the wrong type." % key)
+        try:
+            content_json = json.loads(content)
+            for (key, typ) in required_keys_values:
+                if key not in content_json:
+                    raise InvalidHttpRequestError(400, "Missing %s key" % key)
+                # TODO This is a little brittle at the moment since we can only
+                # inspect top level keys and can't assert values. It would be
+                # nice to have some kind of template which can be checked
+                # rather than a list of tuples, e.g:
+                # {
+                #   foo : ["string","string"],
+                #   bar : { "colour" : "red|green|blue" }
+                # }
+                # allow_extra_top_level_keys : True
+                if type(content_json[key]) != typ:
+                    raise InvalidHttpRequestError(400,
+                        "Key %s is of the wrong type." % key)
+        except ValueError:
+            raise InvalidHttpRequestError(400, "Content must be JSON.")
 
         return content_json
 

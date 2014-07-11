@@ -27,13 +27,20 @@ class Auth(object):
         '"""
         @defer.inlineCallbacks
         def defer_auth(*args, **kwargs):
+            userid = None
             for arg in args:
-                if isinstance(arg, Request):
+                # if it has request headers and query params, it's probably it
+                if hasattr(arg, "requestHeaders") and hasattr(arg, "args"):
                     try:
                         userid = yield cls.mod_registered_user.get_user_by_req(arg)
                     except InvalidHttpRequestError as e:
                         defer.returnValue((e.get_status_code(),
                                            e.get_response_body()))
+            # should have a userid now, or should've thrown by now.
+            if not userid:
+                raise RuntimeError("Decorated function didn't have a twisted " +
+                                   "Request as an arg.")
+
             kwargs["auth_user_id"] = userid
             result = yield func(*args, **kwargs)
             defer.returnValue(result)
