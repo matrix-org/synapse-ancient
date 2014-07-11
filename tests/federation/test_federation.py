@@ -11,7 +11,8 @@ from ..utils import MockHttpServer
 
 from synapse.federation import initialize_http_federation
 from synapse.federation.units import Pdu
-from synapse.persistence.transactions import PduTuple
+from synapse.persistence.transactions import PduTuple, PduEntry
+from synapse.persistence.tables import PdusTable
 
 class FederationTestCase(unittest.TestCase):
     def setUp(self):
@@ -35,9 +36,45 @@ class FederationTestCase(unittest.TestCase):
         self.assertEquals(200, code)
         self.assertFalse(response["pdus"])
 
+        # Now lets give the context some state
+        self.mock_pdu_actions.mock_current_state("my-context", [
+            PduTuple(PduEntry(
+                pdu_id="the-pdu-id",
+                origin="red",
+                context="my-context",
+                pdu_type="sy.topic",
+                ts=123456789000,
+                depth=1,
+                is_state=True,
+                content_json='{"topic":"The topic"}',
+                unrecognized_keys=[],
+                outlier=False,
+                have_processed=True,
+                state_key="",
+                power_level=1000,
+                prev_state_id="last-pdu-id",
+                prev_state_origin="blue",
+            ), []),
+        ])
+
+        (code, response) = yield self.mock_http_server.trigger("GET",
+                "/state/my-context/", None)
+        self.assertEquals(200, code)
+        self.assertEquals(len(response["pdus"]), 1)
+
 class MockPduActions(object):
+    def __init__(self):
+        self.current_state_for = {}
+
+    def mock_current_state(self, context, pdus):
+        self.current_state_for[context] = pdus
+
     def current_state(self, context):
-        return defer.succeed([])
+        if context not in self.current_state_for:
+            return defer.succeed([])
+
+        pdus = self.current_state_for[context]
+        return defer.succeed([Pdu.from_pdu_tuple(p) for p in pdus])
 
 class MockTransactionActions(object):
     pass
