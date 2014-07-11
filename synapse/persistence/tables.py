@@ -24,11 +24,6 @@ class Table(object):
     EntryType = None
     """ Type: A tuple type used to decode the results """
 
-    CoumnNames = None
-    """ collections.namedtuple: A trivial convenience mapping from
-            column names -> column names.
-    """
-
     @classmethod
     def select_statement(cls, where_clause=None):
         """
@@ -70,10 +65,6 @@ class Table(object):
         """
         return [cls.EntryType(*row) for row in results]
 
-    @staticmethod
-    def generate_where(*field_names):
-        return " AND ".join(["%s = ?" % f for f in field_names])
-
     @classmethod
     def get_fields_string(cls, prefix=None):
         if prefix:
@@ -98,8 +89,6 @@ class ReceivedTransactionsTable(Table):
 
     EntryType = namedtuple("ReceivedTransactionsEntry", fields)
 
-    CoumnNames = EntryType(*fields)
-
 
 class SentTransactions(Table):
     table_name = "sent_transactions"
@@ -115,8 +104,6 @@ class SentTransactions(Table):
 
     EntryType = namedtuple("SentTransactionsEntry", fields)
 
-    CoumnNames = EntryType(*fields)
-
 
 class TransactionsToPduTable(Table):
     table_name = "transaction_id_to_pdu"
@@ -130,8 +117,6 @@ class TransactionsToPduTable(Table):
 
     EntryType = namedtuple("TransactionsToPduEntry", fields)
 
-    CoumnNames = EntryType(*fields)
-
 
 class PdusTable(Table):
     table_name = "pdus"
@@ -143,6 +128,7 @@ class PdusTable(Table):
         "pdu_type",
         "ts",
         "depth",
+        "is_state",
         "content_json",
         "unrecognized_keys",
         "outlier",
@@ -150,8 +136,6 @@ class PdusTable(Table):
     ]
 
     EntryType = namedtuple("PdusEntry", fields)
-
-    CoumnNames = EntryType(*fields)
 
 
 class StatePdusTable(Table):
@@ -170,8 +154,6 @@ class StatePdusTable(Table):
 
     EntryType = namedtuple("StatePdusEntry", fields)
 
-    CoumnNames = EntryType(*fields)
-
 
 class CurrentStateTable(Table):
     table_name = "current_state"
@@ -186,8 +168,6 @@ class CurrentStateTable(Table):
 
     EntryType = namedtuple("CurrentStateEntry", fields)
 
-    CoumnNames = EntryType(*fields)
-
 
 class PduDestinationsTable(Table):
     table_name = "pdu_destinations"
@@ -200,8 +180,6 @@ class PduDestinationsTable(Table):
     ]
 
     EntryType = namedtuple("PduDestinationsEntry", fields)
-
-    CoumnNames = EntryType(*fields)
 
 
 class PduEdgesTable(Table):
@@ -217,8 +195,6 @@ class PduEdgesTable(Table):
 
     EntryType = namedtuple("PduEdgesEntry", fields)
 
-    CoumnNames = EntryType(*fields)
-
 
 class PduForwardExtremitiesTable(Table):
     table_name = "pdu_forward_extremities"
@@ -230,8 +206,6 @@ class PduForwardExtremitiesTable(Table):
     ]
 
     EntryType = namedtuple("PduForwardExtremitiesEntry", fields)
-
-    CoumnNames = EntryType(*fields)
 
 
 class PduBackwardExtremitiesTable(Table):
@@ -245,8 +219,6 @@ class PduBackwardExtremitiesTable(Table):
 
     EntryType = namedtuple("PduBackwardExtremitiesEntry", fields)
 
-    CoumnNames = EntryType(*fields)
-
 
 class ContextDepthTable(Table):
     table_name = "context_depth"
@@ -257,8 +229,6 @@ class ContextDepthTable(Table):
     ]
 
     EntryType = namedtuple("ContextDepthEntry", fields)
-
-    CoumnNames = EntryType(*fields)
 
 
 class RoomDataTable(Table):
@@ -272,4 +242,46 @@ class RoomDataTable(Table):
     ]
 
     EntryType = namedtuple("RoomDataEntry", fields)
-    CoumnNames = EntryType(*fields)
+
+
+class JoinHelper(object):
+    """ Used to help do joins on tables by looking at the tables' fields and
+    creating a list of unique fields to use with SELECTs and a namedtuple
+    to dump the results into.
+
+    Attributes:
+        taples (list): List of `Table` classes
+        EntryType (type)
+    """
+
+    def __init__(self, *tables):
+        self.tables = tables
+
+        res = []
+        for table in self.tables:
+            res += [f for f in table.fields if f not in res]
+
+        self.EntryType = namedtuple("JoinHelperEntry", res)
+
+    def get_fields(self, **prefixes):
+        """Get a string representing a list of fields for use in SELECT
+        statements with the given prefixes applied to each.
+
+        For example::
+
+            JoinHelper(PdusTable, StateTable).get_fields(
+                PdusTable="pdus",
+                StateTable="state"
+            )
+        """
+        res = []
+        for field in self.EntryType._fields:
+            for table in self.tables:
+                if field in table.fields:
+                    res.append("%s.%s" % (prefixes[table.__name__], field))
+                    break
+
+        return ", ".join(res)
+
+    def decode_results(self, rows):
+        return [self.EntryType(*row) for row in rows]

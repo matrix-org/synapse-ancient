@@ -199,11 +199,6 @@ class Pdu(JsonEncodedObject):
         if pdu_tuple:
             d = copy.copy(pdu_tuple.pdu_entry._asdict())
 
-            if pdu_tuple.state_entry:
-                s = copy.copy(pdu_tuple.state_entry._asdict())
-                d.update(s)
-                d["is_state"] = True
-
             d["content"] = json.loads(d["content_json"])
             del d["content_json"]
 

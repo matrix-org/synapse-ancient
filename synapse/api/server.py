@@ -28,8 +28,3 @@ class SynapseHomeServer(ReplicationHandler):
         pdu_type = pdu.pdu_type
         print "#%s (receive) *** %s" % (pdu.context, pdu_type)
 
-    def on_state_change(self, pdu):
-        print "#%s (state) %s *** %s" % (pdu.context, pdu.state_key,
-                                        pdu.pdu_type)
-
-

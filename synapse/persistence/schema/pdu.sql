@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS pdus(
     pdu_type TEXT,
     ts INTEGER,
     depth INTEGER DEFAULT 0 NOT NULL,
+    is_state BOOL, 
     content_json TEXT,
     unrecognized_keys TEXT,
     outlier BOOL NOT NULL,
