@@ -27,7 +27,7 @@ PduTuple = namedtuple(
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
 PduIdTuple = namedtuple("PduIdTuple", ("pdu_id", "origin"))
 
-PduAndStateTuple = _pdu_state_joiner.EntryType
+PduEntry = _pdu_state_joiner.EntryType
 
 
 def run_interaction(transaction_func, *args, **kwargs):
@@ -659,7 +659,7 @@ class PduQueries(object):
 
             row = txn.fetchone()
             if row:
-                results.append(PduTuple(PduAndStateTuple(*row), edges))
+                results.append(PduTuple(PduEntry(*row), edges))
 
         return results
 
@@ -873,7 +873,7 @@ class StateQueries(object):
             state_key (str)
 
         Returns:
-            PduAndStateTuple
+            PduEntry
         """
         return cls._get_current_interaction(txn, context, pdu_type, state_key)
 
@@ -977,7 +977,7 @@ class StateQueries(object):
 
         row = txn.fetchone()
 
-        result = PduAndStateTuple(*row) if row else None
+        result = PduEntry(*row) if row else None
 
         if not result:
             logger.debug("_get_current_interaction not found")
