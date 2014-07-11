@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""This module contains events to do with registration: /register"""
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
@@ -39,7 +40,7 @@ class RegisterEvent(PostEventMixin, BaseEvent):
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
         except KeyError:
-            pass
+            pass  # user_id is optional
 
         if desired_user_id:
             try:

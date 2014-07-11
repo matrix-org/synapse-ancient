@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+"""This module serves as the top-level injection point for client-server
+interactions."""
 
 from synapse.api.events.base import EventFactory
 from synapse.federation import ReplicationHandler

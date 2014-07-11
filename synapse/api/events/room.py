@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Contains events to do with rooms. """
+""" This module contains events to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,

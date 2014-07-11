@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""This module contains classes for authenticating the user."""
 from twisted.internet import defer
 from twisted.web.http import Request
 

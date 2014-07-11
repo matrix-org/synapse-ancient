@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+"""This module contains base classes and helper functions for streams."""
 
 
 class FilterStream(object):
+
+    """ An interface for streaming data as chunks. """
 
     TOK_START = "START"
     TOK_END = "END"
@@ -23,6 +26,7 @@ class FilterStream(object):
 
 
 class StreamData(object):
+
     """ An interface for obtaining streaming data from a table. """
 
     def get_rows(self, user_id, from_pkey, to_pkey):

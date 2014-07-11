@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Contains base components for constructing events. """
+""" This module contains base event classes for constructing events. """
 
 import json
 
