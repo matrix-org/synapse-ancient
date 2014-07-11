@@ -36,12 +36,16 @@ class ReplicationLayer(object):
           for outgoing data.
     """
 
-    def __init__(self, server_name, transport_layer):
+    def __init__(self, server_name, transport_layer, pdu_actions=PduActions(),
+            transaction_actions=TransactionActions()):
         self.server_name = server_name
 
         self.transport_layer = transport_layer
         self.transport_layer.register_received_handler(self)
         self.transport_layer.register_request_handler(self)
+
+        self.pdu_actions = pdu_actions
+        self.transaction_actions = transaction_actions
 
         self._transaction_queue = _TransactionQueue(
             server_name,
@@ -86,10 +90,10 @@ class ReplicationLayer(object):
 
         logger.debug("[%s] Persisting PDU", pdu.pdu_id)
 
-        yield PduActions.populate_previous_pdus(pdu)
+        yield self.pdu_actions.populate_previous_pdus(pdu)
 
         # Save *before* trying to send
-        yield PduActions.persist_outgoing(pdu)
+        yield self.pdu_actions.persist_outgoing(pdu)
 
         logger.debug("[%s] Persisted PDU", pdu.pdu_id)
         logger.debug("[%s] transaction_layer.enqueue_pdu... ", pdu.pdu_id)
@@ -202,7 +206,7 @@ class ReplicationLayer(object):
         logger.debug(
             "on_paginate_request context=%s", context)
 
-        pdus = yield PduActions.paginate(context, versions, limit)
+        pdus = yield self.pdu_actions.paginate(context, versions, limit)
 
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
@@ -212,7 +216,7 @@ class ReplicationLayer(object):
 
         logger.debug("[%s] Got transaction", transaction.transaction_id)
 
-        response = yield TransactionActions.have_responded(transaction)
+        response = yield self.transaction_actions.have_responded(transaction)
 
         if response:
             logger.debug("[%s] We've already responed to this request",
@@ -241,7 +245,8 @@ class ReplicationLayer(object):
 
             logger.debug("Returning: %s", str(ret))
 
-            yield TransactionActions.set_response(transaction, 200, response)
+            yield self.transaction_actions.set_response(transaction, 200,
+                    response)
             defer.returnValue((200, response))
         except Exception as e:
             logger.exception(e)
@@ -254,7 +259,7 @@ class ReplicationLayer(object):
     @defer.inlineCallbacks
     def on_context_state_request(self, context):
         logger.debug("on_context_state_request context=%s", context)
-        pdus = yield PduActions.current_state(context)
+        pdus = yield self.pdu_actions.current_state(context)
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
@@ -262,7 +267,7 @@ class ReplicationLayer(object):
         logger.debug(
             "on_pdu_request pdu_origin=%s, pdu_id=%s", pdu_origin, pdu_id)
 
-        pdu = yield PduActions.get_persisted_pdu(pdu_id, pdu_origin)
+        pdu = yield self.pdu_actions.get_persisted_pdu(pdu_id, pdu_origin)
 
         pdus = []
         if not pdu:
@@ -276,7 +281,7 @@ class ReplicationLayer(object):
 
         transaction_id = max([int(v) for v in versions])
 
-        response = yield PduActions.after_transaction(
+        response = yield self.pdu_actions.after_transaction(
             transaction_id,
             origin,
             self.server_name
@@ -307,13 +312,14 @@ class ReplicationLayer(object):
         )
 
         # We reprocess pdus when we have seen them only as outliers
-        existing = yield PduActions.get_persisted_pdu(pdu.pdu_id, pdu.origin)
+        existing = yield self.pdu_actions.get_persisted_pdu(pdu.pdu_id,
+                pdu.origin)
         if existing and (not existing.outlier or pdu.outlier):
             defer.returnValue({})
             return
 
         # Get missing pdus if necessary.
-        is_new = yield PduActions.is_new(pdu)
+        is_new = yield self.pdu_actions.is_new(pdu)
         if is_new and not pdu.outlier:
             # We only paginate backwards to the min depth.
             min_depth = yield run_interaction(
@@ -323,7 +329,8 @@ class ReplicationLayer(object):
 
             if min_depth and pdu.depth > min_depth:
                 for pdu_id, origin in pdu.prev_pdus:
-                    exists = yield PduActions.get_persisted_pdu(pdu_id, origin)
+                    exists = yield self.pdu_actions.get_persisted_pdu(pdu_id,
+                            origin)
                     if not exists:
                         logger.debug("Requesting pdu %s %s", pdu_id, origin)
 
@@ -335,11 +342,11 @@ class ReplicationLayer(object):
                         logger.debug("Processed pdu %s %s", pdu_id, origin)
 
         # Persist the Pdu, but don't mark it as processed yet.
-        yield PduActions.persist_received(pdu)
+        yield self.pdu_actions.persist_received(pdu)
 
         ret = yield self.handler.on_receive_pdu(pdu)
 
-        yield PduActions.mark_as_processed(pdu)
+        yield self.pdu_actions.mark_as_processed(pdu)
 
         defer.returnValue(ret)
 
@@ -428,7 +435,7 @@ class _TransactionQueue(object):
                 pdus=pdus,
             )
 
-            yield TransactionActions.prepare_to_send(transaction)
+            yield self.transaction_actions.prepare_to_send(transaction)
 
             logger.debug("TX [%s] Persisted transaction", destination)
             logger.debug("TX [%s] Sending transaction...", destination)
@@ -441,7 +448,8 @@ class _TransactionQueue(object):
             logger.debug("TX [%s] Sent transaction", destination)
             logger.debug("TX [%s] Marking as delivered...", destination)
 
-            yield TransactionActions.delivered(transaction, code, response)
+            yield self.transaction_actions.delivered(transaction, code,
+                    response)
 
             logger.debug("TX [%s] Marked as delivered", destination)
             logger.debug("TX [%s] Yielding to callbacks...", destination)

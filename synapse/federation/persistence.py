@@ -25,10 +25,8 @@ logger = logging.getLogger(__name__)
 class PduActions(object):
     """ Defines persistence actions that relate to handling PDUs.
     """
-
-    @staticmethod
     @defer.inlineCallbacks
-    def current_state(context):
+    def current_state(self, context):
         """ For the given context return what we think is the current state.
 
         Returns:
@@ -41,9 +39,8 @@ class PduActions(object):
 
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
-    @staticmethod
     @defer.inlineCallbacks
-    def get_persisted_pdu(pdu_id, pdu_origin):
+    def get_persisted_pdu(self, pdu_id, pdu_origin):
         """ Get a PDU from the database with given origin and id.
 
         Returns:
@@ -56,25 +53,23 @@ class PduActions(object):
 
         defer.returnValue(Pdu.from_pdu_tuple(pdu_tuple))
 
-    @classmethod
-    def persist_received(cls, pdu):
+    def persist_received(self, pdu):
         """ Persists the given `Pdu` that was received from a remote home
         server.
 
         Returns:
             Deferred
         """
-        return cls._persist(pdu)
+        return self._persist(pdu)
 
-    @classmethod
     @defer.inlineCallbacks
-    def persist_outgoing(cls, pdu):
+    def persist_outgoing(self, pdu):
         """ Persists the given `Pdu` that this home server created.
 
         Returns:
             Deferred
         """
-        ret = yield cls._persist(pdu)
+        ret = yield self._persist(pdu)
 
         # This is safe to do since if *we* are sending something, then we must
         # have seen everything we reference (hopefully).
@@ -86,8 +81,7 @@ class PduActions(object):
 
         defer.returnValue(ret)
 
-    @staticmethod
-    def mark_as_processed(pdu):
+    def mark_as_processed(self, pdu):
         """ Persist the fact that we have fully processed the given `Pdu`
 
         Returns:
@@ -98,9 +92,8 @@ class PduActions(object):
             pdu.pdu_id, pdu.origin
         )
 
-    @classmethod
     @defer.inlineCallbacks
-    def populate_previous_pdus(cls, pdu):
+    def populate_previous_pdus(self, pdu):
         """ Given an outgoing `Pdu` fill out its `prev_ids` key with the `Pdu`s
         that we have received.
 
@@ -133,9 +126,8 @@ class PduActions(object):
                 pdu.prev_state_id = None
                 pdu.prev_state_origin = None
 
-    @staticmethod
     @defer.inlineCallbacks
-    def after_transaction(transaction_id, destination, origin):
+    def after_transaction(self, transaction_id, destination, origin):
         """ Returns all `Pdu`s that we sent to the given remote home server
         after a given transaction id.
 
@@ -150,9 +142,8 @@ class PduActions(object):
 
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
-    @staticmethod
     @defer.inlineCallbacks
-    def paginate(context, pdu_list, limit):
+    def paginate(self, context, pdu_list, limit):
         """ For a given list of PDU id and origins return the proceeding
         `limit` `Pdu`s in the given `context`.
 
@@ -166,8 +157,7 @@ class PduActions(object):
 
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
-    @staticmethod
-    def is_new(pdu):
+    def is_new(self, pdu):
         """ When we receive a `Pdu` from a remote home server, we want to
         figure out whether it is `new`, i.e. it is not some historic PDU that
         we haven't seen simply because we haven't paginated back that far.
@@ -183,9 +173,8 @@ class PduActions(object):
             depth=pdu.depth
         )
 
-    @classmethod
     @defer.inlineCallbacks
-    def _persist(cls, pdu):
+    def _persist(self, pdu):
         kwargs = copy.copy(pdu.__dict__)
         del kwargs["content"]
         kwargs["content_json"] = json.dumps(pdu.content)
@@ -215,9 +204,7 @@ class PduActions(object):
 class TransactionActions(object):
     """ Defines persistence actions that relate to handling Transactions.
     """
-
-    @staticmethod
-    def have_responded(transaction):
+    def have_responded(self, transaction):
         """ Have we already responded to a transaction with the same id and
         origin?
 
@@ -235,8 +222,7 @@ class TransactionActions(object):
             transaction.transaction_id, transaction.origin
         )
 
-    @staticmethod
-    def set_response(transaction, code, response):
+    def set_response(self, transaction, code, response):
         """ Persist how we responded to a transaction.
 
         Returns:
@@ -254,9 +240,8 @@ class TransactionActions(object):
             json.dumps(response)
         )
 
-    @staticmethod
     @defer.inlineCallbacks
-    def prepare_to_send(transaction):
+    def prepare_to_send(self, transaction):
         """ Persists the `Transaction` we are about to send and works out the
         correct value for the `prev_ids` key.
 
@@ -271,8 +256,7 @@ class TransactionActions(object):
             [(p["pdu_id"], p["origin"]) for p in transaction.pdus]
         )
 
-    @staticmethod
-    def delivered(transaction, response_code, response_dict):
+    def delivered(self, transaction, response_code, response_dict):
         """ Marks the given `Transaction` as having been successfully
         delivered to the remote homeserver, and what the response was.
 
