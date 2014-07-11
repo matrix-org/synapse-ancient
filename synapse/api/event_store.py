@@ -2,9 +2,11 @@
 from twisted.internet import defer
 
 from synapse.persistence.transactions import run_interaction
-from synapse.persistence.tables import RoomDataTable, RoomMemberTable
+from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
+                                        MessagesTable)
 
 import json
+
 
 def exec_single_with_result(txn, query, func, *args):
     """Runs a single query for a result set.
@@ -25,6 +27,30 @@ def exec_single_with_result(txn, query, func, *args):
 def exec_single(txn, query, *args):
     """Runs a single query, returning nothing."""
     txn.execute(query, args)
+
+
+class MessageStore(object):
+
+    def __init__(self):
+        super(MessageStore, self).__init__()
+
+    @defer.inlineCallbacks
+    def get_message(self, user_id=None, room_id=None, msg_id=None):
+        query = MessagesTable.select_statement(
+                "user_id = ? AND room_id = ? AND msg_id = ? " +
+                "ORDER BY id DESC LIMIT 1")
+        res = yield run_interaction(exec_single_with_result, query,
+                                    MessagesTable.decode_results,
+                                    user_id, room_id, msg_id)
+        defer.returnValue(res)
+
+    @defer.inlineCallbacks
+    def store_message(self, user_id=None, room_id=None, msg_id=None,
+                      content=None):
+        query = ("INSERT INTO " + MessagesTable.table_name +
+                 "(user_id, room_id, msg_id, content) VALUES(?,?,?,?)")
+        yield run_interaction(exec_single, query, user_id, room_id, msg_id,
+                              content)
 
 
 class RoomMemberStore(object):
@@ -86,7 +112,7 @@ class RoomPathStore(object):
         yield run_interaction(exec_single, query, path, room_id, content)
 
 
-class EventStore(RoomPathStore, RoomMemberStore):
+class EventStore(RoomPathStore, RoomMemberStore, MessageStore):
 
     def __init__(self):
         super(EventStore, self).__init__()

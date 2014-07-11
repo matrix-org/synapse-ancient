@@ -258,6 +258,20 @@ class RoomMemberTable(Table):
     EntryType = namedtuple("RoomMemberEntry", fields)
 
 
+class MessagesTable(Table):
+    table_name = "messages"
+
+    fields = [
+        "id",
+        "user_id",
+        "room_id",
+        "msg_id",
+        "content"
+    ]
+
+    EntryType = namedtuple("MessageEntry", fields)
+
+
 class JoinHelper(object):
     """ Used to help do joins on tables by looking at the tables' fields and
     creating a list of unique fields to use with SELECTs and a namedtuple

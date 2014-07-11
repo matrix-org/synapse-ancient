@@ -5,7 +5,6 @@ from twisted.internet import defer
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
 from synapse.api.auth import Auth
-from synapse.api.dbobjects import Message
 
 import json
 import re
@@ -131,10 +130,10 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         # TODO check they are joined in the room
 
         # Pull out the message from the db
-        results = yield Message.find(where=["room_id=? AND msg_id=? AND " +
-                                            "user_id=?", room_id, msg_id,
-                                             msg_sender_id])
-        if len(results) == 0:
+        results = yield cls.data_store.get_message(room_id=room_id,
+                                                   msg_id=msg_id,
+                                                   user_id=msg_sender_id)
+        if not results:
             defer.returnValue((404, BaseEvent.error("Message not found.")))
         defer.returnValue((200, json.loads(results[0].content)))
 
@@ -153,8 +152,10 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # TODO Check if sender_id is in room room_id
 
             # store message in db
-            yield Message(user_id=sender_id, room_id=room_id,
-                          msg_id=msg_id, content=json.dumps(req)).save()
+            yield cls.data_store.store_message(user_id=sender_id,
+                                               room_id=room_id,
+                                               msg_id=msg_id,
+                                               content=json.dumps(req))
 
             # TODO poke notifier to send message to online users
             # TODO send to s2s layer
