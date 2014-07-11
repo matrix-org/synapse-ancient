@@ -146,9 +146,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             # verify they are sending msgs under their own user id
             if sender_id != auth_user_id:
-                raise InvalidHttpRequestError(403,
-                                              BaseEvent.error(
-                                              "Invalid userid."))
+                raise InvalidHttpRequestError(403, "Invalid userid.")
             # check the json
             req = BaseEvent.get_valid_json(request.content.read(),
                                            [("msgtype", unicode)])

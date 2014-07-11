@@ -74,7 +74,7 @@ class BaseEvent(object):
             if key not in content_json:
                 raise InvalidHttpRequestError(
                     400,
-                    BaseEvent.error("Missing %s key" % key))
+                    "Missing %s key" % key)
             # TODO This is a little brittle at the moment since we can only
             # inspect top level keys and can't assert values. It would be nice
             # to have some kind of template which can be checked rather than a
@@ -87,7 +87,7 @@ class BaseEvent(object):
             if type(content_json[key]) != typ:
                 raise InvalidHttpRequestError(
                     400,
-                    BaseEvent.error("Key %s is of the wrong type." % key))
+                    "Key %s is of the wrong type." % key)
 
         return content_json
 

@@ -136,8 +136,9 @@ class SynapseCmd(cmd.Cmd):
 
     def do_raw(self, line):
         """Directly send a JSON object: "raw <method> <path> <data> <notoken>"
-        <method>: Required. One of "PUT", "GET", "xPUT", "xGET". Methods with
-        'x' prefixed will not automatically append the access token.
+        <method>: Required. One of "PUT", "GET", "POST", "xPUT", "xGET",
+        "xPOST". Methods with 'x' prefixed will not automatically append the
+        access token.
         <path>: Required. E.g. "/events"
         <data>: Optional. E.g. "{ "msgtype":"custom.text", "body":"abc123"}"
         """
@@ -148,7 +149,8 @@ class SynapseCmd(cmd.Cmd):
             return
 
         args["method"] = args["method"].upper()
-        if args["method"] not in ["PUT", "GET", "XGET", "XPUT"]:
+        valid_methods = ["PUT", "GET", "POST", "XGET", "XPUT", "XPOST"]
+        if args["method"] not in valid_methods:
             print "Unsupported method: %s" % args["method"]
             return
 
@@ -162,7 +164,7 @@ class SynapseCmd(cmd.Cmd):
                 return
 
         qp = {"access_token": self._tok()}
-        if args["method"] in ["XGET", "XPUT"]:
+        if args["method"].startswith("X"):
             qp = {}  # remove access token
             args["method"] = args["method"][1:]  # snip the X
 
