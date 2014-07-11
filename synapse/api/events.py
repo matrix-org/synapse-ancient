@@ -114,6 +114,7 @@ class PutEventMixin(object):
 
     @classmethod
     def register(cls, http_server):
+        super(PutEventMixin, cls).register(http_server)
         http_server.register_path("PUT", cls.get_pattern(),
                                   cls.on_PUT)
 
@@ -128,6 +129,7 @@ class GetEventMixin(object):
 
     @classmethod
     def register(cls, http_server):
+        super(GetEventMixin, cls).register(http_server)
         http_server.register_path("GET", cls.get_pattern(),
                                   cls.on_GET)
 

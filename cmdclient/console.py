@@ -152,6 +152,12 @@ class SynapseCmd(cmd.Cmd):
 
         if "data" not in args:
             args["data"] = None
+        else:
+            try:
+                args["data"] = json.loads(args["data"])
+            except Exception as e:
+                print "Data is not valid JSON. %s" % e
+                return
 
         qp = {"access_token": self._tok()}
         if "notoken" in args:
