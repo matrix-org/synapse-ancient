@@ -51,11 +51,13 @@ class SynapseCmd(cmd.Cmd):
     def do_config(self, line):
         """ Show the config for this client: "config"
         Edit a key value mapping: "config key value" e.g. "config token 1234"
-        Valid config variables:
+        Config variables:
             user: The username to auth with.
             token: The access token to auth with.
             url: The url of the server.
             verbose: [on|off] The verbosity of requests/responses.
+        Additional key/values can be added and can be substituted into requests
+        by using $. E.g. 'config roomid room1' then 'raw get /rooms/$roomid'.
         """
         if len(line) == 0:
             print json.dumps(self.config, indent=4)
