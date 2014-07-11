@@ -134,20 +134,20 @@ class SynapseCmd(cmd.Cmd):
 
     def do_raw(self, line):
         """Directly send a JSON object: "raw <method> <path> <data> <notoken>"
-        <method>: Required. One of "PUT", "GET"
+        <method>: Required. One of "PUT", "GET", "xPUT", "xGET". Methods with
+        'x' prefixed will not automatically append the access token.
         <path>: Required. E.g. "/events"
         <data>: Optional. E.g. "{ "msgtype":"custom.text", "body":"abc123"}"
-        <notoken>: Optional. "true" to not append the access token to the path.
         """
-        args = self._parse(line, ["method", "path", "data", "notoken"])
+        args = self._parse(line, ["method", "path", "data"])
         # sanity check
         if "method" not in args or "path" not in args:
             print "Must specify path and method."
             return
 
         args["method"] = args["method"].upper()
-        if args["method"] not in ["PUT", "GET"]:
-            print "Unsupported method %s" % args["method"]
+        if args["method"] not in ["PUT", "GET", "XGET", "XPUT"]:
+            print "Unsupported method: %s" % args["method"]
             return
 
         if "data" not in args:
@@ -160,8 +160,9 @@ class SynapseCmd(cmd.Cmd):
                 return
 
         qp = {"access_token": self._tok()}
-        if "notoken" in args:
-            qp = {}
+        if args["method"] in ["XGET", "XPUT"]:
+            qp = {}  # remove access token
+            args["method"] = args["method"][1:]  # snip the X
 
         reactor.callFromThread(self._run_and_pprint, args["method"],
                                                      args["path"],
@@ -204,6 +205,14 @@ class SynapseCmd(cmd.Cmd):
         line_args = shlex.split(line)
         if force_keys and len(line_args) != len(keys):
             raise IndexError("Must specify all args: %s" % keys)
+
+        # do $ substitutions
+        for i, arg in enumerate(line_args):
+            for config_key in self.config:
+                if ("$" + config_key) in arg:
+                    line_args[i] = arg.replace("$" + config_key,
+                                               self.config[config_key])
+
         return dict(zip(keys, line_args))
 
     @defer.inlineCallbacks
