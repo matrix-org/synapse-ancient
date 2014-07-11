@@ -7,6 +7,7 @@ from twisted.trial import unittest
 
 from synapse.api.auth import Auth
 from synapse.api.events.room import MessageEvent, RoomMemberEvent
+from synapse.api.event_store import EventStore
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
 
@@ -46,7 +47,7 @@ class MessageTestCase(unittest.TestCase):
     def setUp(self):
         self._setup_db("_temp.db")
         self.mock_server = MockHttpServer()
-        self.mock_data_store = None  # TODO
+        self.mock_data_store = EventStore()
         Auth.mod_registered_user = MockRegisteredUserModule("sid1")
         MessageEvent().register(self.mock_server, self.mock_data_store)
         RoomMemberEvent().register(self.mock_server, self.mock_data_store)
