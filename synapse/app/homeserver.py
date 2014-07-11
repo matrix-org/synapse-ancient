@@ -7,8 +7,6 @@ from synapse.persistence import read_schema
 
 from synapse.util import DbPool
 
-from twistar.registry import Registry
-
 from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from twisted.python.log import PythonLoggingObserver
@@ -54,7 +52,6 @@ def setup_db(db_name):
 
     # set the dbpool global so other layers can access it
     DbPool.set(pool)
-    Registry.DBPOOL = pool
 
     schemas = [
             "transactions",

@@ -3,13 +3,12 @@ from twisted.enterprise import adbapi
 from twisted.internet import defer
 
 # trial imports
-from twistar.registry import Registry
 from twisted.trial import unittest
 
 from synapse.api.auth import Auth
 from synapse.api.events.room import MessageEvent, RoomMemberEvent
 from synapse.persistence import read_schema
-from synapse.util.http import HttpServer
+from synapse.util.dbutils import DbPool
 
 # python imports
 import json
@@ -25,13 +24,15 @@ class MessageTestCase(unittest.TestCase):
     def _setup_db(self, db_name):
         # FIXME: This is basically a copy of synapse.app.homeserver's setup
         # routine. It would be nice if we could reuse that.
-        Registry.DBPOOL = adbapi.ConnectionPool(
+        dbpool = adbapi.ConnectionPool(
             'sqlite3', db_name, check_same_thread=False,
             cp_min=1, cp_max=1)
 
         schemas = [
             "im"
         ]
+
+        DbPool.set(dbpool)
 
         for sql_loc in schemas:
             sql_script = read_schema(sql_loc)
