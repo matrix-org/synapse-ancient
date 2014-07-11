@@ -264,7 +264,7 @@ class TransportLayer(object):
             defer.returnValue(400, {"error": "Invalid transaction"})
             return
 
-        code, response = yield self.received_handler.on_transaction(
+        code, response = yield self.received_handler.on_incoming_transaction(
             transaction_data
         )
 
@@ -314,7 +314,7 @@ class TransportLayer(object):
 class TransportReceivedHandler(object):
     """ Callbacks used when we receive a transaction
     """
-    def on_transaction(self, transaction):
+    def on_incoming_transaction(self, transaction):
         """ Called on PUT /send/<transaction_id>, or on response to a request
         that we sent (e.g. a pagination request)
 

@@ -207,7 +207,7 @@ class ReplicationLayer(object):
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
-    def on_transaction(self, transaction_data):
+    def on_incoming_transaction(self, transaction_data):
         transaction = Transaction(**transaction_data)
 
         logger.debug("[%s] Got transaction", transaction.transaction_id)
