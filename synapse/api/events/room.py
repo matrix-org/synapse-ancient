@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-""" Contains events to do with rooms. """
+""" This module contains events to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
-from events import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
+from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
-from auth import AccessTokenAuth
+from synapse.api.auth import AccessTokenAuth
 from synapse.api.dbobjects import Message, RoomMembership, RoomData
 
 import json
@@ -146,9 +146,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             # verify they are sending msgs under their own user id
             if sender_id != auth_user_id:
-                raise InvalidHttpRequestError(403,
-                                              BaseEvent.error(
-                                              "Invalid userid."))
+                raise InvalidHttpRequestError(403, "Invalid userid.")
             # check the json
             req = BaseEvent.get_valid_json(request.content.read(),
                                            [("msgtype", unicode)])

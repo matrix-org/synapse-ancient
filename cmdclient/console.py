@@ -51,11 +51,13 @@ class SynapseCmd(cmd.Cmd):
     def do_config(self, line):
         """ Show the config for this client: "config"
         Edit a key value mapping: "config key value" e.g. "config token 1234"
-        Valid config variables:
+        Config variables:
             user: The username to auth with.
             token: The access token to auth with.
             url: The url of the server.
             verbose: [on|off] The verbosity of requests/responses.
+        Additional key/values can be added and can be substituted into requests
+        by using $. E.g. 'config roomid room1' then 'raw get /rooms/$roomid'.
         """
         if len(line) == 0:
             print json.dumps(self.config, indent=4)
@@ -134,28 +136,37 @@ class SynapseCmd(cmd.Cmd):
 
     def do_raw(self, line):
         """Directly send a JSON object: "raw <method> <path> <data> <notoken>"
-        <method>: Required. One of "PUT", "GET"
+        <method>: Required. One of "PUT", "GET", "POST", "xPUT", "xGET",
+        "xPOST". Methods with 'x' prefixed will not automatically append the
+        access token.
         <path>: Required. E.g. "/events"
         <data>: Optional. E.g. "{ "msgtype":"custom.text", "body":"abc123"}"
-        <notoken>: Optional. "true" to not append the access token to the path.
         """
-        args = self._parse(line, ["method", "path", "data", "notoken"])
+        args = self._parse(line, ["method", "path", "data"])
         # sanity check
         if "method" not in args or "path" not in args:
             print "Must specify path and method."
             return
 
         args["method"] = args["method"].upper()
-        if args["method"] not in ["PUT", "GET"]:
-            print "Unsupported method %s" % args["method"]
+        valid_methods = ["PUT", "GET", "POST", "XGET", "XPUT", "XPOST"]
+        if args["method"] not in valid_methods:
+            print "Unsupported method: %s" % args["method"]
             return
 
         if "data" not in args:
             args["data"] = None
+        else:
+            try:
+                args["data"] = json.loads(args["data"])
+            except Exception as e:
+                print "Data is not valid JSON. %s" % e
+                return
 
         qp = {"access_token": self._tok()}
-        if "notoken" in args:
-            qp = {}
+        if args["method"].startswith("X"):
+            qp = {}  # remove access token
+            args["method"] = args["method"][1:]  # snip the X
 
         reactor.callFromThread(self._run_and_pprint, args["method"],
                                                      args["path"],
@@ -198,6 +209,14 @@ class SynapseCmd(cmd.Cmd):
         line_args = shlex.split(line)
         if force_keys and len(line_args) != len(keys):
             raise IndexError("Must specify all args: %s" % keys)
+
+        # do $ substitutions
+        for i, arg in enumerate(line_args):
+            for config_key in self.config:
+                if ("$" + config_key) in arg:
+                    line_args[i] = arg.replace("$" + config_key,
+                                               self.config[config_key])
+
         return dict(zip(keys, line_args))
 
     @defer.inlineCallbacks

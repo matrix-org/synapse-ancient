@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Contains base components for constructing events. """
+""" This module contains base event classes for constructing events. """
 
 import json
 
@@ -14,25 +14,26 @@ class EventFactory(object):
     def __init__(self):
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
-        import room_events
-        self.events.append(room_events.RoomTopicEvent())
-        self.events.append(room_events.RoomMemberEvent())
-        self.events.append(room_events.MessageEvent())
+        import room
+        self.events.append(room.RoomTopicEvent())
+        self.events.append(room.RoomMemberEvent())
+        self.events.append(room.MessageEvent())
 
-        import event_stream
-        self.events.append(event_stream.EventStreamEvent())
+        from synapse.api.streams.event import EventStreamEvent
+        self.events.append(EventStreamEvent())
 
-        import register_events
-        self.events.append(register_events.RegisterEvent())
+        import register
+        self.events.append(register.RegisterEvent())
 
-    def register_paths(self, http_server):
-        """ Registers paths for all known events.
+    def register_events(self, http_server, data_store):
+        """ Registers all events with contextual modules.
 
         Args:
-            http_server : The server to register paths to.
+            http_server : The server that events can register paths to.
+            data_store : The data store that events can CRUD to.
         """
         for event in self.events:
-            event.register(http_server)
+            event.register(http_server, data_store)
 
 
 class BaseEvent(object):
@@ -51,9 +52,10 @@ class BaseEvent(object):
         raise NotImplementedError("Event must specify a URL pattern.")
 
     @classmethod
-    def register(cls, http_server):
-        """ Register a method, path and callback with the HTTP server. """
-        pass
+    def register(cls, http_server, data_store):
+        """ Register this event with the server and perform CRUD operations
+        on the specified data store. """
+        cls.data_store = data_store
 
     @staticmethod
     def get_valid_json(content, required_keys_values):
@@ -74,7 +76,7 @@ class BaseEvent(object):
             if key not in content_json:
                 raise InvalidHttpRequestError(
                     400,
-                    BaseEvent.error("Missing %s key" % key))
+                    "Missing %s key" % key)
             # TODO This is a little brittle at the moment since we can only
             # inspect top level keys and can't assert values. It would be nice
             # to have some kind of template which can be checked rather than a
@@ -87,7 +89,7 @@ class BaseEvent(object):
             if type(content_json[key]) != typ:
                 raise InvalidHttpRequestError(
                     400,
-                    BaseEvent.error("Key %s is of the wrong type." % key))
+                    "Key %s is of the wrong type." % key)
 
         return content_json
 
@@ -113,7 +115,8 @@ class PutEventMixin(object):
     """ A mixin with the ability to handle PUTs. """
 
     @classmethod
-    def register(cls, http_server):
+    def register(cls, http_server, data_store):
+        super(PutEventMixin, cls).register(http_server, data_store)
         http_server.register_path("PUT", cls.get_pattern(),
                                   cls.on_PUT)
 
@@ -127,7 +130,8 @@ class GetEventMixin(object):
     """ A mixin with the ability to handle GETs. """
 
     @classmethod
-    def register(cls, http_server):
+    def register(cls, http_server, data_store):
+        super(GetEventMixin, cls).register(http_server, data_store)
         http_server.register_path("GET", cls.get_pattern(),
                                   cls.on_GET)
 
@@ -141,7 +145,8 @@ class PostEventMixin(object):
     """ A mixin with the ability to handle POSTs. """
 
     @classmethod
-    def register(cls, http_server):
+    def register(cls, http_server, data_store):
+        super(PostEventMixin, cls).register(http_server, data_store)
         http_server.register_path("POST", cls.get_pattern(),
                                   cls.on_POST)
 
