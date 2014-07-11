@@ -4,6 +4,7 @@ interactions."""
 
 from synapse.api.auth import Auth, RegisteredUserModule
 from synapse.api.events.base import EventFactory
+from synapse.api.event_store import EventStore
 from synapse.federation import ReplicationHandler
 
 
@@ -15,7 +16,7 @@ class SynapseHomeServer(ReplicationHandler):
         self.replication_layer = replication_layer
         self.replication_layer.set_handler(self)
 
-        self.event_data_store = None  # FIXME database
+        self.event_data_store = EventStore()
 
         # configure auth
         Auth.mod_registered_user = RegisteredUserModule(self.event_data_store)
@@ -27,4 +28,5 @@ class SynapseHomeServer(ReplicationHandler):
     def on_receive_pdu(self, pdu):
         pdu_type = pdu.pdu_type
         print "#%s (receive) *** %s" % (pdu.context, pdu_type)
+
 

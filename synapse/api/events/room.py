@@ -5,8 +5,7 @@ from twisted.internet import defer
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
                     InvalidHttpRequestError)
 from synapse.api.auth import Auth
-from synapse.api.dbobjects import Message, RoomMembership, RoomData
-from synapse.api.event_store import RoomEventStore
+from synapse.api.dbobjects import Message, RoomMembership
 
 import json
 import re
@@ -28,7 +27,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
         # TODO check they are invited/joined in the room if private. If
         # public, anyone can view the topic.
 
-        data = yield RoomEventStore().get_path_data(request.path)
+        data = yield cls.data_store.get_path_data(request.path)
 
         if not data:
             defer.returnValue((404, BaseEvent.error("Topic not found.")))
@@ -46,7 +45,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
                                                [("topic", unicode)])
 
             # store in db
-            yield RoomEventStore().store_path_data(room_id=room_id,
+            yield cls.data_store.store_path_data(room_id=room_id,
                 path=request.path,
                 content=json.dumps(content))
 
