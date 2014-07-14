@@ -130,7 +130,8 @@ class SynapseCmd(cmd.Cmd):
         """Sends a message. "send <roomid> <body>" """
         args = self._parse(line, ["roomid", "body"])
         msg_id = "m%s" % int(time.time())
-        path = "/rooms/%s/messages/%s/%s" % (args["roomid"], self._usr(),
+        path = "/rooms/%s/messages/%s/%s" % (urllib.quote(args["roomid"]),
+                                             self._usr(),
                                              msg_id)
         body_json = {
             "msgtype": "sy.text",
@@ -159,7 +160,7 @@ class SynapseCmd(cmd.Cmd):
             room_id = args["vis"]
 
         if room_id:
-            path = "/rooms/%s" % room_id
+            path = "/rooms/%s" % urllib.quote(room_id)
             reactor.callFromThread(self._run_and_pprint, "PUT", path, body)
         else:
             reactor.callFromThread(self._run_and_pprint, "POST", "/rooms", body)
@@ -285,7 +286,7 @@ def main(server_url, username, token):
     if not username or not token:
         print "-  'register <username>' - Register an account"
         print "-  'stream' - Connect to the event stream"
-        print "-  'join <roomid>' - Join a room"
+        print "-  'create <roomid>' - Create a room"
         print "-  'send <roomid> <message>' - Send a message"
     http_client = TwistedHttpClient()
 

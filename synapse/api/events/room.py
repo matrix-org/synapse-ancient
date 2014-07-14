@@ -111,11 +111,9 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
     def on_PUT(cls, request, room_id, auth_user_id=None):
         try:
             # check they are joined in the room
-            member = yield cls.data_store.get_room_member(
-                        room_id=room_id,
-                        user_id=auth_user_id)
-            if not member or member[0].membership != "join":
-                raise InvalidHttpRequestError(403, "")
+            yield get_joined_or_throw(cls.data_store,
+                                      room_id=room_id,
+                                      user_id=auth_user_id)
 
             # validate JSON
             content = BaseEvent.get_valid_json(request.content.read(),
@@ -254,7 +252,11 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # check the json
             req = BaseEvent.get_valid_json(request.content.read(),
                                            [("msgtype", unicode)])
-            # TODO Check if sender_id is in room room_id
+
+            # Check if sender_id is in room room_id
+            yield get_joined_or_throw(cls.data_store,
+                                      room_id=room_id,
+                                      user_id=auth_user_id)
 
             # store message in db
             yield cls.data_store.store_message(user_id=sender_id,
@@ -269,3 +271,25 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((e.get_status_code(), e.get_response_body()))
 
         defer.returnValue((200, ""))
+
+
+# TODO this should probably go somewhere else?
+@defer.inlineCallbacks
+def get_joined_or_throw(store=None, user_id=None, room_id=None):
+    """Utility method to return the specified room member.
+
+    Args:
+        store : The event data store
+        user_id : The member's ID
+        room_id : The room where the member is joined.
+    Returns:
+        The room member.
+    Raises:
+        InvalidHttpRequestError if this member does not exist/isn't joined.
+    """
+    member = yield store.get_room_member(
+                        room_id=room_id,
+                        user_id=user_id)
+    if not member or member[0].membership != "join":
+        raise InvalidHttpRequestError(403, "")
+    defer.returnValue(member)
