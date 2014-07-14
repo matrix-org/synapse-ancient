@@ -6,6 +6,10 @@ from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
                                         MessagesTable)
 
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def exec_single_with_result(txn, query, func, *args):
@@ -20,12 +24,16 @@ def exec_single_with_result(txn, query, func, *args):
     Returns:
         The result of func(results)
     """
+    logger.debug("[SQL] %s  Args=%s Func=%s.%s" % (query, args,
+                                                        func.im_self.__name__,
+                                                        func.__name__))
     cursor = txn.execute(query, args)
     return func(cursor)
 
 
 def exec_single(txn, query, *args):
     """Runs a single query, returning nothing."""
+    logger.debug("[SQL] %s  Args=%s" % (query, args))
     txn.execute(query, args)
 
 

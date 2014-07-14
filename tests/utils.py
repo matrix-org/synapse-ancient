@@ -4,6 +4,7 @@ from twisted.internet import defer
 
 from mock import patch, Mock
 
+
 class MockHttpServer(HttpServer):
 
     callbacks = []  # 3-tuple of method/pattern/function
@@ -31,6 +32,10 @@ class MockHttpServer(HttpServer):
         config = {'read.return_value': content}
         mock_content.configure_mock(**config)
         mock_request.content = mock_content
+
+        # return the right path if the event requires it
+        mock_request.path = path
+
         for (method, pattern, func) in self.callbacks:
             if http_method != method:
                 continue

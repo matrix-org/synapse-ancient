@@ -6,7 +6,8 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.api.auth import Auth
-from synapse.api.events.room import MessageEvent, RoomMemberEvent
+from synapse.api.events.room import (MessageEvent, RoomMemberEvent,
+                                     RoomTopicEvent)
 from synapse.api.event_store import EventStore
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
@@ -19,8 +20,8 @@ import sqlite3
 from ..utils import MockHttpServer
 
 
-class MessageTestCase(unittest.TestCase):
-    """ Checks that messages can be PUT/GET. """
+class RoomTestCase(unittest.TestCase):
+    """ Tests /rooms REST events. """
 
     def _setup_db(self, db_name):
         # FIXME: This is basically a copy of synapse.app.homeserver's setup
@@ -51,6 +52,7 @@ class MessageTestCase(unittest.TestCase):
         Auth.mod_registered_user = MockRegisteredUserModule("sid1")
         MessageEvent().register(self.mock_server, self.mock_data_store)
         RoomMemberEvent().register(self.mock_server, self.mock_data_store)
+        RoomTopicEvent().register(self.mock_server, self.mock_data_store)
 
     def tearDown(self):
         try:
@@ -86,53 +88,85 @@ class MessageTestCase(unittest.TestCase):
         self.assertEquals(400, code)
 
     @defer.inlineCallbacks
-    def test_room_members(self):
+    def test_rooms_topic(self):
+        path = "/rooms/rid1/topic"
+        self._test_invalid_puts(path)
+
+        # valid key, wrong type
+        content = '{"topic":["Topic name"]}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
+        self.assertEquals(400, code)
+
+        # nothing should be there
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
+        self.assertEquals(404, code)
+
+        # valid put
+        content = '{"topic":"Topic name"}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
+        self.assertEquals(200, code)
+
+        # valid get
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
+        self.assertEquals(200, code)
+        self.assertEquals(json.loads(content), response)
+
+        # valid put with extra keys
+        content = '{"topic":"Seasons","subtopic":"Summer"}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
+        self.assertEquals(200, code)
+
+        # valid get
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
+        self.assertEquals(200, code)
+        self.assertEquals(json.loads(content), response)
+
+    @defer.inlineCallbacks
+    def test_rooms_members_state(self):
         path = "/rooms/rid1/members/sid1/state"
         self._test_invalid_puts(path)
 
         # valid keys, wrong types
-        (code, response) = yield self.mock_server.trigger("PUT", path,
-                           '{"membership":["join","leave","invite"]}')
+        content = '{"membership":["join","leave","invite"]}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(400, code)
 
         # valid join message
-        (code, response) = yield self.mock_server.trigger("PUT", path,
-                           '{"membership":"join"}')
+        content = '{"membership":"join"}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(200, code)
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code)
-        self.assertEquals(json.loads('{"membership":"join"}'), response)
+        self.assertEquals(json.loads(content), response)
 
     @defer.inlineCallbacks
-    def test_messages_in_room(self):
+    def test_rooms_messages_sent(self):
         path = "/rooms/rid1/messages/sid1/mid1"
         self._test_invalid_puts(path)
 
-        (code, response) = yield self.mock_server.trigger("PUT", path,
-                           '{"body":"test","msgtype":{"type":"a"}}')
+        content = '{"body":"test","msgtype":{"type":"a"}}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(400, code)
 
         # custom message types
-        (code, response) = yield self.mock_server.trigger("PUT", path,
-                           '{"body":"test","msgtype":"test.custom.text"}')
+        content = '{"body":"test","msgtype":"test.custom.text"}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(200, code)
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code)
-        self.assertEquals(json.loads('{"body":"test","msgtype":' +
-                          '"test.custom.text"}'), response)
+        self.assertEquals(json.loads(content), response)
 
         # sy.text message type
         path = "/rooms/rid1/messages/sid1/mid2"
-        (code, response) = yield self.mock_server.trigger("PUT", path,
-                           '{"body":"test2","msgtype":"sy.text"}')
+        content = '{"body":"test2","msgtype":"sy.text"}'
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(200, code)
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code)
-        self.assertEquals(json.loads('{"body":"test2","msgtype":' +
-                          '"sy.text"}'), response)
+        self.assertEquals(json.loads(content), response)
 
 
 class MockRegisteredUserModule():
