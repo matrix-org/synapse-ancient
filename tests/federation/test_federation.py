@@ -14,6 +14,22 @@ from synapse.federation.units import Pdu
 from synapse.persistence.transactions import PduTuple, PduEntry
 from synapse.persistence.tables import PdusTable
 
+def make_pdu(prev_pdus=[], **kwargs):
+    """Provide some default fields for making a PduTuple."""
+    pdu_fields = {
+        "is_state":False,
+        "unrecognized_keys":[],
+        "outlier":False,
+        "have_processed":True,
+        "state_key":None,
+        "power_level":None,
+        "prev_state_id":None,
+        "prev_state_origin":None,
+    }
+    pdu_fields.update(kwargs)
+
+    return PduTuple(PduEntry(**pdu_fields), prev_pdus)
+
 class FederationTestCase(unittest.TestCase):
     def setUp(self):
         # TODO: mock an HTTP client we can use
@@ -38,7 +54,7 @@ class FederationTestCase(unittest.TestCase):
 
         # Now lets give the context some state
         self.mock_pdu_actions.mock_current_state("my-context", [
-            PduTuple(PduEntry(
+            make_pdu(
                 pdu_id="the-pdu-id",
                 origin="red",
                 context="my-context",
@@ -47,14 +63,11 @@ class FederationTestCase(unittest.TestCase):
                 depth=1,
                 is_state=True,
                 content_json='{"topic":"The topic"}',
-                unrecognized_keys=[],
-                outlier=False,
-                have_processed=True,
                 state_key="",
                 power_level=1000,
                 prev_state_id="last-pdu-id",
                 prev_state_origin="blue",
-            ), []),
+            ),
         ])
 
         (code, response) = yield self.mock_http_server.trigger("GET",
@@ -69,25 +82,15 @@ class FederationTestCase(unittest.TestCase):
         self.assertEquals(404, code)
 
         # Now insert such a PDU
-        self.mock_pdu_actions.mock_persisted_pdu("abc123def456", "red",
-                PduTuple(PduEntry(
-                    pdu_id="abc123def456",
-                    origin="red",
-                    context="my-context",
-                    pdu_type="sy.text",
-                    ts=123456789001,
-                    depth=1,
-                    is_state=False,
-                    content_json='{"text":"Here is the message"}',
-                    unrecognized_keys=[],
-                    outlier=False,
-                    have_processed=True,
-                    state_key=None,
-                    power_level=None,
-                    prev_state_id=None,
-                    prev_state_origin=None,
-                ), [])
-        )
+        self.mock_pdu_actions.mock_persisted_pdu(make_pdu(
+            pdu_id="abc123def456",
+            origin="red",
+            context="my-context",
+            pdu_type="sy.text",
+            ts=123456789001,
+            depth=1,
+            content_json='{"text":"Here is the message"}',
+        ))
 
         (code, response) = yield self.mock_http_server.trigger("GET",
                 "/pdu/red/abc123def456/", None)
@@ -110,11 +113,14 @@ class MockPduActions(object):
         pdus = self.current_state_for[context]
         return defer.succeed([Pdu.from_pdu_tuple(p) for p in pdus])
 
-    def mock_persisted_pdu(self, pdu_id, pdu_origin, pdu):
-        if pdu_origin not in self.persisted_pdus:
-            self.persisted_pdus[pdu_origin] = {}
+    def mock_persisted_pdu(self, pdu):
+        id = pdu.pdu_entry.pdu_id
+        origin = pdu.pdu_entry.origin
 
-        self.persisted_pdus[pdu_origin][pdu_id] = pdu
+        if origin not in self.persisted_pdus:
+            self.persisted_pdus[origin] = {}
+
+        self.persisted_pdus[origin][id] = pdu
 
     def get_persisted_pdu(self, pdu_id, pdu_origin):
         if pdu_origin not in self.persisted_pdus:
