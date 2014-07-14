@@ -33,7 +33,7 @@ def log_function(f):
             level=logging.DEBUG,
             pathname=pathname,
             lineno=lineno,
-            msg="Called: %(func_name)s with args: %(args)s",
+            msg="Invoked '%(func_name)s' with args: %(args)s",
             args=msg_args,
             exc_info=None
         )
