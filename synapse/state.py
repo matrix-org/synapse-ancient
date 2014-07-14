@@ -4,6 +4,8 @@ from twisted.internet import defer
 
 
 class StateHandler(object):
+    """ StateHandler is repsonsible for doing state conflict resolution.
+    """
 
     def __init__(self, persistence_service, replication_layer):
         self._persistence = persistence_service
@@ -13,6 +15,14 @@ class StateHandler(object):
 
     @defer.inlineCallbacks
     def handle_new_state(self, new_pdu):
+        """ Apply conflict resolution to `new_pdu`.
+
+        This should be called on every new state pdu, regardless of whether or
+        not there is a conflict.
+
+        This function is safe against the race of it getting called with two
+        `PDU`s trying to update the same state.
+        """
         key = (new_pdu.context, new_pdu.pdu_type, new_pdu.state_key)
 
         old_deferred = self._update_deferreds.get(key)
@@ -41,6 +51,7 @@ class StateHandler(object):
                     pdu_type=new_pdu.pdu_type,
                     state_key=new_pdu.state_key
                 )
+            return
 
         if new_branch[-1] == current_branch[-1]:
             # We have all the PDUs we need, so we can just do the conflict
@@ -87,9 +98,10 @@ class StateHandler(object):
             )
 
             yield self._replication.get_pdu(
-                missing_prev.origin,
-                missing_prev.prev_state_id,
-                missing_prev.prev_state_origin
+                destination=missing_prev.origin,
+                pdu_origin=missing_prev.prev_state_id,
+                pdu_id=missing_prev.prev_state_origin,
+                outlier=True
             )
 
             updated_current = yield self.handle_new_state(new_pdu)
