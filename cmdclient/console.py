@@ -12,6 +12,8 @@ import sys
 import time
 import urllib
 
+CONFIG_JSON = "synapse.json"
+
 
 class SynapseCmd(cmd.Cmd):
 
@@ -72,6 +74,7 @@ class SynapseCmd(cmd.Cmd):
                 self.http_client.verbose = "on" == args["val"]
             self.config[args["key"]] = args["val"]
             print json.dumps(self.config, indent=4)
+            save_config(self.config)
         except Exception as e:
             print e
 
@@ -97,6 +100,7 @@ class SynapseCmd(cmd.Cmd):
         if update_config and "user_id" in json_res:
             self.config["user"] = json_res["user_id"]
             self.config["token"] = json_res["access_token"]
+            save_config(self.config)
 
     def do_join(self, line):
         """Joins a room: "join <roomid>" """
@@ -241,6 +245,11 @@ class SynapseCmd(cmd.Cmd):
         print json.dumps(json_res, indent=4)
 
 
+def save_config(config):
+    with open(CONFIG_JSON, 'w') as out:
+        json.dump(config, out)
+
+
 def main(server_url, username, token):
     print "Synapse command line client"
     print "==========================="
@@ -248,14 +257,22 @@ def main(server_url, username, token):
     print "Type 'help' to get started."
     print "Close this console with CTRL+C then CTRL+D."
     if not username or not token:
-        print "-  Register an account: 'register <username>'"
-        print "-  Connect to the event stream: 'stream'"
-        print "-  Join a room: 'join <roomid>'"
-        print "-  Send a message: 'send <roomid> <message>'"
+        print "-  'register <username>' - Register an account"
+        print "-  'stream' - Connect to the event stream"
+        print "-  'join <roomid>' - Join a room"
+        print "-  'send <roomid> <message>' - Send a message"
     http_client = TwistedHttpClient()
 
     # the command line client
     syn_cmd = SynapseCmd(http_client, server_url, username, token)
+
+    # load synapse.json config from a previous session
+    try:
+        with open(CONFIG_JSON, 'r') as config:
+            syn_cmd.config = json.load(config)
+            print "Loaded config from %s" % CONFIG_JSON
+    except:
+        pass
 
     # Twisted-specific: Runs the command processor in Twisted's event loop
     # to maintain a single thread for both commands and event processing.

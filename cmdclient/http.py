@@ -61,9 +61,6 @@ class TwistedHttpClient(HttpClient):
 
     @defer.inlineCallbacks
     def put_json(self, url, data):
-        if self.verbose:
-            print json.dumps(data, indent=4)
-
         response = yield self._create_put_request(
             url,
             data,
@@ -112,9 +109,6 @@ class TwistedHttpClient(HttpClient):
             url = "%s?%s" % (url, urllib.urlencode(qparams, True))
 
         if method in ["POST", "PUT"]:
-            if self.verbose:
-                print json.dumps(data, indent=4)
-
             response = yield self._create_request(method, url,
                     producer=_JsonProducer(data),
                     headers_dict={"Content-Type": ["application/json"]})
@@ -132,6 +126,9 @@ class TwistedHttpClient(HttpClient):
 
         retries_left = 5
         print "%s to %s with headers %s" % (method, url, headers_dict)
+        if self.verbose and producer:
+            print json.dumps(producer.data, indent=4)
+
         while True:
             try:
                 response = yield self.agent.request(
@@ -164,6 +161,7 @@ class _JsonProducer(object):
     """ Used by the twisted http client to create the HTTP body from json
     """
     def __init__(self, jsn):
+        self.data = jsn
         self.body = json.dumps(jsn).encode("utf8")
         self.length = len(self.body)
 
