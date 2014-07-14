@@ -24,6 +24,8 @@ class StateTestCase(unittest.TestCase):
         )
 
     def test_new_state_key(self):
+        # We've never seen anything for this state before
+
         new_pdu = new_fake_pdu("A", "test", "mem", "x", None, 10)
 
         self.mock_persistence.mock_state_tree(
@@ -40,6 +42,9 @@ class StateTestCase(unittest.TestCase):
         self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
 
     def test_direct_overwrite(self):
+        # We do a direct overwriting of the old state, i.e., the new state
+        # points to the old state.
+
         old_pdu = new_fake_pdu("A", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu("B", "test", "mem", "x", "A", 5)
 
@@ -57,6 +62,9 @@ class StateTestCase(unittest.TestCase):
         self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
 
     def test_power_level_fail(self):
+        # We try to update the state based on an outdated state, and have a
+        # too low power level.
+
         old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
         old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu("C", "test", "mem", "x", "A", 5)
@@ -80,6 +88,9 @@ class StateTestCase(unittest.TestCase):
         self.assertEquals((old_pdu_2.pdu_id, old_pdu_2.origin), curr_state)
 
     def test_power_level_succeed(self):
+        # We try to update the state based on an outdated state, but have
+        # sufficient power level to force the update.
+
         old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
         old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu("C", "test", "mem", "x", "A", 15)
@@ -103,6 +114,9 @@ class StateTestCase(unittest.TestCase):
         self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
 
     def test_power_level_equal_same_len(self):
+        # We try to update the state based on an outdated state, the power
+        # levels are the same and so are the branch lengths
+
         old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
         old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu("C", "test", "mem", "x", "A", 10)
@@ -126,6 +140,9 @@ class StateTestCase(unittest.TestCase):
         self.assertEquals((old_pdu_2.pdu_id, old_pdu_2.origin), curr_state)
 
     def test_power_level_equal_diff_len(self):
+        # We try to update the state based on an outdated state, the power
+        # levels are the same but the branch length of the new one is longer.
+
         old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
         old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
         old_pdu_3 = new_fake_pdu("C", "test", "mem", "x", "A", 10)
