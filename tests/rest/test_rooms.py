@@ -58,63 +58,86 @@ class RoomsPermissionsTestCase(unittest.TestCase):
             pass
 
     def test_send_message(self):
-        # send message in uncreated room
+        # send message in uncreated room, expect 403
 
-        # send message in created room not joined (no state)
+        # send message in created room not joined (no state), expect 403
 
-        # send message in created room and invited
+        # send message in created room and invited, expect 403
 
-        # send message in created room and joined
+        # send message in created room and joined, expect 200
 
-        # send message in created room and left
+        # send message in created room and left, expect 403
         pass
 
     def test_topic_perms(self):
-        # set topic in uncreated room
+        # set topic in uncreated room, expect 403
 
-        # set topic in created room not joined (no state)
+        # set topic in created room not joined (no state), expect 403
 
-        # set topic in created room and invited
+        # set topic in created room and invited, expect 403
 
-        # set topic in created room and joined
+        # set topic in created room and joined, expect 200
 
-        # set topic in created room and left
+        # set topic in created room and left, expect 403
 
-        # get topic in uncreated room
+        # get topic in uncreated room, expect 403
 
-        # get topic in PUBLIC room
+        # get topic in PUBLIC room, expect 200
 
-        # get topic in PRIVATE room
+        # get topic in PRIVATE room, expect 403
         pass
 
     def test_membership_perms(self):
         # get membership of self, get membership of other, uncreated room
+        # expect all 403s
 
         # get membership of self, get membership of other, public room + invite
+        # expect all 403s
 
         # get membership of self, get membership of other, public room + joined
+        # expect all 200s
 
         # get membership of self, get membership of other, public room + left
+        # expect all 403s
 
         # get membership of self, get membership of other, private room + invite
+        # expect all 403s
 
         # get membership of self, get membership of other, private room + joined
+        # expect all 200s
 
         # get membership of self, get membership of other, private room + left
+        # expect all 403s
 
-        # set membership of self, get membership of other, uncreated room
 
-        # set membership of self, get membership of other, public room + invite
+        # === room does not exist ===
+        # set [invite/join/left] of self, set [invite/join/left] of other,
+        # expect all 403s
 
-        # set membership of self, get membership of other, public room + joined
+        # === invited to room ===
+        # set [invite/left] of self, set [invite/join/left] of other,
+        # expect all 403s
 
-        # set membership of self, get membership of other, public room + left
+        # set joined of self, expect 200
 
-        # set membership of self, get membership of other, private room + invite
+        # TODO: DELETE the invited = rejected invitation?
 
-        # set membership of self, get membership of other, private room + joined
+        # === joined room ===
+        # set invited of self, expect 400
 
-        # set membership of self, get membership of other, private room + left
+        # set joined of self, expect 200 (NOOP)
+
+        # set left of self, expect 200
+
+        # set invited of other, expect 200
+
+        # set joined of other, expect 403
+
+        # set left of other, expect 403
+
+        # === left room ===
+        # set [invite/join/left] of self, set [invite/join/left] of other,
+        # expect all 403s
         pass
 
 
@@ -132,29 +155,29 @@ class RoomsCreateTestCase(unittest.TestCase):
             pass
 
     def test_post_room(self):
-        # POST with no config keys
+        # POST with no config keys, expect new room id
 
-        # POST with visibility config key
+        # POST with visibility config key, expect new room id
 
-        # POST with custom config keys
+        # POST with custom config keys, expect new room id
 
-        # POST with custom + known config keys
+        # POST with custom + known config keys, expect new room id
 
-        # POST with invalid content / paths
+        # POST with invalid content / paths, expect 400
         pass
 
     def test_put_room(self):
-        # PUT with no config keys
+        # PUT with no config keys, expect new room id
 
-        # PUT with known config keys
+        # PUT with known config keys, expect new room id
 
-        # PUT with custom config keys
+        # PUT with custom config keys, expect new room id
 
-        # PUT with custom + known config keys
+        # PUT with custom + known config keys, expect new room id
 
-        # PUT with invalid content / paths / room names
+        # PUT with invalid content / paths / room names, expect 400
 
-        # PUT with conflicting room ID
+        # PUT with conflicting room ID, expect error
         pass
 
 
