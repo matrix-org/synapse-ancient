@@ -3,9 +3,11 @@ from synapse.util.http import HttpServer
 from twisted.internet import defer
 
 from mock import patch, Mock
+import urlparse
 
 
 class MockHttpServer(HttpServer):
+
     def __init__(self):
         self.callbacks = []  # 3-tuple of method/pattern/function
 
@@ -35,6 +37,13 @@ class MockHttpServer(HttpServer):
 
         # return the right path if the event requires it
         mock_request.path = path
+
+        # add in query params to the right place
+        try:
+            mock_request.args = urlparse.parse_qs(path.split('?')[1])
+            mock_request.path = path.split('?')[0]
+        except:
+            pass
 
         for (method, pattern, func) in self.callbacks:
             if http_method != method:
