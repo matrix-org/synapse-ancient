@@ -119,7 +119,6 @@ class ReplicationLayer(object):
         Returns:
             Deferred: Results in the received PDUs.
         """
-        logger.debug("paginate context=%s, dest=%s", context, dest)
         extremities = yield run_interaction(
             PduQueries.get_back_extremities,
             context
@@ -163,8 +162,6 @@ class ReplicationLayer(object):
         Returns:
             Deferred: Results in the requested PDU.
         """
-        logger.debug("get_pdu dest=%s, pdu_origin=%s, pdu_id=%s",
-                     destination, pdu_origin, pdu_id)
 
         transaction_data = yield self.transport_layer.get_pdu(
             destination, pdu_origin, pdu_id)
@@ -193,8 +190,6 @@ class ReplicationLayer(object):
         Returns:
             Deferred: Results in a list of PDUs.
         """
-        logger.debug(
-            "get_state_for_context context=%s, dest=%s", context, destination)
 
         transaction_data = yield self.transport_layer.get_context_state(
             destination, context)
@@ -210,8 +205,6 @@ class ReplicationLayer(object):
     @defer.inlineCallbacks
     @log_function
     def on_paginate_request(self, context, versions, limit):
-        logger.debug(
-            "on_paginate_request context=%s", context)
 
         pdus = yield self.pdu_actions.paginate(context, versions, limit)
 
@@ -267,16 +260,12 @@ class ReplicationLayer(object):
     @defer.inlineCallbacks
     @log_function
     def on_context_state_request(self, context):
-        logger.debug("on_context_state_request context=%s", context)
         pdus = yield self.pdu_actions.current_state(context)
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
     @log_function
     def on_pdu_request(self, pdu_origin, pdu_id):
-        logger.debug(
-            "on_pdu_request pdu_origin=%s, pdu_id=%s", pdu_origin, pdu_id)
-
         pdu = yield self.pdu_actions.get_persisted_pdu(pdu_id, pdu_origin)
 
         pdus = []
@@ -288,8 +277,6 @@ class ReplicationLayer(object):
     @defer.inlineCallbacks
     @log_function
     def on_pull_request(self, origin, versions):
-        logger.debug("on_pull_request origin=%s", origin)
-
         transaction_id = max([int(v) for v in versions])
 
         response = yield self.pdu_actions.after_transaction(
@@ -317,11 +304,8 @@ class ReplicationLayer(object):
         )
 
     @defer.inlineCallbacks
+    @log_function
     def _handle_new_pdu(self, pdu):
-        logger.debug(
-            "_handle_new_pdu %s from %s", str(pdu.pdu_id), pdu.origin
-        )
-
         # We reprocess pdus when we have seen them only as outliers
         existing = yield self.pdu_actions.get_persisted_pdu(pdu.pdu_id,
                 pdu.origin)
