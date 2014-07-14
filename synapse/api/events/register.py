@@ -80,9 +80,7 @@ class RegisterEvent(PostEventMixin, BaseEvent):
         except IntegrityError:
             raise InvalidHttpRequestError(400, "User ID already taken.")
 
-        # urlsafe variant uses _ and - so use . as the separator
-        token = (base64.urlsafe_b64encode(user_id) + "." +
-                 stringutils.random_string(18))
+        token = cls._generate_token(user_id)
 
         # it's possible for this to get a conflict, but only for a single user
         # since tokens are namespaced based on their user ID
@@ -91,5 +89,14 @@ class RegisterEvent(PostEventMixin, BaseEvent):
 
         return (user_id, token)
 
+    @classmethod
+    def _generate_token(cls, user_id):
+        # urlsafe variant uses _ and - so use . as the separator and replace all
+        # =s with .s so http clients don't quote =s when it is used as query
+        # params.
+        return (base64.urlsafe_b64encode(user_id).replace('=', '.') + '.' +
+                 stringutils.random_string(18))
+
+    @classmethod
     def _generate_user_id(cls):
         return "-" + stringutils.random_string(18)
