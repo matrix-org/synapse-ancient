@@ -268,11 +268,11 @@ class ReplicationLayer(object):
     def on_pdu_request(self, pdu_origin, pdu_id):
         pdu = yield self.pdu_actions.get_persisted_pdu(pdu_id, pdu_origin)
 
-        pdus = []
-        if not pdu:
-            pdus = [pdu]
-
-        defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
+        if pdu:
+            defer.returnValue((200,
+                self._transaction_from_pdus([pdu]).get_dict()))
+        else:
+            defer.returnValue((404,""))
 
     @defer.inlineCallbacks
     @log_function
