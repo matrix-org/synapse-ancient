@@ -62,9 +62,43 @@ class FederationTestCase(unittest.TestCase):
         self.assertEquals(200, code)
         self.assertEquals(1, len(response["pdus"]))
 
+    @defer.inlineCallbacks
+    def test_get_pdu(self):
+        (code, response) = yield self.mock_http_server.trigger("GET",
+                "/pdu/red/abc123def456/", None)
+        self.assertEquals(404, code)
+
+        # Now insert such a PDU
+        self.mock_pdu_actions.mock_persisted_pdu("abc123def456", "red",
+                PduTuple(PduEntry(
+                    pdu_id="abc123def456",
+                    origin="red",
+                    context="my-context",
+                    pdu_type="sy.text",
+                    ts=123456789001,
+                    depth=1,
+                    is_state=False,
+                    content_json='{"text":"Here is the message"}',
+                    unrecognized_keys=[],
+                    outlier=False,
+                    have_processed=True,
+                    state_key=None,
+                    power_level=None,
+                    prev_state_id=None,
+                    prev_state_origin=None,
+                ), [])
+        )
+
+        (code, response) = yield self.mock_http_server.trigger("GET",
+                "/pdu/red/abc123def456/", None)
+        self.assertEquals(200, code)
+        self.assertEquals(1, len(response["pdus"]))
+        self.assertEquals("sy.text", response["pdus"][0]["pdu_type"])
+
 class MockPduActions(object):
     def __init__(self):
         self.current_state_for = {}
+        self.persisted_pdus = {}
 
     def mock_current_state(self, context, pdus):
         self.current_state_for[context] = pdus
@@ -75,6 +109,22 @@ class MockPduActions(object):
 
         pdus = self.current_state_for[context]
         return defer.succeed([Pdu.from_pdu_tuple(p) for p in pdus])
+
+    def mock_persisted_pdu(self, pdu_id, pdu_origin, pdu):
+        if pdu_origin not in self.persisted_pdus:
+            self.persisted_pdus[pdu_origin] = {}
+
+        self.persisted_pdus[pdu_origin][pdu_id] = pdu
+
+    def get_persisted_pdu(self, pdu_id, pdu_origin):
+        if pdu_origin not in self.persisted_pdus:
+            pdu = None
+        elif pdu_id not in self.persisted_pdus[pdu_origin]:
+            pdu = None
+        else:
+            pdu = Pdu.from_pdu_tuple(self.persisted_pdus[pdu_origin][pdu_id])
+
+        return defer.succeed(pdu)
 
 
 class MockTransactionActions(object):
