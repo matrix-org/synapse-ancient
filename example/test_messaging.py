@@ -24,7 +24,7 @@ from synapse.util.logutils import log_function
 
 from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
-from twisted.python.log import PythonLoggingObserver
+from twisted.python import log
 
 import argparse
 import json
@@ -38,6 +38,10 @@ import curses.wrapper
 
 
 logger = logging.getLogger("example")
+
+
+def excpetion_errback(failure):
+    logging.exception(failure)
 
 
 class InputOutput(object):
@@ -99,6 +103,23 @@ class InputOutput(object):
 
     def print_line(self, text):
         self.screen.print_line(text)
+
+    def print_log(self, text):
+        self.screen.print_log(text)
+
+
+class IOLoggerHandler(logging.Handler):
+
+    def __init__(self, io):
+        logging.Handler.__init__(self)
+        self.io = io
+
+    def emit(self, record):
+        if record.levelno < logging.WARN:
+            return
+
+        msg = self.format(record)
+        self.io.print_log(msg)
 
 
 class Room(object):
@@ -342,15 +363,9 @@ def main(stdscr):
     root_logger.addHandler(fh)
     root_logger.setLevel(logging.DEBUG)
 
-    sh = logging.StreamHandler()
-    sh.setFormatter(formatter)
-
-    if args.verbose > 1:
-        root_logger.addHandler(sh)
-    elif args.verbose == 1:
-        logger.addHandler(sh)
-
-    observer = PythonLoggingObserver()
+    #log.discardLogs()
+    log.theLogPublisher.observers = []
+    observer = log.PythonLoggingObserver()
     observer.start()
 
     ## Set up db ##
@@ -375,6 +390,11 @@ def main(stdscr):
     hs = HomeServer(server_name, replication, curses_stdio)
 
     input_output.set_home_server(hs)
+
+    ## Add input_output logger
+    io_logger = IOLoggerHandler(input_output)
+    io_logger.setFormatter(formatter)
+    root_logger.addHandler(io_logger)
 
     ## Start! ##
 

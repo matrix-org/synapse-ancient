@@ -11,6 +11,8 @@ class CursesStdIO():
         self.searchText = ''
         self.stdscr = stdscr
 
+        self.logLine = ''
+
         self.callback = callback
 
         self._setup()
@@ -42,6 +44,10 @@ class CursesStdIO():
         self.lines.append(text)
         self.redraw()
 
+    def print_log(self, text):
+        self.logLine = text
+        self.redraw()
+
     def redraw(self):
         """ method for redisplaying lines
             based on internal list of lines """
@@ -55,6 +61,9 @@ class CursesStdIO():
                                curses.A_NORMAL)
             i = i + 1
             index = index - 1
+
+        self.printLogLine(self.logLine)
+
         self.stdscr.refresh()
 
     def paintStatus(self, text):
@@ -63,6 +72,12 @@ class CursesStdIO():
 
         self.stdscr.addstr(
             self.rows - 2, 0,
+            text + ' ' * (self.cols - len(text)),
+            curses.A_STANDOUT)
+
+    def printLogLine(self, text):
+        self.stdscr.addstr(
+            0, 0,
             text + ' ' * (self.cols - len(text)),
             curses.A_STANDOUT)
 
