@@ -18,6 +18,7 @@ class EventFactory(object):
         self.events.append(room.RoomTopicEvent())
         self.events.append(room.RoomMemberEvent())
         self.events.append(room.MessageEvent())
+        self.events.append(room.RoomCreateEvent())
 
         from synapse.api.streams.event import EventStreamEvent
         self.events.append(EventStreamEvent())

@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS rooms(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    room_id TEXT NOT NULL,
-    is_public INTEGER
+    room_id TEXT PRIMARY KEY NOT NULL,
+    is_public INTEGER,
+    creator TEXT
 );
 
 CREATE TABLE IF NOT EXISTS room_memberships(

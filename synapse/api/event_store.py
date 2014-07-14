@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
+from sqlite3 import IntegrityError
+
 from synapse.persistence.transactions import run_interaction
+from synapse.util import stringutils
 from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
-                                        MessagesTable)
+                                        MessagesTable, RoomsTable)
 
 import json
 import logging
@@ -35,6 +38,82 @@ def exec_single(txn, query, *args):
     """Runs a single query, returning nothing."""
     logger.debug("[SQL] %s  Args=%s" % (query, args))
     txn.execute(query, args)
+
+
+class RoomStore(object):
+
+    def __init__(self):
+        super(RoomStore, self).__init__()
+
+    @defer.inlineCallbacks
+    def store_room(self, room_id=None, room_creator_user_id=None,
+                   is_public=None):
+        """Stores a room.
+
+        If room_id is None, a randomly generated room ID will be used to store
+        this room.
+
+        Args:
+            room_id : The desired room ID, can be None.
+            room_creator_user_id : The user ID of the room creator.
+            is_public : True to indicate that this room should appear in public
+            room lists.
+        Returns:
+            The room ID of the room stored, or None if the room was not stored
+            due to a conflict (room_id in use).
+        Raises:
+            StoreException if the room could not be stored due to an operational
+            error (e.g. db access error).
+        """
+        try:
+            query = ("INSERT INTO " + RoomsTable.table_name +
+                    "(room_id, creator, is_public) VALUES(?,?,?)")
+            if room_id:
+                try:
+                    yield run_interaction(exec_single, query, room_id,
+                                      room_creator_user_id, is_public)
+                except IntegrityError:
+                    defer.returnValue(None)
+                defer.returnValue(room_id)
+            else:
+                # autogen room IDs and try to create it. We may clash, so just
+                # try a few times till one goes through, giving up eventually.
+                attempts = 0
+                while attempts < 5:
+                    try:
+                        gen_room_id = stringutils.random_string(18)
+                        yield run_interaction(exec_single, query, gen_room_id,
+                                      room_creator_user_id, is_public)
+                        defer.returnValue(gen_room_id)
+                    except IntegrityError:
+                        attempts += 1
+                raise StoreException()
+        except Exception as e:
+            logger.error("store_room with room_id=%s failed: %s" % (room_id, e))
+            raise StoreException()
+
+    @defer.inlineCallbacks
+    def get_room(self, room_id):
+        """Retrieve a room.
+
+        Args:
+            room_id : The ID of the room to retrieve.
+        Returns:
+            A dict containing the room information, or None.
+        """
+        query = RoomsTable.select_statement("room_id=?")
+        res = yield run_interaction(exec_single_with_result, query,
+                                    RoomsTable.decode_results, room_id)
+        defer.returnValue(res)
+
+    @defer.inlineCallbacks
+    def get_public_rooms(self):
+        """Retrieve a list of all public rooms.
+
+        Returns:
+            A list of room dicts containing at least a "room_id" key.
+        """
+        pass
 
 
 class MessageStore(object):
@@ -120,7 +199,12 @@ class RoomPathStore(object):
         yield run_interaction(exec_single, query, path, room_id, content)
 
 
-class EventStore(RoomPathStore, RoomMemberStore, MessageStore):
+class StoreException(Exception):
+    """A generic exception for when storing data went wrong."""
+    pass
+
+
+class EventStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore):
 
     def __init__(self):
         super(EventStore, self).__init__()

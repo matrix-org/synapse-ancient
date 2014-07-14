@@ -147,6 +147,10 @@ class RoomsCreateTestCase(unittest.TestCase):
 
     def setUp(self):
         _setup_db(DB_PATH, ["im", "users"])
+        self.mock_server = MockHttpServer()
+        self.mock_data_store = EventStore()
+        Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
+        MessageEvent().register(self.mock_server, self.mock_data_store)
 
     def tearDown(self):
         try:
@@ -167,7 +171,11 @@ class RoomsCreateTestCase(unittest.TestCase):
         pass
 
     def test_put_room(self):
+        r
         # PUT with no config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '{}')
+        self.assertEquals(400, code)
 
         # PUT with known config keys, expect new room id
 
@@ -177,7 +185,7 @@ class RoomsCreateTestCase(unittest.TestCase):
 
         # PUT with invalid content / paths / room names, expect 400
 
-        # PUT with conflicting room ID, expect error
+        # PUT with conflicting room ID, expect 409
         pass
 
 
@@ -313,6 +321,3 @@ class RoomsTestCase(unittest.TestCase):
         content = '{"body":"test2","msgtype":"sy.text"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(403, code)
-
-
-

@@ -3,11 +3,77 @@
 from twisted.internet import defer
 
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
-                    InvalidHttpRequestError)
+                    PostEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
+from synapse.api.event_store import StoreException
 
 import json
 import re
+
+
+class RoomCreateEvent(PutEventMixin, PostEventMixin, BaseEvent):
+
+    @classmethod
+    def get_pattern(cls):
+        # /rooms OR /rooms/<roomid>
+        return re.compile(r"^/rooms(?:/(?P<roomid>[^/]*))?$")
+
+    @classmethod
+    @Auth.defer_registered_user
+    @defer.inlineCallbacks
+    def on_PUT(cls, request, room_id, auth_user_id=None):
+        try:
+            if not room_id:
+                raise InvalidHttpRequestError(400, "PUT must specify a room ID")
+
+            room_config = cls.get_room_config(request)
+            new_room_info = yield cls._create_room(room_id, room_config,
+                                                   auth_user_id)
+
+            defer.returnValue((200, new_room_info))
+        except InvalidHttpRequestError as e:
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
+
+    @classmethod
+    @Auth.defer_registered_user
+    @defer.inlineCallbacks
+    def on_POST(cls, request, room_id, auth_user_id=None):
+        try:
+            if room_id:
+                raise InvalidHttpRequestError(400,
+                          "POST must not specify a room ID")
+            room_config = cls.get_room_config(request)
+            new_room_info = yield cls._create_room(room_id, room_config,
+                                                   auth_user_id)
+
+            defer.returnValue((200, new_room_info))
+        except InvalidHttpRequestError as e:
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
+
+    @classmethod
+    @defer.inlineCallbacks
+    def _create_room(cls, room_id, room_config, user_id):
+        try:
+            new_room_id = yield cls.data_store.store_room(
+                room_id=room_id,
+                room_creator_user_id=user_id,
+                is_public=room_config["visibility"] == "public"
+            )
+            if not new_room_id:
+                raise InvalidHttpRequestError(409, "Room ID in use.")
+
+            defer.returnValue({
+                "room_id": new_room_id
+            })
+        except StoreException:
+            raise InvalidHttpRequestError(500, "Unable to create room.")
+
+    @classmethod
+    def get_room_config(cls, request):
+        user_supplied_config = json.loads(request.content.read())
+        if "visibility" not in user_supplied_config:
+            user_supplied_config["visibility"] = "public"  # default visibility
+        return user_supplied_config
 
 
 class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
@@ -25,6 +91,9 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
     def on_GET(cls, request, room_id, auth_user_id=None):
         # TODO check they are invited/joined in the room if private. If
         # public, anyone can view the topic.
+        room = yield cls.data_store.get_room(room_id)
+        if not room:
+            defer.returnValue((400, BaseEvent.error("Room does not exist.")))
 
         data = yield cls.data_store.get_path_data(request.path)
 
