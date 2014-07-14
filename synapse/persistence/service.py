@@ -99,13 +99,13 @@ class PersistenceService(object):
             context, depth
         )
 
-    def get_most_recent_pdus(self, context):
+    def get_latest_pdus_in_context(self, context):
         return run_interaction(
             PduQueries.get_prev_pdus,
             context
         )
 
-    def get_oldest_pdus(self, context):
+    def get_oldest_pdus_in_context(self, context):
         return run_interaction(
             PduQueries.get_back_extremities,
             context
