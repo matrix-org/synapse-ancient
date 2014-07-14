@@ -345,6 +345,9 @@ class ReplicationLayer(object):
 
         defer.returnValue(ret)
 
+    def __str__(self):
+        return "<ReplicationLayer(%s)>" % self.server_name
+
 
 class ReplicationHandler(object):
     """This defines the methods that the :py:class:`.ReplicationLayer` will
