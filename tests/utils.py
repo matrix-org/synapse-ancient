@@ -6,8 +6,8 @@ from mock import patch, Mock
 
 
 class MockHttpServer(HttpServer):
-
-    callbacks = []  # 3-tuple of method/pattern/function
+    def __init__(self):
+        self.callbacks = []  # 3-tuple of method/pattern/function
 
     @patch('twisted.web.http.Request')
     @defer.inlineCallbacks
