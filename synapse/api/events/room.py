@@ -106,7 +106,12 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
     @defer.inlineCallbacks
     def on_PUT(cls, request, room_id, auth_user_id=None):
         try:
-            # TODO check they are joined in the room
+            # check they are joined in the room
+            member = yield cls.data_store.get_room_member(
+                        room_id=room_id,
+                        user_id=auth_user_id)
+            if not member or member[0].membership != "join":
+                raise InvalidHttpRequestError(403, "")
 
             # validate JSON
             content = BaseEvent.get_valid_json(request.content.read(),
@@ -162,19 +167,46 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 raise InvalidHttpRequestError(400,
                     "Bad membership value. Must be one of join/invite/leave.")
 
-            # TODO
-            # invite = they != userid & they are currently joined
-            # join = they == userid & they are invited or its a new room by them
-            # leave = they == userid & they are currently joined
+            # does this room even exist
+            room = cls.data_store.get_room(roomid)
+            if not room:
+                raise InvalidHttpRequestError(400, "Room does not exist.")
 
-            # store membership
-            yield cls.data_store.store_room_member(user_id=userid,
-                                                   room_id=roomid,
-                                                   content=content)
+            caller = yield cls.data_store.get_room_member(user_id=auth_user_id,
+                                                    room_id=roomid)
+            caller_in_room = caller and caller[0].membership == "join"
 
-            # TODO poke notifier
-            # TODO send to s2s layer
-            defer.returnValue((200, ""))
+            target = yield cls.data_store.get_room_member(user_id=userid,
+                                                    room_id=roomid)
+            target_in_room = target and target[0].membership == "join"
+
+            valid_op = False
+            if content["membership"] == "invite":
+                # Invites are valid iff caller is in the room and target isn't.
+                if caller_in_room and not target_in_room:
+                    valid_op = True
+            elif content["membership"] == "join":
+                # Joins are valid iff caller == target and they were invited
+                if (caller and caller[0].membership == "invite" and
+                                                        auth_user_id == userid):
+                    valid_op = True
+            elif content["membership"] == "leave":
+                # Leaves are valid iff caller == target and they are joined
+                if caller_in_room and auth_user_id == userid:
+                    valid_op = True
+            else:
+                raise Exception("Unknown membership %s" % content["membership"])
+
+            if valid_op:
+                # store membership
+                yield cls.data_store.store_room_member(user_id=userid,
+                                                       room_id=roomid,
+                                                       content=content)
+                # TODO poke notifier
+                # TODO send to s2s layer
+                defer.returnValue((200, ""))
+            else:
+                raise InvalidHttpRequestError(403, "")
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
         defer.returnValue((500, ""))

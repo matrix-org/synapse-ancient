@@ -45,6 +45,20 @@ class RoomStore(object):
     def __init__(self):
         super(RoomStore, self).__init__()
 
+    def _insert_room_and_member(self, txn, room_id, room_creator, is_public):
+        # create room
+        query = ("INSERT INTO " + RoomsTable.table_name +
+                    "(room_id, creator, is_public) VALUES(?,?,?)")
+        logger.debug("insert_room_and_member %s  room=%s" % (query, room_id))
+        txn.execute(query, [room_id, room_creator, is_public])
+
+        # auto join the creator
+        query = ("INSERT INTO " + RoomMemberTable.table_name +
+                "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
+        logger.debug("insert_room_and_member %s  room=%s" % (query, room_id))
+        content = json.dumps({"membership": "join"})
+        txn.execute(query, [room_creator, room_id, "join", content])
+
     @defer.inlineCallbacks
     def store_room(self, room_id=None, room_creator_user_id=None,
                    is_public=None):
@@ -66,11 +80,9 @@ class RoomStore(object):
             error (e.g. db access error).
         """
         try:
-            query = ("INSERT INTO " + RoomsTable.table_name +
-                    "(room_id, creator, is_public) VALUES(?,?,?)")
             if room_id:
                 try:
-                    yield run_interaction(exec_single, query, room_id,
+                    yield run_interaction(self._insert_room_and_member, room_id,
                                       room_creator_user_id, is_public)
                 except IntegrityError:
                     defer.returnValue(None)
@@ -82,8 +94,9 @@ class RoomStore(object):
                 while attempts < 5:
                     try:
                         gen_room_id = stringutils.random_string(18)
-                        yield run_interaction(exec_single, query, gen_room_id,
-                                      room_creator_user_id, is_public)
+                        yield run_interaction(self._insert_room_and_member,
+                                      gen_room_id, room_creator_user_id,
+                                      is_public)
                         defer.returnValue(gen_room_id)
                     except IntegrityError:
                         attempts += 1
@@ -99,7 +112,7 @@ class RoomStore(object):
         Args:
             room_id : The ID of the room to retrieve.
         Returns:
-            A dict containing the room information, or None.
+            A namedtuple containing the room information, or an empty list.
         """
         query = RoomsTable.select_statement("room_id=?")
         res = yield run_interaction(exec_single_with_result, query,

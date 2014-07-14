@@ -10,7 +10,7 @@ from twisted.trial import unittest
 
 from synapse.api.auth import Auth
 from synapse.api.events.room import (MessageEvent, RoomMemberEvent,
-                                     RoomTopicEvent)
+                                     RoomTopicEvent, RoomCreateEvent)
 from synapse.api.event_store import EventStore
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
@@ -171,11 +171,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         pass
 
     def test_put_room(self):
-        r
         # PUT with no config keys, expect new room id
-        (code, response) = yield self.mock_server.trigger("PUT",
-                           path, '{}')
-        self.assertEquals(400, code)
 
         # PUT with known config keys, expect new room id
 
@@ -193,6 +189,7 @@ class RoomsTestCase(unittest.TestCase):
     """ Tests /rooms REST events. """
     user_id = "sid1"
 
+    @defer.inlineCallbacks
     def setUp(self):
         _setup_db(DB_PATH, ["im"])
         self.mock_server = MockHttpServer()
@@ -201,6 +198,12 @@ class RoomsTestCase(unittest.TestCase):
         MessageEvent().register(self.mock_server, self.mock_data_store)
         RoomMemberEvent().register(self.mock_server, self.mock_data_store)
         RoomTopicEvent().register(self.mock_server, self.mock_data_store)
+        RoomCreateEvent().register(self.mock_server, self.mock_data_store)
+
+        # create the room
+        path = "/rooms/rid1"
+        (code, response) = yield self.mock_server.trigger("PUT", path, "{}")
+        self.assertEquals(200, code)
 
     def tearDown(self):
         try:
@@ -279,8 +282,8 @@ class RoomsTestCase(unittest.TestCase):
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(400, code)
 
-        # valid join message
-        content = '{"membership":"join"}'
+        # valid leave message
+        content = '{"membership":"leave"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(200, code)
 
