@@ -150,7 +150,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
-        MessageEvent().register(self.mock_server, self.mock_data_store)
+        RoomCreateEvent().register(self.mock_server, self.mock_data_store)
 
     def tearDown(self):
         try:
@@ -158,31 +158,88 @@ class RoomsCreateTestCase(unittest.TestCase):
         except:
             pass
 
+    @defer.inlineCallbacks
     def test_post_room(self):
         # POST with no config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("POST", "/rooms",
+                                                          "{}")
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # POST with visibility config key, expect new room id
+        (code, response) = yield self.mock_server.trigger("POST", "/rooms",
+                                                '{"visibility":"private"}')
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # POST with custom config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("POST", "/rooms",
+                                                '{"custom":"stuff"}')
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # POST with custom + known config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("POST", "/rooms",
+                                 '{"visibility":"private","custom":"things"}')
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # POST with invalid content / paths, expect 400
-        pass
+        (code, response) = yield self.mock_server.trigger("POST", "/rooms",
+                                                          '{"visibili')
+        self.assertEquals(400, code)
 
+        (code, response) = yield self.mock_server.trigger("POST", "/rooms/boo",
+                                                          '{}')
+        self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("POST", "/rooms",
+                                                          '["hello"]')
+        self.assertEquals(400, code)
+
+    @defer.inlineCallbacks
     def test_put_room(self):
         # PUT with no config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms/aa",
+                                                          "{}")
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # PUT with known config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms/bb",
+                                                  '{"visibility":"private"}')
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # PUT with custom config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms/cc",
+                                               '{"custom":"stuff"}')
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # PUT with custom + known config keys, expect new room id
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms/dd",
+                                  '{"visibility":"private","custom":"things"}')
+        self.assertEquals(200, code)
+        self.assertTrue("room_id" in response)
 
         # PUT with invalid content / paths / room names, expect 400
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms",
+                                                          "{}")
+        self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms/ee",
+                                                          '{"sdf"')
+        self.assertEquals(400, code)
+
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms/ee",
+                                                          '["hello"]')
+        self.assertEquals(400, code)
 
         # PUT with conflicting room ID, expect 409
-        pass
+        (code, response) = yield self.mock_server.trigger("PUT", "/rooms/aa",
+                                                          "{}")
+        self.assertEquals(409, code)
 
 
 class RoomsTestCase(unittest.TestCase):

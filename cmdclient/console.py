@@ -138,6 +138,32 @@ class SynapseCmd(cmd.Cmd):
         }
         reactor.callFromThread(self._run_and_pprint, "PUT", path, body_json)
 
+    def do_create(self, line):
+        """Creates a room.
+        "create [public|private] <roomid>" - Create a room <roomid> with the
+                                             specified visibility.
+        "create <roomid>" - Create a room <roomid> with default visibility.
+        "create [public|private]" - Create a room with specified visibility.
+        "create" - Create a room with default visibility.
+        """
+        args = self._parse(line, ["vis", "roomid"])
+        # fixup args depending on which were set
+        body = {}
+        if "vis" in args and args["vis"] in ["public", "private"]:
+            body["visibility"] = args["vis"]
+
+        room_id = None
+        if "roomid" in args:
+            room_id = args["roomid"]
+        elif "vis" in args and args["vis"] not in ["public", "private"]:
+            room_id = args["vis"]
+
+        if room_id:
+            path = "/rooms/%s" % room_id
+            reactor.callFromThread(self._run_and_pprint, "PUT", path, body)
+        else:
+            reactor.callFromThread(self._run_and_pprint, "POST", "/rooms", body)
+
     def do_raw(self, line):
         """Directly send a JSON object: "raw <method> <path> <data> <notoken>"
         <method>: Required. One of "PUT", "GET", "POST", "xPUT", "xGET",

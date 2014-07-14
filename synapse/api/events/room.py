@@ -70,10 +70,14 @@ class RoomCreateEvent(PutEventMixin, PostEventMixin, BaseEvent):
 
     @classmethod
     def get_room_config(cls, request):
-        user_supplied_config = json.loads(request.content.read())
-        if "visibility" not in user_supplied_config:
-            user_supplied_config["visibility"] = "public"  # default visibility
-        return user_supplied_config
+        try:
+            user_supplied_config = json.loads(request.content.read())
+            if "visibility" not in user_supplied_config:
+                # default visibility
+                user_supplied_config["visibility"] = "public"
+            return user_supplied_config
+        except (ValueError, TypeError):
+            raise InvalidHttpRequestError(400, "Body must be JSON.")
 
 
 class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
