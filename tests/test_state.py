@@ -3,7 +3,7 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.state import StateHandler
-from synapse.federation.units import Pdu
+from synapse.persistence.transactions import PduEntry
 
 from collections import namedtuple
 
@@ -26,7 +26,7 @@ class StateTestCase(unittest.TestCase):
     def test_new_state_key(self):
         # We've never seen anything for this state before
 
-        new_pdu = new_fake_pdu("A", "test", "mem", "x", None, 10)
+        new_pdu = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
 
         self.mock_persistence.mock_state_tree(
             new_pdu, ReturnType([new_pdu], []))
@@ -45,8 +45,8 @@ class StateTestCase(unittest.TestCase):
         # We do a direct overwriting of the old state, i.e., the new state
         # points to the old state.
 
-        old_pdu = new_fake_pdu("A", "test", "mem", "x", None, 10)
-        new_pdu = new_fake_pdu("B", "test", "mem", "x", "A", 5)
+        old_pdu = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
+        new_pdu = new_fake_pdu_entry("B", "test", "mem", "x", "A", 5)
 
         self.mock_persistence.mock_state_tree(
             new_pdu, ReturnType([new_pdu, old_pdu], [old_pdu]))
@@ -65,9 +65,9 @@ class StateTestCase(unittest.TestCase):
         # We try to update the state based on an outdated state, and have a
         # too low power level.
 
-        old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
-        old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
-        new_pdu = new_fake_pdu("C", "test", "mem", "x", "A", 5)
+        old_pdu_1 = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
+        old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
+        new_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 5)
 
         self.mock_persistence.mock_state_tree(
             new_pdu, ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1]))
@@ -91,9 +91,9 @@ class StateTestCase(unittest.TestCase):
         # We try to update the state based on an outdated state, but have
         # sufficient power level to force the update.
 
-        old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
-        old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
-        new_pdu = new_fake_pdu("C", "test", "mem", "x", "A", 15)
+        old_pdu_1 = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
+        old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
+        new_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 15)
 
         self.mock_persistence.mock_state_tree(
             new_pdu, ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1]))
@@ -117,9 +117,9 @@ class StateTestCase(unittest.TestCase):
         # We try to update the state based on an outdated state, the power
         # levels are the same and so are the branch lengths
 
-        old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
-        old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
-        new_pdu = new_fake_pdu("C", "test", "mem", "x", "A", 10)
+        old_pdu_1 = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
+        old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
+        new_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 10)
 
         self.mock_persistence.mock_state_tree(
             new_pdu, ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1]))
@@ -143,10 +143,10 @@ class StateTestCase(unittest.TestCase):
         # We try to update the state based on an outdated state, the power
         # levels are the same but the branch length of the new one is longer.
 
-        old_pdu_1 = new_fake_pdu("A", "test", "mem", "x", None, 10)
-        old_pdu_2 = new_fake_pdu("B", "test", "mem", "x", None, 10)
-        old_pdu_3 = new_fake_pdu("C", "test", "mem", "x", "A", 10)
-        new_pdu = new_fake_pdu("D", "test", "mem", "x", "C", 10)
+        old_pdu_1 = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
+        old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
+        old_pdu_3 = new_fake_pdu_entry("C", "test", "mem", "x", "A", 10)
+        new_pdu = new_fake_pdu_entry("D", "test", "mem", "x", "C", 10)
 
         self.mock_persistence.mock_state_tree(
             new_pdu,
@@ -169,23 +169,24 @@ class StateTestCase(unittest.TestCase):
         self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
 
 
-def new_fake_pdu(pdu_id, context, pdu_type, state_key, prev_state_id,
+def new_fake_pdu_entry(pdu_id, context, pdu_type, state_key, prev_state_id,
                  power_level):
-    new_pdu = Pdu.create_new(
+    new_pdu = PduEntry(
         pdu_id=pdu_id,
         origin="example.com",
         context="context",
         ts=1405353060021,
         pdu_type=pdu_type,
-        destinations=[],
-        prev_pdus=[],
         depth=0,
-        content={},
+        content_json="{}",
         state_key=state_key,
+        unrecognized_keys="{}",
+        outlier=True,
         is_state=True,
         power_level=power_level,
         prev_state_id=prev_state_id,
         prev_state_origin="example.com",
+        have_processed=True,
     )
 
     return new_pdu
