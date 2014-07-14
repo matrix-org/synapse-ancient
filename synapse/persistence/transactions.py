@@ -20,18 +20,25 @@ logger = logging.getLogger(__name__)
 
 _pdu_state_joiner = JoinHelper(PdusTable, StatePdusTable)
 
-PduTuple = namedtuple(
-    "PduTuple",
-    ("pdu_entry", "prev_pdu_list")
-)
+
 TransactionTuple = namedtuple("TransactionTuple", ("tx_entry", "prev_ids"))
 
-# This should probably be put somewhere more sensible
+# TODO: These should probably be put somewhere more sensible
 PduIdTuple = namedtuple("PduIdTuple", ("pdu_id", "origin"))
 
 PduEntry = _pdu_state_joiner.EntryType
 """ We are always interested in the join of the PdusTable and StatePdusTable,
 rather than just the PdusTable.
+
+This does not include a prev_pdus key.
+"""
+
+PduTuple = namedtuple(
+    "PduTuple",
+    ("pdu_entry", "prev_pdu_list")
+)
+""" This is a tuple of a `PduEntry` and a list of `PduIdTuple` that represent
+the `prev_pdus` key of a PDU.
 """
 
 
