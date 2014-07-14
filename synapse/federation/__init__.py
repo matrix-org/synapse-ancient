@@ -5,6 +5,7 @@
 from .replication import ReplicationLayer, ReplicationHandler
 from .transport import TransportLayer
 from .persistence import PduActions, TransactionActions
+from .units import Pdu
 
 
 def initialize_http_federation(server_name, http_client, http_server,

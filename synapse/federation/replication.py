@@ -11,6 +11,8 @@ from synapse.persistence.transactions import (
     PduQueries, run_interaction
 )
 
+from synapse.util.logutils import log_function
+
 import logging
 import time
 
@@ -48,6 +50,7 @@ class ReplicationLayer(object):
 
         self._transaction_queue = _TransactionQueue(
             server_name,
+            transaction_actions,
             transport_layer
         )
 
@@ -63,6 +66,7 @@ class ReplicationLayer(object):
         self.handler = handler
 
     @defer.inlineCallbacks
+    @log_function
     def send_pdu(self, pdu):
         """Informs the replication layer about a new PDU generated within the
         home server that should be transmitted to others.
@@ -102,6 +106,7 @@ class ReplicationLayer(object):
         logger.debug("[%s] transaction_layer.enqueue_pdu... done", pdu.pdu_id)
 
     @defer.inlineCallbacks
+    @log_function
     def paginate(self, dest, context, limit):
         """Requests some more historic PDUs for the given context from the
         given destination server.
@@ -140,6 +145,7 @@ class ReplicationLayer(object):
         defer.returnValue(pdus)
 
     @defer.inlineCallbacks
+    @log_function
     def get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
         """Requests the PDU with given origin and ID from the remote home
         server.
@@ -175,6 +181,7 @@ class ReplicationLayer(object):
         defer.returnValue(pdu)
 
     @defer.inlineCallbacks
+    @log_function
     def get_state_for_context(self, destination, context):
         """Requests all of the `current` state PDUs for a given context from
         a remote home server.
@@ -201,6 +208,7 @@ class ReplicationLayer(object):
         defer.returnValue(pdus)
 
     @defer.inlineCallbacks
+    @log_function
     def on_paginate_request(self, context, versions, limit):
         logger.debug(
             "on_paginate_request context=%s", context)
@@ -210,6 +218,7 @@ class ReplicationLayer(object):
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
+    @log_function
     def on_incoming_transaction(self, transaction_data):
         transaction = Transaction(**transaction_data)
 
@@ -256,12 +265,14 @@ class ReplicationLayer(object):
             return
 
     @defer.inlineCallbacks
+    @log_function
     def on_context_state_request(self, context):
         logger.debug("on_context_state_request context=%s", context)
         pdus = yield self.pdu_actions.current_state(context)
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
+    @log_function
     def on_pdu_request(self, pdu_origin, pdu_id):
         logger.debug(
             "on_pdu_request pdu_origin=%s, pdu_id=%s", pdu_origin, pdu_id)
@@ -275,6 +286,7 @@ class ReplicationLayer(object):
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
     @defer.inlineCallbacks
+    @log_function
     def on_pull_request(self, origin, versions):
         logger.debug("on_pull_request origin=%s", origin)
 
@@ -365,9 +377,10 @@ class _TransactionQueue(object):
     It batches pending PDUs into single transactions.
     """
 
-    def __init__(self, server_name, transport_layer):
+    def __init__(self, server_name, transaction_actions, transport_layer):
 
         self.server_name = server_name
+        self.transaction_actions = transaction_actions
         self.transport_layer = transport_layer
 
         # Is a mapping from destinations -> deferreds. Used to keep track

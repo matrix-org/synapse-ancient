@@ -14,11 +14,13 @@ Currently assumes the local address is localhost:<port>
 """
 
 from synapse.util.http import TwistedHttpServer, TwistedHttpClient
-from synapse.federation.messaging import MessagingLayer, MessagingCallbacks
+from synapse.federation import initialize_http_federation, ReplicationHandler, Pdu
 
 from synapse.util import DbPool, origin_from_ucid
 
 from synapse.persistence import schema_path
+
+from synapse.util.logutils import log_function
 
 from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
@@ -132,14 +134,14 @@ class Room(object):
         self.servers.add(origin_from_ucid(invitee))
 
 
-class HomeServer(MessagingCallbacks):
+class HomeServer(ReplicationHandler):
     """ A very basic home server implentation that allows people to join a
     room and then invite other people.
     """
-    def __init__(self, server_name, messaging_layer, output):
+    def __init__(self, server_name, replication_layer, output):
         self.server_name = server_name
-        self.messaging_layer = messaging_layer
-        self.messaging_layer.set_callback(self)
+        self.replication_layer = replication_layer
+        self.replication_layer.set_handler(self)
 
         self.joined_rooms = {}
 
@@ -152,25 +154,25 @@ class HomeServer(MessagingCallbacks):
 
         if pdu_type == "message":
             self._on_message(pdu)
+        elif pdu_type == "membership":
+            if "joinee" in pdu.content:
+                self._on_join(pdu.context, pdu.content["joinee"])
+            elif "invitee" in pdu.content:
+                self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
         else:
             self.output.print_line("#%s (unrec) %s = %s" %
                 (pdu.context, pdu.pdu_type, json.dumps(pdu.content))
             )
-        #elif pdu_type == "membership":
-            #if "joinee" in pdu.content:
-                #self._on_join(pdu.context, pdu.content["joinee"])
-            #elif "invitee" in pdu.content:
+
+    #def on_state_change(self, pdu):
+        ##self.output.print_line("#%s (state) %s *** %s" %
+                ##(pdu.context, pdu.state_key, pdu.pdu_type)
+            ##)
+
+        #if "joinee" in pdu.content:
+            #self._on_join(pdu.context, pdu.content["joinee"])
+        #elif "invitee" in pdu.content:
             #self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
-
-    def on_state_change(self, pdu):
-        #self.output.print_line("#%s (state) %s *** %s" %
-                #(pdu.context, pdu.state_key, pdu.pdu_type)
-            #)
-
-        if "joinee" in pdu.content:
-            self._on_join(pdu.context, pdu.content["joinee"])
-        elif "invitee" in pdu.content:
-            self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
 
     def _on_message(self, pdu):
         """ We received a message
@@ -201,19 +203,25 @@ class HomeServer(MessagingCallbacks):
 
         if not room.have_got_metadata and origin is not self.server_name:
             logger.debug("Get room state")
-            self.messaging_layer.get_context_state(origin, context)
+            self.replication_layer.get_state_for_context(origin, context)
             room.have_got_metadata = True
 
     @defer.inlineCallbacks
     def send_message(self, room_name, sender, body):
         """ Send a message to a room!
         """
+        destinations = yield self.get_servers_for_context(room_name)
+
         try:
-            yield self.messaging_layer.send(
+            yield self.replication_layer.send_pdu(
+                Pdu.create_new(
                     context=room_name,
                     pdu_type="message",
-                    content={"sender": sender, "body": body}
+                    content={"sender": sender, "body": body},
+                    origin=self.server_name,
+                    destinations=destinations,
                 )
+            )
         except Exception as e:
             logger.exception(e)
 
@@ -223,13 +231,20 @@ class HomeServer(MessagingCallbacks):
         """
         self._on_join(room_name, joinee)
 
+        destinations = yield self.get_servers_for_context(room_name)
+
         try:
-            yield self.messaging_layer.send_state(
+            yield self.replication_layer.send_pdu(
+                Pdu.create_new(
                     context=room_name,
                     pdu_type="membership",
+                    is_state=True,
                     state_key=joinee,
-                    content={"sender": sender, "joinee": joinee}
+                    content={"sender": sender, "joinee": joinee},
+                    origin=self.server_name,
+                    destinations=destinations,
                 )
+            )
         except Exception as e:
             logger.exception(e)
 
@@ -239,13 +254,20 @@ class HomeServer(MessagingCallbacks):
         """
         self._on_invite(self.server_name, room_name, invitee)
 
+        destinations = yield self.get_servers_for_context(room_name)
+
         try:
-            yield self.messaging_layer.send_state(
+            yield self.replication_layer.send_pdu(
+                Pdu.create_new(
                     context=room_name,
+                    is_state=True,
                     pdu_type="membership",
                     state_key=invitee,
-                    content={"sender": sender, "invitee": invitee}
+                    content={"sender": sender, "invitee": invitee},
+                    origin=self.server_name,
+                    destinations=destinations,
                 )
+            )
         except Exception as e:
             logger.exception(e)
 
@@ -257,7 +279,7 @@ class HomeServer(MessagingCallbacks):
 
         dest = room.oldest_server
 
-        return self.messaging_layer.paginate(dest, room_name, limit)
+        return self.replication_layer.paginate(dest, room_name, limit)
 
     def _get_room_remote_servers(self, room_name):
         return [i for i in self.joined_rooms.setdefault(room_name,).servers]
@@ -347,9 +369,10 @@ def main(stdscr):
     http_server = TwistedHttpServer()
     http_client = TwistedHttpClient()
 
-    messaging = MessagingLayer(server_name, http_client, http_server)
+    replication = initialize_http_federation(
+        server_name, http_client, http_server)
 
-    hs = HomeServer(server_name, messaging, curses_stdio)
+    hs = HomeServer(server_name, replication, curses_stdio)
 
     input_output.set_home_server(hs)
 

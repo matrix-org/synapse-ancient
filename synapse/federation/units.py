@@ -88,6 +88,9 @@ class JsonEncodedObject(object):
 
         return d
 
+    def __str__(self):
+        return "(%s, %s)" % (self.__class__.__name__, repr(self.__dict__))
+
 
 class Pdu(JsonEncodedObject):
     """ A Pdu represents a piece of data sent from a server and is associated
