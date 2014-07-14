@@ -60,7 +60,7 @@ class FederationTestCase(unittest.TestCase):
         (code, response) = yield self.mock_http_server.trigger("GET",
                 "/state/my-context/", None)
         self.assertEquals(200, code)
-        self.assertEquals(len(response["pdus"]), 1)
+        self.assertEquals(1, len(response["pdus"]))
 
 class MockPduActions(object):
     def __init__(self):
@@ -75,6 +75,7 @@ class MockPduActions(object):
 
         pdus = self.current_state_for[context]
         return defer.succeed([Pdu.from_pdu_tuple(p) for p in pdus])
+
 
 class MockTransactionActions(object):
     pass
