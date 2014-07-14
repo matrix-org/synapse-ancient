@@ -8,7 +8,7 @@ Required keys:
     Key            Type                         Description
 ============ =================== ===============================================
 origin       String              DNS name of homeserver making this transaction.
-ts           Integer             Timestamp in milliseconds on orginating 
+ts           Integer             Timestamp in milliseconds on originating 
                                  homeserver when this transaction started.
 previous_ids List of Strings     List of transactions that were sent immediately
                                  prior to this transaction.
@@ -27,8 +27,8 @@ Required keys:
 context      String             Event context identifier
 origin       String             DNS name of homeserver that created this PDU.
 pdu_id       String             Unique identifier for PDU within the context for
-                                the orginating homeserver.
-ts           Integer            Timestamp in milliseconds on orginating 
+                                the originating homeserver.
+ts           Integer            Timestamp in milliseconds on originating 
                                 homeserver when this PDU was created.
 pdu_type     String             PDU event type.
 prev_pdus    List of Pairs      The originating homeserver and PDU ids of the
@@ -43,7 +43,7 @@ Keys for state updates:
     Key               Type                      Description
 ================== ============ ================================================
 is_state           Boolean      True if this PDU is updating state.
-state_key          String       Optional key identifing the updated state within
+state_key          String       Optional key identifying the updated state within
                                 the context.
 power_level        Integer      The asserted power level of the user performing
                                 the update.
