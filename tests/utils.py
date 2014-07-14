@@ -42,6 +42,7 @@ class MockHttpServer(HttpServer):
         try:
             mock_request.args = urlparse.parse_qs(path.split('?')[1])
             mock_request.path = path.split('?')[0]
+            path = mock_request.path
         except:
             pass
 
