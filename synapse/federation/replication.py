@@ -272,7 +272,7 @@ class ReplicationLayer(object):
             defer.returnValue((200,
                 self._transaction_from_pdus([pdu]).get_dict()))
         else:
-            defer.returnValue((404,""))
+            defer.returnValue((404, ""))
 
     @defer.inlineCallbacks
     @log_function
