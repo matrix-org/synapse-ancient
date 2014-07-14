@@ -14,13 +14,15 @@ Currently assumes the local address is localhost:<port>
 """
 
 from synapse.util.http import TwistedHttpServer, TwistedHttpClient
-from synapse.federation import initialize_http_federation, ReplicationHandler, Pdu
+from synapse.federation import (
+    initialize_http_federation, ReplicationHandler, Pdu
+)
 
 from synapse.util import DbPool, origin_from_ucid
 
 from synapse.persistence import schema_path
 
-from synapse.util.logutils import log_function
+#from synapse.util.logutils import log_function
 
 from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
@@ -363,7 +365,7 @@ def main(stdscr):
     root_logger.addHandler(fh)
     root_logger.setLevel(logging.DEBUG)
 
-    #log.discardLogs()
+    # Hack: The only way to get it to stop logging to sys.stderr :(
     log.theLogPublisher.observers = []
     observer = log.PythonLoggingObserver()
     observer.start()
