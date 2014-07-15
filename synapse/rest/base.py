@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ This module contains base event classes for constructing REST events. """
+from synapse.api.errors import cs_error, CodeMessageException
 
 import json
 
@@ -93,22 +94,6 @@ class RestEvent(object):
             raise InvalidHttpRequestError(400, "Content must be JSON.")
 
         return content_json
-
-    @staticmethod
-    def error(msg, code=0, **kwargs):
-        """ Utility method for constructing an error response.
-
-        Args:
-            msg : The error message.
-            code : The error code.
-            kwargs : Additional keys to add to the response.
-        Returns:
-            A dict representing the error response JSON.
-        """
-        err = {"error": msg, "errcode": code}
-        for key, value in kwargs.iteritems():
-            err[key] = value
-        return err
 
 
 class PutEventMixin(object):
@@ -233,7 +218,7 @@ class EventStreamMixin(object):
         return event
 
 
-class InvalidHttpRequestError(Exception):
+class InvalidHttpRequestError(CodeMessageException):
     """ Raised when an invalid request was submitted from the client.
 
     This class provides the ability to get a suitable return HTTP status
@@ -241,16 +226,15 @@ class InvalidHttpRequestError(Exception):
     """
 
     def __init__(self, code, body, json_wrap=True):
-        super(InvalidHttpRequestError, self).__init__()
-        self.http_code = code
+        super(InvalidHttpRequestError, self).__init__(code, body)
         if json_wrap:
-            self.http_body = RestEvent.error(body, code)
+            self.http_body = cs_error(body, code)
         else:
             self.http_body = body
 
     def get_status_code(self):
         """ Returns a suitable HTTP status code for this exception. """
-        return self.http_code
+        return self.code
 
     def get_response_body(self):
         """ Returns a suitable HTTP response body for this exception. """

@@ -4,15 +4,15 @@ from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
 from synapse.api.auth import Auth
-from synapse.api.events.room import MessageEvent, RoomMemberEvent
-from synapse.api.events.base import (GetEventMixin, BaseEvent,
+from synapse.rest.room import MessageEvent, RoomMemberEvent
+from synapse.rest.base import (GetEventMixin, RestEvent,
                                      InvalidHttpRequestError)
 from base import FilterStream, StreamData
 
 import re
 
 
-class EventStreamEvent(GetEventMixin, BaseEvent):
+class EventStreamEvent(GetEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):

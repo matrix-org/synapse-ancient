@@ -6,6 +6,7 @@ from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
 from synapse.api.event_store import StoreException
+from synapse.api.errors import cs_error
 
 import json
 import re
@@ -113,7 +114,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent):
             data = yield cls.data_store.get_path_data(request.path)
 
             if not data:
-                defer.returnValue((404, RestEvent.error("Topic not found.")))
+                defer.returnValue((404, cs_error("Topic not found.")))
             defer.returnValue((200, json.loads(data[0].content)))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
@@ -166,7 +167,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         result = yield cls.data_store.get_room_member(user_id=userid,
                                                       room_id=roomid)
         if not result:
-            defer.returnValue((404, RestEvent.error("Member not found.")))
+            defer.returnValue((404, cs_error("Member not found.")))
         defer.returnValue((200, json.loads(result[0].content)))
 
     @classmethod
@@ -324,7 +325,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                                                        msg_id=msg_id,
                                                        user_id=msg_sender_id)
             if not results:
-                defer.returnValue((404, RestEvent.error("Message not found.")))
+                defer.returnValue((404, cs_error("Message not found.")))
             defer.returnValue((200, json.loads(results[0].content)))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
