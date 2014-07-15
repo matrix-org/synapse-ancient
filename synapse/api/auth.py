@@ -31,7 +31,8 @@ class Auth(object):
                 # if it has request headers and query params, it's probably it
                 if hasattr(arg, "requestHeaders") and hasattr(arg, "args"):
                     try:
-                        userid = yield cls.mod_registered_user.get_user_by_req(arg)
+                        userid = yield cls.mod_registered_user.get_user_by_req(
+                                    arg)
                     except InvalidHttpRequestError as e:
                         defer.returnValue((e.get_status_code(),
                                            e.get_response_body()))
