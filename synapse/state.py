@@ -45,12 +45,12 @@ class StateHandler(object):
         if not current_branch:
             # There is no current state
             yield self._persistence.update_current_state(
-                    pdu_id=new_pdu.pdu_id,
-                    origin=new_pdu.origin,
-                    context=new_pdu.context,
-                    pdu_type=new_pdu.pdu_type,
-                    state_key=new_pdu.state_key
-                )
+                pdu_id=new_pdu.pdu_id,
+                origin=new_pdu.origin,
+                context=new_pdu.context,
+                pdu_type=new_pdu.pdu_type,
+                state_key=new_pdu.state_key
+            )
             return
 
         if new_branch[-1] == current_branch[-1]:
@@ -99,10 +99,10 @@ class StateHandler(object):
 
             yield self._replication.get_pdu(
                 destination=missing_prev.origin,
-                pdu_origin=missing_prev.prev_state_id,
-                pdu_id=missing_prev.prev_state_origin,
+                pdu_origin=missing_prev.prev_state_origin,
+                pdu_id=missing_prev.prev_state_id,
                 outlier=True
             )
 
-            updated_current = yield self.handle_new_state(new_pdu)
+            updated_current = yield self._handle_new_state(new_pdu)
             defer.returnValue(updated_current)
