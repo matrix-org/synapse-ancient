@@ -168,8 +168,8 @@ class RoomMemberStore(object):
         defer.returnValue(res)
 
     @defer.inlineCallbacks
-    def store_room_member(self, user_id=None, room_id=None, content=None):
-        membership = content["membership"]
+    def store_room_member(self, user_id=None, room_id=None, membership=None,
+                          content=None):
         content_json = json.dumps(content)
         query = ("INSERT INTO " + RoomMemberTable.table_name +
                 "(user_id, room_id, membership, content) VALUES(?,?,?,?)")

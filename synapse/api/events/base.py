@@ -156,6 +156,21 @@ class PostEventMixin(object):
         raise NotImplementedError("on_POST callback not implemented")
 
 
+class DeleteEventMixin(object):
+
+    """ A mixin with the ability to handle DELETEs. """
+
+    @classmethod
+    def register(cls, http_server, data_store):
+        super(DeleteEventMixin, cls).register(http_server, data_store)
+        http_server.register_path("DELETE", cls.get_pattern(),
+                                  cls.on_DELETE)
+
+    @classmethod
+    def on_DELETE(cls, request, *url_args):
+        raise NotImplementedError("on_DELETE callback not implemented")
+
+
 class EventStreamMixin(object):
 
     """ A mixin with the ability to be used in the event stream.

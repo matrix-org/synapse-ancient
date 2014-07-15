@@ -107,11 +107,18 @@ class RoomPermissionsTestCase(unittest.TestCase):
                            check_200=True):
         prev_auth_id = Auth.mod_registered_user.user_id
         Auth.mod_registered_user.user_id = source
-        (code, response) = yield self.mock_server.trigger(
-                           "PUT",
-                           "/rooms/%s/members/%s/state" %
-                           (room, target),
-                           '{"membership":"%s"}' % membership)
+        if membership == "leave":
+            (code, response) = yield self.mock_server.trigger(
+                                "DELETE",
+                                "/rooms/%s/members/%s/state" %
+                                (room, target),
+                                None)
+        else:
+            (code, response) = yield self.mock_server.trigger(
+                               "PUT",
+                               "/rooms/%s/members/%s/state" %
+                               (room, target),
+                               '{"membership":"%s"}' % membership)
         Auth.mod_registered_user.user_id = prev_auth_id
         if check_200:
             self.assertEquals(200, code)
@@ -504,8 +511,8 @@ class RoomsTestCase(unittest.TestCase):
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(400, code)
 
-        # valid leave message
-        content = '{"membership":"leave"}'
+        # valid join message (NOOP since we made the room)
+        content = '{"membership":"join"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(200, code)
 
