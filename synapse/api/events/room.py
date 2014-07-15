@@ -11,6 +11,7 @@ import json
 import re
 import time
 
+
 class RoomCreateEvent(PutEventMixin, PostEventMixin, BaseEvent):
 
     @classmethod
