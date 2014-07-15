@@ -93,17 +93,29 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
     @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_GET(cls, request, room_id, auth_user_id=None):
-        # TODO check they are invited/joined in the room if private. If
-        # public, anyone can view the topic.
-        room = yield cls.data_store.get_room(room_id)
-        if not room:
-            defer.returnValue((400, BaseEvent.error("Room does not exist.")))
+        try:
+            # does this room exist
+            room = yield cls.data_store.get_room(room_id)
+            if not room:
+                defer.returnValue((403, ""))
 
-        data = yield cls.data_store.get_path_data(request.path)
+            # is it public or private? If it's public, anyone can see the topic.
+            # If it is private, make sure they are joined/invited first.
+            if not room[0].is_public:
+                # it's private, check they are invited/joined in the room
+                member = yield cls.data_store.get_room_member(
+                        room_id=room_id,
+                        user_id=auth_user_id)
+                if not member or member[0].membership not in ["join", "invite"]:
+                    raise InvalidHttpRequestError(403, "")
 
-        if not data:
-            defer.returnValue((404, BaseEvent.error("Topic not found.")))
-        defer.returnValue((200, json.loads(data[0].content)))
+            data = yield cls.data_store.get_path_data(request.path)
+
+            if not data:
+                defer.returnValue((404, BaseEvent.error("Topic not found.")))
+            defer.returnValue((200, json.loads(data[0].content)))
+        except InvalidHttpRequestError as e:
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
 
     @classmethod
     @Auth.defer_registered_user

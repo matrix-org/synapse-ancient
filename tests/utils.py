@@ -11,6 +11,9 @@ class MockHttpServer(HttpServer):
     def __init__(self):
         self.callbacks = []  # 3-tuple of method/pattern/function
 
+    def trigger_get(self, path):
+        return self.trigger("GET", path, None)
+
     @patch('twisted.web.http.Request')
     @defer.inlineCallbacks
     def trigger(self, http_method, path, content, mock_request):
