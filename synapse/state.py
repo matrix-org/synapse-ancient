@@ -14,7 +14,7 @@ class StateHandler(object):
         self._update_deferreds = {}
 
     @defer.inlineCallbacks
-    def handle_new_state(self, new_pdu):
+    def handle_new_state(self, new_pdu, new_state_callback=None):
         """ Apply conflict resolution to `new_pdu`.
 
         This should be called on every new state pdu, regardless of whether or
@@ -32,25 +32,32 @@ class StateHandler(object):
         if old_deferred:
             yield old_deferred
 
-        ret = yield self._handle_new_state(new_pdu)
+        is_new = yield self._handle_new_state(new_pdu)
+
+        if is_new and new_state_callback:
+            yield new_state_callback(new_pdu)
+
         new_deferred.callback(None)
 
-        defer.returnValue(ret)
+        defer.returnValue(is_new)
 
     @defer.inlineCallbacks
     def _handle_new_state(self, new_pdu):
         tree = yield self._persistence.get_unresolved_state_tree(new_pdu)
         new_branch, current_branch = tree
 
+        # We currently don't persist here now. But if you were you would use:
+        # yield self._persistence.update_current_state(
+        #     pdu_id=new_pdu.pdu_id,
+        #     origin=new_pdu.origin,
+        #     context=new_pdu.context,
+        #     pdu_type=new_pdu.pdu_type,
+        #     state_key=new_pdu.state_key
+        # )
+
         if not current_branch:
             # There is no current state
-            yield self._persistence.update_current_state(
-                pdu_id=new_pdu.pdu_id,
-                origin=new_pdu.origin,
-                context=new_pdu.context,
-                pdu_type=new_pdu.pdu_type,
-                state_key=new_pdu.state_key
-            )
+            defer.returnValue(True)
             return
 
         if new_branch[-1] == current_branch[-1]:
@@ -78,15 +85,6 @@ class StateHandler(object):
             else:
                 # The new state doesn't clobber.
                 pass
-
-            if update_current:
-                yield self._persistence.update_current_state(
-                    pdu_id=new_pdu.pdu_id,
-                    origin=new_pdu.origin,
-                    context=new_pdu.context,
-                    pdu_type=new_pdu.pdu_type,
-                    state_key=new_pdu.state_key
-                )
 
             defer.returnValue(update_current)
 
