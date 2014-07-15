@@ -230,15 +230,21 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_GET(cls, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
-        # TODO check they are joined in the room
+        try:
+            # check they are joined in the room
+            yield get_joined_or_throw(cls.data_store,
+                                      room_id=room_id,
+                                      user_id=auth_user_id)
 
-        # Pull out the message from the db
-        results = yield cls.data_store.get_message(room_id=room_id,
-                                                   msg_id=msg_id,
-                                                   user_id=msg_sender_id)
-        if not results:
-            defer.returnValue((404, BaseEvent.error("Message not found.")))
-        defer.returnValue((200, json.loads(results[0].content)))
+            # Pull out the message from the db
+            results = yield cls.data_store.get_message(room_id=room_id,
+                                                       msg_id=msg_id,
+                                                       user_id=msg_sender_id)
+            if not results:
+                defer.returnValue((404, BaseEvent.error("Message not found.")))
+            defer.returnValue((200, json.loads(results[0].content)))
+        except InvalidHttpRequestError as e:
+            defer.returnValue((e.get_status_code(), e.get_response_body()))
 
     @classmethod
     @Auth.defer_registered_user

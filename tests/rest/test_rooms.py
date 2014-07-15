@@ -44,12 +44,50 @@ def _setup_db(db_name, schemas):
             db_conn.commit()
 
 
-class RoomsPermissionsTestCase(unittest.TestCase):
+class RoomPermissionsTestCase(unittest.TestCase):
     """ Tests room permissions. """
     user_id = "sid1"
+    rmcreator_id = "notme"
 
+    @defer.inlineCallbacks
     def setUp(self):
         _setup_db(DB_PATH, ["im", "users"])
+        self.mock_server = MockHttpServer()
+        self.mock_data_store = EventStore()
+        Auth.mod_registered_user = MockRegisteredUserModule(self.rmcreator_id)
+        MessageEvent().register(self.mock_server, self.mock_data_store)
+        RoomMemberEvent().register(self.mock_server, self.mock_data_store)
+        RoomTopicEvent().register(self.mock_server, self.mock_data_store)
+        RoomCreateEvent().register(self.mock_server, self.mock_data_store)
+
+        # create some rooms under the name rmcreator_id
+        self.uncreated_rmid = "aa"
+
+        self.created_rmid = "abc"
+        (code, response) = yield self.mock_server.trigger(
+                            "PUT",
+                            "/rooms/%s" % self.created_rmid,
+                            '{"visibility":"private"}')
+        self.assertEquals(200, code)
+
+        self.created_public_rmid = "def1234ghi"
+        (code, response) = yield self.mock_server.trigger(
+                            "PUT",
+                            "/rooms/%s" % self.created_public_rmid,
+                            '{"visibility":"public"}')
+        self.assertEquals(200, code)
+
+        # send a message in one of the rooms
+        self.created_rmid_msg_path = ("/rooms/%s/messages/%s/midaaa1" %
+                                (self.created_rmid, self.rmcreator_id))
+        (code, response) = yield self.mock_server.trigger(
+                           "PUT",
+                           self.created_rmid_msg_path,
+                           '{"msgtype":"sy.text","body":"test msg"}')
+        self.assertEquals(200, code)
+
+        # auth as user_id now
+        Auth.mod_registered_user.user_id = self.user_id
 
     def tearDown(self):
         try:
@@ -57,17 +95,102 @@ class RoomsPermissionsTestCase(unittest.TestCase):
         except:
             pass
 
+    @defer.inlineCallbacks
+    def _change_membership(self, room, source, target, membership,
+                           check_200=True):
+        prev_auth_id = Auth.mod_registered_user.user_id
+        Auth.mod_registered_user.user_id = source
+        (code, response) = yield self.mock_server.trigger(
+                           "PUT",
+                           "/rooms/%s/members/%s/state" %
+                           (room, target),
+                           '{"membership":"%s"}' % membership)
+        Auth.mod_registered_user.user_id = prev_auth_id
+        if check_200:
+            self.assertEquals(200, code)
+        defer.returnValue((code, response))
+
+    @defer.inlineCallbacks
+    def test_get_message(self):
+        # get message in uncreated room, expect 403
+        (code, response) = yield self.mock_server.trigger(
+                           "GET",
+                           "/rooms/noroom/messages/someid/m1", None)
+        self.assertEquals(403, code)
+
+        # get message in created room not joined (no state), expect 403
+        (code, response) = yield self.mock_server.trigger(
+                           "GET", self.created_rmid_msg_path, None)
+        self.assertEquals(403, code)
+
+        # get message in created room and invited, expect 403
+        yield self._change_membership(self.created_rmid, self.rmcreator_id,
+                                      self.user_id, "invite")
+        (code, response) = yield self.mock_server.trigger(
+                           "GET", self.created_rmid_msg_path, None)
+        self.assertEquals(403, code)
+
+        # get message in created room and joined, expect 200
+        yield self._change_membership(self.created_rmid, self.user_id,
+                                      self.user_id, "join")
+        (code, response) = yield self.mock_server.trigger(
+                           "GET", self.created_rmid_msg_path, None)
+        self.assertEquals(200, code)
+
+        # get message in created room and left, expect 403
+        yield self._change_membership(self.created_rmid, self.user_id,
+                                      self.user_id, "leave")
+        (code, response) = yield self.mock_server.trigger(
+                           "GET", self.created_rmid_msg_path, None)
+        self.assertEquals(403, code)
+
+    @defer.inlineCallbacks
     def test_send_message(self):
         # send message in uncreated room, expect 403
+        (code, response) = yield self.mock_server.trigger(
+                           "PUT",
+                           "/rooms/%s/messages/%s/mid1" %
+                           (self.uncreated_rmid, self.user_id),
+                           '{"msgtype":"sy.text","body":"hello"}')
+        self.assertEquals(403, code)
 
         # send message in created room not joined (no state), expect 403
+        (code, response) = yield self.mock_server.trigger(
+                           "PUT",
+                           "/rooms/%s/messages/%s/mid1" %
+                           (self.created_rmid, self.user_id),
+                           '{"msgtype":"sy.text","body":"hello"}')
+        self.assertEquals(403, code)
 
         # send message in created room and invited, expect 403
+        yield self._change_membership(self.created_rmid, self.rmcreator_id,
+                                      self.user_id, "invite")
+        (code, response) = yield self.mock_server.trigger(
+                           "PUT",
+                           "/rooms/%s/messages/%s/mid1" %
+                           (self.created_rmid, self.user_id),
+                           '{"msgtype":"sy.text","body":"hello"}')
+        self.assertEquals(403, code)
 
         # send message in created room and joined, expect 200
+        yield self._change_membership(self.created_rmid, self.user_id,
+                                      self.user_id, "join")
+        (code, response) = yield self.mock_server.trigger(
+                           "PUT",
+                           "/rooms/%s/messages/%s/mid1" %
+                           (self.created_rmid, self.user_id),
+                           '{"msgtype":"sy.text","body":"hello"}')
+        self.assertEquals(200, code)
 
         # send message in created room and left, expect 403
-        pass
+        yield self._change_membership(self.created_rmid, self.user_id,
+                                      self.user_id, "leave")
+        (code, response) = yield self.mock_server.trigger(
+                           "PUT",
+                           "/rooms/%s/messages/%s/mid1" %
+                           (self.created_rmid, self.user_id),
+                           '{"msgtype":"sy.text","body":"hello"}')
+        self.assertEquals(403, code)
 
     def test_topic_perms(self):
         # set topic in uncreated room, expect 403
