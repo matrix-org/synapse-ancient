@@ -128,7 +128,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
     def test_get_message(self):
         # get message in uncreated room, expect 403
         (code, response) = yield self.mock_server.trigger_get(
-                           "/rooms/noroom/messages/someid/m1")
+                           "/roomsa/noroom/messages/someid/m1")
         self.assertEquals(403, code)
 
         # get message in created room not joined (no state), expect 403
