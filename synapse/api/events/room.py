@@ -9,7 +9,7 @@ from synapse.api.event_store import StoreException
 
 import json
 import re
-
+import time
 
 class RoomCreateEvent(PutEventMixin, PostEventMixin, BaseEvent):
 
@@ -191,6 +191,13 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             yield cls.data_store.store_room_member(user_id=userid,
                                                    room_id=roomid,
                                                    membership="leave")
+
+            cls._inject_membership_msg(
+                    source=auth_user_id,
+                    target=userid,
+                    room_id=roomid,
+                    membership="leave")
+
             # TODO poke notifier
             # TODO send to s2s layer
             defer.returnValue((200, ""))
@@ -246,6 +253,13 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                     room_id=roomid,
                     membership=content["membership"],
                     content=content)
+
+                cls._inject_membership_msg(
+                    source=auth_user_id,
+                    target=userid,
+                    room_id=roomid,
+                    membership=content["membership"])
+
                 # TODO poke notifier
                 # TODO send to s2s layer
                 defer.returnValue((200, ""))
@@ -254,6 +268,32 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
         defer.returnValue((500, ""))
+
+    @classmethod
+    @defer.inlineCallbacks
+    def _inject_membership_msg(cls, room_id=None, source=None, target=None,
+                               membership=None):
+        # TODO move this somewhere else.
+        # TODO this should be a different type of message, not sy.text
+        if membership == "invite":
+            body = "%s invited %s to the room." % (source, target)
+        elif membership == "join":
+            body = "%s joined the room." % (target)
+        elif membership == "leave":
+            body = "%s left the room." % (target)
+        else:
+            raise Exception("Unknown membership value %s" % membership)
+
+        membership_json = {
+            "msgtype": "sy.text",
+            "body": body
+        }
+        msg_id = "m%s" % int(time.time())
+        yield cls.data_store.store_message(
+            user_id="home_server",
+            room_id=room_id,
+            msg_id=msg_id,
+            content=json.dumps(membership_json))
 
 
 class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
