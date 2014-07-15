@@ -122,7 +122,9 @@ class SynapseCmd(cmd.Cmd):
         """Leaves a room: "leave <roomid>" """
         try:
             args = self._parse(line, ["roomid"], force_keys=True)
-            self._do_membership_change(args["roomid"], "leave", self._usr())
+            path = ("/rooms/%s/members/%s/state" %
+                    (urllib.quote(args["roomid"]), self._usr()))
+            reactor.callFromThread(self._run_and_pprint, "DELETE", path)
         except Exception as e:
             print e
 
@@ -180,7 +182,8 @@ class SynapseCmd(cmd.Cmd):
             return
 
         args["method"] = args["method"].upper()
-        valid_methods = ["PUT", "GET", "POST", "XGET", "XPUT", "XPOST"]
+        valid_methods = ["PUT", "GET", "POST", "DELETE",
+                         "XPUT", "XGET", "XPOST", "XDELETE"]
         if args["method"] not in valid_methods:
             print "Unsupported method: %s" % args["method"]
             return
