@@ -2,7 +2,7 @@
 """ This module contains events to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
-from base import (EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent,
+from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
 from synapse.api.event_store import StoreException
@@ -12,7 +12,7 @@ import re
 import time
 
 
-class RoomCreateEvent(PutEventMixin, PostEventMixin, BaseEvent):
+class RoomCreateEvent(PutEventMixin, PostEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -81,7 +81,7 @@ class RoomCreateEvent(PutEventMixin, PostEventMixin, BaseEvent):
             raise InvalidHttpRequestError(400, "Body must be JSON.")
 
 
-class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
+class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -113,7 +113,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
             data = yield cls.data_store.get_path_data(request.path)
 
             if not data:
-                defer.returnValue((404, BaseEvent.error("Topic not found.")))
+                defer.returnValue((404, RestEvent.error("Topic not found.")))
             defer.returnValue((200, json.loads(data[0].content)))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
@@ -129,7 +129,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
                                       user_id=auth_user_id)
 
             # validate JSON
-            content = BaseEvent.get_valid_json(request.content.read(),
+            content = RestEvent.get_valid_json(request.content.read(),
                                                [("topic", unicode)])
 
             # store in db
@@ -145,7 +145,7 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, BaseEvent):
 
 
 class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                      DeleteEventMixin, BaseEvent):
+                      DeleteEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -166,7 +166,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         result = yield cls.data_store.get_room_member(user_id=userid,
                                                       room_id=roomid)
         if not result:
-            defer.returnValue((404, BaseEvent.error("Member not found.")))
+            defer.returnValue((404, RestEvent.error("Member not found.")))
         defer.returnValue((200, json.loads(result[0].content)))
 
     @classmethod
@@ -212,7 +212,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_PUT(cls, request, roomid, userid, auth_user_id=None):
         try:
             # validate json
-            content = BaseEvent.get_valid_json(request.content.read(),
+            content = RestEvent.get_valid_json(request.content.read(),
                                                [("membership", unicode)])
 
             if content["membership"] not in ["join", "invite"]:
@@ -298,7 +298,7 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
 
 class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                   BaseEvent):
+                   RestEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -324,7 +324,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                                                        msg_id=msg_id,
                                                        user_id=msg_sender_id)
             if not results:
-                defer.returnValue((404, BaseEvent.error("Message not found.")))
+                defer.returnValue((404, RestEvent.error("Message not found.")))
             defer.returnValue((200, json.loads(results[0].content)))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
@@ -339,7 +339,7 @@ class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             if sender_id != auth_user_id:
                 raise InvalidHttpRequestError(403, "Invalid userid.")
             # check the json
-            req = BaseEvent.get_valid_json(request.content.read(),
+            req = RestEvent.get_valid_json(request.content.read(),
                                            [("msgtype", unicode)])
 
             # Check if sender_id is in room room_id

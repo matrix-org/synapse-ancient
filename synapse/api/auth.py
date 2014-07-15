@@ -2,7 +2,7 @@
 """This module contains classes for authenticating the user."""
 from twisted.internet import defer
 
-from events.base import InvalidHttpRequestError
+from synapse.rest.base import InvalidHttpRequestError
 from synapse.util.dbutils import DbPool
 
 

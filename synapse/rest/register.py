@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
-from base import PostEventMixin, BaseEvent, InvalidHttpRequestError
+from base import PostEventMixin, RestEvent, InvalidHttpRequestError
 
 from sqlite3 import IntegrityError
 
@@ -16,7 +16,7 @@ import time
 import urllib
 
 
-class RegisterEvent(PostEventMixin, BaseEvent):
+class RegisterEvent(PostEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):

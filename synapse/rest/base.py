@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-""" This module contains base event classes for constructing events. """
+""" This module contains base event classes for constructing REST events. """
 
 import json
 
 
-class EventFactory(object):
+class RestEventFactory(object):
 
-    """ A factory for creating events.
+    """ A factory for creating REST events.
     """
 
     events = []
@@ -37,7 +37,7 @@ class EventFactory(object):
             event.register(http_server, data_store)
 
 
-class BaseEvent(object):
+class RestEvent(object):
 
     """ A Synapse REST Event.
     """
@@ -244,7 +244,7 @@ class InvalidHttpRequestError(Exception):
         super(InvalidHttpRequestError, self).__init__()
         self.http_code = code
         if json_wrap:
-            self.http_body = BaseEvent.error(body, code)
+            self.http_body = RestEvent.error(body, code)
         else:
             self.http_body = body
 

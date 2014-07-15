@@ -9,8 +9,8 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.api.auth import Auth
-from synapse.api.events.room import (MessageEvent, RoomMemberEvent,
-                                     RoomTopicEvent, RoomCreateEvent)
+from synapse.rest.room import (MessageEvent, RoomMemberEvent,
+                               RoomTopicEvent, RoomCreateEvent)
 from synapse.api.event_store import EventStore
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
