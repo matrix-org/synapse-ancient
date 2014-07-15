@@ -21,7 +21,7 @@ class RestEventFactory(object):
         self.events.append(room.MessageEvent())
         self.events.append(room.RoomCreateEvent())
 
-        from synapse.api.streams.event import EventStreamEvent
+        from events import EventStreamEvent
         self.events.append(EventStreamEvent())
 
         import register

@@ -3,62 +3,9 @@
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
-from synapse.api.auth import Auth
 from synapse.rest.room import MessageEvent, RoomMemberEvent
-from synapse.rest.base import (GetEventMixin, RestEvent,
-                                     InvalidHttpRequestError)
+from synapse.rest.base import InvalidHttpRequestError  # TODO remove
 from base import FilterStream, StreamData
-
-import re
-
-
-class EventStreamEvent(GetEventMixin, RestEvent):
-
-    @classmethod
-    def get_pattern(cls):
-        return re.compile("^/events$")
-
-    @classmethod
-    @Auth.defer_registered_user
-    @defer.inlineCallbacks
-    def on_GET(cls, request, auth_user_id=None):
-        try:
-            event_stream = EventStream(auth_user_id)
-            params = cls._get_stream_parameters(request)
-            chunk = yield event_stream.get_chunk(**params)
-            defer.returnValue((200, chunk))
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
-
-        defer.returnValue((500, "This is not the stream you are looking for."))
-
-    @classmethod
-    def _get_stream_parameters(cls, request):
-        params = {
-            "from_tok": FilterStream.TOK_START,
-            "to_tok": FilterStream.TOK_END,
-            "limit": None,
-            "direction": 'f'
-        }
-        try:
-            if request.args["dir"][0] not in ["f", "b"]:
-                raise InvalidHttpRequestError(400, "Unknown dir value.")
-            params["direction"] = request.args["dir"][0]
-        except KeyError:
-            pass  # dir is optional
-
-        if "from" in request.args:
-            params["from_tok"] = request.args["from"][0]
-        if "to" in request.args:
-            params["to_tok"] = request.args["to"][0]
-        if "limit" in request.args:
-            try:
-                params["limit"] = request.args["limit"][0]
-            except ValueError:
-                raise InvalidHttpRequestError(400,
-                    "limit cannot be used with this stream.")
-
-        return params
 
 
 class MessagesStreamData(StreamData):
