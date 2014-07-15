@@ -7,6 +7,8 @@ from synapse.persistence.transactions import PduEntry
 
 from collections import namedtuple
 
+from mock import Mock
+
 
 ReturnType = namedtuple(
     "StateReturnType", ["new_branch", "current_branch"]
@@ -15,32 +17,38 @@ ReturnType = namedtuple(
 
 class StateTestCase(unittest.TestCase):
     def setUp(self):
-        self.mock_replication_layer = MockReplication()
-        self.mock_persistence = MockPersistence()
+        self.persistence = Mock()
+        self.replication = Mock()
 
         self.state = StateHandler(
-            persistence_service=self.mock_persistence,
-            replication_layer=self.mock_replication_layer,
+            persistence_service=self.persistence,
+            replication_layer=self.replication,
         )
 
+    @defer.inlineCallbacks
     def test_new_state_key(self):
         # We've never seen anything for this state before
-
         new_pdu = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
 
-        self.mock_persistence.mock_state_tree(
-            new_pdu, ReturnType([new_pdu], []))
-
-        self.state.handle_new_state(new_pdu)
-
-        curr_state = self.mock_persistence.get_current_state(
-            new_pdu.context,
-            new_pdu.pdu_type,
-            new_pdu.state_key
+        self.persistence.get_unresolved_state_tree.return_value = (
+            ReturnType([new_pdu], [])
         )
 
-        self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
+        yield self.state.handle_new_state(new_pdu)
 
+        self.persistence.get_unresolved_state_tree.assert_called_once_with(
+            new_pdu
+        )
+
+        self.persistence.update_current_state.assert_called_once_with(
+            pdu_id=new_pdu.pdu_id,
+            origin=new_pdu.origin,
+            context=new_pdu.context,
+            pdu_type=new_pdu.pdu_type,
+            state_key=new_pdu.state_key
+        )
+
+    @defer.inlineCallbacks
     def test_direct_overwrite(self):
         # We do a direct overwriting of the old state, i.e., the new state
         # points to the old state.
@@ -48,19 +56,25 @@ class StateTestCase(unittest.TestCase):
         old_pdu = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu_entry("B", "test", "mem", "x", "A", 5)
 
-        self.mock_persistence.mock_state_tree(
-            new_pdu, ReturnType([new_pdu, old_pdu], [old_pdu]))
-
-        self.state.handle_new_state(new_pdu)
-
-        curr_state = self.mock_persistence.get_current_state(
-            new_pdu.context,
-            new_pdu.pdu_type,
-            new_pdu.state_key
+        self.persistence.get_unresolved_state_tree.return_value = (
+            ReturnType([new_pdu, old_pdu], [old_pdu])
         )
 
-        self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
+        yield self.state.handle_new_state(new_pdu)
 
+        self.persistence.get_unresolved_state_tree.assert_called_once_with(
+            new_pdu
+        )
+
+        self.persistence.update_current_state.assert_called_once_with(
+            pdu_id=new_pdu.pdu_id,
+            origin=new_pdu.origin,
+            context=new_pdu.context,
+            pdu_type=new_pdu.pdu_type,
+            state_key=new_pdu.state_key
+        )
+
+    @defer.inlineCallbacks
     def test_power_level_fail(self):
         # We try to update the state based on an outdated state, and have a
         # too low power level.
@@ -69,24 +83,19 @@ class StateTestCase(unittest.TestCase):
         old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 5)
 
-        self.mock_persistence.mock_state_tree(
-            new_pdu, ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1]))
-
-        self.mock_persistence.update_current_state(
-            old_pdu_2.pdu_id, old_pdu_2.origin,
-            old_pdu_2.context, old_pdu_2.pdu_type, old_pdu_2.state_key
+        self.persistence.get_unresolved_state_tree.return_value = (
+            ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        self.state.handle_new_state(new_pdu)
+        yield self.state.handle_new_state(new_pdu)
 
-        curr_state = self.mock_persistence.get_current_state(
-            new_pdu.context,
-            new_pdu.pdu_type,
-            new_pdu.state_key
+        self.persistence.get_unresolved_state_tree.assert_called_once_with(
+            new_pdu
         )
 
-        self.assertEquals((old_pdu_2.pdu_id, old_pdu_2.origin), curr_state)
+        self.assertFalse(self.persistence.update_current_state.called)
 
+    @defer.inlineCallbacks
     def test_power_level_succeed(self):
         # We try to update the state based on an outdated state, but have
         # sufficient power level to force the update.
@@ -95,24 +104,25 @@ class StateTestCase(unittest.TestCase):
         old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 15)
 
-        self.mock_persistence.mock_state_tree(
-            new_pdu, ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1]))
-
-        self.mock_persistence.update_current_state(
-            old_pdu_2.pdu_id, old_pdu_2.origin,
-            old_pdu_2.context, old_pdu_2.pdu_type, old_pdu_2.state_key
+        self.persistence.get_unresolved_state_tree.return_value = (
+            ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        self.state.handle_new_state(new_pdu)
+        yield self.state.handle_new_state(new_pdu)
 
-        curr_state = self.mock_persistence.get_current_state(
-            new_pdu.context,
-            new_pdu.pdu_type,
-            new_pdu.state_key
+        self.persistence.get_unresolved_state_tree.assert_called_once_with(
+            new_pdu
         )
 
-        self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
+        self.persistence.update_current_state.assert_called_once_with(
+            pdu_id=new_pdu.pdu_id,
+            origin=new_pdu.origin,
+            context=new_pdu.context,
+            pdu_type=new_pdu.pdu_type,
+            state_key=new_pdu.state_key
+        )
 
+    @defer.inlineCallbacks
     def test_power_level_equal_same_len(self):
         # We try to update the state based on an outdated state, the power
         # levels are the same and so are the branch lengths
@@ -121,24 +131,21 @@ class StateTestCase(unittest.TestCase):
         old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
         new_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 10)
 
-        self.mock_persistence.mock_state_tree(
-            new_pdu, ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1]))
-
-        self.mock_persistence.update_current_state(
-            old_pdu_2.pdu_id, old_pdu_2.origin,
-            old_pdu_2.context, old_pdu_2.pdu_type, old_pdu_2.state_key
+        self.persistence.get_unresolved_state_tree.return_value = (
+            ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        self.state.handle_new_state(new_pdu)
+        yield self.state.handle_new_state(new_pdu)
 
-        curr_state = self.mock_persistence.get_current_state(
-            new_pdu.context,
-            new_pdu.pdu_type,
-            new_pdu.state_key
+        self.persistence.get_unresolved_state_tree.assert_called_once_with(
+            new_pdu
         )
 
-        self.assertEquals((old_pdu_2.pdu_id, old_pdu_2.origin), curr_state)
+        yield self.state.handle_new_state(new_pdu)
 
+        self.assertFalse(self.persistence.update_current_state.called)
+
+    @defer.inlineCallbacks
     def test_power_level_equal_diff_len(self):
         # We try to update the state based on an outdated state, the power
         # levels are the same but the branch length of the new one is longer.
@@ -148,25 +155,76 @@ class StateTestCase(unittest.TestCase):
         old_pdu_3 = new_fake_pdu_entry("C", "test", "mem", "x", "A", 10)
         new_pdu = new_fake_pdu_entry("D", "test", "mem", "x", "C", 10)
 
-        self.mock_persistence.mock_state_tree(
-            new_pdu,
+        self.persistence.get_unresolved_state_tree.return_value = (
             ReturnType([new_pdu, old_pdu_3, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        self.mock_persistence.update_current_state(
-            old_pdu_2.pdu_id, old_pdu_2.origin,
-            old_pdu_2.context, old_pdu_2.pdu_type, old_pdu_2.state_key
+        yield self.state.handle_new_state(new_pdu)
+
+        self.persistence.get_unresolved_state_tree.assert_called_once_with(
+            new_pdu
         )
 
-        self.state.handle_new_state(new_pdu)
-
-        curr_state = self.mock_persistence.get_current_state(
-            new_pdu.context,
-            new_pdu.pdu_type,
-            new_pdu.state_key
+        self.persistence.update_current_state.assert_called_once_with(
+            pdu_id=new_pdu.pdu_id,
+            origin=new_pdu.origin,
+            context=new_pdu.context,
+            pdu_type=new_pdu.pdu_type,
+            state_key=new_pdu.state_key
         )
 
-        self.assertEquals((new_pdu.pdu_id, new_pdu.origin), curr_state)
+    @defer.inlineCallbacks
+    def test_missing_pdu(self):
+        # We try to update state against a PDU we haven't yet seen,
+        # triggering a get_pdu request
+
+        # The pdu we haven't seen
+        old_pdu_1 = new_fake_pdu_entry("A", "test", "mem", "x", None, 10)
+
+        old_pdu_2 = new_fake_pdu_entry("B", "test", "mem", "x", None, 10)
+        new_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 20)
+
+        # The return_value of `get_unresolved_state_tree`, which changes after
+        # the call to get_pdu
+        tree_to_return = [ReturnType([new_pdu], [old_pdu_2])]
+
+        def return_tree(p):
+            return tree_to_return[0]
+
+        def set_return_tree(*args, **kwargs):
+            tree_to_return[0] = ReturnType(
+                [new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1]
+            )
+
+        mock_persistence = Mock()
+        mock_replication = Mock()
+
+        state = StateHandler(
+            persistence_service=mock_persistence,
+            replication_layer=mock_replication,
+        )
+
+        mock_persistence.get_unresolved_state_tree.side_effect = return_tree
+
+        mock_replication.get_pdu.side_effect = set_return_tree
+
+        yield state.handle_new_state(new_pdu)
+
+        mock_persistence.get_unresolved_state_tree.assert_called_with(
+            new_pdu
+        )
+
+        self.assertEquals(
+            2, mock_persistence.get_unresolved_state_tree.call_count
+        )
+
+        mock_persistence.update_current_state.assert_called_once_with(
+            pdu_id=new_pdu.pdu_id,
+            origin=new_pdu.origin,
+            context=new_pdu.context,
+            pdu_type=new_pdu.pdu_type,
+            state_key=new_pdu.state_key
+        )
 
 
 def new_fake_pdu_entry(pdu_id, context, pdu_type, state_key, prev_state_id,
@@ -190,39 +248,3 @@ def new_fake_pdu_entry(pdu_id, context, pdu_type, state_key, prev_state_id,
     )
 
     return new_pdu
-
-
-class MockReplication(object):
-
-    def __init__(self):
-        self.pdus = {}
-
-    def mock_get_pdu(self, pdu, destination, pdu_origin, pdu_id, outlier):
-        self.pdus[(destination, pdu_origin, pdu_id, outlier)] = pdu
-
-    def get_pdu(self, destination, pdu_origin, pdu_id, outlier=False):
-        pdu = self.pdus[(destination, pdu_origin, pdu_id, outlier)]
-        return defer.succed(pdu)
-
-
-class MockPersistence(object):
-
-    def __init__(self):
-        self.current_state = {}
-        self.state_tree = {}
-
-    def mock_state_tree(self, new_pdu, state_tree):
-        self.state_tree[new_pdu] = state_tree
-
-    def get_unresolved_state_tree(self, new_pdu):
-        tree = self.state_tree[new_pdu]
-        return defer.succeed(tree)
-
-    def update_current_state(self, pdu_id, origin, context, pdu_type,
-                             state_key):
-        self.current_state[(context, pdu_type, state_key)] = (pdu_id, origin)
-        return defer.succeed(None)
-
-    def get_current_state(self, context, pdu_type, state_key):
-        pdu = self.current_state[(context, pdu_type, state_key)]
-        return pdu
