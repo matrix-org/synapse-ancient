@@ -13,7 +13,7 @@ import re
 import time
 
 
-class RoomCreateEvent(PutEventMixin, PostEventMixin, RestEvent):
+class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -82,7 +82,8 @@ class RoomCreateEvent(PutEventMixin, PostEventMixin, RestEvent):
             raise InvalidHttpRequestError(400, "Body must be JSON.")
 
 
-class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent):
+class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
+                         RestEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -145,8 +146,8 @@ class RoomTopicEvent(EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent):
         defer.returnValue((200, ""))
 
 
-class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                      DeleteEventMixin, RestEvent):
+class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
+                          DeleteEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):
@@ -298,8 +299,8 @@ class RoomMemberEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             content=json.dumps(membership_json))
 
 
-class MessageEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                   RestEvent):
+class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
+                       RestEvent):
 
     @classmethod
     def get_pattern(cls):

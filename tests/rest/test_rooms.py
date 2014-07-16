@@ -9,8 +9,8 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.api.auth import Auth
-from synapse.rest.room import (MessageEvent, RoomMemberEvent,
-                               RoomTopicEvent, RoomCreateEvent)
+from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
+                               RoomTopicRestEvent, RoomCreateRestEvent)
 from synapse.api.event_store import EventStore
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
@@ -55,10 +55,10 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
         Auth.mod_registered_user = MockRegisteredUserModule(self.rmcreator_id)
-        MessageEvent().register(self.mock_server, self.mock_data_store)
-        RoomMemberEvent().register(self.mock_server, self.mock_data_store)
-        RoomTopicEvent().register(self.mock_server, self.mock_data_store)
-        RoomCreateEvent().register(self.mock_server, self.mock_data_store)
+        MessageRestEvent().register(self.mock_server, self.mock_data_store)
+        RoomMemberRestEvent().register(self.mock_server, self.mock_data_store)
+        RoomTopicRestEvent().register(self.mock_server, self.mock_data_store)
+        RoomCreateRestEvent().register(self.mock_server, self.mock_data_store)
 
         # create some rooms under the name rmcreator_id
         self.uncreated_rmid = "aa"
@@ -322,7 +322,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
-        RoomCreateEvent().register(self.mock_server, self.mock_data_store)
+        RoomCreateRestEvent().register(self.mock_server, self.mock_data_store)
 
     def tearDown(self):
         try:
@@ -424,10 +424,10 @@ class RoomsTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
-        MessageEvent().register(self.mock_server, self.mock_data_store)
-        RoomMemberEvent().register(self.mock_server, self.mock_data_store)
-        RoomTopicEvent().register(self.mock_server, self.mock_data_store)
-        RoomCreateEvent().register(self.mock_server, self.mock_data_store)
+        MessageRestEvent().register(self.mock_server, self.mock_data_store)
+        RoomMemberRestEvent().register(self.mock_server, self.mock_data_store)
+        RoomTopicRestEvent().register(self.mock_server, self.mock_data_store)
+        RoomCreateRestEvent().register(self.mock_server, self.mock_data_store)
 
         # create the room
         path = "/rooms/rid1"

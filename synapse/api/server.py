@@ -3,6 +3,7 @@
 interactions."""
 
 from synapse.api.auth import Auth, RegisteredUserModule
+from synapse.api.events.base import EventFactory
 from synapse.rest.base import RestEventFactory
 from synapse.api.event_store import EventStore
 from synapse.federation import ReplicationHandler
@@ -21,8 +22,10 @@ class SynapseHomeServer(ReplicationHandler):
         # configure auth
         Auth.mod_registered_user = RegisteredUserModule(self.event_data_store)
 
-        self.event_factory = RestEventFactory()
-        self.event_factory.register_events(self.http_server,
+        self.event_factory = EventFactory(self.event_data_store)
+
+        self.rest_event_factory = RestEventFactory()
+        self.rest_event_factory.register_events(self.http_server,
                                            self.event_data_store)
 
     def on_receive_pdu(self, pdu):

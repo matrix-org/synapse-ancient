@@ -8,24 +8,29 @@ import json
 class RestEventFactory(object):
 
     """ A factory for creating REST events.
+
+    These REST events represent the entire client-server REST API. Generally
+    speaking, they serve as wrappers around synapse events.
+
+    See synapse.api.events.base for information on synapse events.
     """
 
     events = []
 
-    def __init__(self):
+    def __init__(self, event_factory):
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
         import room
-        self.events.append(room.RoomTopicEvent())
-        self.events.append(room.RoomMemberEvent())
-        self.events.append(room.MessageEvent())
-        self.events.append(room.RoomCreateEvent())
+        self.events.append(room.RoomTopicRestEvent())
+        self.events.append(room.RoomMemberRestEvent())
+        self.events.append(room.MessageRestEvent())
+        self.events.append(room.RoomCreateRestEvent())
 
-        from events import EventStreamEvent
-        self.events.append(EventStreamEvent())
+        from events import EventStreamRestEvent
+        self.events.append(EventStreamRestEvent())
 
         import register
-        self.events.append(register.RegisterEvent())
+        self.events.append(register.RegisterRestEvent())
 
     def register_events(self, http_server, data_store):
         """ Registers all events with contextual modules.

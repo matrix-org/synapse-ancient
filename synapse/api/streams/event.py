@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.util.dbutils import DbPool
-from synapse.rest.room import MessageEvent, RoomMemberEvent
+from synapse.rest.room import MessageRestEvent, RoomMemberRestEvent
 from synapse.rest.base import InvalidHttpRequestError  # TODO remove
 from base import FilterStream, StreamData
 
@@ -39,7 +39,7 @@ class MessagesStreamData(StreamData):
         data = []
         last_pkey = from_pkey
         for result in result_set:
-            event = MessageEvent()
+            event = MessageRestEvent()
             result_dict = dict(zip(col_headers, result))
             last_pkey = result_dict["id"]
             event_data = event.get_event_data(result_dict)
@@ -76,7 +76,7 @@ class RoomMemberStreamData(StreamData):
         data = []
         last_pkey = from_pkey
         for result in result_set:
-            event = RoomMemberEvent()
+            event = RoomMemberRestEvent()
             result_dict = dict(zip(col_headers, result))
             last_pkey = result_dict["id"]
             event_data = event.get_event_data(result_dict)

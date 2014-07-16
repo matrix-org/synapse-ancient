@@ -9,7 +9,7 @@ from synapse.rest.base import GetEventMixin, RestEvent, InvalidHttpRequestError
 import re
 
 
-class EventStreamEvent(GetEventMixin, RestEvent):
+class EventStreamRestEvent(GetEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):

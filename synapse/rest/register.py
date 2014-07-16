@@ -11,7 +11,7 @@ import re
 import urllib
 
 
-class RegisterEvent(PostEventMixin, RestEvent):
+class RegisterRestEvent(PostEventMixin, RestEvent):
 
     @classmethod
     def get_pattern(cls):
