@@ -73,7 +73,7 @@ class MessageEvent(object):
                                       room_id=global_msg.room_id,
                                       user_id=global_msg.user_id)
 
-        template = JSONTemplate({"msgtype": JSONTemplate.STR})
+        template = JSONTemplate({"msgtype": u"str"})
         template.check_json(content)
 
         # store message in db

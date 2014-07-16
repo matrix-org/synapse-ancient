@@ -13,24 +13,17 @@ def random_string(length):
 
 
 class JSONTemplate(object):
-    STR = "str"
-    INT = "int"
-    LIST = "list"
-    OBJ = "object"
 
-    TYPE_MAP = {
-        unicode: STR,
-        dict: OBJ
-    }
-
-    def __init__(self, required_keys_values):
+    def __init__(self, template):
         """ Make a JSON template for required top-level keys.
 
         Args:
-            required_keys_values : A dict containing the
-                                   top-level JSON key and a template type.
+            template : A dict representing the JSON to match. Only required
+                       keys should be present, and the values are mapped
+                       directly to the types of the content via type() so the
+                       value content doesn't matter, just the type does.
         """
-        self.template = self._make_template(required_keys_values)
+        self.json_template = template
 
     def check_json(self, content, raises=True):
         """Checks the given JSON content abides by the rules of the template.
@@ -41,20 +34,8 @@ class JSONTemplate(object):
         Returns:
             True if the content passes the template.
         """
-        err_msg = None
-        for key in self.template:
-            if key not in content:
-                err_msg = "Missing %s key" % key
-                break
-            try:
-                if (JSONTemplate.TYPE_MAP[type(content[key])] !=
-                                                            self.template[key]):
-                    err_msg = "Key %s is of the wrong type." % key
-                    break
-            except KeyError:
-                err_msg = "Key %s is of the wrong type." % key
-                break
-
+        # recursively call to inspect each layer
+        err_msg = self._check_json(content, self.json_template, raises)
         if err_msg:
             if raises:
                 raise SynapseError(400, err_msg)
@@ -63,8 +44,16 @@ class JSONTemplate(object):
         else:
             return True
 
-    def _make_template(self, required_keys_values):
-        template = {}
-        for key in required_keys_values:
-            template[key] = required_keys_values[key]
-        return template
+    def _check_json(self, content, template, raises):
+        for key in template:
+            if key not in content:
+                return "Missing %s key" % key
+
+            if type(content[key]) != type(template[key]):
+                return "Key %s is of the wrong type." % key
+
+            if type(content[key]) == dict:
+                # we must go deeper
+                msg = self._check_json(content[key], template[key], raises)
+                if msg:
+                    return msg

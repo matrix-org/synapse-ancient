@@ -449,27 +449,27 @@ class RoomsTestCase(unittest.TestCase):
         # missing keys or invalid json
         (code, response) = yield self.mock_server.trigger("PUT",
                            path, '{}')
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("PUT",
                            path, '{"_name":"bob"}')
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("PUT",
                            path, '{"nao')
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("PUT",
                            path, '[{"_name":"bob"},{"_name":"jill"}]')
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("PUT",
                            path, 'text only')
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("PUT",
                            path, '')
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
     @defer.inlineCallbacks
     def test_rooms_topic(self):
@@ -479,30 +479,30 @@ class RoomsTestCase(unittest.TestCase):
         # valid key, wrong type
         content = '{"topic":["Topic name"]}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         # nothing should be there
         (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(404, code)
+        self.assertEquals(404, code, msg=str(response))
 
         # valid put
         content = '{"topic":"Topic name"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # valid get
         (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
         self.assertEquals(json.loads(content), response)
 
         # valid put with extra keys
         content = '{"topic":"Seasons","subtopic":"Summer"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # valid get
         (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
         self.assertEquals(json.loads(content), response)
 
     @defer.inlineCallbacks
@@ -513,15 +513,15 @@ class RoomsTestCase(unittest.TestCase):
         # valid keys, wrong types
         content = '{"membership":["join","leave","invite"]}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         # valid join message (NOOP since we made the room)
         content = '{"membership":"join"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
         self.assertEquals(json.loads(content), response)
 
     @defer.inlineCallbacks
@@ -531,29 +531,29 @@ class RoomsTestCase(unittest.TestCase):
 
         content = '{"body":"test","msgtype":{"type":"a"}}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(400, code)
+        self.assertEquals(400, code, msg=str(response))
 
         # custom message types
         content = '{"body":"test","msgtype":"test.custom.text"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
         self.assertEquals(json.loads(content), response)
 
         # sy.text message type
         path = "/rooms/rid1/messages/%s/mid2" % self.user_id
         content = '{"body":"test2","msgtype":"sy.text"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
         self.assertEquals(json.loads(content), response)
 
         # trying to send message in different user path
         path = "/rooms/rid1/messages/%s/mid2" % ("invalid" + self.user_id)
         content = '{"body":"test2","msgtype":"sy.text"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
