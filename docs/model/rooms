@@ -65,8 +65,8 @@ Permission management is based on the concept of "power-levels". Every user
 within a room has an integer assigned, being their "power-level" within that
 room. Along with its actual data value, each key (or subkey) also stores the
 minimum power-level a user must have in order to write to that key, the
-power-level of the last user who actually did write to it, and the PDU ID of
-that state change.
+power-level of the last user who actually did write to it, and the PDU
+Reference of that state change.
 
 To be accepted as valid, a change must NOT:
 
@@ -163,10 +163,10 @@ Rooms that Continue History
 ===========================
 
 An option that could be considered for room creation, is that when a new room is
-created the creator could specify a PDU of an existing room ID, as the history
-continuation point. This would be stored as an extra piece of meta-data on the
-initial PDU of the room's creation. (It does not appear in the normal previous
-PDU linkage).
+created the creator could specify a PDU Reference into an existing room, as the
+history continuation point. This would be stored as an extra piece of meta-data
+on the initial PDU of the room's creation. (It does not appear in the normal
+previous PDU linkage).
 
 This would allow users in rooms to "fork" a room, if it is considered that the
 conversations in the room no longer fit its original purpose, and wish to

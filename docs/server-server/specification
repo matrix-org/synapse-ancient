@@ -66,21 +66,21 @@ transaction IDs they should be aware of. This effectively acts as a push
 mechanism to encourage peers to continue to replicate content.)
 
 All PDUs have an ID, a context, an origin server, a declaration of their type,
-and a list of PDU IDs that other servers have sent that the origin is aware of,
-and a nested content field containing the actual event content.
+and a list of PDU References that other servers have sent that the origin is
+aware of, and a nested content field containing the actual event content.
 
  {"pdu_id":"a4ecee13e2accdadf56c1025af232176",
   "context":"#example.green",
   "origin":"green",
   "ts":1404838188000,
   "pdu_type":"sy.text",
-  "prev_pdus":["99d16afbc857975916f1d73e49e52b65"],
+  "prev_pdus":[["blue","99d16afbc857975916f1d73e49e52b65"]],
   "content":...
   "is_state":false}
 
 In contrast to the transaction layer, it is important to note that the prev_pdus
-field of a PDU refers to IDs that other origin servers have sent, rather than
-previous IDs that this origin has sent. 
+field of a PDU refers to origins and IDs that other servers have sent, rather
+than previous IDs that this origin has sent.
 
 Because of the distributed nature of participants in a Synapse conversation, it
 is impossible to establish a globally-consistent total ordering on the events.
