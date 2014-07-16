@@ -30,37 +30,6 @@ can also be performed.
  +------------------+                            +------------------+
 
 
-Terminology
-===========
-
-Context:
-  A single human-level entity of interest (currently, a chat room)
-
-Event:
-  A record of activity that records a single thing that happened on to a context
-  (currently, a chat room). These are the "chat messages" that Synapse makes
-  available.
-  [[NOTE(paul): The current server-server implementation calls these simply
-  "messages" but the term is too ambiguous here; I've called them Events]]
-
-Pagination:
-  The process of synchronising historic state from one home server to another,
-  to backfill the event storage so that scrollback can be presented to the
-  client(s).
-
-PDU (Protocol Delivery Unit):
-  A message that relates to a single context, irrespective of the server that
-  is communicating it. PDUs either encode a single Event, or a single State
-  change.
-
-State:
-  A set of metadata maintained about a Context, which is replicated among the
-  servers in addition to the history of Events.
-
-Transaction:
-  A message which relates to the communication between a given pair of servers.
-
-
 Transactions and PDUs
 =====================
 
