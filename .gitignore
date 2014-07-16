@@ -7,3 +7,6 @@ dbs/
 dist/
 docs/build/
 *.egg-info
+
+cmdclient_config.json
+homeserver.db
