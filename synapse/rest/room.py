@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" This module contains events to do with rooms: /rooms/<paths> """
+""" This module contains REST events to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
@@ -163,7 +163,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # TODO send to s2s layer
             defer.returnValue((200, ""))
         except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
+            defer.returnValue((e.code, ""))
         defer.returnValue((500, ""))
 
     @Auth.defer_registered_user
@@ -192,7 +192,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # TODO send to s2s layer
             defer.returnValue((200, ""))
         except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
+            defer.returnValue((e.code, ""))
         defer.returnValue((500, ""))
 
 

@@ -65,42 +65,6 @@ class RestEvent(object):
         """ Register this event with the given HTTP server. """
         pass
 
-    @staticmethod
-    def get_valid_json(content, required_keys_values):
-        """ Utility method to check if the content contains the required keys
-        and return the content as JSON.
-
-        Args:
-            content : The raw HTTP content
-            required_keys_values : A list of tuples containing the required
-                                   top-level JSON key and a python type.
-        Returns:
-            The content as JSON.
-        Raises:
-            InvalidHttpRequestError if there is a problem with the JSON.
-        """
-        try:
-            content_json = json.loads(content)
-            for (key, typ) in required_keys_values:
-                if key not in content_json:
-                    raise InvalidHttpRequestError(400, "Missing %s key" % key)
-                # TODO This is a little brittle at the moment since we can only
-                # inspect top level keys and can't assert values. It would be
-                # nice to have some kind of template which can be checked
-                # rather than a list of tuples, e.g:
-                # {
-                #   foo : ["string","string"],
-                #   bar : { "colour" : "red|green|blue" }
-                # }
-                # allow_extra_top_level_keys : True
-                if type(content_json[key]) != typ:
-                    raise InvalidHttpRequestError(400,
-                        "Key %s is of the wrong type." % key)
-        except ValueError:
-            raise InvalidHttpRequestError(400, "Content must be JSON.")
-
-        return content_json
-
 
 class PutEventMixin(object):
 
