@@ -95,7 +95,8 @@ The following keys have special semantics or meaning to Synapse itself:
 
 sy.member (has subkeys)
   Stores a sub-key for every Synapse User ID which is currently a member of
-  this room. Its value gives the membership type ("invited", "joined").
+  this room. Its value gives the membership type ("knocked", "invited",
+  "joined").
 
 sy.power_levels
   Stores a mapping from Synapse User IDs to their power-level in the room. If
