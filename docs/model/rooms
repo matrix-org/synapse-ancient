@@ -111,14 +111,20 @@ sy.default_level
 
 sy.invite_level
   If set, gives the minimum power-level required for members to invite others
-  to join. If absent, then invites are not allowed. An invitation involves
-  setting their membership type to "invited", in addition to sending the invite
-  message.
+  to join, or to accept knock requests from non-members requesting access. If
+  absent, then invites are not allowed. An invitation involves setting their
+  membership type to "invited", in addition to sending the invite message.
 
-sy.need_invite
-  If set and true, users cannot ask to join the room unless some other user has
-  set their membership state to "invited". If missing or set to false, any user
-  can join the room by the usual join message mechanism.
+sy.may_join
+  Encodes the rules on how non-members can join the room. Has the following
+  possibilities:
+    "public" - a non-member can join the room directly
+    "knock" - a non-member cannot join the room, but can post a single "knock"
+        message requesting access, which existing members may approve or deny
+    "invite" - non-members cannot join the room without an invite from an
+        existing member
+  In any mode, existing members with sufficient permission can send invites to
+  non-members if allowed by the "sy.invite_level" key.
 
 sy.add_state_level
   The power-level required for a user to be able to add new state keys.
