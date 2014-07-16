@@ -136,6 +136,13 @@ sy.public_history
 The following keys are provided by Synapse for user benefit, but their value is
 not otherwise used by Synapse.
 
+sy.name
+  Stores a short human-readable name for the room, such that clients can display
+  to a user to assist in identifying which room is which.
+  
+  This name specifically is not the strong ID used by the message transport
+  system to refer to the room, because it may be changed from time to time.
+
 sy.topic
   Stores the current human-readable topic
 
