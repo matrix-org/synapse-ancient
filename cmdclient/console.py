@@ -110,6 +110,35 @@ class SynapseCmd(cmd.Cmd):
         except Exception as e:
             print e
 
+    def do_topic(self, line):
+        """"topic [set|get] <roomid> [<newtopic>]"
+        Set the topic for a room: topic set <roomid> <newtopic>
+        Get the topic for a room: topic get <roomid>
+        """
+        try:
+            args = self._parse(line, ["action", "roomid", "topic"])
+            if "action" not in args or "roomid" not in args:
+                print "Must specify set|get and a room ID."
+                return
+            if args["action"].lower() not in ["set", "get"]:
+                print "Must specify set|get, not %s" % args["action"]
+                return
+
+            path = "/rooms/%s/topic" % args["roomid"]
+
+            if args["action"].lower() == "set":
+                if "topic" not in args:
+                    print "Must specify a new topic."
+                    return
+                body = {
+                    "topic": args["topic"]
+                }
+                reactor.callFromThread(self._run_and_pprint, "PUT", path, body)
+            elif args["action"].lower() == "get":
+                reactor.callFromThread(self._run_and_pprint, "GET", path)
+        except Exception as e:
+            print e
+
     def do_invite(self, line):
         """Invite a user to a room: "invite <userid> <roomid>" """
         try:
