@@ -1,3 +1,4 @@
+============================
 Synapse Server-to-Server API
 ============================
 
@@ -6,7 +7,7 @@ also known as Federation.
 
 
 Overview
-~~~~~~~~
+========
 
 The server-server API is a mechanism by which two home servers can exchange
 Synapse event messages, both as a real-time push of current events, and as a
@@ -30,7 +31,7 @@ can also be performed.
 
 
 Terminology
-~~~~~~~~~~~
+===========
 
 Context:
   A single human-level entity of interest (currently, a chat room)
@@ -61,7 +62,7 @@ Transaction:
 
 
 Transactions and PDUs
-~~~~~~~~~~~~~~~~~~~~~
+=====================
 
 The communication between home servers is performed by a bidirectional exchange
 of messages. These messages are called Transactions, and are encoded as JSON
@@ -140,7 +141,7 @@ federation.]]
 
 
 Protocol URLs
-~~~~~~~~~~~~~
+=============
 
 For active pushing of messages representing live activity "as it happens":
 

@@ -11,6 +11,21 @@ class CodeMessageException(Exception):
         self.msg = msg
 
 
+class SynapseError(CodeMessageException):
+    """A base error which can be caught for all synapse events."""
+    pass
+
+
+class RoomError(SynapseError):
+    """An error raised when a room event fails."""
+    pass
+
+
+class RegistrationError(SynapseError):
+    """An error raised when a registration event fails."""
+    pass
+
+
 def cs_error(msg, code=0, **kwargs):
     """ Utility method for constructing an error response for client-server
     interactions.

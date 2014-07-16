@@ -2,7 +2,7 @@
 """Contains functions for registering clients."""
 from twisted.internet import defer
 
-from synapse.api.errors import CodeMessageException
+from synapse.api.errors import RegistrationError
 import synapse.util.stringutils as stringutils
 
 from sqlite3 import IntegrityError
@@ -10,30 +10,28 @@ import base64
 import time
 
 
-class RegistrationError(CodeMessageException):
-    pass
-
-
 class RegistrationEvent(object):
 
-    def __init__(self, db_pool=None, user_id=None):
+    def __init__(self, db_pool=None):
         self.db = db_pool
-        self.desired_user_id = user_id
 
     @defer.inlineCallbacks
-    def register(self):
+    def register(self, user_id=None):
         """Registers a new client on the server.
 
+        Args:
+            user_id : The user ID to register with. If None, one will be
+            randomly generated.
         Returns:
             A tuple of (user_id, access_token).
         Raises:
             RegistrationError if there was a problem registering.
         """
 
-        if self.desired_user_id:
+        if user_id:
             (user_id, token) = yield self.db.runInteraction(
                     self._register,
-                    self.desired_user_id)
+                    user_id)
 
             defer.returnValue((user_id, token))
         else:
