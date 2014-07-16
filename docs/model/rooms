@@ -1,16 +1,22 @@
+===========
 Rooms Model
 ===========
 
+A description of the general data model used to implement Rooms, and the
+user-level visible effects and implications.
+
+
 Overview
-~~~~~~~~
+========
 
 "Rooms" in Synapse are shared messaging channels over which all the participant
 users can exchange messages. Rooms have an opaque persistent identify, a
 globally-replicated set of state (consisting principly of a membership set of
 users, and other management and miscellaneous metadata), and a message history.
 
+
 Room Identity and Naming
-~~~~~~~~~~~~~~~~~~~~~~~~
+========================
 
 Rooms can be arbitrarily created by any user on any home server; at which point
 the home server will sign the message that creates the channel, and the
@@ -40,8 +46,9 @@ As room IDs are opaque and ephemeral, they can serve as a mechanism to create
 "ad-hoc" rooms deliberately unnamed, for small group-chats or even private
 one-to-one message exchange.
 
+
 Stored State and Permissions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+============================
 
 Every room has a globally-replicated set of stored state. This state is a set of
 key/value or key/subkey/value pairs. The value of every (sub)key is a
@@ -74,14 +81,15 @@ To be accepted as valid, a change must NOT:
  * Grant any other user a power-level higher than the level of the user making
    the change
 
-((TODO(LeoNerd): consider if relaxations should be allowed; e.g. is the current
-outright-winner allowed to raise their own level, to allow for "inflation"?))
+[[TODO(paul): consider if relaxations should be allowed; e.g. is the current
+outright-winner allowed to raise their own level, to allow for "inflation"?]]
+
 
 Room State Keys
-~~~~~~~~~~~~~~~
+===============
 
-((TODO(LeoNerd): if this list gets too big it might become necessary to move it
-into its own etherpad doc))
+[[TODO(paul): if this list gets too big it might become necessary to move it
+into its own doc]]
 
 The following keys have special semantics or meaning to Synapse itself:
 
@@ -125,8 +133,9 @@ not otherwise used by Synapse.
 sy.topic
   Stores the current human-readable topic
 
+
 Room Creation Templates
-~~~~~~~~~~~~~~~~~~~~~~~
+=======================
 
 A client (or maybe home server?) could offer a few templates for the creation of
 new rooms. For example, for a simple private one-to-one chat the channel could
@@ -136,8 +145,9 @@ party, and if accepted and the other user joins, the creator's power-level can
 now be reduced to 0. This now leaves a room with two participants in it being
 unable to add more.
 
+
 Rooms that Continue History
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+===========================
 
 An option that could be considered for room creation, is that when a new room is
 created the creator could specify a PDU of an existing room ID, as the history
