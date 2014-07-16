@@ -118,24 +118,20 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, auth_user_id=None):
         try:
-            # check they are joined in the room
-            yield get_joined_or_throw(self.data_store,
-                                      room_id=room_id,
-                                      user_id=auth_user_id)
+            content = _parse_json(request)
 
-            # validate JSON
-            content = RestEvent.get_valid_json(request.content.read(),
-                                               [("topic", unicode)])
-
-            # store in db
-            yield self.data_store.store_path_data(room_id=room_id,
-                path=request.path,
-                content=json.dumps(content))
+            msg_event = self.event_factory.message_event()
+            yield msg_event.store_room_path_data(
+                room_id=room_id,
+                user_id=auth_user_id,
+                content=content,
+                path=request.path
+            )
 
             # TODO poke notifier
             # TODO send to s2s layer
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+        except SynapseError as e:
+            defer.returnValue((e.code, cs_error(e.msg)))
         defer.returnValue((200, ""))
 
 
@@ -322,11 +318,7 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_PUT(self, request, room_id, sender_id, msg_id,
                auth_user_id=None):
         try:
-            # try to parse content as json
-            try:
-                content = json.loads(request.content.read())
-            except ValueError:
-                raise SynapseError(400, "Content not JSON.")
+            content = _parse_json(request)
 
             msg_event = self.event_factory.message_event()
             yield msg_event.store_message(
@@ -342,6 +334,13 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((e.code, cs_error(e.msg)))
 
         defer.returnValue((200, ""))
+
+
+def _parse_json(request):
+    try:
+        return json.loads(request.content.read())
+    except ValueError:
+        raise SynapseError(400, "Content not JSON.")
 
 
 # TODO this should probably go somewhere else?

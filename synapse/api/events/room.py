@@ -61,7 +61,7 @@ class MessageEvent(object):
             user_id (str): Checks this user has permissions to send this
             message. If None, no check is performed.
         Raises:
-            RoomError if something went wrong.
+            SynapseError if something went wrong.
         """
         if user_id:
             # verify they are sending msgs under their own user id
@@ -81,6 +81,33 @@ class MessageEvent(object):
                                        room_id=global_msg.room_id,
                                        msg_id=global_msg.msg_id,
                                        content=json.dumps(content))
+
+    @defer.inlineCallbacks
+    def store_room_path_data(self, room_id=None, path=None, user_id=None,
+                             content=None):
+        """ Stores data for a room under a given path.
+
+        Args:
+            room_id : The room to store the content under.
+            path : The path which can be used to retrieve the data.
+            user_id : If specified, verifies this user can store the data.
+            content : The content to store.
+        Raises:
+            SynapseError if something went wrong.
+        """
+        if user_id:
+            # check they are joined in the room
+            yield _get_joined_or_throw(self.store,
+                                      room_id=room_id,
+                                      user_id=user_id)
+
+        template = JSONTemplate({"topic": u"string"})
+        template.check_json(content)
+
+        # store in db
+        yield self.store.store_path_data(room_id=room_id,
+            path=path,
+            content=json.dumps(content))
 
 
 @defer.inlineCallbacks
