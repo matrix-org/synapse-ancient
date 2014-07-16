@@ -6,7 +6,8 @@ from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
 from synapse.api.event_store import StoreException
-from synapse.api.errors import cs_error
+from synapse.api.errors import SynapseError, cs_error
+from synapse.api.events.room import GlobalMessage
 
 import json
 import re
@@ -301,20 +302,19 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_GET(self, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
         try:
-            # check they are joined in the room
-            yield get_joined_or_throw(self.data_store,
-                                      room_id=room_id,
-                                      user_id=auth_user_id)
+            msg_event = self.event_factory.message_event()
+            msg = yield msg_event.get_message(
+                global_msg=GlobalMessage(room_id=room_id,
+                                        user_id=msg_sender_id,
+                                        msg_id=msg_id),
+                user_id=auth_user_id)
 
-            # Pull out the message from the db
-            results = yield self.data_store.get_message(room_id=room_id,
-                                                       msg_id=msg_id,
-                                                       user_id=msg_sender_id)
-            if not results:
+            if not msg:
                 defer.returnValue((404, cs_error("Message not found.")))
-            defer.returnValue((200, json.loads(results[0].content)))
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+
+            defer.returnValue((200, json.loads(msg.content)))
+        except SynapseError as e:
+            defer.returnValue((e.code, cs_error(e.msg)))
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks

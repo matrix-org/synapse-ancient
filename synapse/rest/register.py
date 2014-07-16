@@ -2,8 +2,7 @@
 """This module contains events to do with registration: /register"""
 from twisted.internet import defer
 
-from synapse.api.events.register import RegistrationEvent, RegistrationError
-from synapse.util.dbutils import DbPool
+from synapse.api.events.register import RegistrationError
 from base import PostEventMixin, RestEvent, InvalidHttpRequestError
 
 import json
@@ -35,9 +34,9 @@ class RegisterRestEvent(PostEventMixin, RestEvent):
         except KeyError:
             pass  # user_id is optional
 
-        event = RegistrationEvent(db_pool=DbPool.get(), user_id=desired_user_id)
+        event = self.event_factory.register_event()
         try:
-            (user_id, token) = yield event.register()
+            (user_id, token) = yield event.register(user_id=desired_user_id)
             defer.returnValue((200,
                                {"user_id": user_id, "access_token": token}))
         except RegistrationError as e:

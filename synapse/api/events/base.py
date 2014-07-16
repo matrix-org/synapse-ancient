@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from synapse.api.events.room import MessageEvent
+from synapse.api.events.register import RegistrationEvent
+from synapse.util.dbutils import DbPool  # TODO remove
 
 
 class EventFactory(object):
@@ -14,4 +17,11 @@ class EventFactory(object):
 
     def __init__(self, event_store):
         self.store = event_store
+
+    def register_event(self):
+        """Create a registration event."""
+        return RegistrationEvent(db_pool=DbPool.get())  # TODO remove dbpool
+
+    def message_event(self):
+        return MessageEvent(self.store)
 
