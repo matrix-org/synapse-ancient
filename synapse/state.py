@@ -35,7 +35,7 @@ class StateHandler(object):
         is_new = yield self._handle_new_state(new_pdu)
 
         if is_new and new_state_callback:
-            yield new_state_callback(new_pdu)
+            yield defer.maybeDeferred(new_state_callback(new_pdu))
 
         new_deferred.callback(None)
 
