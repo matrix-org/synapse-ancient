@@ -3,11 +3,13 @@
 from twisted.internet import defer
 
 from synapse.api.errors import RoomError
+from synapse.util.stringutils import JSONTemplate
 
 from collections import namedtuple
+import json
 
 
-class GlobalMessage(namedtuple("GlobalMessage",
+class GlobalMsgId(namedtuple("GlobalMsgId",
                                 ["room_id", "user_id", "msg_id"])):
     """ Groups room/user/msg IDs to make a globally unique ID."""
 
@@ -25,7 +27,7 @@ class MessageEvent(object):
         """ Retrieve a message.
 
         Args:
-            global_msg (GlobalMessage) : All the IDs used to locate the message.
+            global_msg (GlobalMsgId) : All the IDs used to locate the message.
             user_id (str): Checks this user has permissions to read this
             message. If None, no check is performed.
         Returns:
@@ -35,7 +37,7 @@ class MessageEvent(object):
         """
         if user_id:
             # check they are joined in the room
-            yield get_joined_or_throw(self.store,
+            yield _get_joined_or_throw(self.store,
                                       room_id=global_msg.room_id,
                                       user_id=user_id)
 
@@ -48,9 +50,41 @@ class MessageEvent(object):
             defer.returnValue(results[0])
         defer.returnValue(None)
 
+    @defer.inlineCallbacks
+    def store_message(self, global_msg=None, content=None, user_id=None):
+        """ Store a message.
+
+        Args:
+            global_msg (GlobalMsgId) : All the IDs used to identify the
+            message.
+            content : The JSON content to store.
+            user_id (str): Checks this user has permissions to send this
+            message. If None, no check is performed.
+        Raises:
+            RoomError if something went wrong.
+        """
+        if user_id:
+            # verify they are sending msgs under their own user id
+            if global_msg.user_id != user_id:
+                raise RoomError(403, "Must send messages as yourself.")
+
+            # Check if sender_id is in room room_id
+            yield _get_joined_or_throw(self.store,
+                                      room_id=global_msg.room_id,
+                                      user_id=global_msg.user_id)
+
+        template = JSONTemplate({"msgtype": JSONTemplate.STR})
+        template.check_json(content)
+
+        # store message in db
+        yield self.store.store_message(user_id=global_msg.user_id,
+                                       room_id=global_msg.room_id,
+                                       msg_id=global_msg.msg_id,
+                                       content=json.dumps(content))
+
 
 @defer.inlineCallbacks
-def get_joined_or_throw(store=None, user_id=None, room_id=None):
+def _get_joined_or_throw(store=None, user_id=None, room_id=None):
     """Utility method to return the specified room member.
 
     Args:

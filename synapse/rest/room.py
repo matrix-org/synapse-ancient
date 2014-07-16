@@ -7,7 +7,7 @@ from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
 from synapse.api.auth import Auth
 from synapse.api.event_store import StoreException
 from synapse.api.errors import SynapseError, cs_error
-from synapse.api.events.room import GlobalMessage
+from synapse.api.events.room import GlobalMsgId
 
 import json
 import re
@@ -304,10 +304,11 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             msg_event = self.event_factory.message_event()
             msg = yield msg_event.get_message(
-                global_msg=GlobalMessage(room_id=room_id,
+                global_msg=GlobalMsgId(room_id=room_id,
                                         user_id=msg_sender_id,
                                         msg_id=msg_id),
-                user_id=auth_user_id)
+                user_id=auth_user_id
+            )
 
             if not msg:
                 defer.returnValue((404, cs_error("Message not found.")))
@@ -321,29 +322,24 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_PUT(self, request, room_id, sender_id, msg_id,
                auth_user_id=None):
         try:
-            # verify they are sending msgs under their own user id
-            if sender_id != auth_user_id:
-                raise InvalidHttpRequestError(403, "Invalid userid.")
-            # check the json
-            req = RestEvent.get_valid_json(request.content.read(),
-                                           [("msgtype", unicode)])
+            # try to parse content as json
+            try:
+                content = json.loads(request.content.read())
+            except ValueError:
+                raise SynapseError(400, "Content not JSON.")
 
-            # Check if sender_id is in room room_id
-            yield get_joined_or_throw(self.data_store,
-                                      room_id=room_id,
-                                      user_id=auth_user_id)
-
-            # store message in db
-            yield self.data_store.store_message(user_id=sender_id,
-                                               room_id=room_id,
-                                               msg_id=msg_id,
-                                               content=json.dumps(req))
-
+            msg_event = self.event_factory.message_event()
+            yield msg_event.store_message(
+                global_msg=GlobalMsgId(room_id=room_id,
+                                        user_id=sender_id,
+                                        msg_id=msg_id),
+                content=content,
+                user_id=auth_user_id
+            )
             # TODO poke notifier to send message to online users
             # TODO send to s2s layer
-
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+        except SynapseError as e:
+            defer.returnValue((e.code, cs_error(e.msg)))
 
         defer.returnValue((200, ""))
 
