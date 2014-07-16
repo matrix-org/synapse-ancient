@@ -6,11 +6,10 @@ from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
 from synapse.api.errors import SynapseError, cs_error
-from synapse.api.events.room import GlobalMsgId
+from synapse.api.events.room import GlobalMsgId, Membership
 
 import json
 import re
-import time
 
 
 class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
@@ -136,139 +135,65 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_GET(self, request, roomid, userid, auth_user_id=None):
-        # TODO check they are joined in the room
 
-        # Pull out the membership from the db
+        event = self.event_factory.room_member_event()
+        member = yield event.get_room_member(
+            user_id=userid,
+            auth_user_id=auth_user_id,
+            room_id=roomid
+        )
 
-        result = yield self.data_store.get_room_member(user_id=userid,
-                                                      room_id=roomid)
-        if not result:
+        if not member:
             defer.returnValue((404, cs_error("Member not found.")))
-        defer.returnValue((200, json.loads(result[0].content)))
+        defer.returnValue((200, json.loads(member.content)))
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_DELETE(self, request, roomid, userid, auth_user_id=None):
         try:
-            # does this room even exist
-            room = self.data_store.get_room(roomid)
-            if not room:
-                raise InvalidHttpRequestError(403, "")
-
-            caller = yield self.data_store.get_room_member(user_id=auth_user_id,
-                                                    room_id=roomid)
-            caller_in_room = caller and caller[0].membership == "join"
-
-            if not caller_in_room or userid != auth_user_id:
-                # trying to leave a room you aren't joined or trying to force
-                # another user to leave
-                raise InvalidHttpRequestError(403, "")
-
-            # store membership
-            yield self.data_store.store_room_member(user_id=userid,
-                                                   room_id=roomid,
-                                                   membership="leave")
-
-            self._inject_membership_msg(
-                    source=auth_user_id,
-                    target=userid,
-                    room_id=roomid,
-                    membership="leave")
-
+            event = self.event_factory.room_member_event()
+            yield event.change_membership(
+                auth_user_id=auth_user_id,
+                user_id=userid,
+                room_id=roomid,
+                membership=Membership.leave,
+                broadcast_msg=True
+            )
             # TODO poke notifier
             # TODO send to s2s layer
             defer.returnValue((200, ""))
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+        except SynapseError as e:
+            defer.returnValue((e.code, e.msg))
         defer.returnValue((500, ""))
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_PUT(self, request, roomid, userid, auth_user_id=None):
         try:
-            # validate json
-            content = RestEvent.get_valid_json(request.content.read(),
-                                               [("membership", unicode)])
+            content = _parse_json(request)
+            if "membership" not in content:
+                raise SynapseError(400, cs_error("No membership key"))
 
-            if content["membership"] not in ["join", "invite"]:
-                raise InvalidHttpRequestError(400,
-                    "Bad membership value. Must be one of join/invite.")
+            if (content["membership"] not in
+                    [Membership.join, Membership.invite]):
+                raise SynapseError(400,
+                    cs_error("Membership value must be join/invite."))
 
-            # does this room even exist
-            room = self.data_store.get_room(roomid)
-            if not room:
-                raise InvalidHttpRequestError(403, "")
-
-            caller = yield self.data_store.get_room_member(user_id=auth_user_id,
-                                                    room_id=roomid)
-            caller_in_room = caller and caller[0].membership == "join"
-
-            target = yield self.data_store.get_room_member(user_id=userid,
-                                                    room_id=roomid)
-            target_in_room = target and target[0].membership == "join"
-
-            valid_op = False
-            if content["membership"] == "invite":
-                # Invites are valid iff caller is in the room and target isn't.
-                if caller_in_room and not target_in_room:
-                    valid_op = True
-            elif content["membership"] == "join":
-                # Joins are valid iff caller == target and they were:
-                # invited: They are accepting the invitation
-                # joined: It's a NOOP
-                if (auth_user_id == userid and caller and
-                    caller[0].membership in ["invite", "join"]):
-                    valid_op = True
-            else:
-                raise Exception("Unknown membership %s" % content["membership"])
-
-            if valid_op:
-                # store membership
-                yield self.data_store.store_room_member(
-                    user_id=userid,
-                    room_id=roomid,
-                    membership=content["membership"],
-                    content=content)
-
-                self._inject_membership_msg(
-                    source=auth_user_id,
-                    target=userid,
-                    room_id=roomid,
-                    membership=content["membership"])
-
-                # TODO poke notifier
-                # TODO send to s2s layer
-                defer.returnValue((200, ""))
-            else:
-                raise InvalidHttpRequestError(403, "")
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+            event = self.event_factory.room_member_event()
+            yield event.change_membership(
+                auth_user_id=auth_user_id,
+                user_id=userid,
+                room_id=roomid,
+                membership=content["membership"],
+                content=content,
+                broadcast_msg=True
+            )
+            # TODO poke notifier
+            # TODO send to s2s layer
+            defer.returnValue((200, ""))
+        except SynapseError as e:
+            defer.returnValue((e.code, e.msg))
         defer.returnValue((500, ""))
-
-    @defer.inlineCallbacks
-    def _inject_membership_msg(self, room_id=None, source=None, target=None,
-                               membership=None):
-        # TODO move this somewhere else.
-        # TODO this should be a different type of message, not sy.text
-        if membership == "invite":
-            body = "%s invited %s to the room." % (source, target)
-        elif membership == "join":
-            body = "%s joined the room." % (target)
-        elif membership == "leave":
-            body = "%s left the room." % (target)
-        else:
-            raise Exception("Unknown membership value %s" % membership)
-
-        membership_json = {
-            "msgtype": "sy.text",
-            "body": body
-        }
-        msg_id = "m%s" % int(time.time())
-        yield self.data_store.store_message(
-            user_id="home_server",
-            room_id=room_id,
-            msg_id=msg_id,
-            content=json.dumps(membership_json))
 
 
 class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,

@@ -70,14 +70,14 @@ class RoomPermissionsTestCase(unittest.TestCase):
                             "PUT",
                             "/rooms/%s" % self.created_rmid,
                             '{"visibility":"private"}')
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         self.created_public_rmid = "def1234ghi"
         (code, response) = yield self.mock_server.trigger(
                             "PUT",
                             "/rooms/%s" % self.created_public_rmid,
                             '{"visibility":"public"}')
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # send a message in one of the rooms
         self.created_rmid_msg_path = ("/rooms/%s/messages/%s/midaaa1" %
@@ -86,14 +86,14 @@ class RoomPermissionsTestCase(unittest.TestCase):
                            "PUT",
                            self.created_rmid_msg_path,
                            '{"msgtype":"sy.text","body":"test msg"}')
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # set topic for public room
         (code, response) = yield self.mock_server.trigger(
                            "PUT",
                            "/rooms/%s/topic" % self.created_public_rmid,
                            '{"topic":"Public Room Topic"}')
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # auth as user_id now
         Auth.mod_registered_user.user_id = self.user_id
@@ -123,7 +123,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
                                '{"membership":"%s"}' % membership)
         Auth.mod_registered_user.user_id = prev_auth_id
         if check_200:
-            self.assertEquals(200, code)
+            self.assertEquals(200, code, msg=str(response))
         defer.returnValue((code, response))
 
     @defer.inlineCallbacks
@@ -131,33 +131,33 @@ class RoomPermissionsTestCase(unittest.TestCase):
         # get message in uncreated room, expect 403
         (code, response) = yield self.mock_server.trigger_get(
                            "/rooms/noroom/messages/someid/m1")
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # get message in created room not joined (no state), expect 403
         (code, response) = yield self.mock_server.trigger_get(
                            self.created_rmid_msg_path)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # get message in created room and invited, expect 403
         yield self._change_membership(self.created_rmid, self.rmcreator_id,
                                       self.user_id, "invite")
         (code, response) = yield self.mock_server.trigger_get(
                            self.created_rmid_msg_path)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # get message in created room and joined, expect 200
         yield self._change_membership(self.created_rmid, self.user_id,
                                       self.user_id, "join")
         (code, response) = yield self.mock_server.trigger_get(
                            self.created_rmid_msg_path)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # get message in created room and left, expect 403
         yield self._change_membership(self.created_rmid, self.user_id,
                                       self.user_id, "leave")
         (code, response) = yield self.mock_server.trigger_get(
                            self.created_rmid_msg_path)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
     @defer.inlineCallbacks
     def test_send_message(self):
@@ -170,33 +170,33 @@ class RoomPermissionsTestCase(unittest.TestCase):
                            "PUT",
                            "/rooms/%s/messages/%s/mid1" %
                            (self.uncreated_rmid, self.user_id), msg_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # send message in created room not joined (no state), expect 403
         (code, response) = yield self.mock_server.trigger(
                            "PUT", send_msg_path, msg_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # send message in created room and invited, expect 403
         yield self._change_membership(self.created_rmid, self.rmcreator_id,
                                       self.user_id, "invite")
         (code, response) = yield self.mock_server.trigger(
                            "PUT", send_msg_path, msg_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # send message in created room and joined, expect 200
         yield self._change_membership(self.created_rmid, self.user_id,
                                       self.user_id, "join")
         (code, response) = yield self.mock_server.trigger(
                            "PUT", send_msg_path, msg_content)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # send message in created room and left, expect 403
         yield self._change_membership(self.created_rmid, self.user_id,
                                       self.user_id, "leave")
         (code, response) = yield self.mock_server.trigger(
                            "PUT", send_msg_path, msg_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
     @defer.inlineCallbacks
     def test_topic_perms(self):
