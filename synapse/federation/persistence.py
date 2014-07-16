@@ -14,6 +14,8 @@ from synapse.persistence.transactions import (
 
 from .units import Pdu
 
+from synapse.util.logutils import log_function
+
 import copy
 import json
 import logging
@@ -26,6 +28,7 @@ class PduActions(object):
     """ Defines persistence actions that relate to handling PDUs.
     """
     @defer.inlineCallbacks
+    @log_function
     def current_state(self, context):
         """ For the given context return what we think is the current state.
 
@@ -40,6 +43,7 @@ class PduActions(object):
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
     @defer.inlineCallbacks
+    @log_function
     def get_persisted_pdu(self, pdu_id, pdu_origin):
         """ Get a PDU from the database with given origin and id.
 
@@ -53,6 +57,7 @@ class PduActions(object):
 
         defer.returnValue(Pdu.from_pdu_tuple(pdu_tuple))
 
+    @log_function
     def persist_received(self, pdu):
         """ Persists the given `Pdu` that was received from a remote home
         server.
@@ -63,6 +68,7 @@ class PduActions(object):
         return self._persist(pdu)
 
     @defer.inlineCallbacks
+    @log_function
     def persist_outgoing(self, pdu):
         """ Persists the given `Pdu` that this home server created.
 
@@ -81,6 +87,7 @@ class PduActions(object):
 
         defer.returnValue(ret)
 
+    @log_function
     def mark_as_processed(self, pdu):
         """ Persist the fact that we have fully processed the given `Pdu`
 
@@ -93,6 +100,7 @@ class PduActions(object):
         )
 
     @defer.inlineCallbacks
+    @log_function
     def populate_previous_pdus(self, pdu):
         """ Given an outgoing `Pdu` fill out its `prev_ids` key with the `Pdu`s
         that we have received.
@@ -127,6 +135,7 @@ class PduActions(object):
                 pdu.prev_state_origin = None
 
     @defer.inlineCallbacks
+    @log_function
     def after_transaction(self, transaction_id, destination, origin):
         """ Returns all `Pdu`s that we sent to the given remote home server
         after a given transaction id.
@@ -143,6 +152,7 @@ class PduActions(object):
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
     @defer.inlineCallbacks
+    @log_function
     def paginate(self, context, pdu_list, limit):
         """ For a given list of PDU id and origins return the proceeding
         `limit` `Pdu`s in the given `context`.
@@ -157,6 +167,7 @@ class PduActions(object):
 
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
+    @log_function
     def is_new(self, pdu):
         """ When we receive a `Pdu` from a remote home server, we want to
         figure out whether it is `new`, i.e. it is not some historic PDU that
@@ -174,11 +185,13 @@ class PduActions(object):
         )
 
     @defer.inlineCallbacks
+    @log_function
     def _persist(self, pdu):
-        kwargs = copy.copy(pdu.__dict__)
+        kwargs = copy.copy(pdu.dictionary)
+        unrec_keys = copy.copy(pdu.unrecognized_keys)
         del kwargs["content"]
         kwargs["content_json"] = json.dumps(pdu.content)
-        kwargs["unrecognized_keys"] = json.dumps(kwargs["unrecognized_keys"])
+        kwargs["unrecognized_keys"] = json.dumps(unrec_keys)
 
         logger.debug("Persisting: %s", repr(kwargs))
 
@@ -204,6 +217,7 @@ class PduActions(object):
 class TransactionActions(object):
     """ Defines persistence actions that relate to handling Transactions.
     """
+    @log_function
     def have_responded(self, transaction):
         """ Have we already responded to a transaction with the same id and
         origin?
@@ -222,6 +236,7 @@ class TransactionActions(object):
             transaction.transaction_id, transaction.origin
         )
 
+    @log_function
     def set_response(self, transaction, code, response):
         """ Persist how we responded to a transaction.
 
@@ -241,6 +256,7 @@ class TransactionActions(object):
         )
 
     @defer.inlineCallbacks
+    @log_function
     def prepare_to_send(self, transaction):
         """ Persists the `Transaction` we are about to send and works out the
         correct value for the `prev_ids` key.
@@ -256,6 +272,7 @@ class TransactionActions(object):
             [(p["pdu_id"], p["origin"]) for p in transaction.pdus]
         )
 
+    @log_function
     def delivered(self, transaction, response_code, response_dict):
         """ Marks the given `Transaction` as having been successfully
         delivered to the remote homeserver, and what the response was.

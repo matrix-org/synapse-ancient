@@ -32,7 +32,7 @@ class JsonEncodedObject(object):
     valid_keys = []  # keys we will store
     """A list of strings that represent keys we know about
     and can handle. If we have values for these keys they will be
-    included in the __dict__ of the class.
+    included in the `dictionary` instance variable.
     """
 
     internal_keys = []  # keys to ignore while building dict
@@ -46,8 +46,8 @@ class JsonEncodedObject(object):
 
     def __init__(self, **kwargs):
         """ Takes the dict of `kwargs` and loads all keys that are *valid*
-        (i.e., are included in the `valid_keys` list) into the class's
-        `__dict__`.
+        (i.e., are included in the `valid_keys` list) into the dictionary`
+        instance variable.
 
         Any keys that aren't recognized are added to the `unrecognized_keys`
         attribute.
@@ -59,12 +59,27 @@ class JsonEncodedObject(object):
             if required_key not in kwargs:
                 raise RuntimeError("Key %s is required" % required_key)
 
+        self.dictionary = {}
         self.unrecognized_keys = {}  # Keys we were given not listed as valid
         for k, v in kwargs.items():
             if k in self.valid_keys:
-                self.__dict__[k] = v
+                self.dictionary[k] = v
             else:
                 self.unrecognized_keys[k] = v
+
+    def __getattr__(self, name):
+        if name in self.valid_keys:
+            return self.dictionary.get(name, None)
+        elif name in self.unrecognized_keys:
+            return self.unrecognized_keys[name]
+        else:
+            raise AttributeError(name)
+
+    def __setattr__(self, name, value):
+        if name in self.valid_keys:
+            self.dictionary[name] = value
+        else:
+            object.__setattr__(self, name, value)
 
     def get_dict(self):
         """ Converts this protocol unit into a :py:class:`dict`, ready to be
@@ -75,7 +90,7 @@ class JsonEncodedObject(object):
         Returns
             dict
         """
-        d = copy.deepcopy(self.__dict__)
+        d = copy.deepcopy(self.dictionary)
         d = {
             k: _encode(v) for (k, v) in d.items()
             if k not in self.internal_keys
@@ -89,7 +104,7 @@ class JsonEncodedObject(object):
         return d
 
     def __str__(self):
-        return "(%s, %s)" % (self.__class__.__name__, repr(self.__dict__))
+        return "(%s, %s)" % (self.__class__.__name__, repr(self.dictionary))
 
 
 class Pdu(JsonEncodedObject):

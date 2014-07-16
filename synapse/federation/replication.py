@@ -380,6 +380,7 @@ class _TransactionQueue(object):
         self.pending_pdus_list = {}
 
     @defer.inlineCallbacks
+    @log_function
     def enqueue_pdu(self, pdu, order):
         # We loop through all destinations to see whether we already have
         # a transaction in progress. If we do, stick it in the pending_pdus
@@ -408,6 +409,7 @@ class _TransactionQueue(object):
             yield deferred_list.append(deferred)
 
     @defer.inlineCallbacks
+    @log_function
     def _attempt_new_transaction(self, destination):
         if destination in self.pending_transactions:
             return

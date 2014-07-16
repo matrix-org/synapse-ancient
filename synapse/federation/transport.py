@@ -9,6 +9,8 @@ over a different (albeit still reliable) protocol.
 
 from twisted.internet import defer
 
+from synapse.util.logutils import log_function
+
 import logging
 import json
 import re
@@ -52,6 +54,7 @@ class TransportLayer(object):
         self.request_handler = None
         self.received_handler = None
 
+    @log_function
     def get_context_state(self, destination, context):
         """ Requests all state for a given context (i.e. room) from the
         given server.
@@ -71,6 +74,7 @@ class TransportLayer(object):
 
         return self._do_request_for_transaction(destination, path)
 
+    @log_function
     def get_pdu(self, destination, pdu_origin, pdu_id):
         """ Requests the pdu with give id and origin from the given server.
 
@@ -90,6 +94,7 @@ class TransportLayer(object):
 
         return self._do_request_for_transaction(destination, path)
 
+    @log_function
     def paginate(self, dest, context, pdu_tuples, limit):
         """ Requests `limit` previous PDUs in a given context before list of
         PDUs.
@@ -123,6 +128,7 @@ class TransportLayer(object):
         )
 
     @defer.inlineCallbacks
+    @log_function
     def send_transaction(self, transaction):
         """ Sends the given Transaction to it's destination
 
@@ -157,6 +163,7 @@ class TransportLayer(object):
 
         defer.returnValue((code, response))
 
+    @log_function
     def register_received_handler(self, handler):
         """ Register a handler that will be fired when we receive data.
 
@@ -175,6 +182,7 @@ class TransportLayer(object):
                 self._on_send_request(request, transaction_id)
         )
 
+    @log_function
     def register_request_handler(self, handler):
         """ Register a handler that will be fired when we get asked for data.
 
@@ -222,6 +230,7 @@ class TransportLayer(object):
         )
 
     @defer.inlineCallbacks
+    @log_function
     def _on_send_request(self, request, transaction_id):
         """ Called on PUT /send/<transaction_id>/
 
@@ -271,6 +280,7 @@ class TransportLayer(object):
         defer.returnValue((code, response))
 
     @defer.inlineCallbacks
+    @log_function
     def _do_request_for_transaction(self, destination, path, args=None):
         """
         Args:
@@ -297,6 +307,7 @@ class TransportLayer(object):
 
         defer.returnValue(data)
 
+    @log_function
     def _on_paginate_request(self, context, v_list, limits):
         if not limits:
             return defer.succeed(

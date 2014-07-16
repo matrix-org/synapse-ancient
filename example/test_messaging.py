@@ -257,8 +257,7 @@ class HomeServer(ReplicationHandler):
         destinations = yield self.get_servers_for_context(room_name)
 
         try:
-            yield self.replication_layer.send_pdu(
-                Pdu.create_new(
+            pdu = Pdu.create_new(
                     context=room_name,
                     pdu_type="membership",
                     is_state=True,
@@ -267,7 +266,7 @@ class HomeServer(ReplicationHandler):
                     origin=self.server_name,
                     destinations=destinations,
                 )
-            )
+            yield self.replication_layer.send_pdu(pdu)
         except Exception as e:
             logger.exception(e)
 

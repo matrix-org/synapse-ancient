@@ -863,7 +863,7 @@ class StateQueries(object):
                     "qs": ", ".join(["?"] * len(CurrentStateTable.fields))
                 },
                 CurrentStateTable.EntryType(
-                    *(new_pdu.__dict__[k] for k in CurrentStateTable.fields)
+                    *(new_pdu.dictionary[k] for k in CurrentStateTable.fields)
                 )
             )
         else:
