@@ -99,7 +99,7 @@ def run():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--port", dest="port", type=int, default=8080,
                         help="The port to listen on.")
-    parser.add_argument("-d", "--database", dest="db", default="synapse.db",
+    parser.add_argument("-d", "--database", dest="db", default="homeserver.db",
                         help="The database name.")
     parser.add_argument("-H", "--host", dest="host", default="localhost",
                         help="The hostname of the server.")

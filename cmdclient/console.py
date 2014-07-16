@@ -12,7 +12,7 @@ import sys
 import time
 import urllib
 
-CONFIG_JSON = "synapse.json"
+CONFIG_JSON = "cmdclient_config.json"
 
 
 class SynapseCmd(cmd.Cmd):
