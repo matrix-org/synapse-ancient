@@ -5,7 +5,6 @@ from twisted.internet import defer
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
-from synapse.api.event_store import StoreException
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import GlobalMsgId
 
@@ -28,12 +27,13 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
                 raise InvalidHttpRequestError(400, "PUT must specify a room ID")
 
             room_config = self.get_room_config(request)
-            new_room_info = yield self._create_room(room_id, room_config,
-                                                   auth_user_id)
+            info = yield self.make_room(room_config, auth_user_id, room_id)
 
-            defer.returnValue((200, new_room_info))
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+            defer.returnValue((200, info))
+        except SynapseError as e:
+            defer.returnValue((e.code, cs_error(e.msg)))
+        except InvalidHttpRequestError as he:
+            defer.returnValue((he.get_status_code(), he.get_response_body()))
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks
@@ -42,30 +42,27 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
             if room_id:
                 raise InvalidHttpRequestError(400,
                           "POST must not specify a room ID")
-            room_config = self.get_room_config(request)
-            new_room_info = yield self._create_room(room_id, room_config,
-                                                   auth_user_id)
 
-            defer.returnValue((200, new_room_info))
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+            room_config = self.get_room_config(request)
+            info = yield self.make_room(room_config, auth_user_id, room_id)
+
+            defer.returnValue((200, info))
+        except SynapseError as e:
+            defer.returnValue((e.code, cs_error(e.msg)))
+        except InvalidHttpRequestError as he:
+            defer.returnValue((he.get_status_code(), he.get_response_body()))
 
     @defer.inlineCallbacks
-    def _create_room(self, room_id, room_config, user_id):
-        try:
-            new_room_id = yield self.data_store.store_room(
+    def make_room(self, room_config, auth_user_id, room_id):
+        event = self.event_factory.room_creation_event()
+        new_room_id = yield event.create_room(
+                user_id=auth_user_id,
                 room_id=room_id,
-                room_creator_user_id=user_id,
-                is_public=room_config["visibility"] == "public"
-            )
-            if not new_room_id:
-                raise InvalidHttpRequestError(409, "Room ID in use.")
-
-            defer.returnValue({
-                "room_id": new_room_id
-            })
-        except StoreException:
-            raise InvalidHttpRequestError(500, "Unable to create room.")
+                config=room_config
+        )
+        defer.returnValue({
+            "room_id": new_room_id
+        })
 
     def get_room_config(self, request):
         try:
@@ -119,12 +116,11 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 content=content,
                 path=request.path
             )
-
             # TODO poke notifier
             # TODO send to s2s layer
+            defer.returnValue((200, ""))
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
-        defer.returnValue((200, ""))
 
 
 class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
@@ -333,25 +329,3 @@ def _parse_json(request):
         return json.loads(request.content.read())
     except ValueError:
         raise SynapseError(400, "Content not JSON.")
-
-
-# TODO this should probably go somewhere else?
-@defer.inlineCallbacks
-def get_joined_or_throw(store=None, user_id=None, room_id=None):
-    """Utility method to return the specified room member.
-
-    Args:
-        store : The event data store
-        user_id : The member's ID
-        room_id : The room where the member is joined.
-    Returns:
-        The room member.
-    Raises:
-        InvalidHttpRequestError if this member does not exist/isn't joined.
-    """
-    member = yield store.get_room_member(
-                        room_id=room_id,
-                        user_id=user_id)
-    if not member or member[0].membership != "join":
-        raise InvalidHttpRequestError(403, "")
-    defer.returnValue(member)

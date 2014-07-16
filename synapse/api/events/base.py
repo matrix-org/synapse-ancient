@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from synapse.api.events.room import MessageEvent
+from synapse.api.events.room import MessageEvent, RoomCreationEvent
 from synapse.api.events.register import RegistrationEvent
 from synapse.util.dbutils import DbPool  # TODO remove
 
@@ -24,4 +24,7 @@ class EventFactory(object):
 
     def message_event(self):
         return MessageEvent(self.store)
+
+    def room_creation_event(self):
+        return RoomCreationEvent(self.store)
 

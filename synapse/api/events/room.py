@@ -3,6 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import RoomError
+from synapse.api.event_store import StoreException
 from synapse.util.stringutils import JSONTemplate
 
 from collections import namedtuple
@@ -156,6 +157,39 @@ class MessageEvent(object):
         data = yield self.store.get_path_data(path)
         defer.returnValue(data)
 
+
+class RoomCreationEvent(object):
+
+    def __init__(self, event_store):
+        self.store = event_store
+
+    @defer.inlineCallbacks
+    def create_room(self, user_id=None, room_id=None, config=None):
+        """ Creates a new room.
+
+        Args:
+            user_id (str): The ID of the user creating the new room.
+            room_id (str): The proposed ID for the new room. Can be None, in
+            which case one will be created for you.
+            config (dict) : A dict of configuration options.
+        Returns:
+            The new room ID.
+        Raises:
+            RoomError if the room ID was taken, couldn't be stored, or something
+            went horribly wrong.
+        """
+        try:
+            new_room_id = yield self.store.store_room(
+                room_id=room_id,
+                room_creator_user_id=user_id,
+                is_public=config["visibility"] == "public"
+            )
+            if not new_room_id:
+                raise RoomError(409, "Room ID in use.")
+
+            defer.returnValue(new_room_id)
+        except StoreException:
+            raise RoomError(500, "Unable to create room.")
 
 
 @defer.inlineCallbacks
