@@ -65,9 +65,12 @@ receiving an "empty" transaction, as this is useful for informing peers of other
 transaction IDs they should be aware of. This effectively acts as a push
 mechanism to encourage peers to continue to replicate content.)
 
-All PDUs have an ID, a context, an origin server, a declaration of their type,
-and a list of PDU References that other servers have sent that the origin is
-aware of, and a nested content field containing the actual event content.
+All PDUs have an ID, a context, a declaration of their type, a list of PDU IDs
+that other servers have sent that the origin is aware of, and a nested content
+field containing the actual event content.
+
+[[TODO(paul): Update this structure so that 'pdu_id' is a two-element
+[origin,ref] pair like the prev_pdus are]]
 
  {"pdu_id":"a4ecee13e2accdadf56c1025af232176",
   "context":"#example.green",
@@ -79,8 +82,8 @@ aware of, and a nested content field containing the actual event content.
   "is_state":false}
 
 In contrast to the transaction layer, it is important to note that the prev_pdus
-field of a PDU refers to origins and IDs that other servers have sent, rather
-than previous IDs that this origin has sent.
+field of a PDU refers to PDUs that other servers have sent, rather than previous
+IDs that this origin has sent.
 
 Because of the distributed nature of participants in a Synapse conversation, it
 is impossible to establish a globally-consistent total ordering on the events.

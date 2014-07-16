@@ -29,13 +29,12 @@ Pagination:
 PDU (Protocol Delivery Unit):
   A message that relates to a single context, irrespective of the server that
   is communicating it. PDUs either encode a single Event, or a single State
-  change. A PDU is referred to by its PDU Reference; the pair of its origin
-  server and local ID from that server.
+  change. A PDU is referred to by its PDU ID; the pair of its origin server
+  and local reference from that server.
 
 PDU ID:
-  A local ID used to refer to a specific PDU from a given origin server. These
-  IDs are opaque at the protocol level, but may optionally have some structured
-  meaning within a given origin server or implementation.
+  The pair of PDU Origin and PDU Reference, that together globally uniquely
+  refers to a specific PDU.
 
 PDU Origin:
   The name of the origin server that generated a given PDU. This may not be the
@@ -44,8 +43,9 @@ PDU Origin:
   created it.
 
 PDU Reference:
-  The pair of PDU Origin and PDU ID, that together uniquely refers to a specific
-  PDU.
+  A local ID used to refer to a specific PDU from a given origin server. These
+  references are opaque at the protocol level, but may optionally have some
+  structured meaning within a given origin server or implementation.
 
 State:
   A set of metadata maintained about a Context, which is replicated among the
