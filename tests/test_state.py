@@ -136,8 +136,8 @@ class StateTestCase(unittest.TestCase):
         callback = Mock(spec=[])
         is_new = yield self.state.handle_new_state(new_pdu, callback)
 
-        self.assertFalse(callback.called)
-        self.assertFalse(is_new)
+        callback.assert_called_once_with(new_pdu)
+        self.assertTrue(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
             new_pdu

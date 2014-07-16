@@ -2,6 +2,9 @@
 
 from twisted.internet import defer
 
+import json
+import hashlib
+
 
 class StateHandler(object):
     """ StateHandler is repsonsible for doing state conflict resolution.
@@ -57,36 +60,32 @@ class StateHandler(object):
 
         if not current_branch:
             # There is no current state
+            #print "no current"
             defer.returnValue(True)
-            return
 
         if new_branch[-1] == current_branch[-1]:
             # We have all the PDUs we need, so we can just do the conflict
             # resolution.
 
-            update_current = False
+            if len(current_branch) == 1:
+                # This is a direct clobber so we can just...
+                defer.returnValue(True)
 
-            max_power_new = max(
-                new_branch,
-                key=lambda t: t.power_level
-            ).power_level
+            conflict_res = [
+                self._do_power_level_conflict_res,
+                self._do_chain_length_conflict_res,
+                self._do_hash_conflict_res,
+            ]
 
-            max_power_current = max(
-                current_branch,
-                key=lambda t: t.power_level
-            ).power_level
+            for algo in conflict_res:
+                new_res, curr_res = algo(new_branch, current_branch)
 
-            if max_power_new > max_power_current:
-                # Do the update of current_state
-                update_current = True
-            elif max_power_new == max_power_current:
-                # We need to apply more conflict resolution.
-                update_current = len(new_branch) > len(current_branch)
-            else:
-                # The new state doesn't clobber.
-                pass
+                if new_res < curr_res:
+                    defer.returnValue(False)
+                elif new_res > curr_res:
+                    defer.returnValue(True)
 
-            defer.returnValue(update_current)
+            raise Exception("Conflict resolution failed.")
 
         else:
             # We need to ask for PDUs.
@@ -104,3 +103,28 @@ class StateHandler(object):
 
             updated_current = yield self._handle_new_state(new_pdu)
             defer.returnValue(updated_current)
+
+    def _do_power_level_conflict_res(self, new_branch, current_branch):
+        max_power_new = max(
+            new_branch[:-1],
+            key=lambda t: t.power_level
+        ).power_level
+
+        max_power_current = max(
+            current_branch[:-1],
+            key=lambda t: t.power_level
+        ).power_level
+
+        return (max_power_new, max_power_current)
+
+    def _do_chain_length_conflict_res(self, new_branch, current_branch):
+        return (len(new_branch), len(current_branch))
+
+    def _do_hash_conflict_res(self, new_branch, current_branch):
+        new_str = "".join([p.pdu_id + p.origin for p in new_branch])
+        c_str = "".join([p.pdu_id + p.origin for p in current_branch])
+
+        return (
+            hashlib.sha1(new_str).hexdigest(),
+            hashlib.sha1(c_str).hexdigest()
+        )
