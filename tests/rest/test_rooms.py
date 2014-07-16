@@ -9,6 +9,7 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.api.auth import Auth
+from synapse.api.events.base import EventFactory
 from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
                                RoomTopicRestEvent, RoomCreateRestEvent)
 from synapse.api.event_store import EventStore
@@ -54,11 +55,12 @@ class RoomPermissionsTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
+        self.mock_event_factory = EventFactory(self.mock_data_store)
         Auth.mod_registered_user = MockRegisteredUserModule(self.rmcreator_id)
-        MessageRestEvent().register(self.mock_server, self.mock_data_store)
-        RoomMemberRestEvent().register(self.mock_server, self.mock_data_store)
-        RoomTopicRestEvent().register(self.mock_server, self.mock_data_store)
-        RoomCreateRestEvent().register(self.mock_server, self.mock_data_store)
+        MessageRestEvent(self.mock_event_factory).register(self.mock_server)
+        RoomMemberRestEvent(self.mock_event_factory).register(self.mock_server)
+        RoomTopicRestEvent(self.mock_event_factory).register(self.mock_server)
+        RoomCreateRestEvent(self.mock_event_factory).register(self.mock_server)
 
         # create some rooms under the name rmcreator_id
         self.uncreated_rmid = "aa"
@@ -321,8 +323,9 @@ class RoomsCreateTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
+        self.mock_event_factory = EventFactory(self.mock_data_store)
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
-        RoomCreateRestEvent().register(self.mock_server, self.mock_data_store)
+        RoomCreateRestEvent(self.mock_event_factory).register(self.mock_server)
 
     def tearDown(self):
         try:
@@ -423,11 +426,12 @@ class RoomsTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
+        self.mock_event_factory = EventFactory(self.mock_data_store)
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
-        MessageRestEvent().register(self.mock_server, self.mock_data_store)
-        RoomMemberRestEvent().register(self.mock_server, self.mock_data_store)
-        RoomTopicRestEvent().register(self.mock_server, self.mock_data_store)
-        RoomCreateRestEvent().register(self.mock_server, self.mock_data_store)
+        MessageRestEvent(self.mock_event_factory).register(self.mock_server)
+        RoomMemberRestEvent(self.mock_event_factory).register(self.mock_server)
+        RoomTopicRestEvent(self.mock_event_factory).register(self.mock_server)
+        RoomCreateRestEvent(self.mock_event_factory).register(self.mock_server)
 
         # create the room
         path = "/rooms/rid1"

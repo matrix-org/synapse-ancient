@@ -11,17 +11,15 @@ import re
 
 class EventStreamRestEvent(GetEventMixin, RestEvent):
 
-    @classmethod
-    def get_pattern(cls):
+    def get_pattern(self):
         return re.compile("^/events$")
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_GET(cls, request, auth_user_id=None):
+    def on_GET(self, request, auth_user_id=None):
         try:
             event_stream = EventStream(auth_user_id)
-            params = cls._get_stream_parameters(request)
+            params = self._get_stream_parameters(request)
             chunk = yield event_stream.get_chunk(**params)
             defer.returnValue((200, chunk))
         except InvalidHttpRequestError as e:
@@ -29,8 +27,7 @@ class EventStreamRestEvent(GetEventMixin, RestEvent):
 
         defer.returnValue((500, "This is not the stream you are looking for."))
 
-    @classmethod
-    def _get_stream_parameters(cls, request):
+    def _get_stream_parameters(self, request):
         params = {
             "from_tok": FilterStream.TOK_START,
             "to_tok": FilterStream.TOK_END,

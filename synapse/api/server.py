@@ -24,9 +24,8 @@ class SynapseHomeServer(ReplicationHandler):
 
         self.event_factory = EventFactory(self.event_data_store)
 
-        self.rest_event_factory = RestEventFactory()
-        self.rest_event_factory.register_events(self.http_server,
-                                           self.event_data_store)
+        self.rest_event_factory = RestEventFactory(self.event_factory)
+        self.rest_event_factory.register_events(self.http_server)
 
     def on_receive_pdu(self, pdu):
         pdu_type = pdu.pdu_type

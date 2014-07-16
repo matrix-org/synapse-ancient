@@ -15,48 +15,44 @@ import time
 
 class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
 
-    @classmethod
-    def get_pattern(cls):
+    def get_pattern(self):
         # /rooms OR /rooms/<roomid>
         return re.compile(r"^/rooms(?:/(?P<roomid>[^/]*))?$")
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_PUT(cls, request, room_id, auth_user_id=None):
+    def on_PUT(self, request, room_id, auth_user_id=None):
         try:
             if not room_id:
                 raise InvalidHttpRequestError(400, "PUT must specify a room ID")
 
-            room_config = cls.get_room_config(request)
-            new_room_info = yield cls._create_room(room_id, room_config,
+            room_config = self.get_room_config(request)
+            new_room_info = yield self._create_room(room_id, room_config,
                                                    auth_user_id)
 
             defer.returnValue((200, new_room_info))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_POST(cls, request, room_id, auth_user_id=None):
+    def on_POST(self, request, room_id, auth_user_id=None):
         try:
             if room_id:
                 raise InvalidHttpRequestError(400,
                           "POST must not specify a room ID")
-            room_config = cls.get_room_config(request)
-            new_room_info = yield cls._create_room(room_id, room_config,
+            room_config = self.get_room_config(request)
+            new_room_info = yield self._create_room(room_id, room_config,
                                                    auth_user_id)
 
             defer.returnValue((200, new_room_info))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
 
-    @classmethod
     @defer.inlineCallbacks
-    def _create_room(cls, room_id, room_config, user_id):
+    def _create_room(self, room_id, room_config, user_id):
         try:
-            new_room_id = yield cls.data_store.store_room(
+            new_room_id = yield self.data_store.store_room(
                 room_id=room_id,
                 room_creator_user_id=user_id,
                 is_public=room_config["visibility"] == "public"
@@ -70,8 +66,7 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
         except StoreException:
             raise InvalidHttpRequestError(500, "Unable to create room.")
 
-    @classmethod
-    def get_room_config(cls, request):
+    def get_room_config(self, request):
         try:
             user_supplied_config = json.loads(request.content.read())
             if "visibility" not in user_supplied_config:
@@ -85,20 +80,18 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
 class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                          RestEvent):
 
-    @classmethod
-    def get_pattern(cls):
+    def get_pattern(self):
         return re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
 
     def get_event_type(self):
         return "sy.room.topic"
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_GET(cls, request, room_id, auth_user_id=None):
+    def on_GET(self, request, room_id, auth_user_id=None):
         try:
             # does this room exist
-            room = yield cls.data_store.get_room(room_id)
+            room = yield self.data_store.get_room(room_id)
             if not room:
                 defer.returnValue((403, ""))
 
@@ -106,13 +99,13 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             # If it is private, make sure they are joined/invited first.
             if not room[0].is_public:
                 # it's private, check they are invited/joined in the room
-                member = yield cls.data_store.get_room_member(
+                member = yield self.data_store.get_room_member(
                         room_id=room_id,
                         user_id=auth_user_id)
                 if not member or member[0].membership not in ["join", "invite"]:
                     raise InvalidHttpRequestError(403, "")
 
-            data = yield cls.data_store.get_path_data(request.path)
+            data = yield self.data_store.get_path_data(request.path)
 
             if not data:
                 defer.returnValue((404, cs_error("Topic not found.")))
@@ -120,13 +113,12 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_PUT(cls, request, room_id, auth_user_id=None):
+    def on_PUT(self, request, room_id, auth_user_id=None):
         try:
             # check they are joined in the room
-            yield get_joined_or_throw(cls.data_store,
+            yield get_joined_or_throw(self.data_store,
                                       room_id=room_id,
                                       user_id=auth_user_id)
 
@@ -135,7 +127,7 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                                                [("topic", unicode)])
 
             # store in db
-            yield cls.data_store.store_path_data(room_id=room_id,
+            yield self.data_store.store_path_data(room_id=room_id,
                 path=request.path,
                 content=json.dumps(content))
 
@@ -149,39 +141,36 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                           DeleteEventMixin, RestEvent):
 
-    @classmethod
-    def get_pattern(cls):
+    def get_pattern(self):
         return re.compile("^/rooms/(?P<roomid>[^/]*)/members/" +
                           "(?P<userid>[^/]*)/state$")
 
     def get_event_type(self):
         return "sy.room.members.state"
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_GET(cls, request, roomid, userid, auth_user_id=None):
+    def on_GET(self, request, roomid, userid, auth_user_id=None):
         # TODO check they are joined in the room
 
         # Pull out the membership from the db
 
-        result = yield cls.data_store.get_room_member(user_id=userid,
+        result = yield self.data_store.get_room_member(user_id=userid,
                                                       room_id=roomid)
         if not result:
             defer.returnValue((404, cs_error("Member not found.")))
         defer.returnValue((200, json.loads(result[0].content)))
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_DELETE(cls, request, roomid, userid, auth_user_id=None):
+    def on_DELETE(self, request, roomid, userid, auth_user_id=None):
         try:
             # does this room even exist
-            room = cls.data_store.get_room(roomid)
+            room = self.data_store.get_room(roomid)
             if not room:
                 raise InvalidHttpRequestError(403, "")
 
-            caller = yield cls.data_store.get_room_member(user_id=auth_user_id,
+            caller = yield self.data_store.get_room_member(user_id=auth_user_id,
                                                     room_id=roomid)
             caller_in_room = caller and caller[0].membership == "join"
 
@@ -191,11 +180,11 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 raise InvalidHttpRequestError(403, "")
 
             # store membership
-            yield cls.data_store.store_room_member(user_id=userid,
+            yield self.data_store.store_room_member(user_id=userid,
                                                    room_id=roomid,
                                                    membership="leave")
 
-            cls._inject_membership_msg(
+            self._inject_membership_msg(
                     source=auth_user_id,
                     target=userid,
                     room_id=roomid,
@@ -208,10 +197,9 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((e.get_status_code(), e.get_response_body()))
         defer.returnValue((500, ""))
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_PUT(cls, request, roomid, userid, auth_user_id=None):
+    def on_PUT(self, request, roomid, userid, auth_user_id=None):
         try:
             # validate json
             content = RestEvent.get_valid_json(request.content.read(),
@@ -222,15 +210,15 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                     "Bad membership value. Must be one of join/invite.")
 
             # does this room even exist
-            room = cls.data_store.get_room(roomid)
+            room = self.data_store.get_room(roomid)
             if not room:
                 raise InvalidHttpRequestError(403, "")
 
-            caller = yield cls.data_store.get_room_member(user_id=auth_user_id,
+            caller = yield self.data_store.get_room_member(user_id=auth_user_id,
                                                     room_id=roomid)
             caller_in_room = caller and caller[0].membership == "join"
 
-            target = yield cls.data_store.get_room_member(user_id=userid,
+            target = yield self.data_store.get_room_member(user_id=userid,
                                                     room_id=roomid)
             target_in_room = target and target[0].membership == "join"
 
@@ -251,13 +239,13 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
             if valid_op:
                 # store membership
-                yield cls.data_store.store_room_member(
+                yield self.data_store.store_room_member(
                     user_id=userid,
                     room_id=roomid,
                     membership=content["membership"],
                     content=content)
 
-                cls._inject_membership_msg(
+                self._inject_membership_msg(
                     source=auth_user_id,
                     target=userid,
                     room_id=roomid,
@@ -272,9 +260,8 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((e.get_status_code(), e.get_response_body()))
         defer.returnValue((500, ""))
 
-    @classmethod
     @defer.inlineCallbacks
-    def _inject_membership_msg(cls, room_id=None, source=None, target=None,
+    def _inject_membership_msg(self, room_id=None, source=None, target=None,
                                membership=None):
         # TODO move this somewhere else.
         # TODO this should be a different type of message, not sy.text
@@ -292,7 +279,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             "body": body
         }
         msg_id = "m%s" % int(time.time())
-        yield cls.data_store.store_message(
+        yield self.data_store.store_message(
             user_id="home_server",
             room_id=room_id,
             msg_id=msg_id,
@@ -302,27 +289,25 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                        RestEvent):
 
-    @classmethod
-    def get_pattern(cls):
+    def get_pattern(self):
         return re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
                           "(?P<from>[^/]*)/(?P<msgid>[^/]*)$")
 
     def get_event_type(self):
         return "sy.room.message"
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_GET(cls, request, room_id, msg_sender_id, msg_id,
+    def on_GET(self, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
         try:
             # check they are joined in the room
-            yield get_joined_or_throw(cls.data_store,
+            yield get_joined_or_throw(self.data_store,
                                       room_id=room_id,
                                       user_id=auth_user_id)
 
             # Pull out the message from the db
-            results = yield cls.data_store.get_message(room_id=room_id,
+            results = yield self.data_store.get_message(room_id=room_id,
                                                        msg_id=msg_id,
                                                        user_id=msg_sender_id)
             if not results:
@@ -331,10 +316,9 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))
 
-    @classmethod
     @Auth.defer_registered_user
     @defer.inlineCallbacks
-    def on_PUT(cls, request, room_id, sender_id, msg_id,
+    def on_PUT(self, request, room_id, sender_id, msg_id,
                auth_user_id=None):
         try:
             # verify they are sending msgs under their own user id
@@ -345,12 +329,12 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                                            [("msgtype", unicode)])
 
             # Check if sender_id is in room room_id
-            yield get_joined_or_throw(cls.data_store,
+            yield get_joined_or_throw(self.data_store,
                                       room_id=room_id,
                                       user_id=auth_user_id)
 
             # store message in db
-            yield cls.data_store.store_message(user_id=sender_id,
+            yield self.data_store.store_message(user_id=sender_id,
                                                room_id=room_id,
                                                msg_id=msg_id,
                                                content=json.dumps(req))

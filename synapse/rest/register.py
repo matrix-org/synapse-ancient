@@ -13,13 +13,11 @@ import urllib
 
 class RegisterRestEvent(PostEventMixin, RestEvent):
 
-    @classmethod
-    def get_pattern(cls):
+    def get_pattern(self):
         return re.compile("^/register$")
 
-    @classmethod
     @defer.inlineCallbacks
-    def on_POST(cls, request):
+    def on_POST(self, request):
         desired_user_id = None
         try:
             register_json = json.loads(request.content.read())

@@ -21,26 +21,25 @@ class RestEventFactory(object):
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
         import room
-        self.events.append(room.RoomTopicRestEvent())
-        self.events.append(room.RoomMemberRestEvent())
-        self.events.append(room.MessageRestEvent())
-        self.events.append(room.RoomCreateRestEvent())
+        self.events.append(room.RoomTopicRestEvent(event_factory))
+        self.events.append(room.RoomMemberRestEvent(event_factory))
+        self.events.append(room.MessageRestEvent(event_factory))
+        self.events.append(room.RoomCreateRestEvent(event_factory))
 
         from events import EventStreamRestEvent
-        self.events.append(EventStreamRestEvent())
+        self.events.append(EventStreamRestEvent(event_factory))
 
         import register
-        self.events.append(register.RegisterRestEvent())
+        self.events.append(register.RegisterRestEvent(event_factory))
 
-    def register_events(self, http_server, data_store):
-        """ Registers all events with contextual modules.
+    def register_events(self, http_server):
+        """ Registers all REST events with an HTTP server.
 
         Args:
             http_server : The server that events can register paths to.
-            data_store : The data store that events can CRUD to.
         """
         for event in self.events:
-            event.register(http_server, data_store)
+            event.register(http_server)
 
 
 class RestEvent(object):
@@ -48,8 +47,12 @@ class RestEvent(object):
     """ A Synapse REST Event.
     """
 
-    @classmethod
-    def get_pattern(cls):
+    def __init__(self, event_factory):
+        self.event_factory = event_factory
+        # cheat for now and leak the store
+        self.data_store = self.event_factory.store
+
+    def get_pattern(self):
         """ Get the regex path pattern to match. This should be defined by
         subclasses.
 
@@ -58,11 +61,9 @@ class RestEvent(object):
         """
         raise NotImplementedError("Event must specify a URL pattern.")
 
-    @classmethod
-    def register(cls, http_server, data_store):
-        """ Register this event with the server and perform CRUD operations
-        on the specified data store. """
-        cls.data_store = data_store
+    def register(self, http_server):
+        """ Register this event with the given HTTP server. """
+        pass
 
     @staticmethod
     def get_valid_json(content, required_keys_values):
@@ -105,14 +106,12 @@ class PutEventMixin(object):
 
     """ A mixin with the ability to handle PUTs. """
 
-    @classmethod
-    def register(cls, http_server, data_store):
-        super(PutEventMixin, cls).register(http_server, data_store)
-        http_server.register_path("PUT", cls.get_pattern(),
-                                  cls.on_PUT)
+    def register(self, http_server):
+        super(PutEventMixin, self).register(http_server)
+        http_server.register_path("PUT", self.get_pattern(),
+                                  self.on_PUT)
 
-    @classmethod
-    def on_PUT(cls, request, *url_args):
+    def on_PUT(self, request, *url_args):
         raise NotImplementedError("on_PUT callback not implemented")
 
 
@@ -120,14 +119,12 @@ class GetEventMixin(object):
 
     """ A mixin with the ability to handle GETs. """
 
-    @classmethod
-    def register(cls, http_server, data_store):
-        super(GetEventMixin, cls).register(http_server, data_store)
-        http_server.register_path("GET", cls.get_pattern(),
-                                  cls.on_GET)
+    def register(self, http_server):
+        super(GetEventMixin, self).register(http_server)
+        http_server.register_path("GET", self.get_pattern(),
+                                  self.on_GET)
 
-    @classmethod
-    def on_GET(cls, request, *url_args):
+    def on_GET(self, request, *url_args):
         raise NotImplementedError("on_GET callback not implemented")
 
 
@@ -135,14 +132,12 @@ class PostEventMixin(object):
 
     """ A mixin with the ability to handle POSTs. """
 
-    @classmethod
-    def register(cls, http_server, data_store):
-        super(PostEventMixin, cls).register(http_server, data_store)
-        http_server.register_path("POST", cls.get_pattern(),
-                                  cls.on_POST)
+    def register(self, http_server):
+        super(PostEventMixin, self).register(http_server)
+        http_server.register_path("POST", self.get_pattern(),
+                                  self.on_POST)
 
-    @classmethod
-    def on_POST(cls, request, *url_args):
+    def on_POST(self, request, *url_args):
         raise NotImplementedError("on_POST callback not implemented")
 
 
@@ -150,14 +145,12 @@ class DeleteEventMixin(object):
 
     """ A mixin with the ability to handle DELETEs. """
 
-    @classmethod
-    def register(cls, http_server, data_store):
-        super(DeleteEventMixin, cls).register(http_server, data_store)
-        http_server.register_path("DELETE", cls.get_pattern(),
-                                  cls.on_DELETE)
+    def register(self, http_server):
+        super(DeleteEventMixin, self).register(http_server)
+        http_server.register_path("DELETE", self.get_pattern(),
+                                  self.on_DELETE)
 
-    @classmethod
-    def on_DELETE(cls, request, *url_args):
+    def on_DELETE(self, request, *url_args):
         raise NotImplementedError("on_DELETE callback not implemented")
 
 
