@@ -1,11 +1,11 @@
+=========================
 Synapse Client-Server API
 =========================
 
 The following specification outlines how a client can send and receive data from 
 a home server.
 
-4/7/14 Grilling
----------------
+[[TODO(kegan): 4/7/14 Grilling
 - Mechanism for getting historical state changes (e.g. topic updates) - add 
   query param flag?
 - Generic mechanism for linking first class events (e.g. feedback) with other 
@@ -20,43 +20,45 @@ a home server.
   They aren't really ordered in any way, and if you're paginating
   through them, how can you show them a consistent result set? Temporary 'room 
   list versions' akin to event version? How does that work?
-
+]]
 
 Terminology
 -----------
-stream tokens : An opaque token used to make further streaming requests.
-When using any filter streaming API, responses will contain a start and end
-streaming token. When reconnecting to the stream, these tokens can be used to 
-tell the server where the client got up to in the stream.
+Stream Tokens: 
+An opaque token used to make further streaming requests. When using any filter 
+streaming API, responses will contain a start and end streaming token. When 
+reconnecting to the stream, these tokens can be used to tell the server where 
+the client got up to in the stream.
 
-eventid / eid : The ID of the event.
+Event ID:
 Every event that comes down the event stream or that is returned from the REST
-API has an associated event ID. This ID will be the same between the REST API
-and the event stream, so any duplicate events can be clobbered correctly without
-knowing anything else about the event.
+API has an associated event ID (eid). This ID will be the same between the REST 
+API and the event stream, so any duplicate events can be clobbered correctly 
+without knowing anything else about the event.
 
-msgid : The ID of a message sent by a client in a room.
-Clients send IMs to each other in rooms. Each IM sent by a client must have a 
-unique message ID which is unique for that particular client.
+Message ID:
+The ID of a message sent by a client in a room. Clients send IMs to each other 
+in rooms. Each IM sent by a client must have a unique message ID which is unique
+for that particular client.
 
-userid : The user@host style ID of the client.
-When registering for an account, the client specifies their username. The userid 
-is this username along with the home servers unique
-hostname. When federating between home servers, the userid is used to uniquely 
-identify users across multiple home servers.
+User ID:
+The user@host style ID of the client. When registering for an account, the 
+client specifies their username. The userid is this username along with the home
+servers unique hostname. When federating between home servers, the userid is 
+used to uniquely identify users across multiple home servers.
 
-roomId : The roomid@host style ID for the room.
-When rooms are created, the client either specifies or is allocated a room ID. 
-This room ID must be used to send messages in that room.
-Like with clients, there may be multiple rooms with the same ID across multiple 
-home servers. The roomId is used to uniquely
-identify a room when federating.
+Room ID:
+The roomid@host style ID for the room. When rooms are created, the client either
+specifies or is allocated a room ID. This room ID must be used to send messages 
+in that room. Like with clients, there may be multiple rooms with the same ID 
+across multiple home servers. The roomId is used to uniquely identify a room 
+when federating.
 
-Global message ID : The globally unique ID for a message.
-This ID is formed from the msgid, the client's synapseUserId and the 
-synapseRoomId. This uniquely identifies any message. It is represented
-with '-' as the delimeter between IDs. The globalMsgId is of the form: 
-synapseRoomId-synapseUserId-msgid
+Global message ID:
+The globally unique ID for a message. This ID is formed from the msgid, the 
+client's synapseUserId and the synapseRoomId. This uniquely identifies any 
+message. It is represented with '-' as the delimeter between IDs. The 
+globalMsgId is of the form: synapseRoomId-synapseUserId-msgid
 
 
 REST API and the Event Stream
@@ -185,12 +187,18 @@ This is a JSON object which looks like:
   }
 }
 
-Where:
-  EVENT_ID = An ID identifying this event. This is so duplicate events can be
-             suppressed on the client.
-  EVENT_TYPE = The namespaced event type (sy.*)
-  URL_ARGS = Path specific data from the REST API
-  EVENT_CONTENT = The event content 
+EVENT_ID
+  An ID identifying this event. This is so duplicate events can be suppressed on
+  the client.
+
+EVENT_TYPE
+  The namespaced event type (sy.*)
+
+URL_ARGS
+  Path specific data from the REST API.
+
+EVENT_CONTENT
+  The event content, matching the REST content PUT previously.
 
 Events are differentiated via the event type "type" key. This is the type of 
 event being received. This can be expanded upon by using different namespaces. 
@@ -263,7 +271,6 @@ Unregistering an account
   With query parameters: access_token=$ACCESS_TOKEN
   Returns (success): 200 OK
   Returns (failure): An Error Response.
-
 
 ========
 REST API
@@ -397,13 +404,16 @@ submits keys with the same name, they will be clobbered by
 the server.
 
 Required keys:
-  from : "string [userid]" - The userid of the user who sent the 
-  message/feedback.
+from : "string [userid]"
+  The userid of the user who sent the message/feedback.
+
 Optional keys:
-  hsob_ts : integer - A timestamp (ms resolution) representing when the 
-  message/feedback got to the sender's home server ("home server outbound 
-  timestamp").
-  hsib_ts : integer - A timestamp (ms resolution) representing when the 
+hsob_ts : integer
+  A timestamp (ms resolution) representing when the message/feedback got to the 
+  sender's home server ("home server outbound timestamp").
+
+hsib_ts : integer
+  A timestamp (ms resolution) representing when the 
   message/feedback got to the receiver's home server ("home server inbound 
   timestamp"). This may be the same as hsob_ts if the sender/receiver are on the 
   same home server.
@@ -823,7 +833,7 @@ Returns:
 }
 
 
-
+[[TODO(kegan):
 Outstanding problems / missing spec:
 - No presence spec.
 - Multiple devices on the same account (no shared way to auth e.g. we don't 
@@ -836,3 +846,4 @@ Outstanding problems / missing spec:
 - Push
 - Typing notifications
 - 'IM sync' API (fresh client, get last X msgs f.e room)
+]]
