@@ -109,6 +109,54 @@ class MessageEvent(object):
             path=path,
             content=json.dumps(content))
 
+    @defer.inlineCallbacks
+    def get_room_path_data(self, room_id=None, path=None, user_id=None,
+                           public_room_rules=[],
+                           private_room_rules=["join"]):
+        """ Get path data from a room.
+
+        Args:
+            room_id : The room where the path data was stored.
+            path : The path the data was stored under.
+            user_id : If specified, verifies this user can access the path data
+            in this room.
+            public_room_rules : A list of membership states the user can be in,
+            in order to read this data IN A PUBLIC ROOM. An empty list means
+            'any state'.
+            private_room_rules : A list of membership states the user can be in,
+            in order to read this data IN A PRIVATE ROOM. An empty list means
+            'any state'.
+        Returns:
+            The path data content.
+        Raises:
+            SynapseError if something went wrong.
+        """
+        # does this room exist
+        room = yield self.store.get_room(room_id)
+        if not room:
+            raise RoomError(403, "Room does not exist.")
+        room = room[0]
+
+        # does this user exist in this room
+        member = yield self.store.get_room_member(
+                    room_id=room_id,
+                    user_id=user_id)
+
+        member_state = member[0].membership if member else None
+
+        if room.is_public and public_room_rules:
+            # make sure the user meets public room rules
+            if member_state not in public_room_rules:
+                raise RoomError(403, "Member does not meet public room rules.")
+        elif not room.is_public and private_room_rules:
+            # make sure the user meets private room rules
+            if member_state not in private_room_rules:
+                raise RoomError(403, "Member does not meet private room rules.")
+
+        data = yield self.store.get_path_data(path)
+        defer.returnValue(data)
+
+
 
 @defer.inlineCallbacks
 def _get_joined_or_throw(store=None, user_id=None, room_id=None):

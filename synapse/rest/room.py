@@ -91,28 +91,20 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, auth_user_id=None):
         try:
-            # does this room exist
-            room = yield self.data_store.get_room(room_id)
-            if not room:
-                defer.returnValue((403, ""))
-
-            # is it public or private? If it's public, anyone can see the topic.
-            # If it is private, make sure they are joined/invited first.
-            if not room[0].is_public:
-                # it's private, check they are invited/joined in the room
-                member = yield self.data_store.get_room_member(
-                        room_id=room_id,
-                        user_id=auth_user_id)
-                if not member or member[0].membership not in ["join", "invite"]:
-                    raise InvalidHttpRequestError(403, "")
-
-            data = yield self.data_store.get_path_data(request.path)
+            msg_event = self.event_factory.message_event()
+            data = yield msg_event.get_room_path_data(
+                    room_id=room_id,
+                    user_id=auth_user_id,
+                    path=request.path,
+                    # anyone invited/joined can read the topic
+                    private_room_rules=["invite", "join"]
+                )
 
             if not data:
                 defer.returnValue((404, cs_error("Topic not found.")))
             defer.returnValue((200, json.loads(data[0].content)))
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+        except SynapseError as e:
+            defer.returnValue((e.code, ""))
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks
