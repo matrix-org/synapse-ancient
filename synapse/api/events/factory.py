@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from synapse.api.events.room import RoomTopicEvent, MessageEvent
+from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
+                                    RoomMemberEvent)
 
 
 class EventFactory(object):
@@ -8,9 +9,11 @@ class EventFactory(object):
         pass
 
     def create_event(self, etype=None, content=None, **kwargs):
-        if etype == "sy.room.topic":
-            return RoomTopicEvent(content, etype=etype, **kwargs)
-        elif etype == "sy.room.message":
+        if etype == RoomTopicEvent.TYPE:
+            return RoomTopicEvent(content, **kwargs)
+        elif etype == MessageEvent.TYPE:
             return MessageEvent(content, **kwargs)
+        elif etype == RoomMemberEvent.TYPE:
+            return RoomMemberEvent(content, **kwargs)
         else:
             raise NotImplementedError("Unknown etype=%s" % etype)

@@ -6,6 +6,8 @@ from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
 from synapse.api.errors import SynapseError, cs_error
+from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
+                                     RoomMemberEvent)
 from synapse.api.handlers.room import Membership
 
 import json
@@ -81,7 +83,7 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         return re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
 
     def get_event_type(self):
-        return "sy.room.topic"
+        return RoomTopicEvent.TYPE
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks
@@ -136,7 +138,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                           "(?P<userid>[^/]*)/state$")
 
     def get_event_type(self):
-        return "sy.room.members.state"
+        return RoomMemberEvent.TYPE
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks
@@ -206,7 +208,7 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                           "(?P<from>[^/]*)/(?P<msgid>[^/]*)$")
 
     def get_event_type(self):
-        return "sy.room.message"
+        return MessageEvent.TYPE
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks

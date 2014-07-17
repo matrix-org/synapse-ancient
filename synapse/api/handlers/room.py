@@ -4,6 +4,7 @@ from twisted.internet import defer
 
 from synapse.api.errors import RoomError
 from synapse.api.event_store import StoreException
+from synapse.api.events.room import RoomTopicEvent, MessageEvent
 from . import BaseHandler
 
 import json
@@ -113,7 +114,7 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
-        if event.type == "sy.room.topic":
+        if event.type == RoomTopicEvent.TYPE:
             # anyone invited/joined can read the topic
             private_room_rules = ["invite", "join"]
 
@@ -295,7 +296,7 @@ class RoomMemberHandler(BaseHandler):
         msg_id = "m%s" % int(time.time())
 
         event = self.event_factory.create_event(
-                etype="sy.room.message",
+                etype=MessageEvent.TYPE,
                 room_id=room_id,
                 user_id="_hs_",
                 msg_id=msg_id,

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" This module contains base event classes for constructing REST events. """
+""" This module contains base REST classes for constructing REST events. """
 from synapse.api.errors import cs_error, CodeMessageException
 
 import json
@@ -10,7 +10,8 @@ class RestEventFactory(object):
     """ A factory for creating REST events.
 
     These REST events represent the entire client-server REST API. Generally
-    speaking, they serve as wrappers around handlers.
+    speaking, they serve as wrappers around events and the handlers that process
+    them.
 
     See synapse.api.events for information on synapse events.
     """

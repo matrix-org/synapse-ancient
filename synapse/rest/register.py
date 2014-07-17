@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""This module contains events to do with registration: /register"""
+"""This module contains REST events to do with registration: /register"""
 from twisted.internet import defer
 
 from synapse.api.events.register import RegistrationError

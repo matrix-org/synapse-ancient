@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""This module contains REST events to do with event streaming, /events."""
 from twisted.internet import defer
 
 from synapse.api.streams.base import FilterStream
