@@ -143,30 +143,38 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_GET(self, request, roomid, userid, auth_user_id=None):
+        try:
+            event = self.event_factory.create_event(
+                etype=self.get_event_type(),
+                user_id=userid,
+                room_id=roomid,
+                auth_user_id=auth_user_id,
+                membership=None
+                )
 
-        handler = self.handler_factory.room_member_handler()
-        member = yield handler.get_room_member(
-            user_id=userid,
-            auth_user_id=auth_user_id,
-            room_id=roomid
-        )
+            handler = self.handler_factory.room_member_handler()
+            member = yield handler.get_room_member(event)
 
-        if not member:
-            defer.returnValue((404, cs_error("Member not found.")))
-        defer.returnValue((200, json.loads(member.content)))
+            if not member:
+                defer.returnValue((404, cs_error("Member not found.")))
+            defer.returnValue((200, json.loads(member.content)))
+        except SynapseError as e:
+            defer.returnValue((e.code, e.msg))
 
     @Auth.defer_registered_user
     @defer.inlineCallbacks
     def on_DELETE(self, request, roomid, userid, auth_user_id=None):
         try:
-            handler = self.handler_factory.room_member_handler()
-            yield handler.change_membership(
-                auth_user_id=auth_user_id,
+            event = self.event_factory.create_event(
+                etype=self.get_event_type(),
                 user_id=userid,
                 room_id=roomid,
-                membership=Membership.leave,
-                broadcast_msg=True
-            )
+                auth_user_id=auth_user_id,
+                membership=Membership.LEAVE
+                )
+
+            handler = self.handler_factory.room_member_handler()
+            yield handler.change_membership(event, broadcast_msg=True)
             defer.returnValue((200, ""))
         except SynapseError as e:
             defer.returnValue((e.code, ""))
@@ -181,19 +189,21 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 raise SynapseError(400, cs_error("No membership key"))
 
             if (content["membership"] not in
-                    [Membership.join, Membership.invite]):
+                    [Membership.JOIN, Membership.INVITE]):
                 raise SynapseError(400,
                     cs_error("Membership value must be join/invite."))
 
-            handler = self.handler_factory.room_member_handler()
-            yield handler.change_membership(
-                auth_user_id=auth_user_id,
+            event = self.event_factory.create_event(
+                etype=self.get_event_type(),
                 user_id=userid,
                 room_id=roomid,
+                auth_user_id=auth_user_id,
                 membership=content["membership"],
-                content=content,
-                broadcast_msg=True
-            )
+                content=content
+                )
+
+            handler = self.handler_factory.room_member_handler()
+            yield handler.change_membership(event, broadcast_msg=True)
             defer.returnValue((200, ""))
         except SynapseError as e:
             defer.returnValue((e.code, ""))

@@ -14,10 +14,10 @@ import time
 class Membership(object):
 
     """An enum representing the membership state of a user in a room."""
-    invite = "invite"
-    join = "join"
-    knock = "knock"
-    leave = "leave"
+    INVITE = "invite"
+    JOIN = "join"
+    KNOCK = "knock"
+    LEAVE = "leave"
 
 
 class MessageHandler(BaseHandler):
@@ -179,112 +179,106 @@ class RoomCreationHandler(BaseHandler):
 class RoomMemberHandler(BaseHandler):
 
     @defer.inlineCallbacks
-    def get_room_member(self, user_id=None, room_id=None, auth_user_id=None):
+    def get_room_member(self, event=None):
         """Retrieve a room member from a room.
 
         Args:
-            user_id : The ID of the user to retrieve.
-            room_id : The room the user is in.
-            auth_user_id : If specified, verifies that this user can get the
-            state of this room member.
+            event : The room member event
         Returns:
             The room member, or None if this member does not exist.
         Raises:
             RoomError if something goes wrong.
         """
-        if auth_user_id:
+        if event.auth_user_id:
             # check they are joined in the room
             yield _get_joined_or_throw(self.store,
-                                       room_id=room_id,
-                                       user_id=auth_user_id)
+                                       room_id=event.room_id,
+                                       user_id=event.auth_user_id)
 
-        member = yield self.store.get_room_member(user_id=user_id,
-                                                  room_id=room_id)
+        member = yield self.store.get_room_member(user_id=event.user_id,
+                                                  room_id=event.room_id)
         if member:
             defer.returnValue(member[0])
         defer.returnValue(member)
 
     @defer.inlineCallbacks
-    def change_membership(self, user_id=None, room_id=None, auth_user_id=None,
-                          membership=None, content=None, broadcast_msg=False):
+    def change_membership(self, event=None, broadcast_msg=False):
         """ Change the membership status of a user in a room.
 
         Args:
-            user_id (str): The person whose membership is being changed.
-            room_id (str): The room in which the membership is changing.
-            auth_user_id (str): The person initiating the change.
-            membership (Membership): The new membership value.
-            content (dict): Optional. The JSON PUT by the client.
-            broadcast_msg : True to inject a membership message into this room
-            on success.
+            event (SynapseEvent): The membership event
+            broadcast_msg (bool): True to inject a membership message into this
+            room on success.
         Raises:
             RoomError if there was a problem changing the membership.
         """
         # does this room even exist
-        room = self.store.get_room(room_id)
+        room = self.store.get_room(event.room_id)
         if not room:
             raise RoomError(403, "Room does not exist")
 
         # get info about the caller
         try:
-            caller = yield self.store.get_room_member(user_id=auth_user_id,
-                                                      room_id=room_id)
+            caller = yield self.store.get_room_member(
+                user_id=event.auth_user_id,
+                room_id=event.room_id)
         except:
             pass
         caller_in_room = caller and caller[0].membership == "join"
 
         # get info about the target
         try:
-            target = yield self.store.get_room_member(user_id=user_id,
-                                                      room_id=room_id)
+            target = yield self.store.get_room_member(
+                user_id=event.user_id,
+                room_id=event.room_id)
         except:
             pass
         target_in_room = target and target[0].membership == "join"
 
-        if Membership.invite == membership:
+        if Membership.INVITE == event.membership:
             # Invites are valid iff caller is in the room and target isn't.
             if not caller_in_room or target_in_room:
                 # caller isn't joined or the target is already in the room.
                 raise RoomError(403, "Cannot invite.")
-        elif Membership.join == membership:
+        elif Membership.JOIN == event.membership:
             # Joins are valid iff caller == target and they were:
             # invited: They are accepting the invitation
             # joined: It's a NOOP
-            if (auth_user_id != user_id or not caller or
+            if (event.auth_user_id != event.user_id or not caller or
                     caller[0].membership not in
-                    [Membership.invite, Membership.join]):
+                    [Membership.INVITE, Membership.JOIN]):
                 raise RoomError(403, "Cannot join.")
-        elif Membership.leave == membership:
-            if not caller_in_room or user_id != auth_user_id:
+        elif Membership.LEAVE == event.membership:
+            if not caller_in_room or event.user_id != event.auth_user_id:
                 # trying to leave a room you aren't joined or trying to force
                 # another user to leave
                 raise RoomError(403, "Cannot leave.")
         else:
-            raise RoomError(500, "Unknown membership %s" % membership)
+            raise RoomError(500, "Unknown membership %s" % event.membership)
 
         # store membership
         yield self.store.store_room_member(
-            user_id=user_id,
-            room_id=room_id,
-            content=content,
-            membership=membership)
+            user_id=event.user_id,
+            room_id=event.room_id,
+            content=event.content,
+            membership=event.membership)
 
         if broadcast_msg:
             yield self._inject_membership_msg(
-                source=auth_user_id,
-                target=user_id,
-                room_id=room_id,
-                membership=membership)
+                source=event.auth_user_id,
+                target=event.user_id,
+                room_id=event.room_id,
+                membership=event.membership)
 
     @defer.inlineCallbacks
     def _inject_membership_msg(self, room_id=None, source=None, target=None,
                                membership=None):
         # TODO this should be a different type of message, not sy.text
-        if membership == Membership.invite:
+        if membership == Membership.INVITE:
             body = "%s invited %s to the room." % (source, target)
-        elif membership == Membership.join:
+        elif membership == Membership.JOIN:
             body = "%s joined the room." % (target)
-        elif membership == Membership.leave:
+        elif membership == Membership.LEAVE:
             body = "%s left the room." % (target)
         else:
             raise RoomError(500, "Unknown membership value %s" % membership)
