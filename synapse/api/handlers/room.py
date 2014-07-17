@@ -33,6 +33,8 @@ class MessageHandler(BaseHandler):
         Raises:
             RoomError if something went wrong.
         """
+        # self.auth.check(event)
+
         if event.auth_user_id:
             # check they are joined in the room
             yield _get_joined_or_throw(self.store,

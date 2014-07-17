@@ -26,6 +26,11 @@ class RegistrationError(SynapseError):
     pass
 
 
+class AuthError(SynapseError):
+    """An error raised when there was a problem authorising an event."""
+    pass
+
+
 def cs_error(msg, code=0, **kwargs):
     """ Utility method for constructing an error response for client-server
     interactions.
