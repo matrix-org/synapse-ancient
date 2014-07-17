@@ -14,7 +14,7 @@ class PersistenceService(object):
     def __init__(self, db_pool):
         self._db_pool = db_pool
 
-    def get_response_for_received_transaction(self, transaction_id, origin):
+    def get_received_txn_response(self, transaction_id, origin):
         return run_interaction(
             TransactionQueries.get_response_for_received,
             transaction_id, origin

@@ -182,7 +182,7 @@ class TransactionActions(object):
             raise RuntimeError("Cannot persist a transaction with no "
                                "transaction_id")
 
-        return self.service.get_response_for_received_transaction(
+        return self.service.get_received_txn_response(
             transaction.transaction_id, transaction.origin
         )
 
