@@ -7,11 +7,6 @@ These actions are mostly only used by the :py:mod:`.replication` module.
 
 from twisted.internet import defer
 
-from synapse.persistence.transactions import (
-    TransactionQueries, PduQueries,
-    StateQueries, run_interaction
-)
-
 from .units import Pdu
 
 from synapse.util.logutils import log_function
@@ -107,18 +102,18 @@ class PduActions(object):
 
         # TODO: This should be moved into the state module.
 
-        if pdu.is_state:
-            curr = yield run_interaction(
-                StateQueries.current_state,
-                pdu.context,
-                pdu.pdu_type, pdu.state_key)
+        #if pdu.is_state:
+            #curr = yield run_interaction(
+                #StateQueries.current_state,
+                #pdu.context,
+                #pdu.pdu_type, pdu.state_key)
 
-            if curr:
-                pdu.prev_state_id = curr.pdu_id
-                pdu.prev_state_origin = curr.origin
-            else:
-                pdu.prev_state_id = None
-                pdu.prev_state_origin = None
+            #if curr:
+                #pdu.prev_state_id = curr.pdu_id
+                #pdu.prev_state_origin = curr.origin
+            #else:
+                #pdu.prev_state_id = None
+                #pdu.prev_state_origin = None
 
     @defer.inlineCallbacks
     @log_function
@@ -145,8 +140,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a list of `Pdu`s.
         """
-        results = yield run_interaction(
-            PduQueries.paginate,
+        results = yield self.service.get_pagination(
             context, pdu_list, limit
         )
 
@@ -161,8 +155,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a `bool`
         """
-        return run_interaction(
-            PduQueries.is_new,
+        return self.service.is_pdu_new(
             pdu_id=pdu.pdu_id,
             origin=pdu.origin,
             context=pdu.context,

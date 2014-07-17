@@ -83,7 +83,7 @@ class PersistenceService(object):
 
     def get_pagination(self, context, pdu_list, limit):
         return run_interaction(
-            PduQueries.get_pagination,
+            PduQueries.paginate,
             context, pdu_list, limit
         )
 
@@ -122,4 +122,13 @@ class PersistenceService(object):
         return run_interaction(
             StateQueries.update_current_state,
             pdu_id, origin, context, pdu_type, state_key
+        )
+
+    def is_pdu_new(self, pdu_id, origin, context, depth):
+        return run_interaction(
+            PduQueries.is_new,
+            pdu_id=pdu_id,
+            origin=origin,
+            context=context,
+            depth=depth
         )
