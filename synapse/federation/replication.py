@@ -228,37 +228,29 @@ class ReplicationLayer(object):
 
         logger.debug("[%s] Transacition is new", transaction.transaction_id)
 
-        try:
-            pdu_list = [Pdu(**p) for p in transaction.pdus]
+        pdu_list = [Pdu(**p) for p in transaction.pdus]
 
-            dl = []
-            for pdu in pdu_list:
-                dl.append(self._handle_new_pdu(pdu))
+        dl = []
+        for pdu in pdu_list:
+            dl.append(self._handle_new_pdu(pdu))
 
-            results = yield defer.DeferredList(dl)
+        results = yield defer.DeferredList(dl)
 
-            ret = []
-            for r in results:
-                if r[0]:
-                    ret.append({})
-                else:
-                    logger.exception(r[1])
-                    ret.append({"error": str(r[1])})
+        ret = []
+        for r in results:
+            if r[0]:
+                ret.append({})
+            else:
+                logger.exception(r[1])
+                ret.append({"error": str(r[1])})
 
-            logger.debug("Returning: %s", str(ret))
+        logger.debug("Returning: %s", str(ret))
 
-            yield self.transaction_actions.set_response(
-                transaction,
-                200, response
-            )
-            defer.returnValue((200, response))
-        except Exception as e:
-            logger.exception(e)
-
-            # We don't save a 500 response!
-
-            defer.returnValue((500, {"error": "Internal server error"}))
-            return
+        yield self.transaction_actions.set_response(
+            transaction,
+            200, response
+        )
+        defer.returnValue((200, response))
 
     @defer.inlineCallbacks
     @log_function
