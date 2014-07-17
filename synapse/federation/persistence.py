@@ -26,30 +26,6 @@ class PduActions(object):
     def __init__(self, persistence_service):
         self.service = persistence_service
 
-    @defer.inlineCallbacks
-    @log_function
-    def current_state(self, context):
-        """ For the given context return what we think is the current state.
-
-        Returns:
-            Deferred: Results in a list of state `Pdu`s.
-        """
-        results = yield self.service.get_current_state_for_context(context)
-
-        defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
-
-    @defer.inlineCallbacks
-    @log_function
-    def get_persisted_pdu(self, pdu_id, pdu_origin):
-        """ Get a PDU from the database with given origin and id.
-
-        Returns:
-            Deferred: Results in a `Pdu`.
-        """
-        pdu_tuple = yield self.service.get_pdu(pdu_id, pdu_origin)
-
-        defer.returnValue(Pdu.from_pdu_tuple(pdu_tuple))
-
     @log_function
     def persist_received(self, pdu):
         """ Persists the given `Pdu` that was received from a remote home
