@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from synapse.util.stringutils import JSONTemplate
+from synapse.api.events import SynapseEvent
 
 import unittest
 
 
-class JsonTemplateTestCase(unittest.TestCase):
+class SynapseTemplateCheckTestCase(unittest.TestCase):
 
     def setUp(self):
         pass
@@ -17,28 +17,29 @@ class JsonTemplateTestCase(unittest.TestCase):
             "person": {},
             "friends": []
         }
-        t = JSONTemplate(template)
 
         content = {
             "person": {"name": "bob"},
             "friends": ["jill", "mike"]
         }
 
-        self.assertTrue(t.check_json(content, raises=False))
+        event = MockSynapseEvent(template)
+        self.assertTrue(event.check_json(content, raises=False))
 
         content = {
             "person": {"name": "bob"},
             "friends": ["jill"],
             "enemies": ["mike"]
         }
-        self.assertTrue(t.check_json(content, raises=False))
+        event = MockSynapseEvent(template)
+        self.assertTrue(event.check_json(content, raises=False))
 
         content = {
             "person": {"name": "bob"},
             # missing friends
             "enemies": ["mike", "jill"]
         }
-        self.assertFalse(t.check_json(content, raises=False))
+        self.assertFalse(event.check_json(content, raises=False))
 
     def test_nested_keys(self):
         template = {
@@ -51,7 +52,7 @@ class JsonTemplateTestCase(unittest.TestCase):
                 "fav_books": []
             }
         }
-        t = JSONTemplate(template)
+        event = MockSynapseEvent(template)
 
         content = {
             "person": {
@@ -66,7 +67,7 @@ class JsonTemplateTestCase(unittest.TestCase):
             }
         }
 
-        self.assertTrue(t.check_json(content, raises=False))
+        self.assertTrue(event.check_json(content, raises=False))
 
         content = {
             "person": {
@@ -80,7 +81,7 @@ class JsonTemplateTestCase(unittest.TestCase):
             }
         }
 
-        self.assertFalse(t.check_json(content, raises=False))
+        self.assertFalse(event.check_json(content, raises=False))
 
         content = {
             "person": {
@@ -94,5 +95,14 @@ class JsonTemplateTestCase(unittest.TestCase):
             }
         }
 
-        self.assertFalse(t.check_json(content, raises=False))
+        self.assertFalse(event.check_json(content, raises=False))
+
+
+class MockSynapseEvent(SynapseEvent):
+
+    def __init__(self, template):
+        self.template = template
+
+    def get_template(self):
+        return self.template
 
