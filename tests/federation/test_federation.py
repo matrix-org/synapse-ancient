@@ -3,10 +3,8 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 # python imports
-from mock import patch, Mock
-import json
+from mock import Mock
 import logging
-import os
 
 from ..utils import MockHttpServer
 
