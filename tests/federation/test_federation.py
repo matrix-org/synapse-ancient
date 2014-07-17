@@ -5,6 +5,7 @@ from twisted.trial import unittest
 # python imports
 from mock import patch, Mock
 import json
+import logging
 import os
 
 from ..utils import MockHttpServer
@@ -12,21 +13,26 @@ from ..utils import MockHttpServer
 from synapse.federation import initialize_http_federation
 from synapse.persistence.transactions import PduTuple, PduEntry
 
+
+logging.getLogger().addHandler(logging.NullHandler())
+
+
 def make_pdu(prev_pdus=[], **kwargs):
     """Provide some default fields for making a PduTuple."""
     pdu_fields = {
-        "is_state":False,
-        "unrecognized_keys":[],
-        "outlier":False,
-        "have_processed":True,
-        "state_key":None,
-        "power_level":None,
-        "prev_state_id":None,
-        "prev_state_origin":None,
+        "is_state": False,
+        "unrecognized_keys": [],
+        "outlier": False,
+        "have_processed": True,
+        "state_key": None,
+        "power_level": None,
+        "prev_state_id": None,
+        "prev_state_origin": None,
     }
     pdu_fields.update(kwargs)
 
     return PduTuple(PduEntry(**pdu_fields), prev_pdus)
+
 
 class FederationTestCase(unittest.TestCase):
     def setUp(self):
