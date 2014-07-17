@@ -270,7 +270,7 @@ class TransportLayer(object):
 
         except Exception as e:
             logger.exception(e)
-            defer.returnValue(400, {"error": "Invalid transaction"})
+            defer.returnValue((400, {"error": "Invalid transaction"}))
             return
 
         code, response = yield self.received_handler.on_incoming_transaction(
