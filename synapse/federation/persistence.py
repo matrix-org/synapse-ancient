@@ -7,6 +7,11 @@ These actions are mostly only used by the :py:mod:`.replication` module.
 
 from twisted.internet import defer
 
+from synapse.persistence.transactions import (
+    TransactionQueries, PduQueries,
+    StateQueries, run_interaction
+)
+
 from .units import Pdu
 
 from synapse.util.logutils import log_function
