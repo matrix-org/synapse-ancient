@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 class PduActions(object):
     """ Defines persistence actions that relate to handling PDUs.
     """
+
+    def __init__(self, persistence_service):
+        self.service = persistence_service
+
     @defer.inlineCallbacks
     @log_function
     def current_state(self, context):
@@ -35,10 +39,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a list of state `Pdu`s.
         """
-        results = yield run_interaction(
-            PduQueries.get_current_state,
-            context
-        )
+        results = yield self.service.get_current_state_for_context(context)
 
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
@@ -50,10 +51,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a `Pdu`.
         """
-        pdu_tuple = yield run_interaction(
-            PduQueries.get_pdu,
-            pdu_id, pdu_origin
-        )
+        pdu_tuple = yield self.service.get_pdu(pdu_id, pdu_origin)
 
         defer.returnValue(Pdu.from_pdu_tuple(pdu_tuple))
 
@@ -77,14 +75,6 @@ class PduActions(object):
         """
         ret = yield self._persist(pdu)
 
-        # This is safe to do since if *we* are sending something, then we must
-        # have seen everything we reference (hopefully).
-        if pdu.is_state:
-            yield run_interaction(
-                StateQueries.handle_new_state,
-                pdu
-            )
-
         defer.returnValue(ret)
 
     @log_function
@@ -94,10 +84,7 @@ class PduActions(object):
         Returns:
             Deferred
         """
-        return run_interaction(
-            PduQueries.mark_as_processed,
-            pdu.pdu_id, pdu.origin
-        )
+        return self.service.mark_pdu_as_processed(pdu.pdu_id, pdu.origin)
 
     @defer.inlineCallbacks
     @log_function
@@ -108,10 +95,7 @@ class PduActions(object):
         Returns:
             Deferred
         """
-        results = yield run_interaction(
-            PduQueries.get_prev_pdus,
-            pdu.context
-        )
+        results = yield self.service.get_latest_pdus_in_context(pdu.context)
 
         pdu.prev_pdus = [(p_id, origin) for p_id, origin, _ in results]
 
@@ -120,6 +104,8 @@ class PduActions(object):
             pdu.depth = max(vs) + 1
         else:
             pdu.depth = 0
+
+        # TODO: This should be moved into the state module.
 
         if pdu.is_state:
             curr = yield run_interaction(
@@ -143,8 +129,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a list of `Pdu`s
         """
-        results = yield run_interaction(
-            PduQueries.get_after_transaction,
+        results = yield self.service.get_pdus_after_transaction(
             transaction_id,
             destination
         )
@@ -196,18 +181,11 @@ class PduActions(object):
         logger.debug("Persisting: %s", repr(kwargs))
 
         if pdu.is_state:
-            ret = yield run_interaction(
-                PduQueries.insert_state,
-                **kwargs
-            )
+            ret = yield self.service.persist_state(**kwargs)
         else:
-            ret = yield run_interaction(
-                PduQueries.insert,
-                **kwargs
-            )
+            ret = yield self.service.persist_pdu(**kwargs)
 
-        yield run_interaction(
-            PduQueries.update_min_depth,
+        yield self.service.update_min_depth_for_context(
             pdu.context, pdu.depth
         )
 
@@ -217,6 +195,10 @@ class PduActions(object):
 class TransactionActions(object):
     """ Defines persistence actions that relate to handling Transactions.
     """
+
+    def __init__(self, persistence_service):
+        self.service = persistence_service
+
     @log_function
     def have_responded(self, transaction):
         """ Have we already responded to a transaction with the same id and
@@ -231,8 +213,7 @@ class TransactionActions(object):
             raise RuntimeError("Cannot persist a transaction with no "
                                "transaction_id")
 
-        return run_interaction(
-            TransactionQueries.get_response_for_received,
+        return self.service.get_response_for_received_transaction(
             transaction.transaction_id, transaction.origin
         )
 
@@ -247,8 +228,7 @@ class TransactionActions(object):
             raise RuntimeError("Cannot persist a transaction with no "
                                "transaction_id")
 
-        return run_interaction(
-            TransactionQueries.set_recieved_txn_response,
+        return self.service.set_recieved_txn_response(
             transaction.transaction_id,
             transaction.origin,
             code,
@@ -264,8 +244,7 @@ class TransactionActions(object):
         Returns:
             Deferred
         """
-        transaction.prev_ids = yield run_interaction(
-            TransactionQueries.prep_send_transaction,
+        transaction.prev_ids = yield self.service.prep_send_transaction(
             transaction.transaction_id,
             transaction.destination,
             transaction.ts,
@@ -280,8 +259,7 @@ class TransactionActions(object):
         Returns:
             Deferred
         """
-        return run_interaction(
-            TransactionQueries.delivered_txn,
+        return self.service.delivered_txn(
             transaction.transaction_id,
             transaction.destination,
             response_code,

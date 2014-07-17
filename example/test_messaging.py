@@ -20,7 +20,7 @@ from synapse.federation import (
 
 from synapse.util import DbPool, origin_from_ucid
 
-from synapse.persistence import schema_path
+from synapse.persistence import schema_path, PersistenceService
 
 #from synapse.util.logutils import log_function
 
@@ -386,7 +386,8 @@ def main(stdscr):
     http_client = TwistedHttpClient()
 
     replication = initialize_http_federation(
-        server_name, http_client, http_server)
+        server_name, http_client, http_server, PersistenceService(DbPool.get())
+    )
 
     hs = HomeServer(server_name, replication, curses_stdio)
 

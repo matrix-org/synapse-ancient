@@ -3,7 +3,7 @@
 from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.federation import initialize_http_federation
 from synapse.api.server import SynapseHomeServer
-from synapse.persistence import read_schema
+from synapse.persistence import read_schema, PersistenceService
 
 from synapse.util import DbPool
 
@@ -32,7 +32,9 @@ def setup_server(hostname):
     http_client = TwistedHttpClient()
 
     replication = initialize_http_federation(
-        hostname, http_client=http_client, http_server=http_server)
+        hostname, http_client=http_client, http_server=http_server,
+        persistence_service=PersistenceService(DbPool.get())
+    )
 
     hs = SynapseHomeServer(http_server, hostname, replication)
     return http_server
