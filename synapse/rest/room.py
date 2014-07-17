@@ -6,7 +6,7 @@ from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
 from synapse.api.auth import Auth
 from synapse.api.errors import SynapseError, cs_error
-from synapse.api.handlers.room import GlobalMsgId, Membership
+from synapse.api.handlers.room import Membership
 
 import json
 import re
@@ -213,13 +213,16 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_GET(self, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
         try:
+            event = self.event_factory.create_event(
+                etype=self.get_event_type(),
+                room_id=room_id,
+                user_id=msg_sender_id,
+                auth_user_id=auth_user_id,
+                msg_id=msg_id
+                )
+
             msg_handler = self.handler_factory.message_handler()
-            msg = yield msg_handler.get_message(
-                global_msg=GlobalMsgId(room_id=room_id,
-                                        user_id=msg_sender_id,
-                                        msg_id=msg_id),
-                user_id=auth_user_id
-            )
+            msg = yield msg_handler.get_message(event)
 
             if not msg:
                 defer.returnValue((404, cs_error("Message not found.")))
@@ -235,16 +238,17 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             content = _parse_json(request)
 
+            event = self.event_factory.create_event(
+                etype=self.get_event_type(),
+                room_id=room_id,
+                user_id=sender_id,
+                auth_user_id=auth_user_id,
+                msg_id=msg_id,
+                content=content
+                )
+
             msg_handler = self.handler_factory.message_handler()
-            yield msg_handler.store_message(
-                global_msg=GlobalMsgId(room_id=room_id,
-                                        user_id=sender_id,
-                                        msg_id=msg_id),
-                content=content,
-                user_id=auth_user_id
-            )
-            # TODO poke notifier to send message to online users
-            # TODO send to s2s layer
+            yield msg_handler.send_message(event)
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
 
