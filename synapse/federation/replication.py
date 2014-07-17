@@ -7,6 +7,7 @@ from twisted.internet import defer
 
 from .units import Transaction, Pdu
 
+from .persistence import PduActions, TransactionActions
 from synapse.persistence.transactions import (
     PduQueries, run_interaction
 )
@@ -37,20 +38,19 @@ class ReplicationLayer(object):
           for outgoing data.
     """
 
-    def __init__(self, server_name, transport_layer, pdu_actions,
-                 transaction_actions):
+    def __init__(self, server_name, transport_layer, persistence_service):
         self.server_name = server_name
 
         self.transport_layer = transport_layer
         self.transport_layer.register_received_handler(self)
         self.transport_layer.register_request_handler(self)
 
-        self.pdu_actions = pdu_actions
-        self.transaction_actions = transaction_actions
+        self.pdu_actions = PduActions(persistence_service)
+        self.transaction_actions = TransactionActions(persistence_service)
 
         self._transaction_queue = _TransactionQueue(
             server_name,
-            transaction_actions,
+            self.transaction_actions,
             transport_layer
         )
 

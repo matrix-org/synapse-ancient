@@ -4,7 +4,6 @@
 
 from .replication import ReplicationLayer, ReplicationHandler
 from .transport import TransportLayer
-from .persistence import PduActions, TransactionActions
 from .units import Pdu
 
 
@@ -17,12 +16,8 @@ def initialize_http_federation(
         client=http_client
     )
 
-    pdu_actions = PduActions(persistence_service)
-    transaction_actions = TransactionActions(persistence_service)
-
     return ReplicationLayer(
         server_name,
         transport,
-        pdu_actions=pdu_actions,
-        transaction_actions=transaction_actions
+        persistence_service=persistence_service,
     )
