@@ -38,7 +38,7 @@ class ReplicationLayer(object):
     """
 
     def __init__(self, server_name, transport_layer, pdu_actions,
-            transaction_actions):
+                 transaction_actions):
         self.server_name = server_name
 
         self.transport_layer = transport_layer
@@ -246,8 +246,10 @@ class ReplicationLayer(object):
 
             logger.debug("Returning: %s", str(ret))
 
-            yield self.transaction_actions.set_response(transaction, 200,
-                    response)
+            yield self.transaction_actions.set_response(
+                transaction,
+                200, response
+            )
             defer.returnValue((200, response))
         except Exception as e:
             logger.exception(e)
@@ -269,8 +271,9 @@ class ReplicationLayer(object):
         pdu = yield self.pdu_actions.get_persisted_pdu(pdu_id, pdu_origin)
 
         if pdu:
-            defer.returnValue((200,
-                self._transaction_from_pdus([pdu]).get_dict()))
+            defer.returnValue(
+                (200, self._transaction_from_pdus([pdu]).get_dict())
+            )
         else:
             defer.returnValue((404, ""))
 
@@ -288,9 +291,9 @@ class ReplicationLayer(object):
         if not response:
             response = []
 
-        defer.returnValue((200,
-            self._transaction_from_pdus(response).get_dict()
-        ))
+        defer.returnValue(
+            (200, self._transaction_from_pdus(response).get_dict())
+        )
 
     def _transaction_from_pdus(self, pdu_list):
         """Returns a new Transaction containing the given PDUs suitable for
@@ -307,8 +310,9 @@ class ReplicationLayer(object):
     @log_function
     def _handle_new_pdu(self, pdu):
         # We reprocess pdus when we have seen them only as outliers
-        existing = yield self.pdu_actions.get_persisted_pdu(pdu.pdu_id,
-                pdu.origin)
+        existing = yield self.pdu_actions.get_persisted_pdu(
+            pdu.pdu_id, pdu.origin
+        )
         if existing and (not existing.outlier or pdu.outlier):
             defer.returnValue({})
             return
@@ -324,8 +328,9 @@ class ReplicationLayer(object):
 
             if min_depth and pdu.depth > min_depth:
                 for pdu_id, origin in pdu.prev_pdus:
-                    exists = yield self.pdu_actions.get_persisted_pdu(pdu_id,
-                            origin)
+                    exists = yield self.pdu_actions.get_persisted_pdu(
+                        pdu_id, origin
+                    )
                     if not exists:
                         logger.debug("Requesting pdu %s %s", pdu_id, origin)
 
@@ -449,8 +454,9 @@ class _TransactionQueue(object):
             logger.debug("TX [%s] Sent transaction", destination)
             logger.debug("TX [%s] Marking as delivered...", destination)
 
-            yield self.transaction_actions.delivered(transaction, code,
-                    response)
+            yield self.transaction_actions.delivered(
+                transaction, code, response
+            )
 
             logger.debug("TX [%s] Marked as delivered", destination)
             logger.debug("TX [%s] Yielding to callbacks...", destination)

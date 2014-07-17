@@ -741,12 +741,12 @@ class StateQueries(object):
         }
 
         query_args = CurrentStateTable.EntryType(
-                pdu_id=pdu_id,
-                origin=origin,
-                context=context,
-                pdu_type=pdu_type,
-                state_key=state_key
-            )
+            pdu_id=pdu_id,
+            origin=origin,
+            context=context,
+            pdu_type=pdu_type,
+            state_key=state_key
+        )
 
         txn.execute(query, query_args)
 

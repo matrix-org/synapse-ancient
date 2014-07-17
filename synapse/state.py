@@ -60,8 +60,8 @@ class StateHandler(object):
 
         if not current_branch:
             # There is no current state
-            #print "no current"
             defer.returnValue(True)
+            return
 
         if new_branch[-1] == current_branch[-1]:
             # We have all the PDUs we need, so we can just do the conflict

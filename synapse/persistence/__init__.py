@@ -2,6 +2,8 @@
 """This package is resposible for querying the databases used for persisting
 data.
 """
+from .service import PersistenceService
+
 import os
 
 
