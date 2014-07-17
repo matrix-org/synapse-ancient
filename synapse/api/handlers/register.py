@@ -10,7 +10,7 @@ import base64
 import time
 
 
-class RegistrationEvent(object):
+class RegistrationHandler(object):
 
     def __init__(self, db_pool=None):
         self.db = db_pool

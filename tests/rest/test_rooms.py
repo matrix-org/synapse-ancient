@@ -9,9 +9,10 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.api.auth import Auth
-from synapse.api.events.base import EventFactory
+from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
                                RoomTopicRestEvent, RoomCreateRestEvent)
+from synapse.api.events.factory import EventFactory
 from synapse.api.event_store import EventStore
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
@@ -55,7 +56,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.mock_event_factory = EventFactory(self.mock_data_store)
+        self.mock_event_factory = EventHandlerFactory(self.mock_data_store,
+                                                      EventFactory())
         Auth.mod_registered_user = MockRegisteredUserModule(self.rmcreator_id)
         MessageRestEvent(self.mock_event_factory).register(self.mock_server)
         RoomMemberRestEvent(self.mock_event_factory).register(self.mock_server)
@@ -323,7 +325,8 @@ class RoomsCreateTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.mock_event_factory = EventFactory(self.mock_data_store)
+        self.mock_event_factory = EventHandlerFactory(self.mock_data_store,
+                                                      EventFactory())
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
         RoomCreateRestEvent(self.mock_event_factory).register(self.mock_server)
 
@@ -426,7 +429,8 @@ class RoomsTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.mock_event_factory = EventFactory(self.mock_data_store)
+        self.mock_event_factory = EventHandlerFactory(self.mock_data_store,
+                                                      EventFactory())
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
         MessageRestEvent(self.mock_event_factory).register(self.mock_server)
         RoomMemberRestEvent(self.mock_event_factory).register(self.mock_server)

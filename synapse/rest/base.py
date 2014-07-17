@@ -12,7 +12,7 @@ class RestEventFactory(object):
     These REST events represent the entire client-server REST API. Generally
     speaking, they serve as wrappers around synapse events.
 
-    See synapse.api.events.base for information on synapse events.
+    See synapse.api.events for information on synapse events.
     """
 
     events = []

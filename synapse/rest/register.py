@@ -34,9 +34,9 @@ class RegisterRestEvent(PostEventMixin, RestEvent):
         except KeyError:
             pass  # user_id is optional
 
-        event = self.event_factory.register_event()
+        handler = self.event_factory.register_handler()
         try:
-            (user_id, token) = yield event.register(user_id=desired_user_id)
+            (user_id, token) = yield handler.register(user_id=desired_user_id)
             defer.returnValue((200,
                                {"user_id": user_id, "access_token": token}))
         except RegistrationError as e:
