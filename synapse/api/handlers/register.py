@@ -30,8 +30,8 @@ class RegistrationHandler(object):
 
         if user_id:
             (user_id, token) = yield self.db.runInteraction(
-                    self._register,
-                    user_id)
+                self._register,
+                user_id)
 
             defer.returnValue((user_id, token))
         else:
@@ -47,7 +47,8 @@ class RegistrationHandler(object):
                     # if user id is taken, just generate another
                     attempts += 1
                     if attempts > 5:
-                        raise RegistrationError(500, "Cannot generate user ID.")
+                        raise RegistrationError(
+                            500, "Cannot generate user ID.")
             defer.returnValue((user_id, token))
 
     def _register(self, txn, user_id):
@@ -73,7 +74,7 @@ class RegistrationHandler(object):
         # =s with .s so http clients don't quote =s when it is used as query
         # params.
         return (base64.urlsafe_b64encode(user_id).replace('=', '.') + '.' +
-                 stringutils.random_string(18))
+                stringutils.random_string(18))
 
     def _generate_user_id(cls):
         return "-" + stringutils.random_string(18)

@@ -3,7 +3,6 @@
 from twisted.internet import defer
 
 from synapse.api.errors import RoomError
-from synapse.api.events.factory import EventFactory
 from synapse.api.event_store import StoreException
 
 from collections import namedtuple
@@ -12,7 +11,8 @@ import time
 
 
 class GlobalMsgId(namedtuple("GlobalMsgId",
-                                ["room_id", "user_id", "msg_id"])):
+                             ["room_id", "user_id", "msg_id"])):
+
     """ Groups room/user/msg IDs to make a globally unique ID."""
 
     def global_id(self):
@@ -20,6 +20,7 @@ class GlobalMsgId(namedtuple("GlobalMsgId",
 
 
 class Membership(object):
+
     """An enum representing the membership state of a user in a room."""
     invite = "invite"
     join = "join"
@@ -49,8 +50,8 @@ class MessageHandler(object):
         if user_id:
             # check they are joined in the room
             yield _get_joined_or_throw(self.store,
-                                      room_id=global_msg.room_id,
-                                      user_id=user_id)
+                                       room_id=global_msg.room_id,
+                                       user_id=user_id)
 
         # Pull out the message from the db
         results = yield self.store.get_message(room_id=global_msg.room_id,
@@ -81,8 +82,8 @@ class MessageHandler(object):
 
             # Check if sender_id is in room room_id
             yield _get_joined_or_throw(self.store,
-                                      room_id=global_msg.room_id,
-                                      user_id=global_msg.user_id)
+                                       room_id=global_msg.room_id,
+                                       user_id=global_msg.user_id)
 
         self.event_factory.create_event(typ="sy.room.message", content=content)
 
@@ -108,16 +109,16 @@ class MessageHandler(object):
         if user_id:
             # check they are joined in the room
             yield _get_joined_or_throw(self.store,
-                                      room_id=room_id,
-                                      user_id=user_id)
+                                       room_id=room_id,
+                                       user_id=user_id)
 
         # FIXME
         self.event_factory.create_event(typ="sy.room.topic", content=content)
 
         # store in db
         yield self.store.store_path_data(room_id=room_id,
-            path=path,
-            content=json.dumps(content))
+                                         path=path,
+                                         content=json.dumps(content))
 
     @defer.inlineCallbacks
     def get_room_path_data(self, room_id=None, path=None, user_id=None,
@@ -149,8 +150,8 @@ class MessageHandler(object):
 
         # does this user exist in this room
         member = yield self.store.get_room_member(
-                    room_id=room_id,
-                    user_id="" if not user_id else user_id)
+            room_id=room_id,
+            user_id="" if not user_id else user_id)
 
         member_state = member[0].membership if member else None
 
@@ -161,7 +162,8 @@ class MessageHandler(object):
         elif not room.is_public and private_room_rules:
             # make sure the user meets private room rules
             if member_state not in private_room_rules:
-                raise RoomError(403, "Member does not meet private room rules.")
+                raise RoomError(
+                    403, "Member does not meet private room rules.")
 
         data = yield self.store.get_path_data(path)
         defer.returnValue(data)
@@ -225,8 +227,8 @@ class RoomMemberHandler(object):
         if auth_user_id:
             # check they are joined in the room
             yield _get_joined_or_throw(self.store,
-                                      room_id=room_id,
-                                      user_id=auth_user_id)
+                                       room_id=room_id,
+                                       user_id=auth_user_id)
 
         member = yield self.store.get_room_member(user_id=user_id,
                                                   room_id=room_id)
@@ -281,8 +283,8 @@ class RoomMemberHandler(object):
             # invited: They are accepting the invitation
             # joined: It's a NOOP
             if (auth_user_id != user_id or not caller or
-                        caller[0].membership not in
-                        [Membership.invite, Membership.join]):
+                    caller[0].membership not in
+                    [Membership.invite, Membership.join]):
                 raise RoomError(403, "Cannot join.")
         elif Membership.leave == membership:
             if not caller_in_room or user_id != auth_user_id:
@@ -346,8 +348,8 @@ def _get_joined_or_throw(store=None, user_id=None, room_id=None):
         RoomError if this member does not exist/isn't joined.
     """
     member = yield store.get_room_member(
-                        room_id=room_id,
-                        user_id=user_id)
+        room_id=room_id,
+        user_id=user_id)
     if not member or member[0].membership != "join":
         raise RoomError(403, "Haven't joined room.'")
     defer.returnValue(member)
