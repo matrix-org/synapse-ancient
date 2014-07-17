@@ -97,7 +97,7 @@ class TransactionQueries(object):
             return None
 
     @classmethod
-    def set_recieved_txn_response(cls, txn, transaction_id, origin, code,
+    def set_received_txn_response(cls, txn, transaction_id, origin, code,
                                   response_json):
         """Persist the response we returened for an incoming transaction, and
         should return for subsequent transactions with the same transaction_id

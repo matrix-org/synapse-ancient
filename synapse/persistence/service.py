@@ -20,10 +20,10 @@ class PersistenceService(object):
             transaction_id, origin
         )
 
-    def set_recieved_txn_response(self, transaction_id, origin, code,
+    def set_received_txn_response(self, transaction_id, origin, code,
                                   response_dict):
         return run_interaction(
-            TransactionQueries.set_recieved_txn_response,
+            TransactionQueries.set_received_txn_response,
             transaction_id, origin, code, response_dict
         )
 
