@@ -4,6 +4,7 @@ from twisted.internet import defer
 
 from synapse.api.errors import RoomError
 from synapse.api.event_store import StoreException
+from . import BaseHandler
 
 from collections import namedtuple
 import json
@@ -28,11 +29,7 @@ class Membership(object):
     leave = "leave"
 
 
-class MessageHandler(object):
-
-    def __init__(self, event_store, event_factory):
-        self.store = event_store
-        self.event_factory = event_factory
+class MessageHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def get_message(self, global_msg=None, user_id=None):
@@ -85,7 +82,12 @@ class MessageHandler(object):
                                        room_id=global_msg.room_id,
                                        user_id=global_msg.user_id)
 
-        self.event_factory.create_event(typ="sy.room.message", content=content)
+        self.event_factory.create_event(typ="sy.room.message",
+                                                content=content,
+                                                room_id=global_msg.room_id,
+                                                user_id=global_msg.user_id,
+                                                msg_id=global_msg.msg_id)
+        # self.store.store_message(event)
 
         # store message in db
         yield self.store.store_message(user_id=global_msg.user_id,
@@ -95,7 +97,7 @@ class MessageHandler(object):
 
     @defer.inlineCallbacks
     def store_room_path_data(self, room_id=None, path=None, user_id=None,
-                             content=None):
+                             content=None, event_type=None):
         """ Stores data for a room under a given path.
 
         Args:
@@ -103,6 +105,7 @@ class MessageHandler(object):
             path : The path which can be used to retrieve the data.
             user_id : If specified, verifies this user can store the data.
             content : The content to store.
+            event_type : The Event type, e.g. 'sy.room.topic'.
         Raises:
             SynapseError if something went wrong.
         """
@@ -112,8 +115,7 @@ class MessageHandler(object):
                                        room_id=room_id,
                                        user_id=user_id)
 
-        # FIXME
-        self.event_factory.create_event(typ="sy.room.topic", content=content)
+        self.event_factory.create_event(typ=event_type, content=content)
 
         # store in db
         yield self.store.store_path_data(room_id=room_id,
@@ -169,11 +171,7 @@ class MessageHandler(object):
         defer.returnValue(data)
 
 
-class RoomCreationHandler(object):
-
-    def __init__(self, event_store, event_factory):
-        self.store = event_store
-        self.event_factory = event_factory
+class RoomCreationHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def create_room(self, user_id=None, room_id=None, config=None):
@@ -204,11 +202,7 @@ class RoomCreationHandler(object):
             raise RoomError(500, "Unable to create room.")
 
 
-class RoomMemberHandler(object):
-
-    def __init__(self, event_store, event_factory):
-        self.store = event_store
-        self.event_factory = event_factory
+class RoomMemberHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def get_room_member(self, user_id=None, room_id=None, auth_user_id=None):

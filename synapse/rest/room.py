@@ -53,7 +53,7 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
 
     @defer.inlineCallbacks
     def make_room(self, room_config, auth_user_id, room_id):
-        handler = self.event_factory.room_creation_handler()
+        handler = self.handler_factory.room_creation_handler()
         new_room_id = yield handler.create_room(
                 user_id=auth_user_id,
                 room_id=room_id,
@@ -87,7 +87,7 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, auth_user_id=None):
         try:
-            msg_handler = self.event_factory.message_handler()
+            msg_handler = self.handler_factory.message_handler()
             data = yield msg_handler.get_room_path_data(
                     room_id=room_id,
                     user_id=auth_user_id,
@@ -108,15 +108,14 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             content = _parse_json(request)
 
-            msg_handler = self.event_factory.message_handler()
+            msg_handler = self.handler_factory.message_handler()
             yield msg_handler.store_room_path_data(
                 room_id=room_id,
                 user_id=auth_user_id,
                 content=content,
-                path=request.path
+                path=request.path,
+                event_type=self.get_event_type()
             )
-            # TODO poke notifier
-            # TODO send to s2s layer
             defer.returnValue((200, ""))
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
@@ -136,7 +135,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_GET(self, request, roomid, userid, auth_user_id=None):
 
-        handler = self.event_factory.room_member_handler()
+        handler = self.handler_factory.room_member_handler()
         member = yield handler.get_room_member(
             user_id=userid,
             auth_user_id=auth_user_id,
@@ -151,7 +150,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_DELETE(self, request, roomid, userid, auth_user_id=None):
         try:
-            handler = self.event_factory.room_member_handler()
+            handler = self.handler_factory.room_member_handler()
             yield handler.change_membership(
                 auth_user_id=auth_user_id,
                 user_id=userid,
@@ -159,8 +158,6 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 membership=Membership.leave,
                 broadcast_msg=True
             )
-            # TODO poke notifier
-            # TODO send to s2s layer
             defer.returnValue((200, ""))
         except SynapseError as e:
             defer.returnValue((e.code, ""))
@@ -179,7 +176,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 raise SynapseError(400,
                     cs_error("Membership value must be join/invite."))
 
-            handler = self.event_factory.room_member_handler()
+            handler = self.handler_factory.room_member_handler()
             yield handler.change_membership(
                 auth_user_id=auth_user_id,
                 user_id=userid,
@@ -188,8 +185,6 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 content=content,
                 broadcast_msg=True
             )
-            # TODO poke notifier
-            # TODO send to s2s layer
             defer.returnValue((200, ""))
         except SynapseError as e:
             defer.returnValue((e.code, ""))
@@ -211,7 +206,7 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_GET(self, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
         try:
-            msg_handler = self.event_factory.message_handler()
+            msg_handler = self.handler_factory.message_handler()
             msg = yield msg_handler.get_message(
                 global_msg=GlobalMsgId(room_id=room_id,
                                         user_id=msg_sender_id,
@@ -233,7 +228,7 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             content = _parse_json(request)
 
-            msg_handler = self.event_factory.message_handler()
+            msg_handler = self.handler_factory.message_handler()
             yield msg_handler.store_message(
                 global_msg=GlobalMsgId(room_id=room_id,
                                         user_id=sender_id,

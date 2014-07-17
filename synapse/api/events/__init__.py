@@ -12,7 +12,7 @@ class SynapseEvent(object):
         self.content = content
         self.check_json(self.content, raises=raises)
 
-    def get_template(self):
+    def get_content_template(self):
         """ Retrieve the JSON template for this event as a dict.
 
         The template must be a dict representing the JSON to match. Only
@@ -48,12 +48,13 @@ class SynapseEvent(object):
             content : A JSON object to check.
             raises: True to raise a SynapseError if the check fails.
         Returns:
-            True if the content passes the template.
+            True if the content passes the template. Returns False if the check
+            fails and raises=False.
         Raises:
-            SynapseError if the c
+            SynapseError if the check fails and raises=True.
         """
         # recursively call to inspect each layer
-        err_msg = self._check_json(content, self.get_template(), raises)
+        err_msg = self._check_json(content, self.get_content_template(), raises)
         if err_msg:
             if raises:
                 raise SynapseError(400, err_msg)

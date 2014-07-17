@@ -7,8 +7,8 @@ class EventFactory(object):
     def __init__(self):
         pass
 
-    def create_event(self, typ=None, content=None):
+    def create_event(self, typ=None, content=None, **kwargs):
         if typ == "sy.room.topic":
-            return RoomTopicEvent(content)
+            return RoomTopicEvent(content, **kwargs)
         elif typ == "sy.room.message":
-            return MessageEvent(content)
+            return MessageEvent(content, **kwargs)

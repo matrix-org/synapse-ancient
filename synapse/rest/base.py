@@ -10,27 +10,27 @@ class RestEventFactory(object):
     """ A factory for creating REST events.
 
     These REST events represent the entire client-server REST API. Generally
-    speaking, they serve as wrappers around synapse events.
+    speaking, they serve as wrappers around handlers.
 
     See synapse.api.events for information on synapse events.
     """
 
     events = []
 
-    def __init__(self, event_factory):
+    def __init__(self, handler_factory):
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
         import room
-        self.events.append(room.RoomTopicRestEvent(event_factory))
-        self.events.append(room.RoomMemberRestEvent(event_factory))
-        self.events.append(room.MessageRestEvent(event_factory))
-        self.events.append(room.RoomCreateRestEvent(event_factory))
+        self.events.append(room.RoomTopicRestEvent(handler_factory))
+        self.events.append(room.RoomMemberRestEvent(handler_factory))
+        self.events.append(room.MessageRestEvent(handler_factory))
+        self.events.append(room.RoomCreateRestEvent(handler_factory))
 
         from events import EventStreamRestEvent
-        self.events.append(EventStreamRestEvent(event_factory))
+        self.events.append(EventStreamRestEvent(handler_factory))
 
         import register
-        self.events.append(register.RegisterRestEvent(event_factory))
+        self.events.append(register.RegisterRestEvent(handler_factory))
 
     def register_events(self, http_server):
         """ Registers all REST events with an HTTP server.
@@ -47,10 +47,8 @@ class RestEvent(object):
     """ A Synapse REST Event.
     """
 
-    def __init__(self, event_factory):
-        self.event_factory = event_factory
-        # cheat for now and leak the store
-        self.data_store = self.event_factory.store
+    def __init__(self, handler_factory):
+        self.handler_factory = handler_factory
 
     def get_pattern(self):
         """ Get the regex path pattern to match. This should be defined by

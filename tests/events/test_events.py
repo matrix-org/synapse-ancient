@@ -91,7 +91,7 @@ class SynapseTemplateCheckTestCase(unittest.TestCase):
                     "skin": "purple"
                 },
                 "age": 33,
-                "fav_books": "nothing", # should be a list
+                "fav_books": "nothing",  # should be a list
             }
         }
 

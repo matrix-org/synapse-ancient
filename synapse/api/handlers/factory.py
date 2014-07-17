@@ -17,10 +17,22 @@ class EventHandlerFactory(object):
         return RegistrationHandler(db_pool=DbPool.get())  # TODO remove dbpool
 
     def message_handler(self):
-        return MessageHandler(self.store, self.event_factory)
+        return MessageHandler(
+            store=self.store,
+            ev_factory=self.event_factory,
+            notifier=None,
+            auth=None)
 
     def room_creation_handler(self):
-        return RoomCreationHandler(self.store, self.event_factory)
+        return RoomCreationHandler(
+            store=self.store,
+            ev_factory=self.event_factory,
+            notifier=None,
+            auth=None)
 
     def room_member_handler(self):
-        return RoomMemberHandler(self.store, self.event_factory)
+        return RoomMemberHandler(
+            store=self.store,
+            ev_factory=self.event_factory,
+            notifier=None,
+            auth=None)
