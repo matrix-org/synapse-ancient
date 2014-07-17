@@ -103,6 +103,6 @@ class MockSynapseEvent(SynapseEvent):
     def __init__(self, template):
         self.template = template
 
-    def get_template(self):
+    def get_content_template(self):
         return self.template
 

@@ -39,7 +39,7 @@ class SynapseEvent(object):
             The values "string" and 0 could be anything, so long as the types
             are the same as the content.
         """
-        raise NotImplementedError("get_template not implemented.")
+        raise NotImplementedError("get_content_template not implemented.")
 
     def check_json(self, content, raises=True):
         """Checks the given JSON content abides by the rules of the template.
