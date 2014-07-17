@@ -82,11 +82,12 @@ class MessageHandler(BaseHandler):
                                        room_id=global_msg.room_id,
                                        user_id=global_msg.user_id)
 
-        self.event_factory.create_event(typ="sy.room.message",
+        self.event_factory.create_event(etype="sy.room.message",
                                                 content=content,
                                                 room_id=global_msg.room_id,
                                                 user_id=global_msg.user_id,
-                                                msg_id=global_msg.msg_id)
+                                                msg_id=global_msg.msg_id,
+                                                auth_user_id=user_id)
         # self.store.store_message(event)
 
         # store message in db
@@ -96,43 +97,35 @@ class MessageHandler(BaseHandler):
                                        content=json.dumps(content))
 
     @defer.inlineCallbacks
-    def store_room_path_data(self, room_id=None, path=None, user_id=None,
-                             content=None, event_type=None):
+    def store_room_path_data(self, event=None, path=None):
         """ Stores data for a room under a given path.
 
         Args:
-            room_id : The room to store the content under.
+            event : The room path event
             path : The path which can be used to retrieve the data.
-            user_id : If specified, verifies this user can store the data.
-            content : The content to store.
-            event_type : The Event type, e.g. 'sy.room.topic'.
         Raises:
             SynapseError if something went wrong.
         """
-        if user_id:
+        if event.auth_user_id:
             # check they are joined in the room
             yield _get_joined_or_throw(self.store,
-                                       room_id=room_id,
-                                       user_id=user_id)
-
-        self.event_factory.create_event(typ=event_type, content=content)
+                                       room_id=event.room_id,
+                                       user_id=event.auth_user_id)
 
         # store in db
-        yield self.store.store_path_data(room_id=room_id,
+        yield self.store.store_path_data(room_id=event.room_id,
                                          path=path,
-                                         content=json.dumps(content))
+                                         content=json.dumps(event.content))
 
     @defer.inlineCallbacks
-    def get_room_path_data(self, room_id=None, path=None, user_id=None,
+    def get_room_path_data(self, event=None, path=None,
                            public_room_rules=[],
                            private_room_rules=["join"]):
         """ Get path data from a room.
 
         Args:
-            room_id : The room where the path data was stored.
+            event : The room path event
             path : The path the data was stored under.
-            user_id : If specified, verifies this user can access the path data
-            in this room.
             public_room_rules : A list of membership states the user can be in,
             in order to read this data IN A PUBLIC ROOM. An empty list means
             'any state'.
@@ -144,16 +137,20 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
+        if event.type == "sy.room.topic":
+            # anyone invited/joined can read the topic
+            private_room_rules = ["invite", "join"]
+
         # does this room exist
-        room = yield self.store.get_room(room_id)
+        room = yield self.store.get_room(event.room_id)
         if not room:
             raise RoomError(403, "Room does not exist.")
         room = room[0]
 
         # does this user exist in this room
         member = yield self.store.get_room_member(
-            room_id=room_id,
-            user_id="" if not user_id else user_id)
+            room_id=event.room_id,
+            user_id="" if not event.auth_user_id else event.auth_user_id)
 
         member_state = member[0].membership if member else None
 

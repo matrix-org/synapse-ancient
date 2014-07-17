@@ -87,13 +87,16 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, auth_user_id=None):
         try:
+            event = self.event_factory.create_event(
+                etype=self.get_event_type(),
+                room_id=room_id,
+                auth_user_id=auth_user_id
+                )
+
             msg_handler = self.handler_factory.message_handler()
             data = yield msg_handler.get_room_path_data(
-                    room_id=room_id,
-                    user_id=auth_user_id,
-                    path=request.path,
-                    # anyone invited/joined can read the topic
-                    private_room_rules=["invite", "join"]
+                    event=event,
+                    path=request.path
                 )
 
             if not data:
@@ -108,13 +111,17 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             content = _parse_json(request)
 
+            event = self.event_factory.create_event(
+                etype=self.get_event_type(),
+                content=content,
+                room_id=room_id,
+                auth_user_id=auth_user_id
+                )
+
             msg_handler = self.handler_factory.message_handler()
             yield msg_handler.store_room_path_data(
-                room_id=room_id,
-                user_id=auth_user_id,
-                content=content,
-                path=request.path,
-                event_type=self.get_event_type()
+                event=event,
+                path=request.path
             )
             defer.returnValue((200, ""))
         except SynapseError as e:

@@ -53,6 +53,9 @@ class SynapseEvent(object):
         Raises:
             SynapseError if the check fails and raises=True.
         """
+        if content is None:  # must be None, since 'not content' == True for {}
+            return True
+
         # recursively call to inspect each layer
         err_msg = self._check_json(content, self.get_content_template(), raises)
         if err_msg:

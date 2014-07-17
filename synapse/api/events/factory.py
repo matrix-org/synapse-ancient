@@ -7,8 +7,10 @@ class EventFactory(object):
     def __init__(self):
         pass
 
-    def create_event(self, typ=None, content=None, **kwargs):
-        if typ == "sy.room.topic":
-            return RoomTopicEvent(content, **kwargs)
-        elif typ == "sy.room.message":
+    def create_event(self, etype=None, content=None, **kwargs):
+        if etype == "sy.room.topic":
+            return RoomTopicEvent(content, etype=etype, **kwargs)
+        elif etype == "sy.room.message":
             return MessageEvent(content, **kwargs)
+        else:
+            raise NotImplementedError("Unknown etype=%s" % etype)

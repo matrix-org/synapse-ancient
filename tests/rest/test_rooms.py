@@ -56,13 +56,13 @@ class RoomPermissionsTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.mock_event_factory = EventHandlerFactory(self.mock_data_store,
-                                                      EventFactory())
+        self.ev_fac = EventFactory()
+        self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
         Auth.mod_registered_user = MockRegisteredUserModule(self.rmcreator_id)
-        MessageRestEvent(self.mock_event_factory).register(self.mock_server)
-        RoomMemberRestEvent(self.mock_event_factory).register(self.mock_server)
-        RoomTopicRestEvent(self.mock_event_factory).register(self.mock_server)
-        RoomCreateRestEvent(self.mock_event_factory).register(self.mock_server)
+        MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
 
         # create some rooms under the name rmcreator_id
         self.uncreated_rmid = "aa"
@@ -325,10 +325,10 @@ class RoomsCreateTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.mock_event_factory = EventHandlerFactory(self.mock_data_store,
-                                                      EventFactory())
+        self.ev_fac = EventFactory()
+        self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
-        RoomCreateRestEvent(self.mock_event_factory).register(self.mock_server)
+        RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
 
     def tearDown(self):
         try:
@@ -429,13 +429,14 @@ class RoomsTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.mock_event_factory = EventHandlerFactory(self.mock_data_store,
-                                                      EventFactory())
+
+        self.ev_fac = EventFactory()
+        self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
         Auth.mod_registered_user = MockRegisteredUserModule(self.user_id)
-        MessageRestEvent(self.mock_event_factory).register(self.mock_server)
-        RoomMemberRestEvent(self.mock_event_factory).register(self.mock_server)
-        RoomTopicRestEvent(self.mock_event_factory).register(self.mock_server)
-        RoomCreateRestEvent(self.mock_event_factory).register(self.mock_server)
+        MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
 
         # create the room
         path = "/rooms/rid1"
