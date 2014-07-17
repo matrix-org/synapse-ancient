@@ -39,7 +39,8 @@ class MessagesStreamData(StreamData):
         data = []
         last_pkey = from_pkey
         for result in result_set:
-            event = MessageRestEvent()
+            # TODO shouldn't need to make REST events now.
+            event = MessageRestEvent(None, None)
             result_dict = dict(zip(col_headers, result))
             last_pkey = result_dict["id"]
             event_data = event.get_event_data(result_dict)
@@ -76,7 +77,8 @@ class RoomMemberStreamData(StreamData):
         data = []
         last_pkey = from_pkey
         for result in result_set:
-            event = RoomMemberRestEvent()
+            # TODO shouldn't need to make REST events now.
+            event = RoomMemberRestEvent(None, None)
             result_dict = dict(zip(col_headers, result))
             last_pkey = result_dict["id"]
             event_data = event.get_event_data(result_dict)

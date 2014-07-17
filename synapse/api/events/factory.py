@@ -8,12 +8,12 @@ class EventFactory(object):
     def __init__(self):
         pass
 
-    def create_event(self, etype=None, content=None, **kwargs):
+    def create_event(self, etype=None, **kwargs):
         if etype == RoomTopicEvent.TYPE:
-            return RoomTopicEvent(content, **kwargs)
+            return RoomTopicEvent(**kwargs)
         elif etype == MessageEvent.TYPE:
-            return MessageEvent(content, **kwargs)
+            return MessageEvent(**kwargs)
         elif etype == RoomMemberEvent.TYPE:
-            return RoomMemberEvent(content, **kwargs)
+            return RoomMemberEvent(**kwargs)
         else:
             raise NotImplementedError("Unknown etype=%s" % etype)

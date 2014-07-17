@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 from synapse.api.streams.base import FilterStream
 from synapse.api.streams.event import EventStream
-from synapse.api.auth import Auth
+from synapse.api.auth import AuthDecorator
 from synapse.rest.base import GetEventMixin, RestEvent, InvalidHttpRequestError
 
 import re
@@ -15,7 +15,7 @@ class EventStreamRestEvent(GetEventMixin, RestEvent):
     def get_pattern(self):
         return re.compile("^/events$")
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_GET(self, request, auth_user_id=None):
         try:

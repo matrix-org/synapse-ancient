@@ -63,8 +63,8 @@ class MockHttpServer(HttpServer):
         self.callbacks.append((method, path_pattern, callback))
 
 
-class MockRegisteredUserModule():
-    """A mock of synapse.api.auth.RegisteredUserModule."""
+class MockAccessTokenModule():
+    """A mock of synapse.api.auth.AccessTokenModule."""
 
     def __init__(self, user_id):
         """Register as a given user.

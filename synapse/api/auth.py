@@ -8,11 +8,21 @@ from synapse.util.dbutils import DbPool
 
 class Auth(object):
 
-    mod_registered_user = None
-    """A RegisteredUserModule."""
+    def __init__(self, mod_token=None):
+        self.mod_token = mod_token
+
+
+class AuthDecorator(object):
+
+    """A class which contains methods which can be invoked as decorators. The
+    auth mechanism used is defined by the class attribute 'auth'.
+    """
+
+    auth = None
+    """The Auth instance to use."""
 
     @classmethod
-    def defer_registered_user(cls, func):
+    def defer_verify_token(cls, func):
         """ A decorator for authenticating the user's access_token.
 
         The decorated function MUST have a twisted Request as an arg, which
@@ -31,8 +41,7 @@ class Auth(object):
                 # if it has request headers and query params, it's probably it
                 if hasattr(arg, "requestHeaders") and hasattr(arg, "args"):
                     try:
-                        userid = yield cls.mod_registered_user.get_user_by_req(
-                                    arg)
+                        userid = yield cls.auth.mod_token.get_user_by_req(arg)
                     except InvalidHttpRequestError as e:
                         defer.returnValue((e.get_status_code(),
                                            e.get_response_body()))
@@ -48,7 +57,7 @@ class Auth(object):
         return defer_auth
 
 
-class RegisteredUserModule(object):
+class AccessTokenModule(object):
 
     def __init__(self, data_store):
         self.data_store = data_store

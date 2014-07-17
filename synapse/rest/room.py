@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
-from synapse.api.auth import Auth
+from synapse.api.auth import AuthDecorator
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent)
@@ -20,7 +20,7 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
         # /rooms OR /rooms/<roomid>
         return re.compile(r"^/rooms(?:/(?P<roomid>[^/]*))?$")
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, auth_user_id=None):
         try:
@@ -36,7 +36,7 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
         except InvalidHttpRequestError as he:
             defer.returnValue((he.get_status_code(), he.get_response_body()))
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_POST(self, request, room_id, auth_user_id=None):
         try:
@@ -85,7 +85,7 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return RoomTopicEvent.TYPE
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, auth_user_id=None):
         try:
@@ -107,7 +107,7 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except SynapseError as e:
             defer.returnValue((e.code, ""))
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, auth_user_id=None):
         try:
@@ -140,7 +140,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return RoomMemberEvent.TYPE
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_GET(self, request, roomid, userid, auth_user_id=None):
         try:
@@ -161,7 +161,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except SynapseError as e:
             defer.returnValue((e.code, e.msg))
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_DELETE(self, request, roomid, userid, auth_user_id=None):
         try:
@@ -180,7 +180,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((e.code, ""))
         defer.returnValue((500, ""))
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_PUT(self, request, roomid, userid, auth_user_id=None):
         try:
@@ -220,7 +220,7 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return MessageEvent.TYPE
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
@@ -243,7 +243,7 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
 
-    @Auth.defer_registered_user
+    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, sender_id, msg_id,
                auth_user_id=None):

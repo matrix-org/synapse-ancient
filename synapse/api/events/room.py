@@ -5,7 +5,7 @@ from . import SynapseEvent
 class RoomTopicEvent(SynapseEvent):
     TYPE = "sy.room.topic"
 
-    def __init__(self, content, pdu=None, **kwargs):
+    def __init__(self, content=None, pdu=None, **kwargs):
         super(RoomTopicEvent, self).__init__(content)
         self.type = RoomTopicEvent.TYPE
 
@@ -22,7 +22,7 @@ class RoomTopicEvent(SynapseEvent):
 class RoomMemberEvent(SynapseEvent):
     TYPE = "sy.room.member"
 
-    def __init__(self, content, pdu=None, **kwargs):
+    def __init__(self, content=None, pdu=None, **kwargs):
         super(RoomMemberEvent, self).__init__(content)
         self.type = RoomMemberEvent.TYPE
 
@@ -41,7 +41,7 @@ class RoomMemberEvent(SynapseEvent):
 class MessageEvent(SynapseEvent):
     TYPE = "sy.room.message"
 
-    def __init__(self, content, pdu=None, **kwargs):
+    def __init__(self, content=None, pdu=None, **kwargs):
         super(MessageEvent, self).__init__(content)
         self.type = MessageEvent.TYPE
 
