@@ -47,6 +47,14 @@ PDU Reference:
   references are opaque at the protocol level, but may optionally have some
   structured meaning within a given origin server or implementation.
 
+Presence:
+  The concept of whether a user is currently online, how available they declare
+  they are, and so on. See also: doc/model/presence
+
+Profile:
+  A set of metadata about a user, such as a display name, provided for the
+  benefit of other users. See also: doc/model/profiles
+
 State:
   A set of metadata maintained about a Context, which is replicated among the
   servers in addition to the history of Events.
