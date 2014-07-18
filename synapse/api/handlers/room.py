@@ -31,15 +31,9 @@ class MessageHandler(BaseHandler):
         Returns:
             The message, or None if no message exists.
         Raises:
-            RoomError if something went wrong.
+            SynapseError if something went wrong.
         """
-        # self.auth.check(event)
-
-        if event.auth_user_id:
-            # check they are joined in the room
-            yield _get_joined_or_throw(self.store,
-                                       room_id=event.room_id,
-                                       user_id=event.auth_user_id)
+        yield self.auth.check(event, raises=True)
 
         # Pull out the message from the db
         results = yield self.store.get_message(room_id=event.room_id,
@@ -59,15 +53,12 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
+        yield self.auth.check(event, raises=True)
+
         if event.auth_user_id:
             # verify they are sending msgs under their own user id
             if event.user_id != event.auth_user_id:
                 raise RoomError(403, "Must send messages as yourself.")
-
-            # Check if sender_id is in room room_id
-            yield _get_joined_or_throw(self.store,
-                                       room_id=event.room_id,
-                                       user_id=event.auth_user_id)
 
         # store message in db
         yield self.store.store_message(user_id=event.user_id,
@@ -85,11 +76,7 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
-        if event.auth_user_id:
-            # check they are joined in the room
-            yield _get_joined_or_throw(self.store,
-                                       room_id=event.room_id,
-                                       user_id=event.auth_user_id)
+        yield self.auth.check(event, raises=True)
 
         # store in db
         yield self.store.store_path_data(room_id=event.room_id,
@@ -189,13 +176,9 @@ class RoomMemberHandler(BaseHandler):
         Returns:
             The room member, or None if this member does not exist.
         Raises:
-            RoomError if something goes wrong.
+            SynapseError if something goes wrong.
         """
-        if event.auth_user_id:
-            # check they are joined in the room
-            yield _get_joined_or_throw(self.store,
-                                       room_id=event.room_id,
-                                       user_id=event.auth_user_id)
+        yield self.auth.check(event, raises=True)
 
         member = yield self.store.get_room_member(user_id=event.user_id,
                                                   room_id=event.room_id)
@@ -212,7 +195,7 @@ class RoomMemberHandler(BaseHandler):
             broadcast_msg (bool): True to inject a membership message into this
             room on success.
         Raises:
-            RoomError if there was a problem changing the membership.
+            SynapseError if there was a problem changing the membership.
         """
         # does this room even exist
         room = self.store.get_room(event.room_id)
@@ -296,30 +279,11 @@ class RoomMemberHandler(BaseHandler):
                 room_id=room_id,
                 user_id="_hs_",
                 msg_id=msg_id,
-                auth_user_id=None,
                 content=membership_json
                 )
 
-        handler = MessageHandler(self.store, self.event_factory)
+        handler = MessageHandler(
+            ev_factory=self.event_factory,
+            store=self.store,
+            auth=self.auth)
         yield handler.send_message(event)
-
-
-@defer.inlineCallbacks
-def _get_joined_or_throw(store=None, user_id=None, room_id=None):
-    """Utility method to return the specified room member.
-
-    Args:
-        store : The event data store
-        user_id : The member's ID
-        room_id : The room where the member is joined.
-    Returns:
-        The room member.
-    Raises:
-        RoomError if this member does not exist/isn't joined.
-    """
-    member = yield store.get_room_member(
-        room_id=room_id,
-        user_id=user_id)
-    if not member or member[0].membership != "join":
-        raise RoomError(403, "Haven't joined room.'")
-    defer.returnValue(member)

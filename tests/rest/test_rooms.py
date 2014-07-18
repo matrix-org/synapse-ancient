@@ -8,7 +8,7 @@ from twisted.internet import defer
 # trial imports
 from twisted.trial import unittest
 
-from synapse.api.auth import Auth, AuthDecorator
+from synapse.api.auth import Auth, AuthDecorator, JoinedRoomModule
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
                                RoomTopicRestEvent, RoomCreateRestEvent)
@@ -57,8 +57,12 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
         self.ev_fac = EventFactory()
-        self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
-        AuthDecorator.auth = Auth(MockAccessTokenModule(self.rmcreator_id))
+        self.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
+                         JoinedRoomModule(self.mock_data_store))
+        self.h_fac = EventHandlerFactory(self.mock_data_store,
+                                         self.ev_fac,
+                                         self.auth)
+        AuthDecorator.auth = self.auth
         MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
@@ -326,8 +330,12 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
         self.ev_fac = EventFactory()
-        self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
-        AuthDecorator.auth = Auth(MockAccessTokenModule(self.user_id))
+        self.auth = Auth(MockAccessTokenModule(self.user_id),
+                         JoinedRoomModule(self.mock_data_store))
+        self.h_fac = EventHandlerFactory(self.mock_data_store,
+                                         self.ev_fac,
+                                         self.auth)
+        AuthDecorator.auth = self.auth
         RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
 
     def tearDown(self):
@@ -431,8 +439,12 @@ class RoomsTestCase(unittest.TestCase):
         self.mock_data_store = EventStore()
 
         self.ev_fac = EventFactory()
-        self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
-        AuthDecorator.auth = Auth(MockAccessTokenModule(self.user_id))
+        self.auth = Auth(MockAccessTokenModule(self.user_id),
+                         JoinedRoomModule(self.mock_data_store))
+        self.h_fac = EventHandlerFactory(self.mock_data_store,
+                                         self.ev_fac,
+                                         self.auth)
+        AuthDecorator.auth = self.auth
         MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)

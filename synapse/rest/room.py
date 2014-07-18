@@ -206,7 +206,7 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             yield handler.change_membership(event, broadcast_msg=True)
             defer.returnValue((200, ""))
         except SynapseError as e:
-            defer.returnValue((e.code, ""))
+            defer.returnValue((e.code, e.msg))
         defer.returnValue((500, ""))
 
 

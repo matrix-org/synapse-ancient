@@ -67,13 +67,13 @@ class Auth(object):
         """
         try:
             for module in self.modules.values():
-                module.check(event)
+                yield module.check(event)
 
-            return True
+            defer.returnValue(True)
         except AuthError as e:
             if raises:
                 raise e
-        return False
+        defer.returnValue(False)
 
 
 class JoinedRoomModule(AuthModule):
@@ -85,17 +85,15 @@ class JoinedRoomModule(AuthModule):
 
     @defer.inlineCallbacks
     def check(self, event):
-        """Checks for 'auth_user_id' and 'room_id' and auths that the user is
-        joined in that room."""
-        try:
+        """Checks if auth_user_id is joined in the room room_id."""
+        if event.auth_user_id and event.room_id:
             member = yield self.store.get_room_member(
                         room_id=event.room_id,
                         user_id=event.auth_user_id)
             if not member or member[0].membership != "join":
                 raise AuthError(403, JoinedRoomModule.NAME)
             defer.returnValue(member)
-        except AttributeError:
-            pass
+        defer.returnValue(None)
 
 
 class AccessTokenModule(AuthModule):
@@ -108,9 +106,11 @@ class AccessTokenModule(AuthModule):
     def check(self, event):
         """Checks for an 'auth_token' attribute and auths it."""
         try:
-            defer.returnValue(self.get_user_by_token(event.auth_token))
+            user_id = yield self.get_user_by_token(event.auth_token)
+            defer.returnValue(user_id)
         except AttributeError:
             pass
+        defer.returnValue(None)
 
     def get_user_by_req(self, request):
         """ Get a registered user's ID.

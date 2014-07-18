@@ -22,16 +22,17 @@ class SynapseHomeServer(ReplicationHandler):
         self.event_data_store = EventStore()
 
         # configure auth
-        auth = Auth(
+        self.auth = Auth(
             AccessTokenModule(self.event_data_store),
             JoinedRoomModule(self.event_data_store)
             )
-        AuthDecorator.auth = auth
+        AuthDecorator.auth = self.auth
 
         # configure how events are made and handled
         self.event_factory = EventFactory()
         self.handler_factory = EventHandlerFactory(self.event_data_store,
-                                                   self.event_factory)
+                                                   self.event_factory,
+                                                   self.auth)
 
         # configure how REST events are handled, and register paths
         self.rest_event_factory = RestEventFactory(self.handler_factory,
