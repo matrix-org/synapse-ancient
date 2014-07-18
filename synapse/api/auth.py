@@ -76,6 +76,8 @@ class Auth(object):
 
             defer.returnValue(True)
         except AuthError as e:
+            logger.info("[%s] Failed on event %s with msg: %s" %
+                        (module.NAME, event, e.msg))
             if raises:
                 raise e
         defer.returnValue(False)
@@ -100,8 +102,6 @@ class JoinedRoomModule(AuthModule):
                             room_id=event.room_id,
                             user_id=event.auth_user_id)
                 if not member or member[0].membership != "join":
-                    logger.info("[%s] Failed on event %s" %
-                                    (JoinedRoomModule.NAME, event))
                     raise AuthError(403, JoinedRoomModule.NAME)
                 defer.returnValue(member)
         except AttributeError:
@@ -132,8 +132,6 @@ class MembershipChangeModule(AuthModule):
         # does this room even exist
         room = self.store.get_room(event.room_id)
         if not room:
-            logger.info("[%s] Failed on event %s" %
-                        (MembershipChangeModule.NAME, event))
             raise AuthError(403, "Room does not exist")
 
         # get info about the caller
@@ -158,8 +156,6 @@ class MembershipChangeModule(AuthModule):
             # Invites are valid iff caller is in the room and target isn't.
             if not caller_in_room or target_in_room:
                 # caller isn't joined or the target is already in the room.
-                logger.info("[%s] Failed on event %s" %
-                        (MembershipChangeModule.NAME, event))
                 raise AuthError(403, "Cannot invite.")
         elif Membership.JOIN == event.membership:
             # Joins are valid iff caller == target and they were:
@@ -168,19 +164,13 @@ class MembershipChangeModule(AuthModule):
             if (event.auth_user_id != event.user_id or not caller or
                     caller[0].membership not in
                     [Membership.INVITE, Membership.JOIN]):
-                logger.info("[%s] Failed on event %s" %
-                        (MembershipChangeModule.NAME, event))
                 raise AuthError(403, "Cannot join.")
         elif Membership.LEAVE == event.membership:
             if not caller_in_room or event.user_id != event.auth_user_id:
                 # trying to leave a room you aren't joined or trying to force
                 # another user to leave
-                logger.info("[%s] Failed on event %s" %
-                        (MembershipChangeModule.NAME, event))
                 raise AuthError(403, "Cannot leave.")
         else:
-            logger.info("[%s] Failed on event %s" %
-                        (MembershipChangeModule.NAME, event))
             raise AuthError(500, "Unknown membership %s" % event.membership)
 
         defer.returnValue(True)
@@ -216,8 +206,6 @@ class AccessTokenModule(AuthModule):
         try:
             return self.get_user_by_token(request.args["access_token"])
         except KeyError:
-            logger.info("[%s] Failed on request %s" %
-                        (AccessTokenModule.NAME, request))
             raise AuthError(403, "Missing access token.")
 
     @defer.inlineCallbacks
@@ -245,8 +233,6 @@ class AccessTokenModule(AuthModule):
         if row:
             return row[0]
 
-        logger.info("[%s] Failed on token %s" %
-                        (AccessTokenModule.NAME, token))
         raise AuthError(403, "Unrecognised access token.")
 
 
