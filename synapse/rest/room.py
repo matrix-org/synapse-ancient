@@ -8,7 +8,7 @@ from synapse.api.auth import AuthDecorator
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent)
-from synapse.api.handlers.room import Membership
+from synapse.api.constants import Membership
 
 import json
 import re

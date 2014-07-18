@@ -2,6 +2,7 @@
 """Contains functions for performing events on rooms."""
 from twisted.internet import defer
 
+from synapse.api.constants import Membership
 from synapse.api.errors import RoomError
 from synapse.api.event_store import StoreException
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
@@ -9,15 +10,6 @@ from . import BaseHandler
 
 import json
 import time
-
-
-class Membership(object):
-
-    """An enum representing the membership state of a user in a room."""
-    INVITE = "invite"
-    JOIN = "join"
-    KNOCK = "knock"
-    LEAVE = "leave"
 
 
 class MessageHandler(BaseHandler):
@@ -197,49 +189,7 @@ class RoomMemberHandler(BaseHandler):
         Raises:
             SynapseError if there was a problem changing the membership.
         """
-        # does this room even exist
-        room = self.store.get_room(event.room_id)
-        if not room:
-            raise RoomError(403, "Room does not exist")
-
-        # get info about the caller
-        try:
-            caller = yield self.store.get_room_member(
-                user_id=event.auth_user_id,
-                room_id=event.room_id)
-        except:
-            pass
-        caller_in_room = caller and caller[0].membership == "join"
-
-        # get info about the target
-        try:
-            target = yield self.store.get_room_member(
-                user_id=event.user_id,
-                room_id=event.room_id)
-        except:
-            pass
-        target_in_room = target and target[0].membership == "join"
-
-        if Membership.INVITE == event.membership:
-            # Invites are valid iff caller is in the room and target isn't.
-            if not caller_in_room or target_in_room:
-                # caller isn't joined or the target is already in the room.
-                raise RoomError(403, "Cannot invite.")
-        elif Membership.JOIN == event.membership:
-            # Joins are valid iff caller == target and they were:
-            # invited: They are accepting the invitation
-            # joined: It's a NOOP
-            if (event.auth_user_id != event.user_id or not caller or
-                    caller[0].membership not in
-                    [Membership.INVITE, Membership.JOIN]):
-                raise RoomError(403, "Cannot join.")
-        elif Membership.LEAVE == event.membership:
-            if not caller_in_room or event.user_id != event.auth_user_id:
-                # trying to leave a room you aren't joined or trying to force
-                # another user to leave
-                raise RoomError(403, "Cannot leave.")
-        else:
-            raise RoomError(500, "Unknown membership %s" % event.membership)
+        yield self.auth.check(event, raises=True)
 
         # store membership
         yield self.store.store_room_member(

@@ -8,7 +8,8 @@ from twisted.internet import defer
 # trial imports
 from twisted.trial import unittest
 
-from synapse.api.auth import Auth, AuthDecorator, JoinedRoomModule
+from synapse.api.auth import (Auth, AuthDecorator, JoinedRoomModule,
+                              MembershipChangeModule)
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
                                RoomTopicRestEvent, RoomCreateRestEvent)
@@ -58,7 +59,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.mock_data_store = EventStore()
         self.ev_fac = EventFactory()
         self.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
-                         JoinedRoomModule(self.mock_data_store))
+                         JoinedRoomModule(self.mock_data_store),
+                         MembershipChangeModule(self.mock_data_store))
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
@@ -331,7 +333,8 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.mock_data_store = EventStore()
         self.ev_fac = EventFactory()
         self.auth = Auth(MockAccessTokenModule(self.user_id),
-                         JoinedRoomModule(self.mock_data_store))
+                         JoinedRoomModule(self.mock_data_store),
+                         MembershipChangeModule(self.mock_data_store))
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
@@ -440,7 +443,8 @@ class RoomsTestCase(unittest.TestCase):
 
         self.ev_fac = EventFactory()
         self.auth = Auth(MockAccessTokenModule(self.user_id),
-                         JoinedRoomModule(self.mock_data_store))
+                         JoinedRoomModule(self.mock_data_store),
+                         MembershipChangeModule(self.mock_data_store))
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)

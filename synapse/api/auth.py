@@ -2,6 +2,7 @@
 """This module contains classes for authenticating the user."""
 from twisted.internet import defer
 
+from synapse.api.constants import Membership
 from synapse.api.errors import AuthError
 from synapse.util.dbutils import DbPool
 
@@ -86,14 +87,87 @@ class JoinedRoomModule(AuthModule):
     @defer.inlineCallbacks
     def check(self, event):
         """Checks if auth_user_id is joined in the room room_id."""
-        if event.auth_user_id and event.room_id:
-            member = yield self.store.get_room_member(
-                        room_id=event.room_id,
-                        user_id=event.auth_user_id)
-            if not member or member[0].membership != "join":
-                raise AuthError(403, JoinedRoomModule.NAME)
-            defer.returnValue(member)
+
+        try:
+            # TODO this is horrible, this shouldn't care about event.membership.
+            if (event.auth_user_id and event.room_id and
+                                            not hasattr(event, "membership")):
+                member = yield self.store.get_room_member(
+                            room_id=event.room_id,
+                            user_id=event.auth_user_id)
+                if not member or member[0].membership != "join":
+                    raise AuthError(403, JoinedRoomModule.NAME)
+                defer.returnValue(member)
+        except AttributeError:
+            pass
         defer.returnValue(None)
+
+
+class MembershipChangeModule(AuthModule):
+    NAME = "mod_membership_change"
+
+    def __init__(self, store):
+        super(MembershipChangeModule, self).__init__()
+        self.store = store
+
+    @defer.inlineCallbacks
+    def check(self, event):
+        """Checks if this membership change is allowed to take place. Looks for
+        the keys 'membership' (the action), 'auth_user_id' (the initiator), and
+        'user_id' (the target).
+        """
+        try:
+            if (not event.auth_user_id or not event.user_id or not
+                event.membership or not event.room_id):
+                raise AttributeError()
+        except AttributeError:
+            defer.returnValue(False)
+
+        # does this room even exist
+        room = self.store.get_room(event.room_id)
+        if not room:
+            raise AuthError(403, "Room does not exist")
+
+        # get info about the caller
+        try:
+            caller = yield self.store.get_room_member(
+                user_id=event.auth_user_id,
+                room_id=event.room_id)
+        except:
+            pass
+        caller_in_room = caller and caller[0].membership == "join"
+
+        # get info about the target
+        try:
+            target = yield self.store.get_room_member(
+                user_id=event.user_id,
+                room_id=event.room_id)
+        except:
+            pass
+        target_in_room = target and target[0].membership == "join"
+
+        if Membership.INVITE == event.membership:
+            # Invites are valid iff caller is in the room and target isn't.
+            if not caller_in_room or target_in_room:
+                # caller isn't joined or the target is already in the room.
+                raise AuthError(403, "Cannot invite.")
+        elif Membership.JOIN == event.membership:
+            # Joins are valid iff caller == target and they were:
+            # invited: They are accepting the invitation
+            # joined: It's a NOOP
+            if (event.auth_user_id != event.user_id or not caller or
+                    caller[0].membership not in
+                    [Membership.INVITE, Membership.JOIN]):
+                raise AuthError(403, "Cannot join.")
+        elif Membership.LEAVE == event.membership:
+            if not caller_in_room or event.user_id != event.auth_user_id:
+                # trying to leave a room you aren't joined or trying to force
+                # another user to leave
+                raise AuthError(403, "Cannot leave.")
+        else:
+            raise AuthError(500, "Unknown membership %s" % event.membership)
+
+        defer.returnValue(True)
 
 
 class AccessTokenModule(AuthModule):
