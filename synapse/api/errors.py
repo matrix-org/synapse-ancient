@@ -31,6 +31,11 @@ class AuthError(SynapseError):
     pass
 
 
+class EventStreamError(SynapseError):
+    """An error raises when there a problem with the event stream."""
+    pass
+
+
 def cs_error(msg, code=0, **kwargs):
     """ Utility method for constructing an error response for client-server
     interactions.

@@ -3,7 +3,6 @@
 from twisted.internet import defer
 
 from synapse.api.streams.base import FilterStream
-from synapse.api.streams.event import EventStream
 from synapse.api.auth import AuthDecorator
 from synapse.rest.base import GetEventMixin, RestEvent, InvalidHttpRequestError
 
@@ -19,9 +18,9 @@ class EventStreamRestEvent(GetEventMixin, RestEvent):
     @defer.inlineCallbacks
     def on_GET(self, request, auth_user_id=None):
         try:
-            event_stream = EventStream(auth_user_id)
+            handler = self.handler_factory.event_stream_handler()
             params = self._get_stream_parameters(request)
-            chunk = yield event_stream.get_chunk(**params)
+            chunk = yield handler.get_stream(auth_user_id, **params)
             defer.returnValue((200, chunk))
         except InvalidHttpRequestError as e:
             defer.returnValue((e.get_status_code(), e.get_response_body()))

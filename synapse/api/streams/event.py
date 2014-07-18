@@ -2,6 +2,7 @@
 """This module contains classes for streaming from the event stream: /events."""
 from twisted.internet import defer
 
+from synapse.api.errors import EventStreamError
 from synapse.util.dbutils import DbPool
 from synapse.rest.room import MessageRestEvent, RoomMemberRestEvent
 from synapse.rest.base import InvalidHttpRequestError  # TODO remove
@@ -89,15 +90,12 @@ class RoomMemberStreamData(StreamData):
 
 class EventStream(FilterStream):
 
-    # order here maps onto tokens
-    STREAM_DATA = [MessagesStreamData(),
-                   RoomMemberStreamData()]
-
     SEPARATOR = '_'
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, stream_data_list):
         super(EventStream, self).__init__()
         self.user_id = user_id
+        self.stream_data = stream_data_list
 
     @defer.inlineCallbacks
     def get_chunk(self, from_tok=None, to_tok=None, direction=None, limit=None):
@@ -107,11 +105,11 @@ class EventStream(FilterStream):
 
         if from_tok == FilterStream.TOK_START:
             from_tok = EventStream.SEPARATOR.join(
-                           ["0"] * len(EventStream.STREAM_DATA))
+                           ["0"] * len(self.stream_data))
 
         if to_tok == FilterStream.TOK_END:
             to_tok = EventStream.SEPARATOR.join(
-                           ["-1"] * len(EventStream.STREAM_DATA))
+                           ["-1"] * len(self.stream_data))
 
         try:
             (chunk_data, next_tok) = yield self._get_chunk_data(from_tok,
@@ -148,7 +146,7 @@ class EventStream(FilterStream):
         if (from_tok.count(EventStream.SEPARATOR) !=
                 to_tok.count(EventStream.SEPARATOR) or
                 (from_tok.count(EventStream.SEPARATOR) + 1) !=
-                len(EventStream.STREAM_DATA)):
+                len(self.stream_data)):
             raise EventStreamError("Token lengths don't match.")
 
         chunk = []
@@ -165,14 +163,10 @@ class EventStream(FilterStream):
             except ValueError:
                 raise EventStreamError("Index not integer.")
 
-            (event_chunk, max_pkey) = yield EventStream.STREAM_DATA[i].get_rows(
+            (event_chunk, max_pkey) = yield self.stream_data[i].get_rows(
                                         self.user_id, ifrom, ito)
 
             chunk += event_chunk
             next_ver.append(str(max_pkey))
 
         defer.returnValue((chunk, EventStream.SEPARATOR.join(next_ver)))
-
-
-class EventStreamError(Exception):
-    pass

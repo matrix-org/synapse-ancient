@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from register import RegistrationHandler
 from room import MessageHandler, RoomCreationHandler, RoomMemberHandler
+from events import EventStreamHandler
+
 from synapse.util.dbutils import DbPool  # TODO remove
 
 
@@ -33,6 +35,13 @@ class EventHandlerFactory(object):
 
     def room_member_handler(self):
         return RoomMemberHandler(
+            store=self.store,
+            ev_factory=self.event_factory,
+            notifier=None,
+            auth=self.auth)
+
+    def event_stream_handler(self):
+        return EventStreamHandler(
             store=self.store,
             ev_factory=self.event_factory,
             notifier=None,
