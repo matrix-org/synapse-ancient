@@ -1,0 +1,52 @@
+=========================
+Client-Server URL Summary
+=========================
+
+A brief overview of the URL scheme involved in the Synapse Client-Server API.
+
+
+URLs
+====
+
+Fetch events:
+  GET /events
+
+Registering an account
+  POST /register
+
+Unregistering an account
+  POST /unregister
+
+Rooms
+-----
+
+Creating a room by ID
+  PUT /rooms/$roomid
+
+Creating an anonymous room
+  POST /rooms
+
+Room topic
+  GET /rooms/$roomid/topic
+  PUT /rooms/$roomid/topic
+
+List rooms
+  GET /rooms/list
+
+Invite/Join/Leave
+  GET    /rooms/$roomid/members/$userid/state
+  PUT    /rooms/$roomid/members/$userid/state
+  DELETE /rooms/$roomid/members/$userid/state
+
+List members
+  GET  /rooms/$roomid/members/list
+
+Sending/reading messages
+  PUT /rooms/$roomid/messages/$sender/$msgid
+
+Feedback
+  GET /rooms/$roomid/messages/$sender/$msgid/feedback/$feedbackuser/$feedback
+  PUT /rooms/$roomid/messages/$sender/$msgid/feedback/$feedbackuser/$feedback
+
+Paginating messages
+  GET /rooms/$roomid/messages/list
