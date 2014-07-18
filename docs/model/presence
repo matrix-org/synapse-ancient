@@ -180,3 +180,70 @@ updates in future.
 
 To avoid bursts of traffic, implementations should attempt to stagger the expiry
 of the longer-term watchdog timers for different peer HSes.
+
+When individual users actively change their status (either by explicit requests
+from clients, or inferred changes due to idle timers or client timeouts), the HS
+should batch up any status changes for some reasonable amount of time (10
+seconds to a minute). This allows for reduced protocol overheads in the case of
+multiple messages needing to be sent to the same peer HS; as is the likely
+scenario in many cases, such as a given human user having multiple user
+accounts.
+
+
+API Requirements
+================
+
+The data model presented here puts the following requirements on the APIs:
+
+Client-Server
+-------------
+
+Requests that a client can make to its Home Server
+
+ * get/set current presence state
+   Basic enumeration + ability to set a custom piece of text
+
+ * report per-device idle time
+   After some (configurable?) idle time the device should send a single message
+   to set the idle duration. The HS can then infer a "start of idle" instant and
+   use that to keep the device idleness up to date. At some later point the
+   device can cancel this idleness.
+
+ * report per-device type
+   Inform the server that this device is a "mobile" device, or perhaps some
+   other to-be-defined category of reduced capability that could be presented to
+   other users.
+
+ * start/stop presence polling for my presence list
+   It is likely that these messages could be implicitly inferred by other
+   messages, though having explicit control is always useful.
+
+ * get my presence list
+   [implicit poll start?]
+   It is possible that the HS doesn't yet have current presence information when
+   the client requests this. There should be a "don't know" type too.
+
+ * add/remove a user to my presence list
+
+Server-Server
+-------------
+
+Requests that Home Servers make to others
+
+ * request permission to add a user to presence list
+
+ * allow/deny a request to add to a presence list
+
+ * perform a combined presence state push and subscription request
+   For each sending user ID, the message contains their new status.
+   For each receiving user ID, the message should contain an indication on
+   whether the sending server is also interested in receiving status from that
+   user; either as an immediate update response now, or as a promise to send
+   future updates.
+
+Server to Client
+----------------
+
+[[TODO(paul): There also needs to be some way for a user's HS to push status
+updates of the presence list to clients, but the general server-client event
+model currently lacks a space to do that.]]

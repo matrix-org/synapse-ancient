@@ -29,6 +29,32 @@ places, perhaps by choice of wanting multiple distinct identifies), it would be
 useful that a metadata field type exists that can refer to another Synapse User
 ID, so that clients and HSes can make use of this information.
 
+Metadata Fields
+---------------
+
+[[TODO(paul): Likely this list is incomplete; more fields can be defined as we
+think of them. At the very least, any sort of supported ID for the 3rd Party ID
+servers should be accounted for here.]]
+
+ * Synapse Directory Server username
+
+ * Email address
+
+ * Phone number - classify "home"/"work"/"mobile"/custom?
+ 
+ * Twitter/Facebook/Google+/... social networks
+
+ * Location - keep this deliberately vague to allow people to choose how
+     granular it is
+ 
+ * "Bio" information - date of birth, etc...
+
+ * Synapse User ID of another account
+
+ * Web URL
+
+ * Freeform description text
+
 
 Visibility Permissions
 ======================
@@ -139,3 +165,58 @@ such a feature to publish their information.
 Additionally, unless some form of strong end-to-end user-based encryption is
 used, a user of ACLs for information privacy has to trust other home servers not
 to lie about the identify of the user requesting access to the Profile.
+
+
+API Requirements
+================
+
+The data model presented here puts the following requirements on the APIs:
+
+Client-Server
+-------------
+
+Requests that a client can make to its Home Server
+
+ * get/set my Display Name
+   This should return/take a simple "text/plain" field
+
+ * get/set my Avatar
+   This should return/take an image/* type
+
+ * get/add/remove my metadata fields
+   Also we need to actually define types of metadata
+
+ * get another user's Display Name / Avatar / metadata fields
+
+[[TODO(paul): At some later stage we should consider the API for:
+
+ * get/set ACL permissions on my metadata fields
+
+ * manage my ACL tokens
+]]
+
+Server-Server
+-------------
+
+Requests that Home Servers make to others
+
+ * get a user's Display Name / Avatar
+
+ * get a user's full profile - name/avatar + MD fields
+   This request must allow for specifying the User ID of the requesting user,
+   for permissions purposes. It also needs to take into account any ACL Tokens
+   the requestor has.
+
+ * push a change of Display Name to observers (overlaps with the presence API)
+
+Room Event PDU Types
+--------------------
+
+Events that are pushed from Home Servers to other Home Servers or clients.
+
+ * user Display Name change
+ 
+ * user Avatar change
+   [[TODO(paul): should the avatar image itself be stored in all the room
+   histories? maybe this event should just be a hint to clients that they should
+   re-fetch the avatar image]]
