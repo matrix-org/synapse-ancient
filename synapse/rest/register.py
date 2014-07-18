@@ -2,7 +2,7 @@
 """This module contains REST events to do with registration: /register"""
 from twisted.internet import defer
 
-from synapse.api.events.register import RegistrationError
+from synapse.api.errors import RegistrationError
 from base import PostEventMixin, RestEvent, InvalidHttpRequestError
 
 import json
