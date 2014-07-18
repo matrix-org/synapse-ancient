@@ -776,6 +776,7 @@ class StateQueries(object):
 
         if (not current or not current.prev_state_id
                 or not current.prev_state_origin):
+
             return None
 
         # Oh look, it's a straight clobber, so wooooo almost no-op.

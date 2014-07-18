@@ -57,7 +57,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.ev_fac = EventFactory()
+        self.ev_fac = EventFactory("example.com")
         self.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
                          JoinedRoomModule(self.mock_data_store),
                          MembershipChangeModule(self.mock_data_store))
@@ -172,6 +172,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
         msg_content = '{"msgtype":"sy.text","body":"hello"}'
         send_msg_path = ("/rooms/%s/messages/%s/mid1" %
                         (self.created_rmid, self.user_id))
+
+        #print "!Doing: %s %s" % (self.uncreated_rmid, self.user_id)
 
         # send message in uncreated room, expect 403
         (code, response) = yield self.mock_server.trigger(
@@ -331,7 +333,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
-        self.ev_fac = EventFactory()
+        self.ev_fac = EventFactory("example.com")
         self.auth = Auth(MockAccessTokenModule(self.user_id),
                          JoinedRoomModule(self.mock_data_store),
                          MembershipChangeModule(self.mock_data_store))
@@ -441,7 +443,7 @@ class RoomsTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
         self.mock_data_store = EventStore()
 
-        self.ev_fac = EventFactory()
+        self.ev_fac = EventFactory("example.com")
         self.auth = Auth(MockAccessTokenModule(self.user_id),
                          JoinedRoomModule(self.mock_data_store),
                          MembershipChangeModule(self.mock_data_store))

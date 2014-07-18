@@ -98,15 +98,34 @@ class JoinedRoomModule(AuthModule):
             # TODO this is horrible, this shouldn't care about event.membership.
             if (event.auth_user_id and event.room_id and
                                             not hasattr(event, "membership")):
-                member = yield self.store.get_room_member(
-                            room_id=event.room_id,
-                            user_id=event.auth_user_id)
-                if not member or member[0].membership != "join":
+
+                room = yield self.store.get_room(event.room_id)
+                if not room:
+                    raise AuthError(403, "Room does not exist")
+
+                has_joined = yield self.has_joined_room(
+                    event.auth_user_id, event.room_id
+                )
+
+                if not has_joined:
                     raise AuthError(403, JoinedRoomModule.NAME)
-                defer.returnValue(member)
+                defer.returnValue(has_joined)
         except AttributeError:
             pass
         defer.returnValue(None)
+
+    @defer.inlineCallbacks
+    def has_joined_room(self, user_id, room_id):
+        try:
+            member = yield self.store.get_room_member(
+                        room_id=room_id,
+                        user_id=user_id)
+            if not member or member[0].membership != "join":
+                defer.returnValue(False)
+            defer.returnValue(True)
+        except AttributeError:
+            pass
+        defer.returnValue(False)
 
 
 class MembershipChangeModule(AuthModule):
@@ -123,14 +142,14 @@ class MembershipChangeModule(AuthModule):
         'user_id' (the target).
         """
         try:
-            if (not event.auth_user_id or not event.user_id or not
+            if (not event.auth_user_id or not event.sender or not
                 event.membership or not event.room_id):
                 raise AttributeError()
         except AttributeError:
             defer.returnValue(False)
 
         # does this room even exist
-        room = self.store.get_room(event.room_id)
+        room = yield self.store.get_room(event.room_id)
         if not room:
             raise AuthError(403, "Room does not exist")
 
@@ -146,7 +165,7 @@ class MembershipChangeModule(AuthModule):
         # get info about the target
         try:
             target = yield self.store.get_room_member(
-                user_id=event.user_id,
+                user_id=event.target_user,
                 room_id=event.room_id)
         except:
             pass
@@ -161,12 +180,12 @@ class MembershipChangeModule(AuthModule):
             # Joins are valid iff caller == target and they were:
             # invited: They are accepting the invitation
             # joined: It's a NOOP
-            if (event.auth_user_id != event.user_id or not caller or
+            if (event.auth_user_id != event.target_user or not caller or
                     caller[0].membership not in
                     [Membership.INVITE, Membership.JOIN]):
                 raise AuthError(403, "Cannot join.")
         elif Membership.LEAVE == event.membership:
-            if not caller_in_room or event.user_id != event.auth_user_id:
+            if not caller_in_room or event.target_user != event.auth_user_id:
                 # trying to leave a room you aren't joined or trying to force
                 # another user to leave
                 raise AuthError(403, "Cannot leave.")

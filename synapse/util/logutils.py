@@ -17,8 +17,8 @@ def log_function(f):
 
         def format(value):
             r = str(value)
-            if len(r) > 50:
-                r = r[:50] + "..."
+            #if len(r) > 50:
+                #r = r[:50] + "..."
             return r
 
         func_args = ["%s=%s" % (k, format(v)) for k, v in bound_args.items()]

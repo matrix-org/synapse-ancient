@@ -17,7 +17,9 @@ ReturnType = namedtuple(
 
 class StateTestCase(unittest.TestCase):
     def setUp(self):
-        self.persistence = Mock(spec=["get_unresolved_state_tree"])
+        self.persistence = Mock(
+            spec=["get_unresolved_state_tree", "update_current_state"]
+        )
         self.replication = Mock(spec=["get_pdu"])
 
         self.state = StateHandler(
@@ -35,7 +37,7 @@ class StateTestCase(unittest.TestCase):
         )
 
         callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state_pdu(new_pdu, callback)
 
         callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
@@ -59,7 +61,7 @@ class StateTestCase(unittest.TestCase):
         )
 
         callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state_pdu(new_pdu, callback)
 
         callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
@@ -84,7 +86,7 @@ class StateTestCase(unittest.TestCase):
         )
 
         callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state_pdu(new_pdu, callback)
 
         self.assertFalse(callback.called)
         self.assertFalse(is_new)
@@ -109,7 +111,7 @@ class StateTestCase(unittest.TestCase):
         )
 
         callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state_pdu(new_pdu, callback)
 
         callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
@@ -134,7 +136,7 @@ class StateTestCase(unittest.TestCase):
         )
 
         callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state_pdu(new_pdu, callback)
 
         callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
@@ -160,7 +162,7 @@ class StateTestCase(unittest.TestCase):
         )
 
         callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state_pdu(new_pdu, callback)
 
         callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
@@ -199,7 +201,7 @@ class StateTestCase(unittest.TestCase):
         self.replication.get_pdu.side_effect = set_return_tree
 
         callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state_pdu(new_pdu, callback)
 
         callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)

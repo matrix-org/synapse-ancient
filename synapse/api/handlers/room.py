@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.constants import Membership
-from synapse.api.errors import RoomError
+from synapse.api.errors import RoomError, AuthError
 from synapse.api.event_store import StoreException
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
 from . import BaseHandler
@@ -15,22 +15,37 @@ import time
 class MessageHandler(BaseHandler):
 
     @defer.inlineCallbacks
-    def get_message(self, event=None):
+    def get_message(self, auth_user_id, room_id, sender_id, msg_id):
         """ Retrieve a message.
 
         Args:
-            event : A message event.
+            room_id
+            sender_id
+            msg_id
         Returns:
             The message, or None if no message exists.
         Raises:
             SynapseError if something went wrong.
         """
-        yield self.auth.check(event, raises=True)
+        # TODO: Actually do some sort of auth check here.
+        # yield self.auth.check(event, raises=True)
+
+        room = yield self.store.get_room(room_id)
+        if not room:
+            raise AuthError(403, "Room does not exist")
+
+        has_joined = yield self.auth.modules["mod_joined_room"].has_joined_room(
+            user_id=auth_user_id,
+            room_id=room_id
+        )
+
+        if not has_joined:
+            raise AuthError(403, "User not in room")
 
         # Pull out the message from the db
-        results = yield self.store.get_message(room_id=event.room_id,
-                                               msg_id=event.msg_id,
-                                               user_id=event.user_id)
+        results = yield self.store.get_message(room_id=room_id,
+                                               msg_id=msg_id,
+                                               user_id=sender_id)
 
         if results:
             defer.returnValue(results[0])
@@ -47,13 +62,13 @@ class MessageHandler(BaseHandler):
         """
         yield self.auth.check(event, raises=True)
 
-        if event.auth_user_id:
+        if hasattr(event, "auth_user_id") and event.auth_user_id:
             # verify they are sending msgs under their own user id
-            if event.user_id != event.auth_user_id:
+            if event.sender != event.auth_user_id:
                 raise RoomError(403, "Must send messages as yourself.")
 
         # store message in db
-        yield self.store.store_message(user_id=event.user_id,
+        yield self.store.store_message(user_id=event.sender,
                                        room_id=event.room_id,
                                        msg_id=event.msg_id,
                                        content=json.dumps(event.content))
@@ -76,13 +91,16 @@ class MessageHandler(BaseHandler):
                                          content=json.dumps(event.content))
 
     @defer.inlineCallbacks
-    def get_room_path_data(self, event=None, path=None,
+    def get_room_path_data(self, room_id, event_type, auth_user_id,
+                           path=None,
                            public_room_rules=[],
                            private_room_rules=["join"]):
         """ Get path data from a room.
 
         Args:
-            event : The room path event
+            room_id
+            event_type
+            auth_user_id
             path : The path the data was stored under.
             public_room_rules : A list of membership states the user can be in,
             in order to read this data IN A PUBLIC ROOM. An empty list means
@@ -95,20 +113,20 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
-        if event.type == RoomTopicEvent.TYPE:
+        if event_type == RoomTopicEvent.TYPE:
             # anyone invited/joined can read the topic
             private_room_rules = ["invite", "join"]
 
         # does this room exist
-        room = yield self.store.get_room(event.room_id)
+        room = yield self.store.get_room(room_id)
         if not room:
             raise RoomError(403, "Room does not exist.")
         room = room[0]
 
         # does this user exist in this room
         member = yield self.store.get_room_member(
-            room_id=event.room_id,
-            user_id="" if not event.auth_user_id else event.auth_user_id)
+            room_id=room_id,
+            user_id=auth_user_id if auth_user_id else "")
 
         member_state = member[0].membership if member else None
 
@@ -160,7 +178,7 @@ class RoomCreationHandler(BaseHandler):
 class RoomMemberHandler(BaseHandler):
 
     @defer.inlineCallbacks
-    def get_room_member(self, event=None):
+    def get_room_member(self, room_id, target_user):
         """Retrieve a room member from a room.
 
         Args:
@@ -170,10 +188,11 @@ class RoomMemberHandler(BaseHandler):
         Raises:
             SynapseError if something goes wrong.
         """
-        yield self.auth.check(event, raises=True)
+        # TODO: Do auth check.
+        # yield self.auth.check(event, raises=True)
 
-        member = yield self.store.get_room_member(user_id=event.user_id,
-                                                  room_id=event.room_id)
+        member = yield self.store.get_room_member(user_id=target_user,
+                                                  room_id=room_id)
         if member:
             defer.returnValue(member[0])
         defer.returnValue(member)
@@ -193,7 +212,7 @@ class RoomMemberHandler(BaseHandler):
 
         # store membership
         yield self.store.store_room_member(
-            user_id=event.user_id,
+            user_id=event.target_user,
             room_id=event.room_id,
             content=event.content,
             membership=event.membership)
@@ -201,7 +220,7 @@ class RoomMemberHandler(BaseHandler):
         if broadcast_msg:
             yield self._inject_membership_msg(
                 source=event.auth_user_id,
-                target=event.user_id,
+                target=event.target_user,
                 room_id=event.room_id,
                 membership=event.membership)
 
@@ -227,7 +246,7 @@ class RoomMemberHandler(BaseHandler):
         event = self.event_factory.create_event(
                 etype=MessageEvent.TYPE,
                 room_id=room_id,
-                user_id="_hs_",
+                sender="_hs_",
                 msg_id=msg_id,
                 content=membership_json
                 )

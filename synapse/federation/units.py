@@ -55,12 +55,13 @@ class JsonEncodedObject(object):
         Args:
             **kwargs: Attributes associated with this protocol unit.
         """
+        self.dictionary = {}
+        self.unrecognized_keys = {}  # Keys we were given not listed as valid
+
         for required_key in self.required_keys:
             if required_key not in kwargs:
                 raise RuntimeError("Key %s is required" % required_key)
 
-        self.dictionary = {}
-        self.unrecognized_keys = {}  # Keys we were given not listed as valid
         for k, v in kwargs.items():
             if k in self.valid_keys:
                 self.dictionary[k] = v
@@ -68,10 +69,8 @@ class JsonEncodedObject(object):
                 self.unrecognized_keys[k] = v
 
     def __getattr__(self, name):
-        if name in self.valid_keys:
-            return self.dictionary.get(name, None)
-        elif name in self.unrecognized_keys:
-            return self.unrecognized_keys[name]
+        if name in self.valid_keys and name in self.dictionary:
+            return self.dictionary[name]
         else:
             raise AttributeError(name)
 
@@ -104,7 +103,11 @@ class JsonEncodedObject(object):
         return d
 
     def __str__(self):
-        return "(%s, %s)" % (self.__class__.__name__, repr(self.dictionary))
+        return "(%s, %s, %s)" % (
+            self.__class__.__name__,
+            repr(self.dictionary),
+            repr(self.unrecognized_keys)
+        )
 
 
 class Pdu(JsonEncodedObject):

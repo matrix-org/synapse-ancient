@@ -89,15 +89,13 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, auth_user_id=None):
         try:
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                room_id=room_id,
-                auth_user_id=auth_user_id
-                )
+            # TODO: Change this so not to use an event.
 
             msg_handler = self.handler_factory.message_handler()
             data = yield msg_handler.get_room_path_data(
-                    event=event,
+                    room_id=room_id,
+                    event_type=self.get_event_type(),
+                    auth_user_id=auth_user_id,
                     path=request.path
                 )
 
@@ -117,7 +115,8 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 etype=self.get_event_type(),
                 content=content,
                 room_id=room_id,
-                auth_user_id=auth_user_id
+                sender=auth_user_id,
+                auth_user_id=auth_user_id,
                 )
 
             msg_handler = self.handler_factory.message_handler()
@@ -144,16 +143,8 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     @defer.inlineCallbacks
     def on_GET(self, request, roomid, userid, auth_user_id=None):
         try:
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                user_id=userid,
-                room_id=roomid,
-                auth_user_id=auth_user_id,
-                membership=None
-                )
-
             handler = self.handler_factory.room_member_handler()
-            member = yield handler.get_room_member(event)
+            member = yield handler.get_room_member(roomid, userid)
 
             if not member:
                 defer.returnValue((404, cs_error("Member not found.")))
@@ -167,10 +158,11 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         try:
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
-                user_id=userid,
+                target_user=userid,
                 room_id=roomid,
+                sender=auth_user_id,
                 auth_user_id=auth_user_id,
-                membership=Membership.LEAVE
+                content={"membership": Membership.LEAVE}
                 )
 
             handler = self.handler_factory.room_member_handler()
@@ -195,10 +187,10 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
 
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
-                user_id=userid,
+                target_user=userid,
                 room_id=roomid,
+                sender=auth_user_id,
                 auth_user_id=auth_user_id,
-                membership=content["membership"],
                 content=content
                 )
 
@@ -225,16 +217,10 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def on_GET(self, request, room_id, msg_sender_id, msg_id,
                auth_user_id=None):
         try:
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                room_id=room_id,
-                user_id=msg_sender_id,
-                auth_user_id=auth_user_id,
-                msg_id=msg_id
-                )
-
             msg_handler = self.handler_factory.message_handler()
-            msg = yield msg_handler.get_message(event)
+            msg = yield msg_handler.get_message(
+                auth_user_id, room_id, msg_sender_id, msg_id
+            )
 
             if not msg:
                 defer.returnValue((404, cs_error("Message not found.")))
@@ -253,7 +239,7 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
                 room_id=room_id,
-                user_id=sender_id,
+                sender=sender_id,
                 auth_user_id=auth_user_id,
                 msg_id=msg_id,
                 content=content

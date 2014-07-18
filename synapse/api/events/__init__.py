@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from synapse.api.errors import SynapseError
 from synapse.federation.units import JsonEncodedObject
+
+from .validator import SynapseEventTemplate, SynapseEventStateTemplate
 
 
 class SynapseEvent(JsonEncodedObject):
@@ -9,72 +10,48 @@ class SynapseEvent(JsonEncodedObject):
     a certain well-defined structure.
     """
 
-    def __init__(self, raises=True, **kwargs):
-        super(SynapseEvent, self).__init__(**kwargs)
-        if "content" in kwargs:
-            self.check_json(self.content, raises=raises)
+    valid_keys = [
+        "event_id",
+        "room_id",
+        "type",
+        "content",
+        "sender",
+        "ts",
+        "is_state",
+        "state_key",
+        "auth_user_id",
+        "msg_id",
+        "target_user",
+        "membership",
+    ]
 
-    def get_content_template(self):
-        """ Retrieve the JSON template for this event as a dict.
+    internal_keys = [
+        "auth_user_id",
+    ]
 
-        The template must be a dict representing the JSON to match. Only
-        required keys should be present. The values of the keys in the template
-        are checked via type() to the values of the same keys in the actual
-        event JSON.
+    required_keys = [
+        "event_id",
+        "room_id",
+        "type",
+        "content",
+        "is_state",
+    ]
 
-        NB: If loading content via json.loads, you MUST define strings as
-        unicode.
+    TEMPLATE = SynapseEventTemplate
 
-        For example:
-            Content:
-                {
-                    "name": u"bob",
-                    "age": 18,
-                    "friends": [u"mike", u"jill"]
-                }
-            Template:
-                {
-                    "name": u"string",
-                    "age": 0,
-                    "friends": [u"string"]
-                }
-            The values "string" and 0 could be anything, so long as the types
-            are the same as the content.
-        """
-        raise NotImplementedError("get_content_template not implemented.")
+    def __init__(self, is_state=False, **kwargs):
+        #print "SynapseEvent %r" % kwargs
+        super(SynapseEvent, self).__init__(is_state=is_state, **kwargs)
 
-    def check_json(self, content, raises=True):
-        """Checks the given JSON content abides by the rules of the template.
 
-        Args:
-            content : A JSON object to check.
-            raises: True to raise a SynapseError if the check fails.
-        Returns:
-            True if the content passes the template. Returns False if the check
-            fails and raises=False.
-        Raises:
-            SynapseError if the check fails and raises=True.
-        """
-        # recursively call to inspect each layer
-        err_msg = self._check_json(content, self.get_content_template(), raises)
-        if err_msg:
-            if raises:
-                raise SynapseError(400, err_msg)
-            else:
-                return False
-        else:
-            return True
+class SynapseStateEvent(SynapseEvent):
+    required_keys = SynapseEvent.required_keys + [
+        "is_state",
+        "state_key",
+    ]
 
-    def _check_json(self, content, template, raises):
-        for key in template:
-            if key not in content:
-                return "Missing %s key" % key
+    TEMPLATE = SynapseEventStateTemplate
 
-            if type(content[key]) != type(template[key]):
-                return "Key %s is of the wrong type." % key
-
-            if type(content[key]) == dict:
-                # we must go deeper
-                msg = self._check_json(content[key], template[key], raises)
-                if msg:
-                    return msg
+    def __init__(self, **kwargs):
+        kwargs["is_state"] = True
+        super(SynapseStateEvent, self).__init__(**kwargs)

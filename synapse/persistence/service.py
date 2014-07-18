@@ -112,9 +112,21 @@ class PersistenceService(object):
         )
 
     def get_unresolved_state_tree(self, new_state_pdu):
+        required_keys = ["pdu_id", "origin", "context", "pdu_type",
+                         "state_key", "prev_state_id", "prev_state_origin"]
+        for key in required_keys:
+            if required_keys not in new_state_pdu:
+                raise AttributeError("%s not in new_state_pdu" % key)
+
         return run_interaction(
             StateQueries.get_unresolved_state_tree,
             new_state_pdu
+        )
+
+    def get_current_state(self, context, pdu_type, state_key):
+        return run_interaction(
+            StateQueries.current_state,
+            context, pdu_type, state_key
         )
 
     def update_current_state(self, pdu_id, origin, context, pdu_type,

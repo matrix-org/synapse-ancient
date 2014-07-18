@@ -30,7 +30,7 @@ class SynapseHomeServer(ReplicationHandler):
         AuthDecorator.auth = self.auth
 
         # configure how events are made and handled
-        self.event_factory = EventFactory()
+        self.event_factory = EventFactory(self.server_name)
         self.handler_factory = EventHandlerFactory(self.event_data_store,
                                                    self.event_factory,
                                                    self.auth)

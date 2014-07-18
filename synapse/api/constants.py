@@ -5,7 +5,7 @@
 class Membership(object):
 
     """Represents the membership states of a user in a room."""
-    INVITE = "invite"
-    JOIN = "join"
-    KNOCK = "knock"
-    LEAVE = "leave"
+    INVITE = u"invite"
+    JOIN = u"join"
+    KNOCK = u"knock"
+    LEAVE = u"leave"

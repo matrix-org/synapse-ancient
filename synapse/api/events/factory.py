@@ -1,25 +1,40 @@
 # -*- coding: utf-8 -*-
-from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
-                                    RoomMemberEvent)
+from synapse.api.events.room import (
+    RoomTopicEvent, MessageEvent, RoomMemberEvent
+)
+
+from . import SynapseEvent, SynapseStateEvent
+from .validator import EventValidator
+
+from synapse.util.stringutils import random_string
+from synapse.util.logutils import log_function
+
+import time
 
 
 class EventFactory(object):
 
-    _event_classes = [
-        RoomTopicEvent,
-        MessageEvent,
-        RoomMemberEvent
-    ]
+    def __init__(self, server_name):
+        self.server_name = server_name
+        self._validator = EventValidator()
 
-    def __init__(self):
-        self._event_list = {}  # dict of TYPE to event class
-        for event_class in EventFactory._event_classes:
-            self._event_list[event_class.TYPE] = event_class
-
+    @log_function
     def create_event(self, etype=None, **kwargs):
-        try:
-            kwargs["type"] = etype
-            return self._event_list[etype](**kwargs)
-        except KeyError:  # unknown event type
-            # TODO allow custom event types.
-            raise NotImplementedError("Unknown etype=%s" % etype)
+        if "event_id" not in kwargs:
+            event_id = "%s%s" % (int(time.time() * 1000), random_string(10))
+            kwargs["event_id"] = event_id
+
+        if etype == RoomTopicEvent.TYPE:
+            event = RoomTopicEvent(**kwargs)
+        elif etype == MessageEvent.TYPE:
+            event = MessageEvent(**kwargs)
+        elif etype == RoomMemberEvent.TYPE:
+            event = RoomMemberEvent(**kwargs)
+        elif "is_state" in kwargs and kwargs["is_state"]:
+            event = SynapseStateEvent(type=etype, **kwargs)
+        else:
+            event = SynapseEvent(type=etype, **kwargs)
+
+        self._validator.validate(event, event.TEMPLATE, raises=True)
+
+        return event
