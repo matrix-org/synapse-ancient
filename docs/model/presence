@@ -56,7 +56,7 @@ response to messages.
 
 
 Presence List
-===========
+=============
 
 Each user's home server stores a "presence list" for that user. This stores a
 list of other user IDs the user has chosen to add to it (remembering any ACL
@@ -74,19 +74,8 @@ into groups, which could allow things like inviting the entire group to a new
 implementation of the HS.
 
 
-Address Book
-============
-
-In addition to the presence list, which requires permission but grants extra
-abilities, the home server may also wish to provide an "address book" service.
-In comparison to the presence list, the address book is a purely passive
-concept, simply collecting up a list of other users that the user has chosen to
-add, for convenience of looking up information about them, such as reading
-profiles.
-
-
 Presence and Permissions
-======================
+========================
 
 For a viewing user to be allowed to see the presence information of a target
 user, either
