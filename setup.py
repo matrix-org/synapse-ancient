@@ -19,10 +19,11 @@ setup(
         "twistar>=1.3",
         "service_identity>=1.0.0",
         "pyasn1",
+        "pynacl",
     ],
     setup_requires=[
-        "setuptools_trial",
-        "mock"
+        "mock",
+        "setuptools_trial"
     ],
     include_package_data=True,
     long_description=read("README"),

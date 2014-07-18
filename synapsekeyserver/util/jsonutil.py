@@ -31,7 +31,7 @@ def respond_with_json_bytes(request, code, json_bytes):
         twisted.web.server.NOT_DONE_YET"""
 
     request.setResponseCode(code)
-    request.setHeader("Content-Type", "application/json")
+    request.setHeader(b"Content-Type", b"application/json")
     request.write(json_bytes)
     request.finish()
     return NOT_DONE_YET
