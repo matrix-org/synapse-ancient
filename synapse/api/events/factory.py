@@ -5,15 +5,21 @@ from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
 
 class EventFactory(object):
 
+    _event_classes = [
+        RoomTopicEvent,
+        MessageEvent,
+        RoomMemberEvent
+    ]
+
     def __init__(self):
-        pass
+        self._event_list = {}  # dict of TYPE to event class
+        for event_class in EventFactory._event_classes:
+            self._event_list[event_class.TYPE] = event_class
 
     def create_event(self, etype=None, **kwargs):
-        if etype == RoomTopicEvent.TYPE:
-            return RoomTopicEvent(**kwargs)
-        elif etype == MessageEvent.TYPE:
-            return MessageEvent(**kwargs)
-        elif etype == RoomMemberEvent.TYPE:
-            return RoomMemberEvent(**kwargs)
-        else:
+        try:
+            kwargs["type"] = etype
+            return self._event_list[etype](**kwargs)
+        except KeyError:  # unknown event type
+            # TODO allow custom event types.
             raise NotImplementedError("Unknown etype=%s" % etype)

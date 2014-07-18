@@ -13,7 +13,6 @@ class RoomTopicEvent(SynapseEvent):
     ]
 
     def __init__(self, **kwargs):
-        kwargs["type"] = RoomTopicEvent.TYPE
         super(RoomTopicEvent, self).__init__(**kwargs)
 
     def get_content_template(self):
@@ -33,7 +32,6 @@ class RoomMemberEvent(SynapseEvent):
     ]
 
     def __init__(self, **kwargs):
-        kwargs["type"] = RoomMemberEvent.TYPE
         super(RoomMemberEvent, self).__init__(**kwargs)
 
     def get_content_template(self):
@@ -53,7 +51,6 @@ class MessageEvent(SynapseEvent):
     ]
 
     def __init__(self, **kwargs):
-        kwargs["type"] = MessageEvent.TYPE
         super(MessageEvent, self).__init__(**kwargs)
 
     def get_content_template(self):

@@ -11,7 +11,8 @@ class SynapseEvent(JsonEncodedObject):
 
     def __init__(self, raises=True, **kwargs):
         super(SynapseEvent, self).__init__(**kwargs)
-        self.check_json(self.content, raises=raises)
+        if "content" in kwargs:
+            self.check_json(self.content, raises=raises)
 
     def get_content_template(self):
         """ Retrieve the JSON template for this event as a dict.
@@ -54,9 +55,6 @@ class SynapseEvent(JsonEncodedObject):
         Raises:
             SynapseError if the check fails and raises=True.
         """
-        if content is None:  # must be None, since 'not content' == True for {}
-            return True
-
         # recursively call to inspect each layer
         err_msg = self._check_json(content, self.get_content_template(), raises)
         if err_msg:
