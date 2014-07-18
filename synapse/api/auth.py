@@ -7,43 +7,68 @@ from synapse.rest.base import InvalidHttpRequestError
 from synapse.util.dbutils import DbPool
 
 
+class AuthModule(object):
+
+    """An interface for an AuthModule. These modules must be able to check
+    an event for whatever it is they are authing. They MUST have a 'NAME'
+    attribute in order to be linked with an Auth instance."""
+
+    def check(event):
+        """Check if this event needs to be authed and perform the auth.
+
+        Args:
+            event (SynapseEvent): An event to auth.
+        Returns:
+            Optional, depending on the implementation. For example, an access
+            token module may want to return the user ID.
+        Raises:
+            AuthError iff the auth check fails, NOT if there are missing fields.
+        """
+        raise NotImplementedError()
+
+
 class Auth(object):
 
-    def __init__(self, mod_token=None, mod_registered_user=None, mod_room=None):
-        self.mod_token = mod_token
-        self.mod_room = mod_room
-        self.mod_registered_user = mod_registered_user
+    def __init__(self, *args):
+        """Construct a new Auth instance with the specified AuthModules.
 
+        Args:
+            *args (AuthModule): The modules to use when authing.
+        """
+        self.modules = {}
+        for module in args:
+            self.modules[module.NAME] = module
+
+    def get_mod(self, mod_name):
+        """Return a module by name.
+
+        Args:
+            mod_name (str): The name of the module to obtain.
+        Returns:
+            The AuthModule or None.
+        """
+        try:
+            return self.modules[mod_name]
+        except KeyError:
+            pass
+        return None
+
+    @defer.inlineCallbacks
     def check(self, event, raises=False):
         """ Checks if this event is correctly authed.
 
-        What this does depends on the event fields, according to the following:
-            auth_user_id : Checks this user ID is a registered user.
-            auth_room_id : Checks that auth_user_id can perform this action
-            in the given room. This will vary depending on numerous factors like
-            whether the room is a public room or not.
+        What this does depends on the modules attached. Each module will be
+        passed this event and will have the option of checking it.
+
         Returns:
-            True if auth checks pass.
+            True if the auth checks pass.
         Raises:
             AuthError if there was a problem authorising this event. This will
             be raised only if raises=True.
         """
         try:
-            # check auth_user_id
-            if self.mod_registered_user:
-                try:
-                    self.mod_registered_user.check(user_id=event.auth_user_id)
-                except AttributeError:
-                    pass
-
-            # check auth_room_id
-            if self.mod_room:
-                try:
-                    self.mod_room.check(
-                        user_id=event.auth_user_id,
-                        room_id=event.auth_room_id)
-                except AttributeError:
-                    pass
+            for module in self.modules.values():
+                module.check(event)
 
             return True
         except AuthError as e:
@@ -52,10 +77,19 @@ class Auth(object):
         return False
 
 
-class AccessTokenModule(object):
+class AccessTokenModule(AuthModule):
+    NAME = "mod_token"
 
     def __init__(self, data_store):
         self.data_store = data_store
+
+    @defer.inlineCallbacks
+    def check(self, event):
+        """Checks for an 'auth_token' attribute and auths it."""
+        try:
+            defer.returnValue(self.get_user_by_token(event.auth_token))
+        except AttributeError:
+            pass
 
     def get_user_by_req(self, request):
         """ Get a registered user's ID.
@@ -101,15 +135,6 @@ class AccessTokenModule(object):
         raise InvalidHttpRequestError(403, "Unrecognised access token.")
 
 
-class AuthModule(object):
-
-    """An interface for an AuthModule. These modules must be able to check
-    an event for whatever it is they are authing."""
-
-    def check(event):
-        raise NotImplementedError()
-
-
 class AuthDecorator(object):
 
     """A class which contains methods which can be invoked as decorators. The
@@ -139,7 +164,8 @@ class AuthDecorator(object):
                 # if it has request headers and query params, it's probably it
                 if hasattr(arg, "requestHeaders") and hasattr(arg, "args"):
                     try:
-                        userid = yield cls.auth.mod_token.get_user_by_req(arg)
+                        userid = yield (cls.auth.get_mod(
+                            AccessTokenModule.NAME).get_user_by_req(arg))
                     except InvalidHttpRequestError as e:
                         defer.returnValue((e.get_status_code(),
                                            e.get_response_body()))

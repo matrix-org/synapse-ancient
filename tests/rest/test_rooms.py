@@ -58,9 +58,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.mock_data_store = EventStore()
         self.ev_fac = EventFactory()
         self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
-        AuthDecorator.auth = Auth(
-            mod_token=MockAccessTokenModule(self.rmcreator_id)
-        )
+        AuthDecorator.auth = Auth(MockAccessTokenModule(self.rmcreator_id))
         MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
@@ -100,7 +98,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.assertEquals(200, code, msg=str(response))
 
         # auth as user_id now
-        AuthDecorator.auth.mod_token.user_id = self.user_id
+        AuthDecorator.auth.get_mod("mod_token").user_id = self.user_id
 
     def tearDown(self):
         try:
@@ -111,8 +109,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def _change_membership(self, room, source, target, membership,
                            check_200=True):
-        prev_auth_id = AuthDecorator.auth.mod_token.user_id
-        AuthDecorator.auth.mod_token.user_id = source
+        prev_auth_id = AuthDecorator.auth.get_mod("mod_token").user_id
+        AuthDecorator.auth.get_mod("mod_token").user_id = source
         if membership == "leave":
             (code, response) = yield self.mock_server.trigger(
                                 "DELETE",
@@ -125,7 +123,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
                                "/rooms/%s/members/%s/state" %
                                (room, target),
                                '{"membership":"%s"}' % membership)
-        AuthDecorator.auth.mod_token.user_id = prev_auth_id
+        AuthDecorator.auth.get_mod("mod_token").user_id = prev_auth_id
         if check_200:
             self.assertEquals(200, code, msg=str(response))
         defer.returnValue((code, response))
@@ -329,9 +327,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.mock_data_store = EventStore()
         self.ev_fac = EventFactory()
         self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
-        AuthDecorator.auth = Auth(
-            mod_token=MockAccessTokenModule(self.user_id)
-        )
+        AuthDecorator.auth = Auth(MockAccessTokenModule(self.user_id))
         RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
 
     def tearDown(self):
@@ -436,9 +432,7 @@ class RoomsTestCase(unittest.TestCase):
 
         self.ev_fac = EventFactory()
         self.h_fac = EventHandlerFactory(self.mock_data_store, self.ev_fac)
-        AuthDecorator.auth = Auth(
-            mod_token=MockAccessTokenModule(self.user_id)
-        )
+        AuthDecorator.auth = Auth(MockAccessTokenModule(self.user_id))
         MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
         RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)

@@ -21,9 +21,7 @@ class SynapseHomeServer(ReplicationHandler):
         self.event_data_store = EventStore()
 
         # configure auth
-        auth = Auth(
-            mod_token=AccessTokenModule(self.event_data_store)
-            )
+        auth = Auth(AccessTokenModule(self.event_data_store))
         AuthDecorator.auth = auth
 
         # configure how events are made and handled
