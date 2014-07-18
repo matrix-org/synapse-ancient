@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 from synapse.api.errors import SynapseError
+from synapse.federation.units import JsonEncodedObject
 
 
-class SynapseEvent(object):
+class SynapseEvent(JsonEncodedObject):
 
     """Base class for Synapse events. These are JSON objects which must abide by
     a certain well-defined structure.
     """
 
-    def __init__(self, content, raises=True):
-        self.content = content
+    def __init__(self, raises=True, **kwargs):
+        super(SynapseEvent, self).__init__(**kwargs)
         self.check_json(self.content, raises=raises)
 
     def get_content_template(self):

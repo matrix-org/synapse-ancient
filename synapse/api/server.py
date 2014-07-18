@@ -2,7 +2,8 @@
 """This module serves as the top-level injection point for client-server
 interactions."""
 
-from synapse.api.auth import Auth, AuthDecorator, AccessTokenModule
+from synapse.api.auth import (Auth, AuthDecorator, AccessTokenModule,
+                             JoinedRoomModule)
 from synapse.api.event_store import EventStore
 from synapse.api.events.factory import EventFactory
 from synapse.api.handlers.factory import EventHandlerFactory
@@ -21,7 +22,10 @@ class SynapseHomeServer(ReplicationHandler):
         self.event_data_store = EventStore()
 
         # configure auth
-        auth = Auth(AccessTokenModule(self.event_data_store))
+        auth = Auth(
+            AccessTokenModule(self.event_data_store),
+            JoinedRoomModule(self.event_data_store)
+            )
         AuthDecorator.auth = auth
 
         # configure how events are made and handled

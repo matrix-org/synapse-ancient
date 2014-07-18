@@ -3,7 +3,6 @@
 from twisted.internet import defer
 
 from synapse.api.errors import AuthError
-from synapse.rest.base import InvalidHttpRequestError
 from synapse.util.dbutils import DbPool
 
 
@@ -77,11 +76,33 @@ class Auth(object):
         return False
 
 
+class JoinedRoomModule(AuthModule):
+    NAME = "mod_joined_room"
+
+    def __init__(self, store):
+        super(JoinedRoomModule, self).__init__()
+        self.store = store
+
+    @defer.inlineCallbacks
+    def check(self, event):
+        """Checks for 'auth_user_id' and 'room_id' and auths that the user is
+        joined in that room."""
+        try:
+            member = yield self.store.get_room_member(
+                        room_id=event.room_id,
+                        user_id=event.auth_user_id)
+            if not member or member[0].membership != "join":
+                raise AuthError(403, JoinedRoomModule.NAME)
+            defer.returnValue(member)
+        except AttributeError:
+            pass
+
+
 class AccessTokenModule(AuthModule):
     NAME = "mod_token"
 
-    def __init__(self, data_store):
-        self.data_store = data_store
+    def __init__(self, store):
+        self.store = store
 
     @defer.inlineCallbacks
     def check(self, event):
@@ -105,7 +126,7 @@ class AccessTokenModule(AuthModule):
         try:
             return self.get_user_by_token(request.args["access_token"])
         except KeyError:
-            raise InvalidHttpRequestError(403, "Missing access token.")
+            raise AuthError(403, "Missing access token.")
 
     @defer.inlineCallbacks
     def get_user_by_token(self, token):
@@ -132,7 +153,7 @@ class AccessTokenModule(AuthModule):
         if row:
             return row[0]
 
-        raise InvalidHttpRequestError(403, "Unrecognised access token.")
+        raise AuthError(403, "Unrecognised access token.")
 
 
 class AuthDecorator(object):
@@ -166,9 +187,8 @@ class AuthDecorator(object):
                     try:
                         userid = yield (cls.auth.get_mod(
                             AccessTokenModule.NAME).get_user_by_req(arg))
-                    except InvalidHttpRequestError as e:
-                        defer.returnValue((e.get_status_code(),
-                                           e.get_response_body()))
+                    except AuthError as e:
+                        defer.returnValue((e.code, e.msg))
             # should have a userid now, or should've thrown by now.
             if not userid:
                 raise RuntimeError("Decorated function didn't have a twisted " +
