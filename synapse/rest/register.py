@@ -3,14 +3,15 @@
 from twisted.internet import defer
 
 from synapse.api.errors import RegistrationError
-from base import PostEventMixin, RestEvent, InvalidHttpRequestError
+from base import PostEventMixin, OptionsEventMixin
+from base import RestEvent, InvalidHttpRequestError
 
 import json
 import re
 import urllib
 
 
-class RegisterRestEvent(PostEventMixin, RestEvent):
+class RegisterRestEvent(PostEventMixin, OptionsEventMixin, RestEvent):
 
     def get_pattern(self):
         return re.compile("^/register$")
@@ -42,3 +43,5 @@ class RegisterRestEvent(PostEventMixin, RestEvent):
         except RegistrationError as e:
             defer.returnValue((e.code, e.msg))
 
+    def on_OPTIONS(self, request):
+        return (200, {})

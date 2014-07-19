@@ -66,6 +66,11 @@ class RestEvent(object):
         pass
 
 
+# XXX: are all these Mixins really the nicest way to handle supporting
+# different HTTP methods?  The register() feels like it should be able
+# to be automated by inspecting the available methods on a given servlet
+# or similar, rather than all this duplicated boilerplate?  -- Matthew
+
 class PutEventMixin(object):
 
     """ A mixin with the ability to handle PUTs. """
@@ -116,6 +121,19 @@ class DeleteEventMixin(object):
 
     def on_DELETE(self, request, *url_args):
         raise NotImplementedError("on_DELETE callback not implemented")
+
+
+class OptionsEventMixin(object):
+
+    """ A mixin with the ability to handle OPTIONS. """
+
+    def register(self, http_server):
+        super(OptionsEventMixin, self).register(http_server)
+        http_server.register_path("OPTIONS", self.get_pattern(),
+                                  self.on_OPTIONS)
+
+    def on_OPTIONS(self, request, *url_args):
+        raise NotImplementedError("on_OPTIONS callback not implemented")
 
 
 class EventStreamMixin(object):

@@ -82,7 +82,7 @@ class HttpClient(object):
         pass
 
 
-# Respond to the given HTTP request with a status code and
+# Respond to the given HTTP request with a status code and content
 def _send_response(request, code, content):
     """Sends a JSON response to the given request.
 
@@ -107,7 +107,15 @@ def _send_response(request, code, content):
             ident = 4
             break
 
+    # XXX: really? the way to set a header on the response is to set it on the
+    # request object?!
     request.setHeader("Content-Type", "application/json")
+    
+    # Hack to turn on CORS for everyone for now...
+    request.setHeader("Access-Control-Allow-Origin", "*");
+    # only needed for pre-flight OPTIONS requests in practice
+    request.setHeader("Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Accept");
 
     request.write('%s\n' % json.dumps(content, indent=ident))
     request.finish()
@@ -179,7 +187,7 @@ class TwistedHttpServer(HttpServer, resource.Resource):
             path.
         """
         try:
-            # Loop through all the registered callback to check if the method
+            # Loop through all the registered callbacks to check if the method
             # and path regex match
             for path_entry in self.path_regexs.get(request.method, []):
                 m = path_entry.pattern.match(request.path)
