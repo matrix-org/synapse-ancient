@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from synapse.api.server import SynapseHomeServer
 from synapse.persistence import read_schema
+from synapse.federation import ReplicationHandler
 
 from synapse.server import HomeServer
 
@@ -19,6 +19,17 @@ import sqlite3
 logger = logging.getLogger(__name__)
 
 
+class SynapseHomeServer(ReplicationHandler):
+    def __init__(self, hs):
+        hs.get_federation().set_handler(self)
+
+        hs.get_rest_servlet_factory().register_servlets(hs.get_http_server())
+
+    def on_receive_pdu(self, pdu):
+        pdu_type = pdu.pdu_type
+        print "#%s (receive) *** %s" % (pdu.context, pdu_type)
+
+
 def setup_server(hostname):
     """ Sets up a home server.
 
@@ -30,6 +41,8 @@ def setup_server(hostname):
     logger.info("Server hostname: %s", hostname)
     nhs = HomeServer(hostname)
 
+    # This object doesn't need to be saved because it's set as the handler for
+    # the replication layer
     hs = SynapseHomeServer(nhs)
 
     return nhs.get_http_server()
