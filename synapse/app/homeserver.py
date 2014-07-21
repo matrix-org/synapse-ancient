@@ -30,11 +30,7 @@ def setup_server(hostname):
     logger.info("Server hostname: %s", hostname)
     nhs = HomeServer(hostname)
 
-    http_server = nhs.get_http_server()
-    http_client = nhs.get_http_client()
-    replication = nhs.get_replication()
-
-    hs = SynapseHomeServer(http_server, hostname, replication)
+    hs = SynapseHomeServer(nhs)
 
     return nhs.get_http_server()
 

@@ -8,6 +8,12 @@
 from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.persistence import PersistenceService
 from synapse.federation import initialize_http_federation
+from synapse.api.storage import DataStore
+from synapse.api.events.factory import EventFactory
+from synapse.api.auth import (Auth, AccessTokenModule,
+                             JoinedRoomModule, MembershipChangeModule)
+from synapse.api.handlers.factory import EventHandlerFactory
+from synapse.rest.base import RestServletFactory
 
 from synapse.util import DbPool
 
@@ -36,6 +42,11 @@ class BaseHomeServer(object):
             'http_client',
             'persistence_service',
             'federation',
+            'event_data_store',
+            'event_factory',
+            'event_handler_factory',
+            'auth',
+            'rest_servlet_factory',
             ]
 
     def __init__(self, hostname, **kwargs):
@@ -87,3 +98,25 @@ class HomeServer(BaseHomeServer):
 
     def build_federation(self):
         return initialize_http_federation(self)
+
+    def build_event_data_store(self):
+        return DataStore()
+
+    def build_event_factory(self):
+        return EventFactory()
+
+    def build_event_handler_factory(self):
+        return EventHandlerFactory(self)
+
+    def build_auth(self):
+        # TODO(paul): Likely the Auth() constructor just wants to take a
+        # HomeServer instance perhaps
+        event_data_store = self.get_event_data_store()
+        return Auth(
+            AccessTokenModule(event_data_store),
+            JoinedRoomModule(event_data_store),
+            MembershipChangeModule(event_data_store)
+            )
+
+    def build_rest_servlet_factory(self):
+        return RestServletFactory(self)

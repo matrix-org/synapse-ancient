@@ -14,8 +14,12 @@ class RestServletFactory(object):
     See synapse.api.events for information on synapse events.
     """
 
-    def __init__(self, handler_fac, event_fac, auth):
+    def __init__(self, hs):
         self.servlets = []
+
+        handler_fac = hs.get_event_handler_factory()
+        event_fac = hs.get_event_factory()
+        auth = hs.get_auth()
 
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
