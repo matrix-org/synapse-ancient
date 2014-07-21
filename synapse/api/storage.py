@@ -250,8 +250,8 @@ class StoreException(Exception):
     pass
 
 
-class EventStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
+class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                  RegistrationStore):
 
     def __init__(self):
-        super(EventStore, self).__init__()
+        super(DataStore, self).__init__()

@@ -13,7 +13,7 @@ from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.room import (MessageRestServlet, RoomMemberRestServlet,
                                RoomTopicRestServlet, RoomCreateRestServlet)
 from synapse.api.events.factory import EventFactory
-from synapse.api.event_store import EventStore
+from synapse.api.storage import DataStore
 from synapse.api.constants import Membership
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
@@ -56,7 +56,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
     def setUp(self):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
-        self.mock_data_store = EventStore()
+        self.mock_data_store = DataStore()
         self.ev_fac = EventFactory()
         self.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
                          JoinedRoomModule(self.mock_data_store),
@@ -356,7 +356,7 @@ class RoomsCreateTestCase(unittest.TestCase):
     def setUp(self):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
-        self.mock_data_store = EventStore()
+        self.mock_data_store = DataStore()
         self.ev_fac = EventFactory()
         self.auth = Auth(MockAccessTokenModule(self.user_id),
                          JoinedRoomModule(self.mock_data_store),
@@ -458,7 +458,7 @@ class RoomsTestCase(unittest.TestCase):
     def setUp(self):
         _setup_db(DB_PATH, ["im"])
         self.mock_server = MockHttpServer()
-        self.mock_data_store = EventStore()
+        self.mock_data_store = DataStore()
 
         self.ev_fac = EventFactory()
         self.auth = Auth(MockAccessTokenModule(self.user_id),

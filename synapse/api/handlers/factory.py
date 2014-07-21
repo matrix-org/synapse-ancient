@@ -9,8 +9,8 @@ class EventHandlerFactory(object):
     """ A factory for creating synapse event handlers.
     """
 
-    def __init__(self, event_store, event_factory, auth):
-        self.store = event_store
+    def __init__(self, store, event_factory, auth):
+        self.store = store
         self.event_factory = event_factory
         self.auth = auth
 

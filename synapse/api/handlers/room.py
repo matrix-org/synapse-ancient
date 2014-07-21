@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError
-from synapse.api.event_store import StoreException
+from synapse.api.storage import StoreException
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
 from . import BaseHandler
 

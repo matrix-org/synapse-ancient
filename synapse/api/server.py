@@ -4,7 +4,7 @@ interactions."""
 
 from synapse.api.auth import (Auth, AccessTokenModule,
                              JoinedRoomModule, MembershipChangeModule)
-from synapse.api.event_store import EventStore
+from synapse.api.storage import DataStore
 from synapse.api.events.factory import EventFactory
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
@@ -19,7 +19,7 @@ class SynapseHomeServer(ReplicationHandler):
         self.replication_layer = replication_layer
         self.replication_layer.set_handler(self)
 
-        self.event_data_store = EventStore()
+        self.event_data_store = DataStore()
 
         # configure auth
         self.auth = Auth(
