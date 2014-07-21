@@ -10,8 +10,8 @@ from twisted.trial import unittest
 
 from synapse.api.auth import (Auth, JoinedRoomModule, MembershipChangeModule)
 from synapse.api.handlers.factory import EventHandlerFactory
-from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
-                               RoomTopicRestEvent, RoomCreateRestEvent)
+from synapse.rest.room import (MessageRestServlet, RoomMemberRestServlet,
+                               RoomTopicRestServlet, RoomCreateRestServlet)
 from synapse.api.events.factory import EventFactory
 from synapse.api.event_store import EventStore
 from synapse.api.constants import Membership
@@ -64,13 +64,13 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
-        MessageRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        MessageRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                          self.mock_server)
-        RoomMemberRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        RoomMemberRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                             self.mock_server)
-        RoomTopicRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        RoomTopicRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                            self.mock_server)
-        RoomCreateRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        RoomCreateRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                             self.mock_server)
 
         # create some rooms under the name rmcreator_id
@@ -364,7 +364,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
-        RoomCreateRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        RoomCreateRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                             self.mock_server)
 
     def tearDown(self):
@@ -467,13 +467,13 @@ class RoomsTestCase(unittest.TestCase):
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
-        MessageRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        MessageRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                          self.mock_server)
-        RoomMemberRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        RoomMemberRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                             self.mock_server)
-        RoomTopicRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        RoomTopicRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                            self.mock_server)
-        RoomCreateRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+        RoomCreateRestServlet(self.h_fac, self.ev_fac, self.auth).register(
                             self.mock_server)
 
         # create the room

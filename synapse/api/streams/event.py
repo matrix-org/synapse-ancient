@@ -4,9 +4,11 @@ from twisted.internet import defer
 
 from synapse.api.errors import EventStreamError
 from synapse.util.dbutils import DbPool
-from synapse.rest.room import MessageRestEvent, RoomMemberRestEvent
+from synapse.api.events.room import RoomMemberEvent, MessageEvent
 from synapse.rest.base import InvalidHttpRequestError  # TODO remove
 from base import FilterStream, StreamData
+
+import json
 
 
 class MessagesStreamData(StreamData):
@@ -40,12 +42,13 @@ class MessagesStreamData(StreamData):
         data = []
         last_pkey = from_pkey
         for result in result_set:
-            # TODO shouldn't need to make REST events now.
-            event = MessageRestEvent(None, None)
             result_dict = dict(zip(col_headers, result))
             last_pkey = result_dict["id"]
-            event_data = event.get_event_data(result_dict)
-            data.append(event_data)
+            result_dict.pop("id")
+            if "content" in result_dict:
+                result_dict["content"] = json.loads(result_dict["content"])
+            result_dict["type"] = MessageEvent.TYPE
+            data.append(result_dict)
 
         return (data, last_pkey)
 
@@ -78,12 +81,13 @@ class RoomMemberStreamData(StreamData):
         data = []
         last_pkey = from_pkey
         for result in result_set:
-            # TODO shouldn't need to make REST events now.
-            event = RoomMemberRestEvent(None, None)
             result_dict = dict(zip(col_headers, result))
             last_pkey = result_dict["id"]
-            event_data = event.get_event_data(result_dict)
-            data.append(event_data)
+            result_dict.pop("id")
+            if "content" in result_dict:
+                result_dict["content"] = json.loads(result_dict["content"])
+            result_dict["type"] = RoomMemberEvent.TYPE
+            data.append(result_dict)
 
         return (data, last_pkey)
 

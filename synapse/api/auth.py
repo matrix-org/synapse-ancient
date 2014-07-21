@@ -103,6 +103,9 @@ class JoinedRoomModule(AuthModule):
         if event.type == RoomMemberEvent.TYPE and event.membership:
             defer.returnValue(None)
 
+        if not hasattr(event, "auth_user_id"):
+            defer.returnValue(None)
+
         try:
             member = yield self.store.get_room_member(
                         room_id=event.room_id,
@@ -127,6 +130,9 @@ class MembershipChangeModule(AuthModule):
         if event.type is not RoomMemberEvent.TYPE:
             defer.returnValue(None)
 
+        if not hasattr(event, "auth_user_id"):
+            defer.returnValue(True)
+
         # does this room even exist
         room = self.store.get_room(event.room_id)
         if not room:
@@ -138,7 +144,7 @@ class MembershipChangeModule(AuthModule):
                 user_id=event.auth_user_id,
                 room_id=event.room_id)
         except:
-            pass
+            caller = None
         caller_in_room = caller and caller[0].membership == "join"
 
         # get info about the target
@@ -147,7 +153,7 @@ class MembershipChangeModule(AuthModule):
                 user_id=event.user_id,
                 room_id=event.room_id)
         except:
-            pass
+            target = None
         target_in_room = target and target[0].membership == "join"
 
         if not event.membership:

@@ -7,7 +7,7 @@ from synapse.api.auth import (Auth, AccessTokenModule,
 from synapse.api.event_store import EventStore
 from synapse.api.events.factory import EventFactory
 from synapse.api.handlers.factory import EventHandlerFactory
-from synapse.rest.base import RestEventFactory
+from synapse.rest.base import RestServletFactory
 from synapse.federation import ReplicationHandler
 
 
@@ -35,10 +35,10 @@ class SynapseHomeServer(ReplicationHandler):
                                                    self.auth)
 
         # configure how REST events are handled, and register paths
-        self.rest_event_factory = RestEventFactory(self.handler_factory,
-                                                   self.event_factory,
-                                                   self.auth)
-        self.rest_event_factory.register_events(self.http_server)
+        self.rest_servlet_factory = RestServletFactory(self.handler_factory,
+                                                       self.event_factory,
+                                                       self.auth)
+        self.rest_servlet_factory.register_servlets(self.http_server)
 
     def on_receive_pdu(self, pdu):
         pdu_type = pdu.pdu_type

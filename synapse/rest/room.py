@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-""" This module contains REST events to do with rooms: /rooms/<paths> """
+""" This module contains REST servlets to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
-from base import (EventStreamMixin, RestEvent, InvalidHttpRequestError)
+from base import RestServlet, InvalidHttpRequestError
 from synapse.api.auth import AccessTokenModule
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
@@ -13,7 +13,7 @@ import json
 import re
 
 
-class RoomCreateRestEvent(RestEvent):
+class RoomCreateRestServlet(RestServlet):
 
     def register(self, http_server):
         # /rooms OR /rooms/<roomid>
@@ -25,7 +25,7 @@ class RoomCreateRestEvent(RestEvent):
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             if not room_id:
@@ -43,7 +43,7 @@ class RoomCreateRestEvent(RestEvent):
     @defer.inlineCallbacks
     def on_POST(self, request):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             room_config = self.get_room_config(request)
@@ -78,7 +78,7 @@ class RoomCreateRestEvent(RestEvent):
             raise InvalidHttpRequestError(400, "Body must be JSON.")
 
 
-class RoomTopicRestEvent(EventStreamMixin, RestEvent):
+class RoomTopicRestServlet(RestServlet):
 
     def register(self, http_server):
         pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
@@ -91,7 +91,7 @@ class RoomTopicRestEvent(EventStreamMixin, RestEvent):
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             event = self.event_factory.create_event(
@@ -115,7 +115,7 @@ class RoomTopicRestEvent(EventStreamMixin, RestEvent):
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             content = _parse_json(request)
@@ -137,7 +137,7 @@ class RoomTopicRestEvent(EventStreamMixin, RestEvent):
             defer.returnValue((e.code, cs_error(e.msg)))
 
 
-class RoomMemberRestEvent(EventStreamMixin, RestEvent):
+class RoomMemberRestServlet(RestServlet):
 
     def register(self, http_server):
         pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/members/" +
@@ -152,7 +152,7 @@ class RoomMemberRestEvent(EventStreamMixin, RestEvent):
     @defer.inlineCallbacks
     def on_GET(self, request, roomid, userid):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             event = self.event_factory.create_event(
@@ -175,7 +175,7 @@ class RoomMemberRestEvent(EventStreamMixin, RestEvent):
     @defer.inlineCallbacks
     def on_DELETE(self, request, roomid, userid):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             event = self.event_factory.create_event(
@@ -197,7 +197,7 @@ class RoomMemberRestEvent(EventStreamMixin, RestEvent):
     @defer.inlineCallbacks
     def on_PUT(self, request, roomid, userid):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             content = _parse_json(request)
@@ -226,7 +226,7 @@ class RoomMemberRestEvent(EventStreamMixin, RestEvent):
         defer.returnValue((500, ""))
 
 
-class MessageRestEvent(EventStreamMixin, RestEvent):
+class MessageRestServlet(RestServlet):
 
     def register(self, http_server):
         pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
@@ -240,7 +240,7 @@ class MessageRestEvent(EventStreamMixin, RestEvent):
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, msg_sender_id, msg_id):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             event = self.event_factory.create_event(
@@ -264,7 +264,7 @@ class MessageRestEvent(EventStreamMixin, RestEvent):
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, sender_id, msg_id):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
             content = _parse_json(request)
 

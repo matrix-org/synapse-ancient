@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-"""This module contains REST events to do with registration: /register"""
+"""This module contains REST servlets to do with registration: /register"""
 from twisted.internet import defer
 
 from synapse.api.errors import RegistrationError
-from base import RestEvent, InvalidHttpRequestError
+from base import RestServlet, InvalidHttpRequestError
 
 import json
 import re
 import urllib
 
 
-class RegisterRestEvent(RestEvent):
+class RegisterRestServlet(RestServlet):
 
     def register(self, http_server):
         pattern = re.compile("^/register$")

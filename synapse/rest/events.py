@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""This module contains REST events to do with event streaming, /events."""
+"""This module contains REST servlets to do with event streaming, /events."""
 from twisted.internet import defer
 
 from synapse.api.streams.base import FilterStream
 from synapse.api.auth import AccessTokenModule
-from synapse.rest.base import RestEvent, InvalidHttpRequestError
+from synapse.rest.base import RestServlet, InvalidHttpRequestError
 
 import re
 
 
-class EventStreamRestEvent(RestEvent):
+class EventStreamRestServlet(RestServlet):
 
     def register(self, http_server):
         pattern = re.compile("^/events$")
@@ -18,7 +18,7 @@ class EventStreamRestEvent(RestEvent):
     @defer.inlineCallbacks
     def on_GET(self, request):
         try:
-            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
             handler = self.handler_factory.event_stream_handler()
