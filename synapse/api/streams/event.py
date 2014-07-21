@@ -3,93 +3,32 @@
 from twisted.internet import defer
 
 from synapse.api.errors import EventStreamError
-from synapse.util.dbutils import DbPool
-from synapse.api.events.room import RoomMemberEvent, MessageEvent
-from synapse.rest.base import InvalidHttpRequestError  # TODO remove
 from base import FilterStream, StreamData
-
-import json
 
 
 class MessagesStreamData(StreamData):
 
     @defer.inlineCallbacks
-    def get_rows(self, user_id, from_pkey, to_pkey):
-        (rows, pkey) = yield DbPool.get().runInteraction(self._get_rows,
-                                                    user_id, from_pkey, to_pkey)
-        defer.returnValue((rows, pkey))
-
-    def _get_rows(self, txn, user_id, from_pkey, to_pkey):
-        # work out which rooms this user is joined in on and join them with
-        # the room id on the messages table, bounded by the specified pkeys
-
-        # get all messages where the *current* membership state is 'join' for
-        # this user in that room.
-        query = ("SELECT messages.* FROM messages WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE user_id=? AND " +
-            "room_id = messages.room_id ORDER BY id DESC LIMIT 1) " +
-            "AND messages.id > ?")
-        query_args = ["join", user_id, from_pkey]
-
-        if to_pkey != -1:
-            query += " AND messages.id < ?"
-            query_args.append(to_pkey)
-
-        txn.execute(query, query_args)
-
-        col_headers = [i[0] for i in txn.description]
-        result_set = txn.fetchall()
-        data = []
-        last_pkey = from_pkey
-        for result in result_set:
-            result_dict = dict(zip(col_headers, result))
-            last_pkey = result_dict["id"]
-            result_dict.pop("id")
-            if "content" in result_dict:
-                result_dict["content"] = json.loads(result_dict["content"])
-            result_dict["type"] = MessageEvent.TYPE
-            data.append(result_dict)
-
-        return (data, last_pkey)
+    def get_rows(self, user_id, from_key, to_key):
+        (data, latest_ver) = yield self.store.get_message_stream(
+                                user_id=user_id,
+                                from_key=from_key,
+                                to_key=to_key
+                                )
+        defer.returnValue((data, latest_ver))
 
 
 class RoomMemberStreamData(StreamData):
 
     @defer.inlineCallbacks
-    def get_rows(self, user_id, from_pkey, to_pkey):
-        (rows, pkey) = yield DbPool.get().runInteraction(self._get_rows,
-                                                    user_id, from_pkey, to_pkey)
-        defer.returnValue((rows, pkey))
+    def get_rows(self, user_id, from_key, to_key):
+        (data, latest_ver) = yield self.store.get_room_member_stream(
+                                user_id=user_id,
+                                from_key=from_key,
+                                to_key=to_key
+                                )
 
-    def _get_rows(self, txn, user_id, from_pkey, to_pkey):
-        # get all room membership events for rooms which the user is *currently*
-        # joined in on.
-        query = ("SELECT rm.* FROM room_memberships rm WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE user_id=? AND " +
-            "room_id = rm.room_id ORDER BY id DESC LIMIT 1) " +
-            "AND rm.id > ?")
-        query_args = ["join", user_id, from_pkey]
-
-        if to_pkey != -1:
-            query += " AND rm.id < ?"
-            query_args.append(to_pkey)
-
-        txn.execute(query, query_args)
-
-        col_headers = [i[0] for i in txn.description]
-        result_set = txn.fetchall()
-        data = []
-        last_pkey = from_pkey
-        for result in result_set:
-            result_dict = dict(zip(col_headers, result))
-            last_pkey = result_dict["id"]
-            result_dict.pop("id")
-            if "content" in result_dict:
-                result_dict["content"] = json.loads(result_dict["content"])
-            result_dict["type"] = RoomMemberEvent.TYPE
-            data.append(result_dict)
-
-        return (data, last_pkey)
+        defer.returnValue((data, latest_ver))
 
 
 class EventStream(FilterStream):
@@ -105,7 +44,7 @@ class EventStream(FilterStream):
     def get_chunk(self, from_tok=None, to_tok=None, direction=None, limit=None):
         # TODO add support for limit and dir=b
         if limit or direction != 'f':
-            raise InvalidHttpRequestError(400, "Limit and dir=b not supported.")
+            raise EventStreamError(400, "Limit and dir=b not supported.")
 
         if from_tok == FilterStream.TOK_START:
             from_tok = EventStream.SEPARATOR.join(
@@ -126,7 +65,7 @@ class EventStream(FilterStream):
             })
         except EventStreamError as e:
             print e
-            raise InvalidHttpRequestError(400, "Bad tokens supplied.")
+            raise EventStreamError(400, "Bad tokens supplied.")
 
     @defer.inlineCallbacks
     def _get_chunk_data(self, from_tok, to_tok):

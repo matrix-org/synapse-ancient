@@ -4,6 +4,7 @@ from twisted.internet import defer
 from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
+from synapse.api.events.room import RoomMemberEvent, MessageEvent
 from synapse.persistence.transactions import run_interaction
 from synapse.util import stringutils
 from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
@@ -39,6 +40,87 @@ def exec_single(txn, query, *args):
     """Runs a single query, returning nothing."""
     logger.debug("[SQL] %s  Args=%s" % (query, args))
     txn.execute(query, args)
+
+
+class StreamStore(object):
+
+    def __init__(self):
+        super(StreamStore, self).__init__()
+
+    @defer.inlineCallbacks
+    def get_message_stream(self, user_id=None, from_key=None, to_key=None):
+        (rows, pkey) = yield run_interaction(self._get_message_rows,
+                                             user_id, from_key, to_key)
+        defer.returnValue((rows, pkey))
+
+    def _get_message_rows(self, txn, user_id, from_pkey, to_pkey):
+        # work out which rooms this user is joined in on and join them with
+        # the room id on the messages table, bounded by the specified pkeys
+
+        # get all messages where the *current* membership state is 'join' for
+        # this user in that room.
+        query = ("SELECT messages.* FROM messages WHERE ? IN " +
+            "(SELECT membership from room_memberships WHERE user_id=? AND " +
+            "room_id = messages.room_id ORDER BY id DESC LIMIT 1) " +
+            "AND messages.id > ?")
+        query_args = ["join", user_id, from_pkey]
+
+        if to_pkey != -1:
+            query += " AND messages.id < ?"
+            query_args.append(to_pkey)
+
+        txn.execute(query, query_args)
+
+        col_headers = [i[0] for i in txn.description]
+        result_set = txn.fetchall()
+        data = []
+        last_pkey = from_pkey
+        for result in result_set:
+            result_dict = dict(zip(col_headers, result))
+            last_pkey = result_dict["id"]
+            result_dict.pop("id")
+            if "content" in result_dict:
+                result_dict["content"] = json.loads(result_dict["content"])
+            result_dict["type"] = MessageEvent.TYPE
+            data.append(result_dict)
+
+        return (data, last_pkey)
+
+    @defer.inlineCallbacks
+    def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):
+        (rows, pkey) = yield run_interaction(self._get_room_member_rows,
+                                             user_id, from_key, to_key)
+        defer.returnValue((rows, pkey))
+
+    def _get_room_member_rows(self, txn, user_id, from_pkey, to_pkey):
+        # get all room membership events for rooms which the user is *currently*
+        # joined in on.
+        query = ("SELECT rm.* FROM room_memberships rm WHERE ? IN " +
+            "(SELECT membership from room_memberships WHERE user_id=? AND " +
+            "room_id = rm.room_id ORDER BY id DESC LIMIT 1) " +
+            "AND rm.id > ?")
+        query_args = ["join", user_id, from_pkey]
+
+        if to_pkey != -1:
+            query += " AND rm.id < ?"
+            query_args.append(to_pkey)
+
+        txn.execute(query, query_args)
+
+        col_headers = [i[0] for i in txn.description]
+        result_set = txn.fetchall()
+        data = []
+        last_pkey = from_pkey
+        for result in result_set:
+            result_dict = dict(zip(col_headers, result))
+            last_pkey = result_dict["id"]
+            result_dict.pop("id")
+            if "content" in result_dict:
+                result_dict["content"] = json.loads(result_dict["content"])
+            result_dict["type"] = RoomMemberEvent.TYPE
+            data.append(result_dict)
+
+        return (data, last_pkey)
 
 
 class RegistrationStore(object):
@@ -272,7 +354,7 @@ class RoomPathStore(object):
 
 
 class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
-                 RegistrationStore):
+                 RegistrationStore, StreamStore):
 
     def __init__(self):
         super(DataStore, self).__init__()
