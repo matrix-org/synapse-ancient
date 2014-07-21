@@ -132,3 +132,9 @@ class PersistenceService(object):
             context=context,
             depth=depth
         )
+
+    def get_servers_in_context(self, context):
+        raise NotImplementedError("get_servers_in_context")
+
+    def get_power_level_for_user(self, context, user):
+        raise NotImplementedError("get_power_level_for_user")
