@@ -66,7 +66,6 @@ class JsonEncodedObject(object):
             else:
                 self.unrecognized_keys[k] = v
 
-
     def get_dict(self):
         """ Converts this protocol unit into a :py:class:`dict`, ready to be
         encoded as JSON.
@@ -78,7 +77,7 @@ class JsonEncodedObject(object):
         """
         d = {
             k: _encode(v) for (k, v) in self.__dict__.items()
-            if k != "unrecognized_keys" and k not in self.internal_keys
+            if k in self.valid_keys and k not in self.internal_keys
         }
         d.update(self.unrecognized_keys)
         return d

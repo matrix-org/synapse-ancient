@@ -2,7 +2,6 @@
 
 from twisted.internet import defer
 
-import json
 import hashlib
 
 
