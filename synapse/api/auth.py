@@ -50,7 +50,7 @@ class Auth(object):
         Args:
             mod_name (str): The name of the module to obtain.
         Returns:
-            The AuthModule or None.
+            AuthModule or None.
         """
         try:
             return self.modules[mod_name]
@@ -206,9 +206,9 @@ class AccessTokenModule(AuthModule):
         Args:
             request - An HTTP request with an access_token query parameter.
         Returns:
-            The user ID of the user who has that access token.
+            str: The user ID of the user who has that access token.
         Raises:
-            InvalidHttpRequestError if no user by that token exists.
+            AuthError if no user by that token exists or the token is invalid.
         """
         # Can optionally look elsewhere in the request (e.g. headers)
         try:
@@ -221,11 +221,11 @@ class AccessTokenModule(AuthModule):
         """ Get a registered user's ID.
 
         Args:
-            token - The access token to get the user by.
+            token (str)- The access token to get the user by.
         Returns:
-            The user ID of the user who has that access token.
+            str: The user ID of the user who has that access token.
         Raises:
-            InvalidHttpRequestError if no user by that token exists.
+            AuthError if no user by that token exists or the token is invalid.
         """
         try:
             user_id = yield self.store.get_user(token=token)

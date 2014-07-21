@@ -46,8 +46,8 @@ def cs_error(msg, code=0, **kwargs):
     interactions.
 
     Args:
-        msg : The error message.
-        code : The error code.
+        msg (str): The error message.
+        code (int): The error code.
         kwargs : Additional keys to add to the response.
     Returns:
         A dict representing the error response JSON.

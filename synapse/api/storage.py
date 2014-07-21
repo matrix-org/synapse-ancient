@@ -79,7 +79,7 @@ class RegistrationStore(object):
         Args:
             token (str): The access token of a user.
         Returns:
-            The user ID of the user.
+            str: The user ID of the user.
         Raises:
             StoreError if no user was found.
         """
@@ -127,13 +127,13 @@ class RoomStore(object):
         this room.
 
         Args:
-            room_id : The desired room ID, can be None.
-            room_creator_user_id : The user ID of the room creator.
-            is_public : True to indicate that this room should appear in public
-            room lists.
+            room_id (str): The desired room ID, can be None.
+            room_creator_user_id (str): The user ID of the room creator.
+            is_public (bool): True to indicate that this room should appear in
+            public room lists.
         Returns:
-            The room ID of the room stored, or None if the room was not stored
-            due to a conflict (room_id in use).
+            str: The room ID of the room stored, or None if the room was not
+            stored due to a conflict (room_id in use).
         Raises:
             StoreError if the room could not be stored due to an operational
             error (e.g. db access error).
@@ -169,7 +169,7 @@ class RoomStore(object):
         """Retrieve a room.
 
         Args:
-            room_id : The ID of the room to retrieve.
+            room_id (str): The ID of the room to retrieve.
         Returns:
             A namedtuple containing the room information, or an empty list.
         """
@@ -248,9 +248,9 @@ class RoomPathStore(object):
         """Retrieve the data stored at this URL path.
 
         Args:
-            path - The url path with something stored.
+            path (str)- The url path with something stored.
         Returns:
-            The data as JSON or None if nothing exists at this path.
+            namedtuple: Or None if nothing exists at this path.
         """
         query = RoomDataTable.select_statement(
             "path = ? ORDER BY id DESC LIMIT 1")
@@ -263,8 +263,8 @@ class RoomPathStore(object):
         """Stores path specific data.
 
         Args:
-            path - The path where the data can be retrieved later.
-            data - The data to store for this path in JSON.
+            path (str)- The path where the data can be retrieved later.
+            data (str)- The data to store for this path in JSON.
         """
         query = ("INSERT INTO " + RoomDataTable.table_name +
                 "(path, room_id, content) VALUES (?,?,?)")
