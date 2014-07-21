@@ -40,6 +40,7 @@ class BaseHomeServer(object):
     DEPENDENCIES = [
             'http_server',
             'http_client',
+            'db_pool',
             'persistence_service',
             'federation',
             'event_data_store',
@@ -93,8 +94,12 @@ class HomeServer(BaseHomeServer):
     def build_http_client(self):
         return TwistedHttpClient()
 
+    def build_db_pool(self):
+        # TODO: This needs to die
+        return DbPool.get()
+
     def build_persistence_service(self):
-        return PersistenceService(DbPool.get())
+        return PersistenceService(self)
 
     def build_federation(self):
         return initialize_http_federation(self)

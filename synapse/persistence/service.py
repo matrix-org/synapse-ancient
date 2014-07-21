@@ -11,8 +11,8 @@ from .transactions import (
 
 class PersistenceService(object):
 
-    def __init__(self, db_pool):
-        self._db_pool = db_pool
+    def __init__(self, hs):
+        self._db_pool = hs.get_db_pool()
 
     def get_received_txn_response(self, transaction_id, origin):
         return run_interaction(
