@@ -3,8 +3,6 @@ from register import RegistrationHandler
 from room import MessageHandler, RoomCreationHandler, RoomMemberHandler
 from events import EventStreamHandler
 
-from synapse.util.dbutils import DbPool  # TODO remove
-
 
 class EventHandlerFactory(object):
 
@@ -17,7 +15,11 @@ class EventHandlerFactory(object):
         self.auth = auth
 
     def register_handler(self):
-        return RegistrationHandler(db_pool=DbPool.get())  # TODO remove dbpool
+        return RegistrationHandler(
+            store=self.store,
+            ev_factory=self.event_factory,
+            notifier=None,
+            auth=self.auth)
 
     def message_handler(self):
         return MessageHandler(

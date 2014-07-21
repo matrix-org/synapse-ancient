@@ -3,6 +3,7 @@ from twisted.internet import defer
 
 from sqlite3 import IntegrityError
 
+from synapse.api.errors import RegistrationError
 from synapse.persistence.transactions import run_interaction
 from synapse.util import stringutils
 from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
@@ -10,7 +11,7 @@ from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
 
 import json
 import logging
-
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,38 @@ def exec_single(txn, query, *args):
     """Runs a single query, returning nothing."""
     logger.debug("[SQL] %s  Args=%s" % (query, args))
     txn.execute(query, args)
+
+
+class RegistrationStore(object):
+
+    def __init__(self):
+        super(RegistrationStore, self).__init__()
+
+    @defer.inlineCallbacks
+    def register(self, user_id, token):
+        """Attempts to register an account.
+
+        Args:
+            user_id (str): The desired user ID to register.
+            token (str): The desired access token to use for this user.
+        Raises:
+            RegistrationError if the user_id could not be registered.
+        """
+        yield run_interaction(self._register, user_id, token)
+
+    def _register(self, txn, user_id, token):
+        now = int(time.time())
+
+        try:
+            txn.execute("INSERT INTO users(name, creation_ts) VALUES (?,?)",
+                        [user_id, now])
+        except IntegrityError:
+            raise RegistrationError(400, "User ID already taken.")
+
+        # it's possible for this to get a conflict, but only for a single user
+        # since tokens are namespaced based on their user ID
+        txn.execute("INSERT INTO access_tokens(user_id, token) " +
+                    "VALUES (?,?)", [txn.lastrowid, token])
 
 
 class RoomStore(object):
@@ -217,7 +250,8 @@ class StoreException(Exception):
     pass
 
 
-class EventStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore):
+class EventStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
+                 RegistrationStore):
 
     def __init__(self):
         super(EventStore, self).__init__()
