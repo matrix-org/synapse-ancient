@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.federation import initialize_http_federation
 from synapse.api.server import SynapseHomeServer
 from synapse.persistence import read_schema, PersistenceService
+
+from synapse.server import HomeServer
 
 from synapse.util import DbPool
 
@@ -28,16 +29,15 @@ def setup_server(hostname):
         A synapse home server
     """
     logger.info("Server hostname: %s", hostname)
-    http_server = TwistedHttpServer()
-    http_client = TwistedHttpClient()
+    nhs = HomeServer(hostname)
 
-    replication = initialize_http_federation(
-        hostname, http_client=http_client, http_server=http_server,
-        persistence_service=PersistenceService(DbPool.get())
-    )
+    http_server = nhs.get_http_server()
+    http_client = nhs.get_http_client()
+    replication = nhs.get_replication()
 
     hs = SynapseHomeServer(http_server, hostname, replication)
-    return http_server
+
+    return nhs.get_http_server()
 
 
 def setup_db(db_name):
