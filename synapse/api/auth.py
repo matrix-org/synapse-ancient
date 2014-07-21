@@ -4,6 +4,8 @@ from twisted.internet import defer
 
 from synapse.api.constants import Membership
 from synapse.api.errors import AuthError
+from synapse.api.events.room import (RoomTopicEvent, RoomMemberEvent,
+                                     MessageEvent)
 from synapse.util.dbutils import DbPool
 
 import logging
@@ -92,18 +94,22 @@ class JoinedRoomModule(AuthModule):
 
     @defer.inlineCallbacks
     def check(self, event):
-        """Checks if auth_user_id is joined in the room room_id."""
+
+        if event.type not in [RoomTopicEvent.TYPE, RoomMemberEvent.TYPE,
+                              MessageEvent.TYPE]:
+            defer.returnValue(None)
+
+        # ignore membership change requests, another module will handle that
+        if event.type == RoomMemberEvent.TYPE and event.membership:
+            defer.returnValue(None)
 
         try:
-            # TODO this is horrible, this shouldn't care about event.membership.
-            if (event.auth_user_id and event.room_id and
-                                            not hasattr(event, "membership")):
-                member = yield self.store.get_room_member(
-                            room_id=event.room_id,
-                            user_id=event.auth_user_id)
-                if not member or member[0].membership != "join":
-                    raise AuthError(403, JoinedRoomModule.NAME)
-                defer.returnValue(member)
+            member = yield self.store.get_room_member(
+                        room_id=event.room_id,
+                        user_id=event.auth_user_id)
+            if not member or member[0].membership != Membership.JOIN:
+                raise AuthError(403, JoinedRoomModule.NAME)
+            defer.returnValue(member)
         except AttributeError:
             pass
         defer.returnValue(None)
@@ -118,16 +124,8 @@ class MembershipChangeModule(AuthModule):
 
     @defer.inlineCallbacks
     def check(self, event):
-        """Checks if this membership change is allowed to take place. Looks for
-        the keys 'membership' (the action), 'auth_user_id' (the initiator), and
-        'user_id' (the target).
-        """
-        try:
-            if (not event.auth_user_id or not event.user_id or not
-                event.membership or not event.room_id):
-                raise AttributeError()
-        except AttributeError:
-            defer.returnValue(False)
+        if event.type is not RoomMemberEvent.TYPE:
+            defer.returnValue(None)
 
         # does this room even exist
         room = self.store.get_room(event.room_id)
@@ -151,6 +149,11 @@ class MembershipChangeModule(AuthModule):
         except:
             pass
         target_in_room = target and target[0].membership == "join"
+
+        if not event.membership:
+            # not a membership change, but a request for one. They can only do
+            # that if they are in the room.
+            defer.returnValue(caller_in_room)
 
         if Membership.INVITE == event.membership:
             # Invites are valid iff caller is in the room and target isn't.

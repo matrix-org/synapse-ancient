@@ -283,15 +283,15 @@ class RoomPermissionsTestCase(unittest.TestCase):
     def test_membership_perms(self):
         # get membership of self, get membership of other, uncreated room
         # expect all 403s
-        # yield self._test_membership(members=[self.user_id, self.rmcreator_id],
-        #                             room=self.uncreated_rmid, expect_code=403)
+        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
+                                    room=self.uncreated_rmid, expect_code=403)
 
         # get membership of self, get membership of other, public room + invite
         # expect all 403s
         yield self._change_membership(self.created_rmid, self.rmcreator_id,
                                       self.user_id, Membership.INVITE)
-        # yield self._test_membership(members=[self.user_id, self.rmcreator_id],
-        #                             room=self.created_rmid, expect_code=403)
+        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
+                                    room=self.created_rmid, expect_code=403)
 
         # get membership of self, get membership of other, public room + joined
         # expect all 200s
@@ -302,6 +302,10 @@ class RoomPermissionsTestCase(unittest.TestCase):
 
         # get membership of self, get membership of other, public room + left
         # expect all 403s
+        yield self._change_membership(self.created_rmid, self.user_id,
+                                      self.user_id, Membership.LEAVE)
+        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
+                                    room=self.created_rmid, expect_code=403)
 
         # get membership of self, get membership of other, private room + invite
         # expect all 403s
