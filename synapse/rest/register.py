@@ -3,7 +3,6 @@
 from twisted.internet import defer
 
 from synapse.api.errors import RegistrationError
-from base import PostEventMixin, OptionsEventMixin
 from base import RestEvent, InvalidHttpRequestError
 
 import json
@@ -11,10 +10,12 @@ import re
 import urllib
 
 
-class RegisterRestEvent(PostEventMixin, OptionsEventMixin, RestEvent):
+class RegisterRestEvent(RestEvent):
 
-    def get_pattern(self):
-        return re.compile("^/register$")
+    def register(self, http_server):
+        pattern = re.compile("^/register$")
+        http_server.register_path("POST", pattern, self.on_POST)
+        http_server.register_path("OPTIONS", pattern, self.on_OPTIONS)
 
     @defer.inlineCallbacks
     def on_POST(self, request):

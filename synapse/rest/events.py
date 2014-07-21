@@ -4,15 +4,16 @@ from twisted.internet import defer
 
 from synapse.api.streams.base import FilterStream
 from synapse.api.auth import AccessTokenModule
-from synapse.rest.base import GetEventMixin, RestEvent, InvalidHttpRequestError
+from synapse.rest.base import RestEvent, InvalidHttpRequestError
 
 import re
 
 
-class EventStreamRestEvent(GetEventMixin, RestEvent):
+class EventStreamRestEvent(RestEvent):
 
-    def get_pattern(self):
-        return re.compile("^/events$")
+    def register(self, http_server):
+        pattern = re.compile("^/events$")
+        http_server.register_path("GET", pattern, self.on_GET)
 
     @defer.inlineCallbacks
     def on_GET(self, request):

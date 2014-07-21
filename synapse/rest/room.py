@@ -2,8 +2,7 @@
 """ This module contains REST events to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
-from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
-                    PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
+from base import (EventStreamMixin, RestEvent, InvalidHttpRequestError)
 from synapse.api.auth import AccessTokenModule
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
@@ -14,11 +13,14 @@ import json
 import re
 
 
-class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
+class RoomCreateRestEvent(RestEvent):
 
-    def get_pattern(self):
+    def register(self, http_server):
         # /rooms OR /rooms/<roomid>
-        return re.compile(r"^/rooms(?:/(?P<roomid>[^/]*))?$")
+        http_server.register_path("POST", re.compile("^/rooms$"), self.on_POST)
+        http_server.register_path("PUT",
+                                  re.compile("^/rooms/(?P<roomid>[^/]*)$"),
+                                  self.on_PUT)
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
@@ -39,17 +41,13 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
             defer.returnValue((he.get_status_code(), he.get_response_body()))
 
     @defer.inlineCallbacks
-    def on_POST(self, request, room_id):
+    def on_POST(self, request):
         try:
             auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
                             get_user_by_req(request))
 
-            if room_id:
-                raise InvalidHttpRequestError(400,
-                          "POST must not specify a room ID")
-
             room_config = self.get_room_config(request)
-            info = yield self.make_room(room_config, auth_user_id, room_id)
+            info = yield self.make_room(room_config, auth_user_id, None)
 
             defer.returnValue((200, info))
         except SynapseError as e:
@@ -80,11 +78,12 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
             raise InvalidHttpRequestError(400, "Body must be JSON.")
 
 
-class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                         RestEvent):
+class RoomTopicRestEvent(EventStreamMixin, RestEvent):
 
-    def get_pattern(self):
-        return re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
+    def register(self, http_server):
+        pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
+        http_server.register_path("GET", pattern, self.on_GET)
+        http_server.register_path("PUT", pattern, self.on_PUT)
 
     def get_event_type(self):
         return RoomTopicEvent.TYPE
@@ -138,12 +137,14 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((e.code, cs_error(e.msg)))
 
 
-class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                          DeleteEventMixin, RestEvent):
+class RoomMemberRestEvent(EventStreamMixin, RestEvent):
 
-    def get_pattern(self):
-        return re.compile("^/rooms/(?P<roomid>[^/]*)/members/" +
+    def register(self, http_server):
+        pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/members/" +
                           "(?P<userid>[^/]*)/state$")
+        http_server.register_path("GET", pattern, self.on_GET)
+        http_server.register_path("PUT", pattern, self.on_PUT)
+        http_server.register_path("DELETE", pattern, self.on_DELETE)
 
     def get_event_type(self):
         return RoomMemberEvent.TYPE
@@ -225,12 +226,13 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         defer.returnValue((500, ""))
 
 
-class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
-                       RestEvent):
+class MessageRestEvent(EventStreamMixin, RestEvent):
 
-    def get_pattern(self):
-        return re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
+    def register(self, http_server):
+        pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
                           "(?P<from>[^/]*)/(?P<msgid>[^/]*)$")
+        http_server.register_path("GET", pattern, self.on_GET)
+        http_server.register_path("PUT", pattern, self.on_PUT)
 
     def get_event_type(self):
         return MessageEvent.TYPE

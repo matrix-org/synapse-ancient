@@ -404,10 +404,6 @@ class RoomsCreateTestCase(unittest.TestCase):
                                                           '{"visibili')
         self.assertEquals(400, code)
 
-        (code, response) = yield self.mock_server.trigger("POST", "/rooms/boo",
-                                                          '{}')
-        self.assertEquals(400, code)
-
         (code, response) = yield self.mock_server.trigger("POST", "/rooms",
                                                           '["hello"]')
         self.assertEquals(400, code)
@@ -438,10 +434,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
-        # PUT with invalid content / paths / room names, expect 400
-        (code, response) = yield self.mock_server.trigger("PUT", "/rooms",
-                                                          "{}")
-        self.assertEquals(400, code)
+        # PUT with invalid content / room names, expect 400
 
         (code, response) = yield self.mock_server.trigger("PUT", "/rooms/ee",
                                                           '{"sdf"')

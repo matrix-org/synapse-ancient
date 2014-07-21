@@ -70,77 +70,7 @@ class RestEvent(object):
 
     def register(self, http_server):
         """ Register this event with the given HTTP server. """
-        pass
-
-
-# XXX: are all these Mixins really the nicest way to handle supporting
-# different HTTP methods?  The register() feels like it should be able
-# to be automated by inspecting the available methods on a given servlet
-# or similar, rather than all this duplicated boilerplate?  -- Matthew
-
-class PutEventMixin(object):
-
-    """ A mixin with the ability to handle PUTs. """
-
-    def register(self, http_server):
-        super(PutEventMixin, self).register(http_server)
-        http_server.register_path("PUT", self.get_pattern(),
-                                  self.on_PUT)
-
-    def on_PUT(self, request, *url_args):
-        raise NotImplementedError("on_PUT callback not implemented")
-
-
-class GetEventMixin(object):
-
-    """ A mixin with the ability to handle GETs. """
-
-    def register(self, http_server):
-        super(GetEventMixin, self).register(http_server)
-        http_server.register_path("GET", self.get_pattern(),
-                                  self.on_GET)
-
-    def on_GET(self, request, *url_args):
-        raise NotImplementedError("on_GET callback not implemented")
-
-
-class PostEventMixin(object):
-
-    """ A mixin with the ability to handle POSTs. """
-
-    def register(self, http_server):
-        super(PostEventMixin, self).register(http_server)
-        http_server.register_path("POST", self.get_pattern(),
-                                  self.on_POST)
-
-    def on_POST(self, request, *url_args):
-        raise NotImplementedError("on_POST callback not implemented")
-
-
-class DeleteEventMixin(object):
-
-    """ A mixin with the ability to handle DELETEs. """
-
-    def register(self, http_server):
-        super(DeleteEventMixin, self).register(http_server)
-        http_server.register_path("DELETE", self.get_pattern(),
-                                  self.on_DELETE)
-
-    def on_DELETE(self, request, *url_args):
-        raise NotImplementedError("on_DELETE callback not implemented")
-
-
-class OptionsEventMixin(object):
-
-    """ A mixin with the ability to handle OPTIONS. """
-
-    def register(self, http_server):
-        super(OptionsEventMixin, self).register(http_server)
-        http_server.register_path("OPTIONS", self.get_pattern(),
-                                  self.on_OPTIONS)
-
-    def on_OPTIONS(self, request, *url_args):
-        raise NotImplementedError("on_OPTIONS callback not implemented")
+        raise NotImplementedError("RestServlet must register something.")
 
 
 class EventStreamMixin(object):
