@@ -13,8 +13,4 @@ def initialize_http_federation(homeserver):
         client=homeserver.get_http_client()
     )
 
-    return ReplicationLayer(
-        homeserver.hostname,
-        transport,
-        persistence_service=homeserver.get_persistence_service(),
-    )
+    return ReplicationLayer(homeserver, transport)

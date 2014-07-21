@@ -38,19 +38,19 @@ class ReplicationLayer(object):
           for outgoing data.
     """
 
-    def __init__(self, server_name, transport_layer, persistence_service):
-        self.server_name = server_name
+    def __init__(self, hs, transport_layer):
+        self.server_name = hs.hostname
 
         self.transport_layer = transport_layer
         self.transport_layer.register_received_handler(self)
         self.transport_layer.register_request_handler(self)
 
-        self.persistence_service = persistence_service
-        self.pdu_actions = PduActions(persistence_service)
-        self.transaction_actions = TransactionActions(persistence_service)
+        self.persistence_service = hs.get_persistence_service()
+        self.pdu_actions = PduActions(self.persistence_service)
+        self.transaction_actions = TransactionActions(self.persistence_service)
 
         self._transaction_queue = _TransactionQueue(
-            server_name,
+            self.server_name,
             self.transaction_actions,
             transport_layer
         )
