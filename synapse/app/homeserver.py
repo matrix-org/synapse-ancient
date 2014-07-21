@@ -19,11 +19,9 @@ import sqlite3
 logger = logging.getLogger(__name__)
 
 
-class SynapseHomeServer(ReplicationHandler):
+class HomeServerReplicationHandler(ReplicationHandler):
     def __init__(self, hs):
         hs.get_federation().set_handler(self)
-
-        hs.get_rest_servlet_factory().register_servlets(hs.get_http_server())
 
     def on_receive_pdu(self, pdu):
         pdu_type = pdu.pdu_type
@@ -110,7 +108,10 @@ def run():
 
     # This object doesn't need to be saved because it's set as the handler for
     # the replication layer
-    shs = SynapseHomeServer(hs)
+    HomeServerReplicationHandler(hs)
+
+    # TODO(paul): Should this always be done by the construction process itself?
+    hs.get_rest_servlet_factory().register_servlets(hs.get_http_server())
 
     hs.get_http_server().start_listening(args.port)
 
