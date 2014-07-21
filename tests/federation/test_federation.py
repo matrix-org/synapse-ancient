@@ -35,7 +35,7 @@ def make_pdu(prev_pdus=[], **kwargs):
 
 class FederationTestCase(unittest.TestCase):
     def setUp(self):
-        # TODO: mock an HTTP client we can use
+        # TODO: mock an HTTP client and DB pool we can use
         self.mock_http_server = MockHttpServer()
         self.mock_persistence = Mock(spec=[
             "get_current_state_for_context",
@@ -44,6 +44,7 @@ class FederationTestCase(unittest.TestCase):
         hs = BaseHomeServer("test",
                 http_server=self.mock_http_server,
                 http_client=None,
+                db_pool=None,
                 persistence_service=self.mock_persistence
         )
         self.federation = initialize_http_federation(hs)

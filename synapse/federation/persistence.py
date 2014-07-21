@@ -79,7 +79,7 @@ class PduActions(object):
         # TODO: This should be moved into the state module.
 
         #if pdu.is_state:
-            #curr = yield run_interaction(
+            #curr = yield self._db_pool.runInteraction(
                 #StateQueries.current_state,
                 #pdu.context,
                 #pdu.pdu_type, pdu.state_key)

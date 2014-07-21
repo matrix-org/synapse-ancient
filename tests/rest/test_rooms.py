@@ -18,7 +18,7 @@ from synapse.api.constants import Membership
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
 
-from synapse.server import BaseHomeServer
+from synapse.server import HomeServer
 
 # python imports
 import json
@@ -58,26 +58,23 @@ class RoomPermissionsTestCase(unittest.TestCase):
     def setUp(self):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
-        self.mock_data_store = DataStore()
-        self.ev_fac = EventFactory()
-        self.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
-                         JoinedRoomModule(self.mock_data_store),
-                         MembershipChangeModule(self.mock_data_store))
 
-        hs = BaseHomeServer("test",
-                event_data_store=self.mock_data_store,
-                event_factory=self.ev_fac,
-                auth=self.auth)
-        self.h_fac = EventHandlerFactory(hs)
+        hs = HomeServer("test",
+                db_pool=DbPool.get())
+        hs.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
+                       JoinedRoomModule(hs.get_event_data_store()),
+                       MembershipChangeModule(hs.get_event_data_store()))
 
-        MessageRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                         self.mock_server)
-        RoomMemberRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                            self.mock_server)
-        RoomTopicRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                           self.mock_server)
-        RoomCreateRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                            self.mock_server)
+        ev_fac = hs.get_event_factory()
+        h_fac = hs.get_event_handler_factory()
+        auth = hs.get_auth()
+
+        MessageRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        RoomMemberRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        RoomTopicRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        RoomCreateRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+
+        self.auth = auth
 
         # create some rooms under the name rmcreator_id
         self.uncreated_rmid = "aa"
@@ -113,7 +110,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.assertEquals(200, code, msg=str(response))
 
         # auth as user_id now
-        self.auth.get_mod("mod_token").user_id = self.user_id
+        hs.get_auth().get_mod("mod_token").user_id = self.user_id
+
 
     def tearDown(self):
         try:
@@ -362,20 +360,18 @@ class RoomsCreateTestCase(unittest.TestCase):
     def setUp(self):
         _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
-        self.mock_data_store = DataStore()
-        self.ev_fac = EventFactory()
-        self.auth = Auth(MockAccessTokenModule(self.user_id),
-                         JoinedRoomModule(self.mock_data_store),
-                         MembershipChangeModule(self.mock_data_store))
 
-        hs = BaseHomeServer("test",
-                event_data_store=self.mock_data_store,
-                event_factory=self.ev_fac,
-                auth=self.auth)
-        self.h_fac = EventHandlerFactory(hs)
+        hs = HomeServer("test",
+                db_pool=DbPool.get())
+        hs.auth = Auth(MockAccessTokenModule(self.user_id),
+                       JoinedRoomModule(hs.get_event_data_store()),
+                       MembershipChangeModule(hs.get_event_data_store()))
 
-        RoomCreateRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                            self.mock_server)
+        ev_fac = hs.get_event_factory()
+        h_fac = hs.get_event_handler_factory()
+        auth = hs.get_auth()
+
+        RoomCreateRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
 
     def tearDown(self):
         try:
@@ -468,27 +464,21 @@ class RoomsTestCase(unittest.TestCase):
     def setUp(self):
         _setup_db(DB_PATH, ["im"])
         self.mock_server = MockHttpServer()
-        self.mock_data_store = DataStore()
 
-        self.ev_fac = EventFactory()
-        self.auth = Auth(MockAccessTokenModule(self.user_id),
-                         JoinedRoomModule(self.mock_data_store),
-                         MembershipChangeModule(self.mock_data_store))
+        hs = HomeServer("test",
+                db_pool=DbPool.get())
+        hs.auth = Auth(MockAccessTokenModule(self.user_id),
+                       JoinedRoomModule(hs.get_event_data_store()),
+                       MembershipChangeModule(hs.get_event_data_store()))
 
-        hs = BaseHomeServer("test",
-                event_data_store=self.mock_data_store,
-                event_factory=self.ev_fac,
-                auth=self.auth)
-        self.h_fac = EventHandlerFactory(hs)
+        ev_fac = hs.get_event_factory()
+        h_fac = hs.get_event_handler_factory()
+        auth = hs.get_auth()
 
-        MessageRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                         self.mock_server)
-        RoomMemberRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                            self.mock_server)
-        RoomTopicRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                           self.mock_server)
-        RoomCreateRestServlet(self.h_fac, self.ev_fac, self.auth).register(
-                            self.mock_server)
+        MessageRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        RoomMemberRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        RoomTopicRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        RoomCreateRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
 
         # create the room
         path = "/rooms/rid1"

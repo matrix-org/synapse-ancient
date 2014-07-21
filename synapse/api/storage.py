@@ -5,7 +5,6 @@ from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
 from synapse.api.events.room import RoomMemberEvent, MessageEvent
-from synapse.persistence.transactions import run_interaction
 from synapse.util import stringutils
 from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
                                         MessagesTable, RoomsTable)
@@ -44,13 +43,14 @@ def exec_single(txn, query, *args):
 
 class StreamStore(object):
 
-    def __init__(self):
+    def __init__(self, hs):
         super(StreamStore, self).__init__()
+        self._db_pool = hs.get_db_pool()
 
     @defer.inlineCallbacks
     def get_message_stream(self, user_id=None, from_key=None, to_key=None):
-        (rows, pkey) = yield run_interaction(self._get_message_rows,
-                                             user_id, from_key, to_key)
+        (rows, pkey) = yield self._db_pool.runInteraction(
+                self._get_message_rows, user_id, from_key, to_key)
         defer.returnValue((rows, pkey))
 
     def _get_message_rows(self, txn, user_id, from_pkey, to_pkey):
@@ -88,8 +88,8 @@ class StreamStore(object):
 
     @defer.inlineCallbacks
     def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):
-        (rows, pkey) = yield run_interaction(self._get_room_member_rows,
-                                             user_id, from_key, to_key)
+        (rows, pkey) = yield self._db_pool.runInteraction(
+                self._get_room_member_rows, user_id, from_key, to_key)
         defer.returnValue((rows, pkey))
 
     def _get_room_member_rows(self, txn, user_id, from_pkey, to_pkey):
@@ -125,8 +125,8 @@ class StreamStore(object):
 
 class RegistrationStore(object):
 
-    def __init__(self):
-        super(RegistrationStore, self).__init__()
+    def __init__(self, hs):
+        super(RegistrationStore, self).__init__(hs)
 
     @defer.inlineCallbacks
     def register(self, user_id, token):
@@ -138,7 +138,7 @@ class RegistrationStore(object):
         Raises:
             StoreError if the user_id could not be registered.
         """
-        yield run_interaction(self._register, user_id, token)
+        yield self._db_pool.runInteraction(self._register, user_id, token)
 
     def _register(self, txn, user_id, token):
         now = int(time.time())
@@ -165,8 +165,7 @@ class RegistrationStore(object):
         Raises:
             StoreError if no user was found.
         """
-        user_id = yield run_interaction(
-                    self._query_for_auth,
+        user_id = yield self._db_pool.runInteraction(self._query_for_auth,
                     token)
         defer.returnValue(user_id)
 
@@ -183,8 +182,8 @@ class RegistrationStore(object):
 
 class RoomStore(object):
 
-    def __init__(self):
-        super(RoomStore, self).__init__()
+    def __init__(self, hs):
+        super(RoomStore, self).__init__(hs)
 
     def _insert_room_and_member(self, txn, room_id, room_creator, is_public):
         # create room
@@ -223,8 +222,9 @@ class RoomStore(object):
         try:
             if room_id:
                 try:
-                    yield run_interaction(self._insert_room_and_member, room_id,
-                                      room_creator_user_id, is_public)
+                    yield self._db_pool.runInteraction(
+                            self._insert_room_and_member, room_id,
+                            room_creator_user_id, is_public)
                 except IntegrityError:
                     defer.returnValue(None)
                 defer.returnValue(room_id)
@@ -235,9 +235,9 @@ class RoomStore(object):
                 while attempts < 5:
                     try:
                         gen_room_id = stringutils.random_string(18)
-                        yield run_interaction(self._insert_room_and_member,
-                                      gen_room_id, room_creator_user_id,
-                                      is_public)
+                        yield self._db_pool.runInteraction(
+                                self._insert_room_and_member, gen_room_id,
+                                room_creator_user_id, is_public)
                         defer.returnValue(gen_room_id)
                     except IntegrityError:
                         attempts += 1
@@ -256,8 +256,8 @@ class RoomStore(object):
             A namedtuple containing the room information, or an empty list.
         """
         query = RoomsTable.select_statement("room_id=?")
-        res = yield run_interaction(exec_single_with_result, query,
-                                    RoomsTable.decode_results, room_id)
+        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
+                    RoomsTable.decode_results, room_id)
         defer.returnValue(res)
 
     @defer.inlineCallbacks
@@ -272,17 +272,16 @@ class RoomStore(object):
 
 class MessageStore(object):
 
-    def __init__(self):
-        super(MessageStore, self).__init__()
+    def __init__(self, hs):
+        super(MessageStore, self).__init__(hs)
 
     @defer.inlineCallbacks
     def get_message(self, user_id=None, room_id=None, msg_id=None):
         query = MessagesTable.select_statement(
                 "user_id = ? AND room_id = ? AND msg_id = ? " +
                 "ORDER BY id DESC LIMIT 1")
-        res = yield run_interaction(exec_single_with_result, query,
-                                    MessagesTable.decode_results,
-                                    user_id, room_id, msg_id)
+        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
+                    MessagesTable.decode_results, user_id, room_id, msg_id)
         defer.returnValue(res)
 
     @defer.inlineCallbacks
@@ -290,22 +289,21 @@ class MessageStore(object):
                       content=None):
         query = ("INSERT INTO " + MessagesTable.table_name +
                  "(user_id, room_id, msg_id, content) VALUES(?,?,?,?)")
-        yield run_interaction(exec_single, query, user_id, room_id, msg_id,
-                              content)
+        yield self._db_pool.runInteraction(exec_single, query, user_id, room_id,
+                    msg_id, content)
 
 
 class RoomMemberStore(object):
 
-    def __init__(self):
-        super(RoomMemberStore, self).__init__()
+    def __init__(self, hs):
+        super(RoomMemberStore, self).__init__(hs)
 
     @defer.inlineCallbacks
     def get_room_member(self, user_id=None, room_id=None):
         query = RoomMemberTable.select_statement(
             "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
-        res = yield run_interaction(exec_single_with_result, query,
-                                    RoomMemberTable.decode_results,
-                                    room_id, user_id)
+        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
+                    RoomMemberTable.decode_results, room_id, user_id)
         defer.returnValue(res)
 
     @defer.inlineCallbacks
@@ -314,16 +312,16 @@ class RoomMemberStore(object):
         content_json = json.dumps(content)
         query = ("INSERT INTO " + RoomMemberTable.table_name +
                 "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
-        yield run_interaction(exec_single, query, user_id, room_id,
-                              membership, content_json)
+        yield self._db_pool.runInteraction(exec_single, query, user_id, room_id,
+                    membership, content_json)
 
 
 class RoomPathStore(object):
 
     """Provides various CRUD operations for Room Events. """
 
-    def __init__(self):
-        super(RoomPathStore, self).__init__()
+    def __init__(self, hs):
+        super(RoomPathStore, self).__init__(hs)
 
     @defer.inlineCallbacks
     def get_path_data(self, path):
@@ -336,8 +334,8 @@ class RoomPathStore(object):
         """
         query = RoomDataTable.select_statement(
             "path = ? ORDER BY id DESC LIMIT 1")
-        res = yield run_interaction(exec_single_with_result, query,
-                                    RoomDataTable.decode_results, path)
+        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
+                    RoomDataTable.decode_results, path)
         defer.returnValue(res)
 
     @defer.inlineCallbacks
@@ -350,11 +348,12 @@ class RoomPathStore(object):
         """
         query = ("INSERT INTO " + RoomDataTable.table_name +
                 "(path, room_id, content) VALUES (?,?,?)")
-        yield run_interaction(exec_single, query, path, room_id, content)
+        yield self._db_pool.runInteraction(exec_single, query, path, room_id,
+                content)
 
 
 class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                  RegistrationStore, StreamStore):
 
-    def __init__(self):
-        super(DataStore, self).__init__()
+    def __init__(self, hs):
+        super(DataStore, self).__init__(hs)

@@ -101,7 +101,7 @@ class HomeServer(BaseHomeServer):
         return initialize_http_federation(self)
 
     def build_event_data_store(self):
-        return DataStore()
+        return DataStore(self)
 
     def build_event_factory(self):
         return EventFactory()

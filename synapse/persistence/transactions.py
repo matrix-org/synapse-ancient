@@ -42,30 +42,11 @@ the `prev_pdus` key of a PDU.
 """
 
 
-def run_interaction(transaction_func, *args, **kwargs):
-    """ Takes a function that queires the database and runs it in a dedicated
-    thread.
-
-    Args:
-        transaction_func (function): The function to run. Will get passed, as
-            the first parameter, a transaction object to use to talk to the
-            database. This get's run in a seperate thread.
-
-        *args: Extra arguments to pass to `transaction_func`
-        **kwargs: Extra keyword arguments to pass to `transaction_func`
-
-    Returns:
-        Deferred: Resolves with the result of `transaction_func`.
-    """
-    return DbPool.get().runInteraction(
-        transaction_func, *args, **kwargs)
-
-
 class TransactionQueries(object):
     """A collection of queries that deal mainly with transactions.
 
     All functions are executed synchrously. To run them in an asynchronous
-    fashion use `run_interaction`
+    fashion use `db.runInteraction`
     """
 
     @classmethod
@@ -227,7 +208,7 @@ class PduQueries(object):
     """A collection of queries for handling PDUs.
 
     All functions are executed synchrously. To run them in an asynchronous
-    fashion use `run_interaction`
+    fashion use `db.runInteraction`
     """
 
     @classmethod
@@ -697,7 +678,7 @@ class StateQueries(object):
     """A collection of queries for handling state PDUs.
 
     All functions are executed synchrously. To run them in an asynchronous
-    fashion use `run_interaction`
+    fashion use `db.runInteraction`
     """
 
     @classmethod

@@ -8,9 +8,7 @@ from twisted.internet import defer
 from .units import Transaction, Pdu
 
 from .persistence import PduActions, TransactionActions
-from synapse.persistence.transactions import (
-    PduQueries, run_interaction
-)
+from synapse.persistence.transactions import PduQueries
 
 from synapse.util.logutils import log_function
 
@@ -58,6 +56,8 @@ class ReplicationLayer(object):
         self.handler = None
 
         self._order = 0
+
+        self._db_pool = hs.get_db_pool()
 
     def set_handler(self, handler):
         """Sets the handler that the replication layer will use to communicate
@@ -120,7 +120,7 @@ class ReplicationLayer(object):
         Returns:
             Deferred: Results in the received PDUs.
         """
-        extremities = yield run_interaction(
+        extremities = yield self._db_pool.runInteraction(
             PduQueries.get_back_extremities,
             context
         )
@@ -327,7 +327,7 @@ class ReplicationLayer(object):
         is_new = yield self.pdu_actions.is_new(pdu)
         if is_new and not pdu.outlier:
             # We only paginate backwards to the min depth.
-            min_depth = yield run_interaction(
+            min_depth = yield self._db_pool.runInteraction(
                 PduQueries.get_min_depth,
                 pdu.context
             )
