@@ -14,10 +14,12 @@ class EventStreamRestEvent(GetEventMixin, RestEvent):
     def get_pattern(self):
         return re.compile("^/events$")
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_GET(self, request, auth_user_id=None):
+    def on_GET(self, request):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             handler = self.handler_factory.event_stream_handler()
             params = self._get_stream_parameters(request)
             chunk = yield handler.get_stream(auth_user_id, **params)

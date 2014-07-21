@@ -18,20 +18,26 @@ class RestEventFactory(object):
 
     events = []
 
-    def __init__(self, handler_fac, event_fac):
+    def __init__(self, handler_fac, event_fac, auth):
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
         import room
-        self.events.append(room.RoomTopicRestEvent(handler_fac, event_fac))
-        self.events.append(room.RoomMemberRestEvent(handler_fac, event_fac))
-        self.events.append(room.MessageRestEvent(handler_fac, event_fac))
-        self.events.append(room.RoomCreateRestEvent(handler_fac, event_fac))
+        self.events.append(room.RoomTopicRestEvent(handler_fac,
+                                                   event_fac, auth))
+        self.events.append(room.RoomMemberRestEvent(handler_fac,
+                                                    event_fac, auth))
+        self.events.append(room.MessageRestEvent(handler_fac,
+                                                 event_fac, auth))
+        self.events.append(room.RoomCreateRestEvent(handler_fac,
+                                                    event_fac, auth))
 
         from events import EventStreamRestEvent
-        self.events.append(EventStreamRestEvent(handler_fac, event_fac))
+        self.events.append(EventStreamRestEvent(handler_fac,
+                                                event_fac, auth))
 
         import register
-        self.events.append(register.RegisterRestEvent(handler_fac, event_fac))
+        self.events.append(register.RegisterRestEvent(handler_fac,
+                                                      event_fac, auth))
 
     def register_events(self, http_server):
         """ Registers all REST events with an HTTP server.
@@ -48,9 +54,10 @@ class RestEvent(object):
     """ A Synapse REST Event.
     """
 
-    def __init__(self, handler_factory, event_factory):
+    def __init__(self, handler_factory, event_factory, auth):
         self.handler_factory = handler_factory
         self.event_factory = event_factory
+        self.auth = auth
 
     def get_pattern(self):
         """ Get the regex path pattern to match. This should be defined by

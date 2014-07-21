@@ -37,7 +37,8 @@ class SynapseHomeServer(ReplicationHandler):
 
         # configure how REST events are handled, and register paths
         self.rest_event_factory = RestEventFactory(self.handler_factory,
-                                                   self.event_factory)
+                                                   self.event_factory,
+                                                   self.auth)
         self.rest_event_factory.register_events(self.http_server)
 
     def on_receive_pdu(self, pdu):

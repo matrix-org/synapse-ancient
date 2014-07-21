@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 from base import (EventStreamMixin, PutEventMixin, GetEventMixin, RestEvent,
                     PostEventMixin, DeleteEventMixin, InvalidHttpRequestError)
-from synapse.api.auth import AuthDecorator
+from synapse.api.auth import AccessTokenModule
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent)
@@ -20,10 +20,12 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
         # /rooms OR /rooms/<roomid>
         return re.compile(r"^/rooms(?:/(?P<roomid>[^/]*))?$")
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_PUT(self, request, room_id, auth_user_id=None):
+    def on_PUT(self, request, room_id):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             if not room_id:
                 raise InvalidHttpRequestError(400, "PUT must specify a room ID")
 
@@ -36,10 +38,12 @@ class RoomCreateRestEvent(PutEventMixin, PostEventMixin, RestEvent):
         except InvalidHttpRequestError as he:
             defer.returnValue((he.get_status_code(), he.get_response_body()))
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_POST(self, request, room_id, auth_user_id=None):
+    def on_POST(self, request, room_id):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             if room_id:
                 raise InvalidHttpRequestError(400,
                           "POST must not specify a room ID")
@@ -85,10 +89,12 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return RoomTopicEvent.TYPE
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, auth_user_id=None):
+    def on_GET(self, request, room_id):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
                 room_id=room_id,
@@ -107,10 +113,12 @@ class RoomTopicRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except SynapseError as e:
             defer.returnValue((e.code, ""))
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_PUT(self, request, room_id, auth_user_id=None):
+    def on_PUT(self, request, room_id):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             content = _parse_json(request)
 
             event = self.event_factory.create_event(
@@ -140,10 +148,12 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return RoomMemberEvent.TYPE
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_GET(self, request, roomid, userid, auth_user_id=None):
+    def on_GET(self, request, roomid, userid):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
                 user_id=userid,
@@ -161,17 +171,19 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except SynapseError as e:
             defer.returnValue((e.code, e.msg))
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_DELETE(self, request, roomid, userid, auth_user_id=None):
+    def on_DELETE(self, request, roomid, userid):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
                 user_id=userid,
                 room_id=roomid,
                 auth_user_id=auth_user_id,
                 membership=Membership.LEAVE,
-                content={"membership":Membership.LEAVE}
+                content={"membership": Membership.LEAVE}
                 )
 
             handler = self.handler_factory.room_member_handler()
@@ -181,10 +193,12 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
             defer.returnValue((e.code, ""))
         defer.returnValue((500, ""))
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_PUT(self, request, roomid, userid, auth_user_id=None):
+    def on_PUT(self, request, roomid, userid):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             content = _parse_json(request)
             if "membership" not in content:
                 raise SynapseError(400, cs_error("No membership key"))
@@ -221,11 +235,12 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
     def get_event_type(self):
         return MessageEvent.TYPE
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, msg_sender_id, msg_id,
-               auth_user_id=None):
+    def on_GET(self, request, room_id, msg_sender_id, msg_id):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
+
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
                 room_id=room_id,
@@ -244,11 +259,11 @@ class MessageRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
 
-    @AuthDecorator.defer_verify_token
     @defer.inlineCallbacks
-    def on_PUT(self, request, room_id, sender_id, msg_id,
-               auth_user_id=None):
+    def on_PUT(self, request, room_id, sender_id, msg_id):
         try:
+            auth_user_id = (self.auth.get_mod(AccessTokenModule.NAME).
+                            get_user_by_req(request))
             content = _parse_json(request)
 
             event = self.event_factory.create_event(

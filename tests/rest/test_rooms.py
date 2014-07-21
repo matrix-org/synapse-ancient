@@ -8,8 +8,7 @@ from twisted.internet import defer
 # trial imports
 from twisted.trial import unittest
 
-from synapse.api.auth import (Auth, AuthDecorator, JoinedRoomModule,
-                              MembershipChangeModule)
+from synapse.api.auth import (Auth, JoinedRoomModule, MembershipChangeModule)
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
                                RoomTopicRestEvent, RoomCreateRestEvent)
@@ -65,11 +64,14 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
-        AuthDecorator.auth = self.auth
-        MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
-        RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
-        RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
-        RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        MessageRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                         self.mock_server)
+        RoomMemberRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                            self.mock_server)
+        RoomTopicRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                           self.mock_server)
+        RoomCreateRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                            self.mock_server)
 
         # create some rooms under the name rmcreator_id
         self.uncreated_rmid = "aa"
@@ -105,7 +107,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.assertEquals(200, code, msg=str(response))
 
         # auth as user_id now
-        AuthDecorator.auth.get_mod("mod_token").user_id = self.user_id
+        self.auth.get_mod("mod_token").user_id = self.user_id
 
     def tearDown(self):
         try:
@@ -116,8 +118,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def _change_membership(self, room, source, target, membership,
                            check_200=True):
-        prev_auth_id = AuthDecorator.auth.get_mod("mod_token").user_id
-        AuthDecorator.auth.get_mod("mod_token").user_id = source
+        prev_auth_id = self.auth.get_mod("mod_token").user_id
+        self.auth.get_mod("mod_token").user_id = source
         if membership == Membership.LEAVE:
             (code, response) = yield self.mock_server.trigger(
                                 "DELETE",
@@ -130,7 +132,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
                                "/rooms/%s/members/%s/state" %
                                (room, target),
                                '{"membership":"%s"}' % membership)
-        AuthDecorator.auth.get_mod("mod_token").user_id = prev_auth_id
+        self.auth.get_mod("mod_token").user_id = prev_auth_id
         if check_200:
             self.assertEquals(200, code, msg=str(response))
         defer.returnValue((code, response))
@@ -362,8 +364,8 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
-        AuthDecorator.auth = self.auth
-        RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        RoomCreateRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                            self.mock_server)
 
     def tearDown(self):
         try:
@@ -472,11 +474,14 @@ class RoomsTestCase(unittest.TestCase):
         self.h_fac = EventHandlerFactory(self.mock_data_store,
                                          self.ev_fac,
                                          self.auth)
-        AuthDecorator.auth = self.auth
-        MessageRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
-        RoomMemberRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
-        RoomTopicRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
-        RoomCreateRestEvent(self.h_fac, self.ev_fac).register(self.mock_server)
+        MessageRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                         self.mock_server)
+        RoomMemberRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                            self.mock_server)
+        RoomTopicRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                           self.mock_server)
+        RoomCreateRestEvent(self.h_fac, self.ev_fac, self.auth).register(
+                            self.mock_server)
 
         # create the room
         path = "/rooms/rid1"
