@@ -3,7 +3,7 @@ from twisted.internet import defer
 
 from sqlite3 import IntegrityError
 
-from synapse.api.errors import RegistrationError, StoreError
+from synapse.api.errors import StoreError
 from synapse.persistence.transactions import run_interaction
 from synapse.util import stringutils
 from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
@@ -54,7 +54,7 @@ class RegistrationStore(object):
             user_id (str): The desired user ID to register.
             token (str): The desired access token to use for this user.
         Raises:
-            RegistrationError if the user_id could not be registered.
+            StoreError if the user_id could not be registered.
         """
         yield run_interaction(self._register, user_id, token)
 
@@ -65,7 +65,7 @@ class RegistrationStore(object):
             txn.execute("INSERT INTO users(name, creation_ts) VALUES (?,?)",
                         [user_id, now])
         except IntegrityError:
-            raise RegistrationError(400, "User ID already taken.")
+            raise StoreError(400, "User ID already taken.")
 
         # it's possible for this to get a conflict, but only for a single user
         # since tokens are namespaced based on their user ID
