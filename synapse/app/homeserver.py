@@ -30,24 +30,6 @@ class SynapseHomeServer(ReplicationHandler):
         print "#%s (receive) *** %s" % (pdu.context, pdu_type)
 
 
-def setup_server(hostname):
-    """ Sets up a home server.
-
-    Args:
-        hostname : The hostname for the server.
-    Returns:
-        A synapse home server
-    """
-    logger.info("Server hostname: %s", hostname)
-    nhs = HomeServer(hostname)
-
-    # This object doesn't need to be saved because it's set as the handler for
-    # the replication layer
-    hs = SynapseHomeServer(nhs)
-
-    return nhs.get_http_server()
-
-
 def setup_db(db_name):
     """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
     have to worry about overwriting existing content.
@@ -121,8 +103,16 @@ def run():
 
     # setup and run with defaults if not specified
     setup_db(args.db)
-    server = setup_server(args.host)
-    server.start_listening(args.port)
+
+    logger.info("Server hostname: %s", args.host)
+
+    hs = HomeServer(args.host)
+
+    # This object doesn't need to be saved because it's set as the handler for
+    # the replication layer
+    shs = SynapseHomeServer(hs)
+
+    hs.get_http_server().start_listening(args.port)
 
     reactor.run()
 
