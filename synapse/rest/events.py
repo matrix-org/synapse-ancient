@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.streams.base import FilterStream
-from synapse.api.auth import AuthDecorator
+from synapse.api.auth import AccessTokenModule
 from synapse.rest.base import GetEventMixin, RestEvent, InvalidHttpRequestError
 
 import re
