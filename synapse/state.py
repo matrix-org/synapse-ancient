@@ -2,7 +2,16 @@
 
 from twisted.internet import defer
 
+from collections import namedtuple
+
 import hashlib
+
+
+def _get_state_key_from_event(event):
+    return event.state_key
+
+
+KeyStateTuple = namedtuple("KeyStateTuple", ("context", "type", "state_key"))
 
 
 class StateHandler(object):
@@ -16,6 +25,59 @@ class StateHandler(object):
         self._update_deferreds = {}
 
     @defer.inlineCallbacks
+    def handle_new_event(self, event, new_state_callback):
+        key = KeyStateTuple(
+            event.room_id,
+            event.type,
+            _get_state_key_from_event(event)
+        )
+
+        new_deferred = defer.Deferred()
+        try:
+            yield self._lock(key, new_deferred)
+
+            # Now I need to fill out the prev state and work out if it has auth
+            # (w.r.t. to power levels)
+
+            results = yield self.service.get_latest_pdus_in_context(
+                event.room_id
+            )
+
+            event.prev_events = [
+                "%s@%s" % (p_id, origin) for p_id, origin, _ in results
+            ]
+
+            if results:
+                event.depth = max([int(v) for _, _, v in results]) + 1
+            else:
+                event.depth = 0
+
+            current_state = self._persistence.get_current_state(
+                key.context, key.type, key.state_key
+            )
+
+            event.prev_state_id = current_state.pdu_id
+            event.prev_state_origin = current_state.origin
+
+            # TODO check current_state to see if the min power level is less
+            # than the power level of the user
+            # power_level = self._get_power_level_for_event(event)
+
+            # Assume we would have raised if we got here and couldn't clobber
+            # the old state
+            yield defer.maybeDeferred(new_state_callback(event))
+
+            yield self.persistence.update_current_state(
+                pdu_id=event.event_id,
+                origin=self.server_name,
+                context=key.context,
+                pdu_type=key.type,
+                state_key=key.state_key
+            )
+        finally:
+            new_deferred.callback(None)
+
+    @defer.inlineCallbacks
     def handle_new_state(self, new_pdu, new_state_callback=None):
         """ Apply conflict resolution to `new_pdu`.
 
@@ -25,23 +87,38 @@ class StateHandler(object):
         This function is safe against the race of it getting called with two
         `PDU`s trying to update the same state.
         """
-        key = (new_pdu.context, new_pdu.pdu_type, new_pdu.state_key)
+        key = KeyStateTuple(
+            new_pdu.context,
+            new_pdu.pdu_type,
+            new_pdu.state_key
+        )
 
-        old_deferred = self._update_deferreds.get(key)
         new_deferred = defer.Deferred()
+        try:
+            yield self._lock(key, new_deferred)
+
+            is_new = yield self._handle_new_state(new_pdu)
+
+            if is_new and new_state_callback:
+                yield defer.maybeDeferred(new_state_callback(new_pdu))
+
+        finally:
+            new_deferred.callback(None)
+
+        defer.returnValue(is_new)
+
+    def _get_power_level_for_event(self, event):
+        # return self._persistence.get_power_level_for_user(event.room_id,
+            # event.sender)
+        return event.power_level
+
+    @defer.inlineCallbacks
+    def _lock(self, key, new_deferred):
+        old_deferred = self._update_deferreds.get(key)
         self._update_deferreds[key] = new_deferred
 
         if old_deferred:
             yield old_deferred
-
-        is_new = yield self._handle_new_state(new_pdu)
-
-        if is_new and new_state_callback:
-            yield defer.maybeDeferred(new_state_callback(new_pdu))
-
-        new_deferred.callback(None)
-
-        defer.returnValue(is_new)
 
     @defer.inlineCallbacks
     def _handle_new_state(self, new_pdu):
