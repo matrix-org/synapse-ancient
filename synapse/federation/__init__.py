@@ -2,22 +2,19 @@
 """ This package includes all the federation specific logic.
 """
 
-from .replication import ReplicationLayer, ReplicationHandler
+from .replication import ReplicationLayer
 from .transport import TransportLayer
-from .units import Pdu
 
 
-def initialize_http_federation(
-        server_name, http_client, http_server, persistence_service):
-
+def initialize_http_federation(homeserver):
     transport = TransportLayer(
-        server_name,
-        server=http_server,
-        client=http_client
+        homeserver.hostname,
+        server=homeserver.get_http_server(),
+        client=homeserver.get_http_client()
     )
 
     return ReplicationLayer(
-        server_name,
+        homeserver.hostname,
         transport,
-        persistence_service=persistence_service,
+        persistence_service=homeserver.get_persistence_service(),
     )

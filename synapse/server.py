@@ -35,7 +35,7 @@ class BaseHomeServer(object):
             'http_server',
             'http_client',
             'persistence_service',
-            'replication',
+            'federation',
             ]
 
     def __init__(self, hostname, **kwargs):
@@ -85,13 +85,5 @@ class HomeServer(BaseHomeServer):
     def build_persistence_service(self):
         return PersistenceService(DbPool.get())
 
-    def build_replication(self):
-        # TODO: At some point, initialize_http_federation() needs to die and
-        # just take a HomeServer instance
-        # This code here does exactly what this class is supposed to avoid!
-        return initialize_http_federation(
-            self.hostname,
-            http_client=self.get_http_client(),
-            http_server=self.get_http_server(),
-            persistence_service=self.get_persistence_service()
-        )
+    def build_federation(self):
+        return initialize_http_federation(self)
