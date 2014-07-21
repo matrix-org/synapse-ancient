@@ -5,7 +5,6 @@
 # partial one for unit test mocking.
 
 # Imports required for the default HomeServer() implementation
-from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.persistence import PersistenceService
 from synapse.federation import initialize_http_federation
 from synapse.api.storage import DataStore
