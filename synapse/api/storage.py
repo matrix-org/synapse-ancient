@@ -3,7 +3,7 @@ from twisted.internet import defer
 
 from sqlite3 import IntegrityError
 
-from synapse.api.errors import RegistrationError
+from synapse.api.errors import RegistrationError, StoreError
 from synapse.persistence.transactions import run_interaction
 from synapse.util import stringutils
 from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
@@ -72,6 +72,32 @@ class RegistrationStore(object):
         txn.execute("INSERT INTO access_tokens(user_id, token) " +
                     "VALUES (?,?)", [txn.lastrowid, token])
 
+    @defer.inlineCallbacks
+    def get_user(self, token=None):
+        """Get a user from the given access token.
+
+        Args:
+            token (str): The access token of a user.
+        Returns:
+            The user ID of the user.
+        Raises:
+            StoreError if no user was found.
+        """
+        user_id = yield run_interaction(
+                    self._query_for_auth,
+                    token)
+        defer.returnValue(user_id)
+
+    def _query_for_auth(self, txn, token):
+        txn.execute("SELECT users.name FROM access_tokens LEFT JOIN users" +
+                    " ON users.id = access_tokens.user_id WHERE token = ?",
+                    token)
+        row = txn.fetchone()
+        if row:
+            return row[0]
+
+        raise StoreError()
+
 
 class RoomStore(object):
 
@@ -109,7 +135,7 @@ class RoomStore(object):
             The room ID of the room stored, or None if the room was not stored
             due to a conflict (room_id in use).
         Raises:
-            StoreException if the room could not be stored due to an operational
+            StoreError if the room could not be stored due to an operational
             error (e.g. db access error).
         """
         try:
@@ -133,10 +159,10 @@ class RoomStore(object):
                         defer.returnValue(gen_room_id)
                     except IntegrityError:
                         attempts += 1
-                raise StoreException()
+                raise StoreError()
         except Exception as e:
             logger.error("store_room with room_id=%s failed: %s" % (room_id, e))
-            raise StoreException()
+            raise StoreError()
 
     @defer.inlineCallbacks
     def get_room(self, room_id):
@@ -243,11 +269,6 @@ class RoomPathStore(object):
         query = ("INSERT INTO " + RoomDataTable.table_name +
                 "(path, room_id, content) VALUES (?,?,?)")
         yield run_interaction(exec_single, query, path, room_id, content)
-
-
-class StoreException(Exception):
-    """A generic exception for when storing data went wrong."""
-    pass
 
 
 class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,

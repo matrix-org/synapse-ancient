@@ -3,10 +3,9 @@
 from twisted.internet import defer
 
 from synapse.api.constants import Membership
-from synapse.api.errors import AuthError
+from synapse.api.errors import AuthError, StoreError
 from synapse.api.events.room import (RoomTopicEvent, RoomMemberEvent,
                                      MessageEvent)
-from synapse.util.dbutils import DbPool
 
 import logging
 
@@ -228,18 +227,11 @@ class AccessTokenModule(AuthModule):
         Raises:
             InvalidHttpRequestError if no user by that token exists.
         """
-        # TODO use self.data_store
-        user_id = yield DbPool.get().runInteraction(
-            self._query_for_auth,
-            token)
-        defer.returnValue(user_id)
+        try:
+            user_id = yield self.store.get_user(token=token)
+            defer.returnValue(user_id)
+        except StoreError:
+            raise AuthError(403, "Unrecognised access token.")
 
-    def _query_for_auth(self, txn, token):
-        txn.execute("SELECT users.name FROM access_tokens LEFT JOIN users" +
-                    " ON users.id = access_tokens.user_id WHERE token = ?",
-                    token)
-        row = txn.fetchone()
-        if row:
-            return row[0]
 
-        raise AuthError(403, "Unrecognised access token.")
+

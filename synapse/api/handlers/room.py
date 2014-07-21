@@ -3,8 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.constants import Membership
-from synapse.api.errors import RoomError
-from synapse.api.storage import StoreException
+from synapse.api.errors import RoomError, StoreError
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
 from . import BaseHandler
 
@@ -153,7 +152,7 @@ class RoomCreationHandler(BaseHandler):
                 raise RoomError(409, "Room ID in use.")
 
             defer.returnValue(new_room_id)
-        except StoreException:
+        except StoreError:
             raise RoomError(500, "Unable to create room.")
 
 

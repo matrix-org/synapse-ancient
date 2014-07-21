@@ -32,7 +32,12 @@ class AuthError(SynapseError):
 
 
 class EventStreamError(SynapseError):
-    """An error raises when there a problem with the event stream."""
+    """An error raised when there a problem with the event stream."""
+    pass
+
+
+class StoreError(SynapseError):
+    """An error raised when there was a problem storing some data."""
     pass
 
 
