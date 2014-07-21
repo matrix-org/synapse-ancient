@@ -5,11 +5,10 @@ from synapse.federation import ReplicationHandler
 
 from synapse.server import HomeServer
 
-from synapse.util import DbPool
-
 from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from twisted.python.log import PythonLoggingObserver
+from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 
 import argparse
 import logging
@@ -19,65 +18,48 @@ import sqlite3
 logger = logging.getLogger(__name__)
 
 
-class SynapseHomeServer(ReplicationHandler):
+class HomeServerReplicationHandler(ReplicationHandler):
     def __init__(self, hs):
         hs.get_federation().set_handler(self)
-
-        hs.get_rest_servlet_factory().register_servlets(hs.get_http_server())
 
     def on_receive_pdu(self, pdu):
         pdu_type = pdu.pdu_type
         print "#%s (receive) *** %s" % (pdu.context, pdu_type)
 
 
-def setup_server(hostname):
-    """ Sets up a home server.
+class SynapseHomeServer(HomeServer):
+    def build_http_server(self):
+        return TwistedHttpServer()
 
-    Args:
-        hostname : The hostname for the server.
-    Returns:
-        A synapse home server
-    """
-    logger.info("Server hostname: %s", hostname)
-    nhs = HomeServer(hostname)
+    def build_http_client(self):
+        return TwistedHttpClient()
 
-    # This object doesn't need to be saved because it's set as the handler for
-    # the replication layer
-    hs = SynapseHomeServer(nhs)
+    def build_db_pool(self):
+        """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we
+        don't have to worry about overwriting existing content.
+        """
+        logging.info("Preparing database: %s...", self.db_name)
+        pool = adbapi.ConnectionPool(
+            'sqlite3', self.db_name, check_same_thread=False,
+            cp_min=1, cp_max=1)
 
-    return nhs.get_http_server()
+        schemas = [
+                "transactions",
+                "pdu",
+                "users",
+                "im"
+        ]
 
+        for sql_loc in schemas:
+            sql_script = read_schema(sql_loc)
 
-def setup_db(db_name):
-    """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
-    have to worry about overwriting existing content.
+            with sqlite3.connect(self.db_name) as db_conn:
+                c = db_conn.cursor()
+                c.executescript(sql_script)
+                c.close()
+                db_conn.commit()
 
-    Args:
-        db_name : The path to the database.
-    """
-    logging.info("Preparing database: %s...", db_name)
-    pool = adbapi.ConnectionPool(
-        'sqlite3', db_name, check_same_thread=False,
-        cp_min=1, cp_max=1)
-
-    # set the dbpool global so other layers can access it
-    DbPool.set(pool)
-
-    schemas = [
-            "transactions",
-            "pdu",
-            "users",
-            "im"
-    ]
-
-    for sql_loc in schemas:
-        sql_script = read_schema(sql_loc)
-
-        with sqlite3.connect(db_name) as db_conn:
-            c = db_conn.cursor()
-            c.executescript(sql_script)
-            c.close()
-            db_conn.commit()
+        return pool
 
 
 def setup_logging(verbosity=0, filename=None, config_path=None):
@@ -119,10 +101,19 @@ def run():
 
     setup_logging(args.verbose)
 
-    # setup and run with defaults if not specified
-    setup_db(args.db)
-    server = setup_server(args.host)
-    server.start_listening(args.port)
+    logger.info("Server hostname: %s", args.host)
+
+    hs = SynapseHomeServer(args.host,
+            db_name=args.db)
+
+    # This object doesn't need to be saved because it's set as the handler for
+    # the replication layer
+    HomeServerReplicationHandler(hs)
+
+    # TODO(paul): Should this always be done by the construction process itself?
+    hs.get_rest_servlet_factory().register_servlets(hs.get_http_server())
+
+    hs.get_http_server().start_listening(args.port)
 
     reactor.run()
 

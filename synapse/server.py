@@ -5,7 +5,6 @@
 # partial one for unit test mocking.
 
 # Imports required for the default HomeServer() implementation
-from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.persistence import PersistenceService
 from synapse.federation import initialize_http_federation
 from synapse.api.storage import DataStore
@@ -14,8 +13,6 @@ from synapse.api.auth import (Auth, AccessTokenModule,
                              JoinedRoomModule, MembershipChangeModule)
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
-
-from synapse.util import DbPool
 
 
 class BaseHomeServer(object):
@@ -86,17 +83,14 @@ for depname in BaseHomeServer.DEPENDENCIES:
 
 
 class HomeServer(BaseHomeServer):
-    """A homeserver object that will construct its dependencies as required."""
+    """A homeserver object that will construct most of its dependencies as
+    required.
 
-    def build_http_server(self):
-        return TwistedHttpServer()
-
-    def build_http_client(self):
-        return TwistedHttpClient()
-
-    def build_db_pool(self):
-        # TODO: This needs to die
-        return DbPool.get()
+    It still requires the following to be specified by the caller:
+        http_server
+        http_client
+        db_pool
+    """
 
     def build_persistence_service(self):
         return PersistenceService(self)
@@ -105,7 +99,7 @@ class HomeServer(BaseHomeServer):
         return initialize_http_federation(self)
 
     def build_event_data_store(self):
-        return DataStore()
+        return DataStore(self)
 
     def build_event_factory(self):
         return EventFactory()
