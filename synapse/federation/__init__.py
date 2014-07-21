@@ -2,7 +2,7 @@
 """ This package includes all the federation specific logic.
 """
 
-from .replication import ReplicationLayer
+from .replication import ReplicationLayer, ReplicationHandler
 from .transport import TransportLayer
 
 
