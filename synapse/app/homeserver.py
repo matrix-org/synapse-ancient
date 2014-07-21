@@ -5,8 +5,6 @@ from synapse.federation import ReplicationHandler
 
 from synapse.server import HomeServer
 
-from synapse.util import DbPool
-
 from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from twisted.python.log import PythonLoggingObserver
@@ -37,40 +35,31 @@ class SynapseHomeServer(HomeServer):
         return TwistedHttpClient()
 
     def build_db_pool(self):
-        # TODO: This needs to die
-        return DbPool.get()
+        """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we
+        don't have to worry about overwriting existing content.
+        """
+        logging.info("Preparing database: %s...", self.db_name)
+        pool = adbapi.ConnectionPool(
+            'sqlite3', self.db_name, check_same_thread=False,
+            cp_min=1, cp_max=1)
 
+        schemas = [
+                "transactions",
+                "pdu",
+                "users",
+                "im"
+        ]
 
-def setup_db(db_name):
-    """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
-    have to worry about overwriting existing content.
+        for sql_loc in schemas:
+            sql_script = read_schema(sql_loc)
 
-    Args:
-        db_name : The path to the database.
-    """
-    logging.info("Preparing database: %s...", db_name)
-    pool = adbapi.ConnectionPool(
-        'sqlite3', db_name, check_same_thread=False,
-        cp_min=1, cp_max=1)
+            with sqlite3.connect(self.db_name) as db_conn:
+                c = db_conn.cursor()
+                c.executescript(sql_script)
+                c.close()
+                db_conn.commit()
 
-    # set the dbpool global so other layers can access it
-    DbPool.set(pool)
-
-    schemas = [
-            "transactions",
-            "pdu",
-            "users",
-            "im"
-    ]
-
-    for sql_loc in schemas:
-        sql_script = read_schema(sql_loc)
-
-        with sqlite3.connect(db_name) as db_conn:
-            c = db_conn.cursor()
-            c.executescript(sql_script)
-            c.close()
-            db_conn.commit()
+        return pool
 
 
 def setup_logging(verbosity=0, filename=None, config_path=None):
@@ -112,12 +101,10 @@ def run():
 
     setup_logging(args.verbose)
 
-    # setup and run with defaults if not specified
-    setup_db(args.db)
-
     logger.info("Server hostname: %s", args.host)
 
-    hs = SynapseHomeServer(args.host)
+    hs = SynapseHomeServer(args.host,
+            db_name=args.db)
 
     # This object doesn't need to be saved because it's set as the handler for
     # the replication layer

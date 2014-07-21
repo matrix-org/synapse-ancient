@@ -16,7 +16,6 @@ from synapse.api.events.factory import EventFactory
 from synapse.api.storage import DataStore
 from synapse.api.constants import Membership
 from synapse.persistence import read_schema
-from synapse.util.dbutils import DbPool
 
 from synapse.server import HomeServer
 
@@ -30,14 +29,12 @@ from ..utils import MockHttpServer, MockAccessTokenModule
 DB_PATH = "_temp.db"
 
 
-def _setup_db(db_name, schemas):
+def make_mock_dbpool(db_name, schemas):
     # FIXME: This is basically a copy of synapse.app.homeserver's setup
     # routine. It would be nice if we could reuse that.
     dbpool = adbapi.ConnectionPool(
         'sqlite3', db_name, check_same_thread=False,
         cp_min=1, cp_max=1)
-
-    DbPool.set(dbpool)
 
     for sql_loc in schemas:
         sql_script = read_schema(sql_loc)
@@ -48,6 +45,8 @@ def _setup_db(db_name, schemas):
             c.close()
             db_conn.commit()
 
+    return dbpool
+
 
 class RoomPermissionsTestCase(unittest.TestCase):
     """ Tests room permissions. """
@@ -56,11 +55,10 @@ class RoomPermissionsTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
-                db_pool=DbPool.get())
+                db_pool=make_mock_dbpool(DB_PATH, ["im", "users"]))
         hs.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
                        JoinedRoomModule(hs.get_event_data_store()),
                        MembershipChangeModule(hs.get_event_data_store()))
@@ -358,11 +356,10 @@ class RoomsCreateTestCase(unittest.TestCase):
     user_id = "sid1"
 
     def setUp(self):
-        _setup_db(DB_PATH, ["im", "users"])
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
-                db_pool=DbPool.get())
+                db_pool=make_mock_dbpool(DB_PATH, ["im", "users"]))
         hs.auth = Auth(MockAccessTokenModule(self.user_id),
                        JoinedRoomModule(hs.get_event_data_store()),
                        MembershipChangeModule(hs.get_event_data_store()))
@@ -462,11 +459,10 @@ class RoomsTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        _setup_db(DB_PATH, ["im"])
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
-                db_pool=DbPool.get())
+                db_pool=make_mock_dbpool(DB_PATH, ["im"]))
         hs.auth = Auth(MockAccessTokenModule(self.user_id),
                        JoinedRoomModule(hs.get_event_data_store()),
                        MembershipChangeModule(hs.get_event_data_store()))

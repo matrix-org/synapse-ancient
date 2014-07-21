@@ -9,7 +9,6 @@ from .tables import (
     PduForwardExtremitiesTable, PduBackwardExtremitiesTable, CurrentStateTable,
     ContextDepthTable, JoinHelper
 )
-from ..util import DbPool
 
 from collections import namedtuple
 

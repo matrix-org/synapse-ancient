@@ -14,8 +14,6 @@ from synapse.api.auth import (Auth, AccessTokenModule,
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
 
-from synapse.util import DbPool
-
 
 class BaseHomeServer(object):
     """A basic homeserver object without lazy component builders.
