@@ -15,6 +15,7 @@ from synapse.rest.room import (MessageRestEvent, RoomMemberRestEvent,
                                RoomTopicRestEvent, RoomCreateRestEvent)
 from synapse.api.events.factory import EventFactory
 from synapse.api.event_store import EventStore
+from synapse.api.constants import Membership
 from synapse.persistence import read_schema
 from synapse.util.dbutils import DbPool
 
@@ -117,7 +118,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
                            check_200=True):
         prev_auth_id = AuthDecorator.auth.get_mod("mod_token").user_id
         AuthDecorator.auth.get_mod("mod_token").user_id = source
-        if membership == "leave":
+        if membership == Membership.LEAVE:
             (code, response) = yield self.mock_server.trigger(
                                 "DELETE",
                                 "/rooms/%s/members/%s/state" %
@@ -148,21 +149,21 @@ class RoomPermissionsTestCase(unittest.TestCase):
 
         # get message in created room and invited, expect 403
         yield self._change_membership(self.created_rmid, self.rmcreator_id,
-                                      self.user_id, "invite")
+                                      self.user_id, Membership.INVITE)
         (code, response) = yield self.mock_server.trigger_get(
                            self.created_rmid_msg_path)
         self.assertEquals(403, code, msg=str(response))
 
         # get message in created room and joined, expect 200
         yield self._change_membership(self.created_rmid, self.user_id,
-                                      self.user_id, "join")
+                                      self.user_id, Membership.JOIN)
         (code, response) = yield self.mock_server.trigger_get(
                            self.created_rmid_msg_path)
         self.assertEquals(200, code, msg=str(response))
 
         # get message in created room and left, expect 403
         yield self._change_membership(self.created_rmid, self.user_id,
-                                      self.user_id, "leave")
+                                      self.user_id, Membership.LEAVE)
         (code, response) = yield self.mock_server.trigger_get(
                            self.created_rmid_msg_path)
         self.assertEquals(403, code, msg=str(response))
@@ -187,21 +188,21 @@ class RoomPermissionsTestCase(unittest.TestCase):
 
         # send message in created room and invited, expect 403
         yield self._change_membership(self.created_rmid, self.rmcreator_id,
-                                      self.user_id, "invite")
+                                      self.user_id, Membership.INVITE)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", send_msg_path, msg_content)
         self.assertEquals(403, code, msg=str(response))
 
         # send message in created room and joined, expect 200
         yield self._change_membership(self.created_rmid, self.user_id,
-                                      self.user_id, "join")
+                                      self.user_id, Membership.JOIN)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", send_msg_path, msg_content)
         self.assertEquals(200, code, msg=str(response))
 
         # send message in created room and left, expect 403
         yield self._change_membership(self.created_rmid, self.user_id,
-                                      self.user_id, "leave")
+                                      self.user_id, Membership.LEAVE)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", send_msg_path, msg_content)
         self.assertEquals(403, code, msg=str(response))
@@ -229,7 +230,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
 
         # set topic in created PRIVATE room and invited, expect 403
         yield self._change_membership(self.created_rmid, self.rmcreator_id,
-                                      self.user_id, "invite")
+                                      self.user_id, Membership.INVITE)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", topic_path, topic_content)
         self.assertEquals(403, code)
@@ -240,7 +241,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
 
         # set/get topic in created PRIVATE room and joined, expect 200
         yield self._change_membership(self.created_rmid, self.user_id,
-                                      self.user_id, "join")
+                                      self.user_id, Membership.JOIN)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", topic_path, topic_content)
         self.assertEquals(200, code)
@@ -250,7 +251,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
 
         # set/get topic in created PRIVATE room and left, expect 403
         yield self._change_membership(self.created_rmid, self.user_id,
-                                      self.user_id, "leave")
+                                      self.user_id, Membership.LEAVE)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", topic_path, topic_content)
         self.assertEquals(403, code)
@@ -269,15 +270,35 @@ class RoomPermissionsTestCase(unittest.TestCase):
                            topic_content)
         self.assertEquals(403, code)
 
+    @defer.inlineCallbacks
+    def _test_membership(self, room=None, members=[], expect_code=None):
+        path = "/rooms/%s/members/%s/state"
+        for member in members:
+            (code, response) = yield self.mock_server.trigger_get(
+                               path %
+                               (room, member))
+            self.assertEquals(expect_code, code)
+
+    @defer.inlineCallbacks
     def test_membership_perms(self):
         # get membership of self, get membership of other, uncreated room
         # expect all 403s
+        # yield self._test_membership(members=[self.user_id, self.rmcreator_id],
+        #                             room=self.uncreated_rmid, expect_code=403)
 
         # get membership of self, get membership of other, public room + invite
         # expect all 403s
+        yield self._change_membership(self.created_rmid, self.rmcreator_id,
+                                      self.user_id, Membership.INVITE)
+        # yield self._test_membership(members=[self.user_id, self.rmcreator_id],
+        #                             room=self.created_rmid, expect_code=403)
 
         # get membership of self, get membership of other, public room + joined
         # expect all 200s
+        yield self._change_membership(self.created_rmid, self.user_id,
+                                      self.user_id, Membership.JOIN)
+        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
+                                    room=self.created_rmid, expect_code=200)
 
         # get membership of self, get membership of other, public room + left
         # expect all 403s
@@ -320,7 +341,6 @@ class RoomPermissionsTestCase(unittest.TestCase):
         # === left room ===
         # set [invite/join/left] of self, set [invite/join/left] of other,
         # expect all 403s
-        pass
 
 
 class RoomsCreateTestCase(unittest.TestCase):
@@ -532,12 +552,13 @@ class RoomsTestCase(unittest.TestCase):
         self._test_invalid_puts(path)
 
         # valid keys, wrong types
-        content = '{"membership":["join","leave","invite"]}'
+        content = ('{"membership":["%s","%s","%s"]}' %
+                  (Membership.INVITE, Membership.JOIN, Membership.LEAVE))
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(400, code, msg=str(response))
 
         # valid join message (NOOP since we made the room)
-        content = '{"membership":"join"}'
+        content = '{"membership":"%s"}' % Membership.JOIN
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(200, code, msg=str(response))
 
