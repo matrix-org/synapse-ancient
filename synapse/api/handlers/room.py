@@ -47,7 +47,7 @@ class MessageHandler(BaseHandler):
         """
         yield self.auth.check(event, raises=True)
 
-        if event.auth_user_id:
+        if hasattr(event, "auth_user_id"):
             # verify they are sending msgs under their own user id
             if event.user_id != event.auth_user_id:
                 raise RoomError(403, "Must send messages as yourself.")

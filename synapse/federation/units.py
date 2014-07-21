@@ -59,27 +59,13 @@ class JsonEncodedObject(object):
             if required_key not in kwargs:
                 raise RuntimeError("Key %s is required" % required_key)
 
-        self.dictionary = {}
         self.unrecognized_keys = {}  # Keys we were given not listed as valid
         for k, v in kwargs.items():
             if k in self.valid_keys:
-                self.dictionary[k] = v
+                self.__dict__[k] = v
             else:
                 self.unrecognized_keys[k] = v
 
-    def __getattr__(self, name):
-        if name in self.valid_keys:
-            return self.dictionary.get(name, None)
-        elif name in self.unrecognized_keys:
-            return self.unrecognized_keys[name]
-        else:
-            raise AttributeError(name)
-
-    def __setattr__(self, name, value):
-        if name in self.valid_keys:
-            self.dictionary[name] = value
-        else:
-            object.__setattr__(self, name, value)
 
     def get_dict(self):
         """ Converts this protocol unit into a :py:class:`dict`, ready to be
@@ -90,21 +76,15 @@ class JsonEncodedObject(object):
         Returns
             dict
         """
-        d = copy.deepcopy(self.dictionary)
         d = {
-            k: _encode(v) for (k, v) in d.items()
-            if k not in self.internal_keys
+            k: _encode(v) for (k, v) in self.__dict__.items()
+            if k != "unrecognized_keys" and k not in self.internal_keys
         }
-
-        if "unrecognized_keys" in d:
-            del d["unrecognized_keys"]
-            if self.unrecognized_keys:
-                d.update(self.unrecognized_keys)
-
+        d.update(self.unrecognized_keys)
         return d
 
     def __str__(self):
-        return "(%s, %s)" % (self.__class__.__name__, repr(self.dictionary))
+        return "(%s, %s)" % (self.__class__.__name__, repr(self.__dict__))
 
 
 class Pdu(JsonEncodedObject):

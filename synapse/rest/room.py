@@ -170,7 +170,8 @@ class RoomMemberRestEvent(EventStreamMixin, PutEventMixin, GetEventMixin,
                 user_id=userid,
                 room_id=roomid,
                 auth_user_id=auth_user_id,
-                membership=Membership.LEAVE
+                membership=Membership.LEAVE,
+                content={"membership":Membership.LEAVE}
                 )
 
             handler = self.handler_factory.room_member_handler()
