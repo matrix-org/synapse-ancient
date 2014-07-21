@@ -9,6 +9,18 @@ class SynapseEvent(JsonEncodedObject):
     a certain well-defined structure.
     """
 
+    # Attributes that are currently assumed by the federation side:
+    # Mandatory:
+    # - event_id
+    # - room_id
+    # - type
+    # - is_state
+    #
+    # Optional:
+    # - state_key (mandatory when is_state is True)
+    # - prev_events (these can be filled out by the federation layer itself.)
+    # - prev_state
+
     def __init__(self, raises=True, **kwargs):
         super(SynapseEvent, self).__init__(**kwargs)
         if "content" in kwargs:
