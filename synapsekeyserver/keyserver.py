@@ -2,6 +2,7 @@
 
 from twisted.internet import reactor, ssl
 from twisted.web import server
+from twisted.web.resource import Resource
 from twisted.python.log import PythonLoggingObserver
 
 from synapsekeyserver.util.base64util import decode_base64
@@ -41,6 +42,10 @@ class KeyServer(object):
         self.signing_key = self.read_signing_key(signing_key_path)
         self.bind_host = bind_host
         self.bind_port = int(bind_port)
+        self.ssl_context_factory = KeyServerSSLContextFactory(
+            self.tls_certificate,
+            self.tls_private_key
+        )
 
     @staticmethod
     def read_tls_certificate(cert_path):
@@ -62,14 +67,13 @@ class KeyServer(object):
             return nacl.signing.SigningKey(signing_key_bytes)
 
     def run(self):
-        site = server.Site(LocalKey(self))
+        root = Resource()
+        root.putChild("key", LocalKey(self))
+        site = server.Site(root)
         reactor.listenSSL(
             self.bind_port,
             site,
-            KeyServerSSLContextFactory(
-                self.tls_certificate,
-                self.tls_private_key
-            ),
+            self.ssl_context_factory,
             interface=self.bind_host
         )
 

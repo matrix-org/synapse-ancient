@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import ConfigParser as configparser
 import argparse
 import socket
 import sys

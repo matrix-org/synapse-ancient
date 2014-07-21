@@ -46,7 +46,7 @@ def verify_signed_json(json_object, signature_name, verify_key):
     message = encode_canonical_json(json_object)
 
     try:
-        verify_key.verify(signature + message)
+        verify_key.verify(message, signature)
     except:
         raise InvalidSignature(
             "Forged or corrupt signature for %s " % signature_name)
