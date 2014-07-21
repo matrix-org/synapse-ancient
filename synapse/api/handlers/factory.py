@@ -2,6 +2,7 @@
 from register import RegistrationHandler
 from room import MessageHandler, RoomCreationHandler, RoomMemberHandler
 from events import EventStreamHandler
+from federation import FederationHandler
 
 
 class EventHandlerFactory(object):
@@ -44,6 +45,13 @@ class EventHandlerFactory(object):
 
     def event_stream_handler(self):
         return EventStreamHandler(
+            store=self.store,
+            ev_factory=self.event_factory,
+            notifier=None,
+            auth=self.auth)
+
+    def federation_handler(self):
+        return FederationHandler(
             store=self.store,
             ev_factory=self.event_factory,
             notifier=None,
