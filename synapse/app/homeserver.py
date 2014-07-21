@@ -10,6 +10,7 @@ from synapse.util import DbPool
 from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from twisted.python.log import PythonLoggingObserver
+from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 
 import argparse
 import logging
@@ -26,6 +27,18 @@ class HomeServerReplicationHandler(ReplicationHandler):
     def on_receive_pdu(self, pdu):
         pdu_type = pdu.pdu_type
         print "#%s (receive) *** %s" % (pdu.context, pdu_type)
+
+
+class SynapseHomeServer(HomeServer):
+    def build_http_server(self):
+        return TwistedHttpServer()
+
+    def build_http_client(self):
+        return TwistedHttpClient()
+
+    def build_db_pool(self):
+        # TODO: This needs to die
+        return DbPool.get()
 
 
 def setup_db(db_name):
@@ -104,7 +117,7 @@ def run():
 
     logger.info("Server hostname: %s", args.host)
 
-    hs = HomeServer(args.host)
+    hs = SynapseHomeServer(args.host)
 
     # This object doesn't need to be saved because it's set as the handler for
     # the replication layer

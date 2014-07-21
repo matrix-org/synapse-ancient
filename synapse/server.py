@@ -86,17 +86,14 @@ for depname in BaseHomeServer.DEPENDENCIES:
 
 
 class HomeServer(BaseHomeServer):
-    """A homeserver object that will construct its dependencies as required."""
+    """A homeserver object that will construct most of its dependencies as
+    required.
 
-    def build_http_server(self):
-        return TwistedHttpServer()
-
-    def build_http_client(self):
-        return TwistedHttpClient()
-
-    def build_db_pool(self):
-        # TODO: This needs to die
-        return DbPool.get()
+    It still requires the following to be specified by the caller:
+        http_server
+        http_client
+        db_pool
+    """
 
     def build_persistence_service(self):
         return PersistenceService(self)
