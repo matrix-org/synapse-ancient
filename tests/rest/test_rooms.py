@@ -39,16 +39,12 @@ class RoomPermissionsTestCase(unittest.TestCase):
         hs.auth.get_user_by_token = self.mock_get_user_by_token
         self.auth_user_id = self.rmcreator_id
 
-        ev_fac = hs.get_event_factory()
-        h_fac = hs.get_event_handler_factory()
-        auth = hs.get_auth()
+        MessageRestServlet(hs).register(self.mock_server)
+        RoomMemberRestServlet(hs).register(self.mock_server)
+        RoomTopicRestServlet(hs).register(self.mock_server)
+        RoomCreateRestServlet(hs).register(self.mock_server)
 
-        MessageRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
-        RoomMemberRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
-        RoomTopicRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
-        RoomCreateRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
-
-        self.auth = auth
+        self.auth = hs.get_auth()
 
         # create some rooms under the name rmcreator_id
         self.uncreated_rmid = "aa"
@@ -339,11 +335,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
-        ev_fac = hs.get_event_factory()
-        h_fac = hs.get_event_handler_factory()
-        auth = hs.get_auth()
-
-        RoomCreateRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        RoomCreateRestServlet(hs).register(self.mock_server)
 
     def tearDown(self):
         pass
@@ -442,14 +434,11 @@ class RoomsTestCase(unittest.TestCase):
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
-        ev_fac = hs.get_event_factory()
-        h_fac = hs.get_event_handler_factory()
-        auth = hs.get_auth()
 
-        MessageRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
-        RoomMemberRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
-        RoomTopicRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
-        RoomCreateRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
+        MessageRestServlet(hs).register(self.mock_server)
+        RoomMemberRestServlet(hs).register(self.mock_server)
+        RoomTopicRestServlet(hs).register(self.mock_server)
+        RoomCreateRestServlet(hs).register(self.mock_server)
 
         # create the room
         path = "/rooms/rid1"

@@ -17,29 +17,19 @@ class RestServletFactory(object):
     def __init__(self, hs):
         self.servlets = []
 
-        handler_fac = hs.get_event_handler_factory()
-        event_fac = hs.get_event_factory()
-        auth = hs.get_auth()
-
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
         import room
-        self.servlets.append(room.RoomTopicRestServlet(handler_fac,
-                                                   event_fac, auth))
-        self.servlets.append(room.RoomMemberRestServlet(handler_fac,
-                                                    event_fac, auth))
-        self.servlets.append(room.MessageRestServlet(handler_fac,
-                                                 event_fac, auth))
-        self.servlets.append(room.RoomCreateRestServlet(handler_fac,
-                                                    event_fac, auth))
+        self.servlets.append(room.RoomTopicRestServlet(hs))
+        self.servlets.append(room.RoomMemberRestServlet(hs))
+        self.servlets.append(room.MessageRestServlet(hs))
+        self.servlets.append(room.RoomCreateRestServlet(hs))
 
         from events import EventStreamRestServlet
-        self.servlets.append(EventStreamRestServlet(handler_fac,
-                                                event_fac, auth))
+        self.servlets.append(EventStreamRestServlet(hs))
 
         import register
-        self.servlets.append(register.RegisterRestServlet(handler_fac,
-                                                      event_fac, auth))
+        self.servlets.append(register.RegisterRestServlet(hs))
 
     def register_servlets(self, http_server):
         """ Registers all REST servlets with an HTTP server.
@@ -56,10 +46,12 @@ class RestServlet(object):
     """ A Synapse REST Servlet.
     """
 
-    def __init__(self, handler_factory, event_factory, auth):
-        self.handler_factory = handler_factory
-        self.event_factory = event_factory
-        self.auth = auth
+    def __init__(self, hs):
+        self.hs = hs
+
+        self.handler_factory = hs.get_event_handler_factory()
+        self.event_factory = hs.get_event_factory()
+        self.auth = hs.get_auth()
 
     def register(self, http_server):
         """ Register this servlet with the given HTTP server. """
