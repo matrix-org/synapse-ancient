@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 from synapse.api.errors import AuthError
 
-from .pdu_codec import event_from_pdu, pdu_from_event
+from .pdu_codec import PduCodec
 
 
 class FederationEventHandler(object):
@@ -23,11 +23,13 @@ class FederationEventHandler(object):
 
         self.replication_layer.set_handler(self)
 
+        self.pdu_codec = PduCodec(hs)
+
     @defer.inlineCallbacks
     def handle_new_event(self, event):
         yield self._fill_out_prev_events(event)
 
-        pdu = pdu_from_event(event)
+        pdu = self.pdu_codec.pdu_from_event(event)
 
         pdu.destinations = yield self.persistence.get_servers_in_context(
             pdu.context
@@ -43,7 +45,7 @@ class FederationEventHandler(object):
 
     @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
-        event = event_from_pdu(pdu)
+        event = self.pdu_codec.event_from_pdu(pdu)
 
         try:
             with (yield self.lock_manager.lock(pdu.context)):
