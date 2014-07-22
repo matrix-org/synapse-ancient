@@ -136,7 +136,7 @@ class MemoryDataStore(object):
         except:
             return None
 
-    def get_room_members(self, room_id):
+    def get_room_members(self, room_id=None, membership=None):
         try:
             return self.room_members[room_id]
         except:
