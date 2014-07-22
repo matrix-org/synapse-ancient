@@ -2,8 +2,6 @@ from synapse.util.http import HttpServer
 
 from twisted.internet import defer
 
-from synapse.api.auth import AccessTokenModule, AuthModule
-
 from mock import patch, Mock
 import urlparse
 
@@ -63,26 +61,3 @@ class MockHttpServer(HttpServer):
 
     def register_path(self, method, path_pattern, callback):
         self.callbacks.append((method, path_pattern, callback))
-
-
-class MockAccessTokenModule(AuthModule):
-    """A mock of synapse.api.auth.AccessTokenModule."""
-    NAME = AccessTokenModule.NAME
-
-    def __init__(self, user_id):
-        """Register as a given user.
-
-        Args:
-            user_id - The user ID to auth as.
-        """
-        super(MockAccessTokenModule, self).__init__()
-        self.user_id = user_id
-
-    def check(self, event):
-        defer.succeed(self.user_id)
-
-    def get_user_by_req(self, request):
-        return self.user_id
-
-    def get_user_by_token(self, token):
-        return self.user_id

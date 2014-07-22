@@ -9,8 +9,7 @@ from synapse.persistence import PersistenceService
 from synapse.federation import initialize_http_federation
 from synapse.api.storage import DataStore
 from synapse.api.events.factory import EventFactory
-from synapse.api.auth import (Auth, AccessTokenModule,
-                             JoinedRoomModule, MembershipChangeModule)
+from synapse.api.auth import Auth
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
 
@@ -111,11 +110,7 @@ class HomeServer(BaseHomeServer):
         # TODO(paul): Likely the Auth() constructor just wants to take a
         # HomeServer instance perhaps
         event_data_store = self.get_event_data_store()
-        return Auth(
-            AccessTokenModule(event_data_store),
-            JoinedRoomModule(event_data_store),
-            MembershipChangeModule(event_data_store)
-            )
+        return Auth(event_data_store)
 
     def build_rest_servlet_factory(self):
         return RestServletFactory(self)

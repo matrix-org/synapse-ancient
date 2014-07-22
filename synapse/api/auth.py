@@ -12,58 +12,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class AuthModule(object):
-
-    """An interface for an AuthModule. These modules must be able to check
-    an event for whatever it is they are authing. They MUST have a 'NAME'
-    attribute in order to be linked with an Auth instance."""
-
-    def check(event):
-        """Check if this event needs to be authed and perform the auth.
-
-        Args:
-            event (SynapseEvent): An event to auth.
-        Returns:
-            Optional, depending on the implementation. For example, an access
-            token module may want to return the user ID.
-        Raises:
-            AuthError iff the auth check fails, NOT if there are missing fields.
-        """
-        raise NotImplementedError()
-
-
 class Auth(object):
 
-    def __init__(self, *args):
-        """Construct a new Auth instance with the specified AuthModules.
-
-        Args:
-            *args (AuthModule): The modules to use when authing.
-        """
-        self.modules = {}
-        for module in args:
-            self.modules[module.NAME] = module
-
-    def get_mod(self, mod_name):
-        """Return a module by name.
-
-        Args:
-            mod_name (str): The name of the module to obtain.
-        Returns:
-            AuthModule or None.
-        """
-        try:
-            return self.modules[mod_name]
-        except KeyError:
-            pass
-        return None
+    def __init__(self, store):
+        self.store = store
 
     @defer.inlineCallbacks
     def check(self, event, raises=False):
         """ Checks if this event is correctly authed.
-
-        What this does depends on the modules attached. Each module will be
-        passed this event and will have the option of checking it.
 
         Returns:
             True if the auth checks pass.
@@ -72,66 +28,38 @@ class Auth(object):
             be raised only if raises=True.
         """
         try:
-            for module in self.modules.values():
-                yield module.check(event)
-
-            defer.returnValue(True)
+            if event.type in [RoomTopicEvent.TYPE, MessageEvent.TYPE]:
+                if event.user_id != "_hs_":
+                    yield self.check_joined_room(event.room_id, event.user_id)
+                defer.returnValue(True)
+            elif event.type == RoomMemberEvent.TYPE:
+                allowed = yield self.is_membership_change_allowed(event)
+                defer.returnValue(allowed)
+            else:
+                raise AuthError(500, "Unknown event type %s" % event.type)
         except AuthError as e:
-            logger.info("[%s] Failed on event %s with msg: %s" %
-                        (module.NAME, event, e.msg))
+            logger.info("Even auth check failed on event %s with msg: %s" %
+                        (event, e.msg))
             if raises:
                 raise e
         defer.returnValue(False)
 
-
-class JoinedRoomModule(AuthModule):
-    NAME = "mod_joined_room"
-
-    def __init__(self, store):
-        super(JoinedRoomModule, self).__init__()
-        self.store = store
-
     @defer.inlineCallbacks
-    def check(self, event):
-
-        if event.type not in [RoomTopicEvent.TYPE, RoomMemberEvent.TYPE,
-                              MessageEvent.TYPE]:
-            defer.returnValue(None)
-
-        # ignore membership change requests, another module will handle that
-        if event.type == RoomMemberEvent.TYPE and event.membership:
-            defer.returnValue(None)
-
-        if not hasattr(event, "auth_user_id"):
-            defer.returnValue(None)
-
+    def check_joined_room(self, room_id, user_id):
         try:
             member = yield self.store.get_room_member(
-                        room_id=event.room_id,
-                        user_id=event.auth_user_id)
+                        room_id=room_id,
+                        user_id=user_id)
             if not member or member[0].membership != Membership.JOIN:
-                raise AuthError(403, JoinedRoomModule.NAME)
+                raise AuthError(403, "User %s not in room %s" %
+                                (user_id, room_id))
             defer.returnValue(member)
         except AttributeError:
             pass
         defer.returnValue(None)
 
-
-class MembershipChangeModule(AuthModule):
-    NAME = "mod_membership_change"
-
-    def __init__(self, store):
-        super(MembershipChangeModule, self).__init__()
-        self.store = store
-
     @defer.inlineCallbacks
-    def check(self, event):
-        if event.type is not RoomMemberEvent.TYPE:
-            defer.returnValue(None)
-
-        if not hasattr(event, "auth_user_id"):
-            defer.returnValue(True)
-
+    def is_membership_change_allowed(self, event):
         # does this room even exist
         room = self.store.get_room(event.room_id)
         if not room:
@@ -140,7 +68,7 @@ class MembershipChangeModule(AuthModule):
         # get info about the caller
         try:
             caller = yield self.store.get_room_member(
-                user_id=event.auth_user_id,
+                user_id=event.user_id,
                 room_id=event.room_id)
         except:
             caller = None
@@ -149,7 +77,7 @@ class MembershipChangeModule(AuthModule):
         # get info about the target
         try:
             target = yield self.store.get_room_member(
-                user_id=event.user_id,
+                user_id=event.target_user_id,
                 room_id=event.room_id)
         except:
             target = None
@@ -169,12 +97,12 @@ class MembershipChangeModule(AuthModule):
             # Joins are valid iff caller == target and they were:
             # invited: They are accepting the invitation
             # joined: It's a NOOP
-            if (event.auth_user_id != event.user_id or not caller or
+            if (event.user_id != event.target_user_id or not caller or
                     caller[0].membership not in
                     [Membership.INVITE, Membership.JOIN]):
                 raise AuthError(403, "Cannot join.")
         elif Membership.LEAVE == event.membership:
-            if not caller_in_room or event.user_id != event.auth_user_id:
+            if not caller_in_room or event.target_user_id != event.user_id:
                 # trying to leave a room you aren't joined or trying to force
                 # another user to leave
                 raise AuthError(403, "Cannot leave.")
@@ -182,23 +110,6 @@ class MembershipChangeModule(AuthModule):
             raise AuthError(500, "Unknown membership %s" % event.membership)
 
         defer.returnValue(True)
-
-
-class AccessTokenModule(AuthModule):
-    NAME = "mod_token"
-
-    def __init__(self, store):
-        self.store = store
-
-    @defer.inlineCallbacks
-    def check(self, event):
-        """Checks for an 'auth_token' attribute and auths it."""
-        try:
-            user_id = yield self.get_user_by_token(event.auth_token)
-            defer.returnValue(user_id)
-        except AttributeError:
-            pass
-        defer.returnValue(None)
 
     def get_user_by_req(self, request):
         """ Get a registered user's ID.

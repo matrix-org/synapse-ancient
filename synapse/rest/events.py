@@ -3,7 +3,6 @@
 from twisted.internet import defer
 
 from synapse.api.streams.base import FilterStream
-from synapse.api.auth import AccessTokenModule
 from synapse.rest.base import RestServlet, InvalidHttpRequestError
 
 import re
@@ -19,8 +18,7 @@ class EventStreamRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_GET(self, request):
         try:
-            auth_user_id = yield (self.auth.get_mod(AccessTokenModule.NAME).
-                            get_user_by_req(request))
+            auth_user_id = yield (self.auth.get_user_by_req(request))
 
             handler = self.handler_factory.event_stream_handler()
             params = self._get_stream_parameters(request)

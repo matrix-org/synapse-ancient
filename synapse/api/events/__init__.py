@@ -21,6 +21,21 @@ class SynapseEvent(JsonEncodedObject):
     # - prev_events (these can be filled out by the federation layer itself.)
     # - prev_state
 
+    valid_keys = [
+        "event_id",
+        "type",
+        "room_id",
+        "user_id",  # sender/initiator
+        "content"  # HTTP body, JSON
+    ]
+
+    internal_keys = [
+        "is_state",
+        "state_key",
+        "prev_events",
+        "prev_state"
+    ]
+
     def __init__(self, raises=True, **kwargs):
         super(SynapseEvent, self).__init__(**kwargs)
         if "content" in kwargs:

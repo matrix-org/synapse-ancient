@@ -14,22 +14,26 @@ import time
 class MessageHandler(BaseHandler):
 
     @defer.inlineCallbacks
-    def get_message(self, event=None):
+    def get_message(self, msg_id=None, room_id=None, sender_id=None,
+                    user_id=None):
         """ Retrieve a message.
 
         Args:
-            event : A message event.
+            msg_id (str): The message ID to obtain.
+            room_id (str): The room where the message resides.
+            sender_id (str): The user ID of the user who sent the message.
+            user_id (str): The user ID of the user making this request.
         Returns:
             The message, or None if no message exists.
         Raises:
             SynapseError if something went wrong.
         """
-        yield self.auth.check(event, raises=True)
+        yield self.auth.check_joined_room(room_id, user_id)
 
         # Pull out the message from the db
-        results = yield self.store.get_message(room_id=event.room_id,
-                                               msg_id=event.msg_id,
-                                               user_id=event.user_id)
+        results = yield self.store.get_message(room_id=room_id,
+                                               msg_id=msg_id,
+                                               user_id=sender_id)
 
         if results:
             defer.returnValue(results[0])
@@ -45,11 +49,6 @@ class MessageHandler(BaseHandler):
             SynapseError if something went wrong.
         """
         yield self.auth.check(event, raises=True)
-
-        if hasattr(event, "auth_user_id"):
-            # verify they are sending msgs under their own user id
-            if event.user_id != event.auth_user_id:
-                raise RoomError(403, "Must send messages as yourself.")
 
         # store message in db
         yield self.store.store_message(user_id=event.user_id,
@@ -107,7 +106,7 @@ class MessageHandler(BaseHandler):
         # does this user exist in this room
         member = yield self.store.get_room_member(
             room_id=event.room_id,
-            user_id="" if not event.auth_user_id else event.auth_user_id)
+            user_id="" if not event.user_id else event.user_id)
 
         member_state = member[0].membership if member else None
 
@@ -159,20 +158,22 @@ class RoomCreationHandler(BaseHandler):
 class RoomMemberHandler(BaseHandler):
 
     @defer.inlineCallbacks
-    def get_room_member(self, event=None):
+    def get_room_member(self, room_id, member_user_id, auth_user_id):
         """Retrieve a room member from a room.
 
         Args:
-            event : The room member event
+            room_id : The room the member is in.
+            member_user_id : The member's user ID
+            auth_user_id : The user ID of the user making this request.
         Returns:
             The room member, or None if this member does not exist.
         Raises:
             SynapseError if something goes wrong.
         """
-        yield self.auth.check(event, raises=True)
+        yield self.auth.check_joined_room(room_id, auth_user_id)
 
-        member = yield self.store.get_room_member(user_id=event.user_id,
-                                                  room_id=event.room_id)
+        member = yield self.store.get_room_member(user_id=member_user_id,
+                                                  room_id=room_id)
         if member:
             defer.returnValue(member[0])
         defer.returnValue(member)
@@ -192,15 +193,15 @@ class RoomMemberHandler(BaseHandler):
 
         # store membership
         yield self.store.store_room_member(
-            user_id=event.user_id,
+            user_id=event.target_user_id,
             room_id=event.room_id,
             content=event.content,
             membership=event.membership)
 
         if broadcast_msg:
             yield self._inject_membership_msg(
-                source=event.auth_user_id,
-                target=event.user_id,
+                source=event.user_id,
+                target=event.target_user_id,
                 room_id=event.room_id,
                 membership=event.membership)
 

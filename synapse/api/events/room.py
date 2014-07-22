@@ -5,13 +5,6 @@ from . import SynapseEvent
 class RoomTopicEvent(SynapseEvent):
     TYPE = "sy.room.topic"
 
-    valid_keys = [
-        "type",
-        "content",
-        "room_id",
-        "auth_user_id"
-    ]
-
     def __init__(self, **kwargs):
         super(RoomTopicEvent, self).__init__(**kwargs)
 
@@ -22,13 +15,9 @@ class RoomTopicEvent(SynapseEvent):
 class RoomMemberEvent(SynapseEvent):
     TYPE = "sy.room.member"
 
-    valid_keys = [
-        "type",
-        "room_id",
-        "auth_user_id",  # initiator
-        "user_id",  # target
+    valid_keys = SynapseEvent.valid_keys + [
+        "target_user_id",  # target
         "membership",  # action
-        "content"
     ]
 
     def __init__(self, **kwargs):
@@ -41,13 +30,8 @@ class RoomMemberEvent(SynapseEvent):
 class MessageEvent(SynapseEvent):
     TYPE = "sy.room.message"
 
-    valid_keys = [
-        "type",
-        "room_id",
-        "user_id",
-        "msg_id",
-        "auth_user_id",
-        "content"
+    valid_keys = SynapseEvent.valid_keys + [
+        "msg_id",  # unique per room + user combo
     ]
 
     def __init__(self, **kwargs):

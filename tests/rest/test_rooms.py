@@ -8,12 +8,9 @@ from twisted.internet import defer
 # trial imports
 from twisted.trial import unittest
 
-from synapse.api.auth import (Auth, JoinedRoomModule, MembershipChangeModule)
-from synapse.api.handlers.factory import EventHandlerFactory
+from synapse.api.auth import Auth
 from synapse.rest.room import (MessageRestServlet, RoomMemberRestServlet,
                                RoomTopicRestServlet, RoomCreateRestServlet)
-from synapse.api.events.factory import EventFactory
-from synapse.api.storage import DataStore
 from synapse.api.constants import Membership
 from synapse.persistence import read_schema
 
@@ -24,7 +21,7 @@ import json
 import os
 import sqlite3
 
-from ..utils import MockHttpServer, MockAccessTokenModule
+from ..utils import MockHttpServer
 
 DB_PATH = "_temp.db"
 
@@ -53,15 +50,18 @@ class RoomPermissionsTestCase(unittest.TestCase):
     user_id = "sid1"
     rmcreator_id = "notme"
 
+    def mock_get_user_by_token(self, token=None):
+        return self.auth_user_id
+
     @defer.inlineCallbacks
     def setUp(self):
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
                 db_pool=make_mock_dbpool(DB_PATH, ["im", "users"]))
-        hs.auth = Auth(MockAccessTokenModule(self.rmcreator_id),
-                       JoinedRoomModule(hs.get_event_data_store()),
-                       MembershipChangeModule(hs.get_event_data_store()))
+        hs.auth = Auth(hs.get_event_data_store())
+        hs.auth.get_user_by_token = self.mock_get_user_by_token
+        self.auth_user_id = self.rmcreator_id
 
         ev_fac = hs.get_event_factory()
         h_fac = hs.get_event_handler_factory()
@@ -108,8 +108,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.assertEquals(200, code, msg=str(response))
 
         # auth as user_id now
-        hs.get_auth().get_mod("mod_token").user_id = self.user_id
-
+        self.auth_user_id = self.user_id
 
     def tearDown(self):
         try:
@@ -120,8 +119,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def _change_membership(self, room, source, target, membership,
                            check_200=True):
-        prev_auth_id = self.auth.get_mod("mod_token").user_id
-        self.auth.get_mod("mod_token").user_id = source
+        prev_auth_id = self.auth_user_id
+        self.auth_user_id = source
         if membership == Membership.LEAVE:
             (code, response) = yield self.mock_server.trigger(
                                 "DELETE",
@@ -134,7 +133,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
                                "/rooms/%s/members/%s/state" %
                                (room, target),
                                '{"membership":"%s"}' % membership)
-        self.auth.get_mod("mod_token").user_id = prev_auth_id
+        self.auth_user_id = prev_auth_id
         if check_200:
             self.assertEquals(200, code, msg=str(response))
         defer.returnValue((code, response))
@@ -355,14 +354,16 @@ class RoomsCreateTestCase(unittest.TestCase):
     """ Tests room creation for /rooms. """
     user_id = "sid1"
 
+    def mock_get_user_by_token(self, token=None):
+        return self.user_id
+
     def setUp(self):
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
                 db_pool=make_mock_dbpool(DB_PATH, ["im", "users"]))
-        hs.auth = Auth(MockAccessTokenModule(self.user_id),
-                       JoinedRoomModule(hs.get_event_data_store()),
-                       MembershipChangeModule(hs.get_event_data_store()))
+        hs.auth = Auth(hs.get_event_data_store())
+        hs.auth.get_user_by_token = self.mock_get_user_by_token
 
         ev_fac = hs.get_event_factory()
         h_fac = hs.get_event_handler_factory()
@@ -457,15 +458,17 @@ class RoomsTestCase(unittest.TestCase):
     """ Tests /rooms REST events. """
     user_id = "sid1"
 
+    def mock_get_user_by_token(self, token=None):
+        return self.user_id
+
     @defer.inlineCallbacks
     def setUp(self):
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
                 db_pool=make_mock_dbpool(DB_PATH, ["im"]))
-        hs.auth = Auth(MockAccessTokenModule(self.user_id),
-                       JoinedRoomModule(hs.get_event_data_store()),
-                       MembershipChangeModule(hs.get_event_data_store()))
+        hs.auth = Auth(hs.get_event_data_store())
+        hs.auth.get_user_by_token = self.mock_get_user_by_token
 
         ev_fac = hs.get_event_factory()
         h_fac = hs.get_event_handler_factory()
