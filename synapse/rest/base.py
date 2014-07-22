@@ -15,30 +15,22 @@ class RestServletFactory(object):
     """
 
     def __init__(self, hs):
-        self.servlets = []
+        http_server = hs.get_http_server()
 
         # You get import errors if you try to import before the classes in this
         # file are defined, hence importing here instead.
-        import room
-        self.servlets.append(room.RoomTopicRestServlet(hs))
-        self.servlets.append(room.RoomMemberRestServlet(hs))
-        self.servlets.append(room.MessageRestServlet(hs))
-        self.servlets.append(room.RoomCreateRestServlet(hs))
 
-        from events import EventStreamRestServlet
-        self.servlets.append(EventStreamRestServlet(hs))
+        import room
+        room.RoomTopicRestServlet(hs).register(http_server)
+        room.RoomMemberRestServlet(hs).register(http_server)
+        room.MessageRestServlet(hs).register(http_server)
+        room.RoomCreateRestServlet(hs).register(http_server)
+
+        import events
+        events.EventStreamRestServlet(hs).register(http_server)
 
         import register
-        self.servlets.append(register.RegisterRestServlet(hs))
-
-    def register_servlets(self, http_server):
-        """ Registers all REST servlets with an HTTP server.
-
-        Args:
-            http_server : The server that servlets can register paths to.
-        """
-        for servlet in self.servlets:
-            servlet.register(http_server)
+        register.RegisterRestServlet(hs).register(http_server)
 
 
 class RestServlet(object):
