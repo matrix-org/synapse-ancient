@@ -2,6 +2,8 @@
 
 from twisted.internet import defer
 
+from synapse.federation.pdu_codec import encode_event_id
+
 from collections import namedtuple
 
 import hashlib
@@ -21,6 +23,7 @@ class StateHandler(object):
     def __init__(self, hs):
         self._persistence = hs.get_persistence_service()
         self._replication = hs.get_replication_layer()
+        self.server_name = hs.hostname
 
     @defer.inlineCallbacks
     def handle_new_event(self, event, new_state_callback):
@@ -35,12 +38,12 @@ class StateHandler(object):
         # Now I need to fill out the prev state and work out if it has auth
         # (w.r.t. to power levels)
 
-        results = yield self.service.get_latest_pdus_in_context(
+        results = yield self._persistence.get_latest_pdus_in_context(
             event.room_id
         )
 
         event.prev_events = [
-            "%s@%s" % (p_id, origin) for p_id, origin, _ in results
+            encode_event_id(p_id, origin) for p_id, origin, _ in results
         ]
 
         if results:
@@ -52,8 +55,9 @@ class StateHandler(object):
             key.context, key.type, key.state_key
         )
 
-        event.prev_state_id = current_state.pdu_id
-        event.prev_state_origin = current_state.origin
+        event.prev_state = encode_event_id(
+            current_state.pdu_id, current_state.origin
+        )
 
         # TODO check current_state to see if the min power level is less
         # than the power level of the user
@@ -63,7 +67,7 @@ class StateHandler(object):
         # the old state
         yield defer.maybeDeferred(new_state_callback(event))
 
-        yield self.persistence.update_current_state(
+        yield self._persistence.update_current_state(
             pdu_id=event.event_id,
             origin=self.server_name,
             context=key.context,
@@ -89,6 +93,14 @@ class StateHandler(object):
         if is_new and new_state_callback:
             yield defer.maybeDeferred(new_state_callback(new_pdu))
 
+            yield self._persistence.update_current_state(
+                pdu_id=new_pdu.pdu_id,
+                origin=new_pdu.origin,
+                context=new_pdu.context,
+                pdu_type=new_pdu.pdu_type,
+                state_key=new_pdu.state_key
+            )
+
         defer.returnValue(is_new)
 
     def _get_power_level_for_event(self, event):
@@ -100,15 +112,6 @@ class StateHandler(object):
     def _handle_new_state(self, new_pdu):
         tree = yield self._persistence.get_unresolved_state_tree(new_pdu)
         new_branch, current_branch = tree
-
-        # We currently don't persist here now. But if you were you would use:
-        # yield self._persistence.update_current_state(
-        #     pdu_id=new_pdu.pdu_id,
-        #     origin=new_pdu.origin,
-        #     context=new_pdu.context,
-        #     pdu_type=new_pdu.pdu_type,
-        #     state_key=new_pdu.state_key
-        # )
 
         if not current_branch:
             # There is no current state
