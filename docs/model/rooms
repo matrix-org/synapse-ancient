@@ -124,8 +124,16 @@ sy.join_rules
         message requesting access, which existing members may approve or deny
     "invite" - non-members cannot join the room without an invite from an
         existing member
-  In any mode, existing members with sufficient permission can send invites to
-  non-members if allowed by the "sy.invite_level" key.
+    "private" - nobody who is not in the 'may_join' list or already a member
+        may join by any mechanism
+
+  In any of the first three modes, existing members with sufficient permission
+  can send invites to non-members if allowed by the "sy.invite_level" key. A
+  "private" room is not allowed to have the "sy.invite_level" set.
+
+  A client may use the value of this key to hint at the user interface
+  expectations to provide; in particular, a private chat with one other use
+  might warrant specific handling in the client.
 
 sy.may_join
   A list of User IDs that are always allowed to join the room, regardless of any
