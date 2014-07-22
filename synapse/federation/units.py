@@ -60,7 +60,7 @@ class JsonEncodedObject(object):
 
         self.unrecognized_keys = {}  # Keys we were given not listed as valid
         for k, v in kwargs.items():
-            if k in self.valid_keys:
+            if k in self.valid_keys or k in self.internal_keys:
                 self.__dict__[k] = v
             else:
                 self.unrecognized_keys[k] = v
