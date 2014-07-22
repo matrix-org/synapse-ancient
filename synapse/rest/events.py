@@ -34,7 +34,8 @@ class EventStreamRestServlet(RestServlet):
             "from_tok": FilterStream.TOK_START,
             "to_tok": FilterStream.TOK_END,
             "limit": None,
-            "direction": 'f'
+            "direction": 'f',
+            "timeout": 5
         }
         try:
             if request.args["dir"][0] not in ["f", "b"]:

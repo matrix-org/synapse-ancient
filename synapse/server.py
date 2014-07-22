@@ -10,6 +10,7 @@ from synapse.federation import initialize_http_replication
 from synapse.federation.handler import FederationEventHandler
 from synapse.api.storage import DataStore
 from synapse.api.events.factory import EventFactory
+from synapse.api.notifier import Notifier
 from synapse.api.auth import Auth
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
@@ -50,6 +51,7 @@ class BaseHomeServer(object):
             'rest_servlet_factory',
             'state_handler',
             'room_lock_manager',
+            'notifier'
             ]
 
     def __init__(self, hostname, **kwargs):
@@ -114,6 +116,9 @@ class HomeServer(BaseHomeServer):
 
     def build_event_handler_factory(self):
         return EventHandlerFactory(self)
+
+    def build_notifier(self):
+        return Notifier(self)
 
     def build_auth(self):
         # TODO(paul): Likely the Auth() constructor just wants to take a
