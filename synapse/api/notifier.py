@@ -28,7 +28,8 @@ class Notifier(object):
             data store.
         '"""
         # prod everyone who is online in the room
-        member_list = yield self.store.get_room_members(room_id=event.room_id)
+        member_list = yield self.store.get_room_members(room_id=event.room_id,
+                                                        membership="join")
         if member_list:
             for member in member_list:
                 if member.user_id in self.stored_event_listeners:
