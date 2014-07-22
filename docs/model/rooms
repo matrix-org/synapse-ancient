@@ -116,7 +116,7 @@ sy.invite_level
   absent, then invites are not allowed. An invitation involves setting their
   membership type to "invited", in addition to sending the invite message.
 
-sy.may_join
+sy.join_rules
   Encodes the rules on how non-members can join the room. Has the following
   possibilities:
     "public" - a non-member can join the room directly
@@ -127,12 +127,25 @@ sy.may_join
   In any mode, existing members with sufficient permission can send invites to
   non-members if allowed by the "sy.invite_level" key.
 
+sy.may_join
+  A list of User IDs that are always allowed to join the room, regardless of any
+  of the prevailing join rules and invite levels. These apply even to private
+  rooms. These are stored in a single list with normal update-powerlevel
+  permissions applied; users cannot arbitrarily remove themselves from the list.
+
 sy.add_state_level
   The power-level required for a user to be able to add new state keys.
 
 sy.public_history
   If set and true, anyone can request the history of the room, without needing
   to be a member of the room.
+
+sy.archive_servers
+  For "public" rooms with public history, gives a list of home servers that
+  should be included in message distribution to the room, even if no users on
+  that server are present. These ensure that a public room can still persist
+  even if no users are currently members of it. This list should be consulted by
+  the dirctory servers as the candidate list they respond with.
 
 The following keys are provided by Synapse for user benefit, but their value is
 not otherwise used by Synapse.
