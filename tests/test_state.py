@@ -4,6 +4,7 @@ from twisted.trial import unittest
 
 from synapse.state import StateHandler
 from synapse.persistence.transactions import PduEntry
+from synapse.federation.pdu_codec import encode_event_id
 
 from collections import namedtuple
 
@@ -17,12 +18,18 @@ ReturnType = namedtuple(
 
 class StateTestCase(unittest.TestCase):
     def setUp(self):
-        self.persistence = Mock(spec=["get_unresolved_state_tree"])
+        self.persistence = Mock(spec=[
+            "get_unresolved_state_tree",
+            "update_current_state",
+            "get_latest_pdus_in_context",
+            "get_current_state",
+        ])
         self.replication = Mock(spec=["get_pdu"])
 
         hs = Mock(spec=["get_persistence_service", "get_replication_layer"])
         hs.get_persistence_service.return_value = self.persistence
         hs.get_replication_layer.return_value = self.replication
+        hs.hostname = "bob.com"
 
         self.state = StateHandler(hs)
 
@@ -44,6 +51,8 @@ class StateTestCase(unittest.TestCase):
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
             new_pdu
         )
+
+        self.assertEqual(1, self.persistence.update_current_state.call_count)
 
         self.assertFalse(self.replication.get_pdu.called)
 
@@ -68,6 +77,8 @@ class StateTestCase(unittest.TestCase):
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
             new_pdu
         )
+
+        self.assertEqual(1, self.persistence.update_current_state.call_count)
 
         self.assertFalse(self.replication.get_pdu.called)
 
@@ -94,6 +105,8 @@ class StateTestCase(unittest.TestCase):
             new_pdu
         )
 
+        self.assertEqual(0, self.persistence.update_current_state.call_count)
+
         self.assertFalse(self.replication.get_pdu.called)
 
     @defer.inlineCallbacks
@@ -118,6 +131,8 @@ class StateTestCase(unittest.TestCase):
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
             new_pdu
         )
+
+        self.assertEqual(1, self.persistence.update_current_state.call_count)
 
         self.assertFalse(self.replication.get_pdu.called)
 
@@ -144,6 +159,8 @@ class StateTestCase(unittest.TestCase):
             new_pdu
         )
 
+        self.assertEqual(1, self.persistence.update_current_state.call_count)
+
         self.assertFalse(self.replication.get_pdu.called)
 
     @defer.inlineCallbacks
@@ -169,6 +186,8 @@ class StateTestCase(unittest.TestCase):
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
             new_pdu
         )
+
+        self.assertEqual(1, self.persistence.update_current_state.call_count)
 
         self.assertFalse(self.replication.get_pdu.called)
 
@@ -211,6 +230,38 @@ class StateTestCase(unittest.TestCase):
 
         self.assertEquals(
             2, self.persistence.get_unresolved_state_tree.call_count
+        )
+
+        self.assertEqual(1, self.persistence.update_current_state.call_count)
+
+    @defer.inlineCallbacks
+    def test_new_event(self):
+        event = Mock()
+
+        state_pdu = new_fake_pdu_entry("C", "test", "mem", "x", "A", 20)
+
+        tup = ("pdu_id", "origin.com", 5)
+        pdus = [tup]
+
+        self.persistence.get_latest_pdus_in_context.return_value = pdus
+        self.persistence.get_current_state.return_value = state_pdu
+
+        callback = Mock()
+
+        yield self.state.handle_new_event(event, callback)
+        callback.assert_called_once_with(event)
+
+        self.assertLess(tup[2], event.depth)
+
+        self.assertEquals(1, len(event.prev_events))
+
+        prev_id = event.prev_events[0]
+
+        self.assertEqual(encode_event_id(tup[0], tup[1]), prev_id)
+
+        self.assertEqual(
+            encode_event_id(state_pdu.pdu_id, state_pdu.origin),
+            event.prev_state
         )
 
 
