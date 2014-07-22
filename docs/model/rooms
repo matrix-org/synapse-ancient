@@ -196,3 +196,73 @@ diverge. Existing permissions on the original room would continue to apply of
 course, for viewing that history. If both rooms are considered "public" we might
 also want to define a message to post into the original room to represent this
 fork point, and give a reference to the new room.
+
+
+User Direct Message Rooms
+=========================
+
+There is no need to build a mechanism for directly sending messages between
+users, because a room can handle this ability. To allow direct user-to-user chat
+messaging we simply need to be able to create rooms with specific set of
+permissions to allow this direct messaging.
+
+Between any given pair of user IDs that wish to exchange private messages, there
+will exist a single shared Room, created lazily by either side. These rooms will
+need a certain amount of special handling in both home servers and display on
+clients, but as much as possible should be treated by the lower layers of code
+the same as other rooms.
+
+Specially, a client would likely offer a special menu choice associated with
+another user (in room member lists, presence list, etc..) as "direct chat". That
+would perform all the necessary steps to create the private chat room. Receiving
+clients should display these in a special way too as the room name is not
+important; instead it should distinguish them on the Display Name of the other
+party.
+
+Home Servers will need a client-API option to request setting up a new user-user
+chat room, which will then need special handling within the server. It will
+create a new room with the following 
+
+  sy.member: the proposing user
+  sy.join_rules: "private"
+  sy.may_join: both users
+  sy.power_levels: empty
+  sy.default_level: 0
+  sy.add_state_level: 0
+  sy.public_history: False
+
+Having created the room, it can send an invite message to the other user in the
+normal way - the room permissions state that no users can be set to the invited
+state, but because they're in the may_join list then they'd be allowed to join
+anyway.
+
+In this arrangement there is now a room with both users may join but neither has
+the power to invite any others. Both users now have the confidence that (at
+least within the messaging system itself) their messages remain private and
+cannot later be provably leaked to a third party. They can freely set the topic
+or name if they choose and add or edit any other state of the room. The update
+powerlevel of each of these fixed properties should be 1, to lock out the users
+from being able to alter them.
+
+
+Anti-Glare
+==========
+
+There exists the possibility of a race condition if two users who have no chat
+history with each other simultaneously create a room and invite the other to it.
+This is called a "glare" situation. There are two possible ideas for how to
+resolve this:
+
+ * Each Home Server should persist the mapping of (user ID pair) to room ID, so
+   that duplicate requests can be suppressed. On receipt of a room creation
+   request that the HS thinks there already exists a room for, the invitation to
+   join can be rejected if:
+      a) the HS believes the sending user is already a member of the room (and
+         maybe their HS has forgotten this fact), or
+      b) the proposed room has a lexicographically-higher ID than the existing
+         room (to resolve true race condition conflicts)
+      
+ * The room ID for a private 1:1 chat has a special form, determined by
+   concatenting the User IDs of both members in a deterministic order, such that
+   it doesn't matter which side creates it first; the HSes can just ignore
+   (or merge?) received PDUs that create the room twice.
