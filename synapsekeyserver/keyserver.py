@@ -17,6 +17,8 @@ import sys
 
 
 class KeyServerSSLContextFactory(ssl.ContextFactory):
+    """Factory for PyOpenSSL SSL contexts that are used to handle incoming
+    connections and to make connections to remote servers."""
 
     def __init__(self, tls_certificate, tls_private_key):
         self._context = SSL.Context(SSL.SSLv23_METHOD)
@@ -33,6 +35,7 @@ class KeyServerSSLContextFactory(ssl.ContextFactory):
 
 
 class KeyServer(object):
+    """An HTTPS server serving LocalKey and RemoteKey resources."""
 
     def __init__(self, server_name, tls_certificate_path, tls_private_key_path,
                  signing_key_path, bind_host, bind_port):

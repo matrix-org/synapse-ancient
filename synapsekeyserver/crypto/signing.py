@@ -4,6 +4,16 @@ from synapsekeyserver.util.base64util import encode_base64, decode_base64
 
 
 def sign_json(json_object, signature_name, signing_key):
+    """Sign the JSON object. Stores the signature in json_object["signatures"].
+
+    Args:
+        json_object (dict): The JSON object to sign.
+        signature_name (str): The name of the signing entity.
+        signing_key (nacl.signing.SigningKey): The key to sign the JSON with.
+
+    Returns:
+        The modified, signed JSON object."""
+
     signatures = json_object.get("signatures", None)
     if signatures is None:
         signatures = {}
@@ -20,10 +30,21 @@ def sign_json(json_object, signature_name, signing_key):
 
 
 class InvalidSignature(Exception):
+    """A signature was invalid."""
     pass
 
 
 def verify_signed_json(json_object, signature_name, verify_key):
+    """Check a signature on a signed JSON object.
+
+    Args:
+        json_object (dict): The signed JSON object to check.
+        signature_name (str): The name of the signature to check.
+        verifiy_key (nacl.signing.VerifyKey): The key to verify the signature.
+
+    Raises:
+        InvalidSignature: If the signature isn't valid
+    """
 
     signatures = json_object.get("signatures", {})
 

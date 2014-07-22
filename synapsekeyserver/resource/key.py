@@ -10,7 +10,7 @@ from synapsekeyserver.util.jsonutil import (
     respond_with_json_object,
 )
 from synapsekeyserver.keyclient import fetch_server_key
-from synapsekeyserver.util.signing import sign_json, verify_signed_json
+from synapsekeyserver.crypto.signing import sign_json, verify_signed_json
 from OpenSSL import crypto
 from nacl.signing import VerifyKey
 import logging
@@ -20,6 +20,22 @@ logger = logging.getLogger(__name__)
 
 
 class LocalKey(Resource):
+    """HTTP resource containing encoding the TLS X.509 certificate and NACL
+    signature verification keys for this server::
+
+        GET /key HTTP/1.1
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+        {
+            "server_name": "this.server.example.com"
+            "signature_verify_key": # base64 encoded NACL verification key.
+            "tls_certificate": # base64 ASN.1 DER encoded X.509 tls cert.
+            "signatures": {
+                "this.server.example.com": # NACL signature for this server.
+            }
+        }
+    """
 
     def __init__(self, config):
         self.config = config
@@ -59,11 +75,33 @@ class LocalKey(Resource):
 
 
 class RemoteKey(Resource):
+    """HTTP resource for retreiving the TLS certificate and NACL signature
+    verification keys for a another server. Checks that the reported X.509 TLS
+    certificate matches the one used in the HTTPS connection. Checks that the
+    NACL signature for the remote server is valid. Returns JSON signed by both
+    the remote server and by this server.
+
+    GET /key/remote.server.example.com HTTP/1.1
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    {
+        "server_name": "remote.server.example.com"
+        "signature_verify_key": # base64 encoded NACL verification key.
+        "tls_certificate": # base64 ASN.1 DER encoded X.509 tls cert.
+        "signatures": {
+            "remote.server.example.com": # NACL signature for remote server.
+            "this.server.example.com": # NACL signature for this server.
+        }
+    }
+    """
+
     isLeaf = True
 
     def __init__(self, server_name, config):
         self.server_name = server_name
         self.config = config
+        Resource.__init__(self)
 
     def render_GET(self, request):
         self._async_render_GET(request)
