@@ -256,7 +256,8 @@ class ReplicationLayer(object):
     @log_function
     def on_context_state_request(self, context):
         results = yield self.persistence_service.get_current_state_for_context(
-                context)
+            context
+        )
 
         pdus = [Pdu.from_pdu_tuple(p) for p in results]
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
