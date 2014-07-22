@@ -2,6 +2,7 @@
 """This module contains REST servlets to do with event streaming, /events."""
 from twisted.internet import defer
 
+from synapse.api.errors import SynapseError
 from synapse.api.streams.base import FilterStream
 from synapse.rest.base import RestServlet, InvalidHttpRequestError
 
@@ -24,8 +25,8 @@ class EventStreamRestServlet(RestServlet):
             params = self._get_stream_parameters(request)
             chunk = yield handler.get_stream(auth_user_id, **params)
             defer.returnValue((200, chunk))
-        except InvalidHttpRequestError as e:
-            defer.returnValue((e.get_status_code(), e.get_response_body()))
+        except SynapseError as e:
+            defer.returnValue((e.code, e.msg))
 
         defer.returnValue((500, "This is not the stream you are looking for."))
 

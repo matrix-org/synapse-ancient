@@ -60,6 +60,7 @@ class MessageHandler(BaseHandler):
                                        room_id=event.room_id,
                                        msg_id=event.msg_id,
                                        content=json.dumps(event.content))
+        self.notifier.on_new_event(event, 123)
 
     @defer.inlineCallbacks
     def store_room_path_data(self, event=None, path=None):
@@ -249,5 +250,6 @@ class RoomMemberHandler(BaseHandler):
         handler = MessageHandler(
             ev_factory=self.event_factory,
             store=self.store,
+            notifier=self.notifier,
             auth=self.auth)
         yield handler.send_message(event, suppress_auth=True)

@@ -32,9 +32,12 @@ class EventStreamHandler(BaseHandler):
             # if there are previous events, return those. If not, wait on the
             # new events for 'timeout' seconds.
             if len(data_chunk["chunk"]) == 0 and timeout != 0:
-                results = yield self.notifier.get_events_for(
-                                user_id=auth_user_id,
-                                timeout=timeout)
+                results = yield defer.maybeDeferred(
+                                    self.notifier.get_events_for,
+                                    user_id=auth_user_id,
+                                    timeout=timeout
+                                )
+                print "%s Stream results: %s" % (auth_user_id, results)
                 if results:
                     defer.returnValue(results)
 

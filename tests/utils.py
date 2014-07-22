@@ -87,6 +87,7 @@ class MemoryDataStore(object):
         self.members = {}
         self.messages = {}
         self.rooms = {}
+        self.room_members = {}
 
     def register(self, user_id, token):
         if user_id in self.tokens_to_users.values():
@@ -135,11 +136,22 @@ class MemoryDataStore(object):
         except:
             return None
 
+    def get_room_members(self, room_id):
+        try:
+            return self.room_members[room_id]
+        except:
+            return None
+
     def store_room_member(self, user_id=None, room_id=None, membership=None,
                           content=None):
         member = MemoryDataStore.RoomMember(room_id=room_id, user_id=user_id,
                             membership=membership, content=json.dumps(content))
         self.members[user_id + room_id] = member
+
+        # TODO should be latest state
+        if room_id not in self.room_members:
+            self.room_members[room_id] = []
+        self.room_members[room_id].append(member)
 
     def get_path_data(self, path):
         try:

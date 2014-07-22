@@ -176,7 +176,7 @@ class RegistrationStore(object):
         if row:
             return row[0]
 
-        raise StoreError()
+        raise StoreError(404, "Token not found.")
 
 
 class RoomStore(object):
@@ -295,6 +295,14 @@ class RoomMemberStore(object):
                 "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
         yield self._db_pool.runInteraction(exec_single, query, user_id, room_id,
                     membership, content_json)
+
+    @defer.inlineCallbacks
+    def get_room_members(self, room_id=None):
+        query = RoomMemberTable.select_statement(
+            "room_id = ? GROUP BY user_id")  # TODO this will get left people
+        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
+                    RoomMemberTable.decode_results, room_id)
+        defer.returnValue(res)
 
 
 class RoomPathStore(object):
