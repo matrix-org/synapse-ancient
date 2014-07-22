@@ -4,13 +4,14 @@
 from synapse.api.events import SynapseEvent
 from .units import Pdu
 
+import time
 
 def decode_event_id(event_id, server_name):
     parts = event_id.split("@", 1)
     if len(parts) < 2:
         return (event_id, server_name)
     else:
-        return parts
+        return tuple(parts)
 
 
 def encode_event_id(pdu_id, origin):
@@ -20,7 +21,7 @@ def encode_event_id(pdu_id, origin):
 class PduCodec(object):
 
     def __init__(self, hs):
-        self.server_name = hs
+        self.server_name = hs.hostname
         self.event_factory = hs.get_event_factory()
 
     def event_from_pdu(self, pdu):
@@ -79,5 +80,8 @@ class PduCodec(object):
             k: v for k, v in d.items()
             if k not in ["event_id", "room_id", "type", "prev_events"]
         })
+
+        if "ts" not in kwargs:
+            kwargs["ts"] = int(time.time() * 1000)
 
         return Pdu(**kwargs)
