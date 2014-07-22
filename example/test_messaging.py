@@ -15,12 +15,16 @@ Currently assumes the local address is localhost:<port>
 
 from synapse.util.http import TwistedHttpServer, TwistedHttpClient
 from synapse.federation import (
-    initialize_http_federation, ReplicationHandler, Pdu
+    initialize_http_replication, ReplicationHandler
 )
 
-from synapse.util import DbPool, origin_from_ucid
+from synapse.federation.units import Pdu
+
+from synapse.util import origin_from_ucid
 
 from synapse.persistence import schema_path, PersistenceService
+
+from synapse.app.homeserver import SynapseHomeServer
 
 #from synapse.util.logutils import log_function
 
@@ -315,32 +319,6 @@ class HomeServer(ReplicationHandler):
             )
 
 
-def setup_db(db_name):
-    """ Set up all the dbs. Since all the *.sql have IF NOT EXISTS, so we don't
-    have to worry.
-    """
-    pool = adbapi.ConnectionPool(
-        'sqlite3', db_name, check_same_thread=False,
-        cp_min=1, cp_max=1)
-
-    DbPool.set(pool)
-
-    schemas = [
-            schema_path("transactions"),
-            schema_path("pdu"),
-        ]
-
-    for sql_loc in schemas:
-        with open(sql_loc, "r") as sql_file:
-            sql_script = sql_file.read()
-
-        with sqlite3.connect(db_name) as db_conn:
-            c = db_conn.cursor()
-            c.executescript(sql_script)
-            c.close()
-            db_conn.commit()
-
-
 def main(stdscr):
     parser = argparse.ArgumentParser()
     parser.add_argument('user', type=str)
@@ -369,12 +347,6 @@ def main(stdscr):
     observer = log.PythonLoggingObserver()
     observer.start()
 
-    ## Set up db ##
-
-    if not os.path.exists("dbs"):
-        os.makedirs("dbs")
-    setup_db("dbs/%s" % user)
-
     ## Set up synapse server
 
     curses_stdio = cursesio.CursesStdIO(stdscr)
@@ -382,12 +354,8 @@ def main(stdscr):
 
     curses_stdio.set_callback(input_output)
 
-    http_server = TwistedHttpServer()
-    http_client = TwistedHttpClient()
-
-    replication = initialize_http_federation(
-        server_name, http_client, http_server, PersistenceService(DbPool.get())
-    )
+    app_hs = SynapseHomeServer(server_name, db_name="dbs/%s" % user)
+    replication = app_hs.get_replication_layer()
 
     hs = HomeServer(server_name, replication, curses_stdio)
 
@@ -405,7 +373,7 @@ def main(stdscr):
     except:
         port = 12345
 
-    http_server.start_listening(port)
+    app_hs.get_http_server().start_listening(port)
 
     reactor.addReader(curses_stdio)
 
