@@ -2,6 +2,15 @@
 <html xmlns:ng="http://angularjs.org" ng-app="synapseClient">
 <head>
     <title>Synapse</title>
+    <style type="text/css">
+        .message .sender {
+            float: left;
+        }
+        
+        .message .body {
+            margin-left: 100px;
+        }
+    </style>
     <script src="js/angular.js"></script>
 </head>
 <body>
@@ -12,14 +21,14 @@
             User: <input type="text" ng-model="account.user_id" /><br />
             Server: <input type="text" ng-model="account.server" /><br />
             Room: <input type="text" ng-model="room" /><br />
-            <button ng-click="login(user)">Login</button>
+            <button ng-click="login()">Login</button>
         </form>
         <br/>
         {{ feedback }}
     </div>
 
     <div ng-controller="ChatController" ng-hide="hideChat" class="chat">
-        <h3>Chat</h3>
+        <h3>{{ state.room }} ({{ state.user_id }})</h3>
         
         <div class="message" ng-repeat="msg in messages">
             <!-- XXX: need timestamp support!!! -->
@@ -27,7 +36,8 @@
             <div class="body">{{msg.content.body}}</div>
         </div>
         
-        <input size="80" ng-model="input" />
+        <input size="80" ng-model="text" ng-enter="send()" />
+        <button ng-click="send()">Send</button>
         <br/>
         {{ feedback }}
     </div>
@@ -44,14 +54,15 @@
         })
         .controller('LoginController', ['$scope', '$rootScope', '$http', '$timeout', 'state',
                                         function($scope, $rootScope, $http, $timeout, state) {
+            'use strict';
             $scope.state = state.state;
             $scope.account = {
-                "server": "http://localhost:8080"
+                "server": "http://localhost:8080",
             }
             $scope.room = "tng";
             
-            $scope.login = function(user) {
-                data = {
+            $scope.login = function() {
+                var data = {
                   "user_id" : $scope.account.user_id
                 };
                 $http.post($scope.account.server + "/register", data).
@@ -69,12 +80,70 @@
                     });
             };
         }])
+        .directive('ngEnter', function () {
+            return function (scope, element, attrs) {
+                element.bind("keydown keypress", function (event) {
+                    if(event.which === 13) {
+                        scope.$apply(function () {
+                            scope.$eval(attrs.ngEnter);
+                        });
+                        event.preventDefault();
+                    }
+                });
+            };
+        })
         .controller('ChatController', ['$scope', '$log', '$q', '$http', '$timeout', 'state',
                                        function($scope, $log, $q, $http, $timeout, state) {
+           'use strict';
             $scope.state = state.state;
             $scope.hideChat = true;
             $scope.messages = [];
+            $scope.state.events_from = "START";
             
+            var shortPoll = function() {
+                $http.get($scope.state.server + "/events", {
+                    "params": {
+                        "access_token" : $scope.state.access_token,
+                        "from" : $scope.state.events_from,
+                    }})
+                    .then(function(response) {
+                        $scope.feedback = "Success";
+
+                        $scope.state.events_from = response.data.end;
+
+                        for (var i = 0; i < response.data.chunk.length; i++) {
+                            var chunk = response.data.chunk[i];
+                            if (chunk.room_id == $scope.state.room && chunk.type == "sy.room.message") {
+                                $scope.messages.push(chunk);
+                            }
+                        }
+                        
+                        $timeout(shortPoll, 1000);
+                    }, function(response) {
+                        $scope.feedback = "Can't stream: " + response.data;
+                        $timeout(shortPoll, 1000);
+                    });
+            };
+            
+            $scope.send = function() {
+                var msg_id = "m" + new Date().getTime();
+                $http.put($scope.state.server + "/rooms/" + $scope.state.room + "/messages/" + $scope.state.user_id + "/" + msg_id, {
+                        "body": $scope.text,
+                        "msgtype": "sy.text",
+                    }, {
+                        "params" : {
+                            "access_token" : $scope.state.access_token
+                        }
+                    })
+                    .success(function(data, status, headers, config) {
+                        $scope.feedback = "Sent successfully";
+                        $scope.text = "";
+                    })
+                    .error(function(data, status, headers, config) {
+                        $scope.feedback = "Failed to send: " + response.data;
+                    });                
+            };
+                        
             $scope.$on('loginEvent', function() {
                 $scope.hideChat = false;
 
@@ -84,33 +153,12 @@
                         "params" : {
                             "access_token" : $scope.state.access_token
                         }
-                    }).
-                    then(function(response) {
-                        // success
-                        return $http.get($scope.state.server + "/events", {
-                            "params": {
-                                "access_token" : $scope.state.access_token,
-                                "from" : "START"
-                            }})
-                    }, function(response) {
-                        // failure
+                    })
+                    .success(function(data, status, headers, config) {
+                        $timeout(shortPoll, 0);
+                    })
+                    .error(function(data, status, headers, config) {
                         $scope.feedback = "Can't join room: " + response.data;
-                        return $q.reject(response.data);
-                    }).
-                    then(function(response) {
-                        $scope.feedback = "Success";
-                        
-                        $scope.state.start = response.data.start;
-                        $scope.state.end = response.data.end;
-                        
-                        for (var i = 0; i < response.data.chunk.length; i++) {
-                            var chunk = response.data.chunk[i];
-                            if (chunk.room_id == $scope.state.room && chunk.type == "sy.room.message") {
-                                $scope.messages.push(chunk);
-                            }
-                        }
-                    }, function(response) {
-                        $scope.feedback = "Can't stream: " + response.data;
                         return $q.reject(response.data);
                     });
             }); 
