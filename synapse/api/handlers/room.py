@@ -40,15 +40,19 @@ class MessageHandler(BaseHandler):
         defer.returnValue(None)
 
     @defer.inlineCallbacks
-    def send_message(self, event=None):
+    def send_message(self, event=None, suppress_auth=False):
         """ Send a message.
 
         Args:
             event : The message event to store.
+            suppress_auth (bool) : True to suppress auth for this message. This
+            is primarily so the home server can inject messages into rooms at
+            will.
         Raises:
             SynapseError if something went wrong.
         """
-        yield self.auth.check(event, raises=True)
+        if not suppress_auth:
+            yield self.auth.check(event, raises=True)
 
         # store message in db
         yield self.store.store_message(user_id=event.user_id,
@@ -227,7 +231,7 @@ class RoomMemberHandler(BaseHandler):
         event = self.event_factory.create_event(
                 etype=MessageEvent.TYPE,
                 room_id=room_id,
-                user_id="_hs_",
+                user_id="_homeserver_",
                 msg_id=msg_id,
                 content=membership_json
                 )
@@ -236,4 +240,4 @@ class RoomMemberHandler(BaseHandler):
             ev_factory=self.event_factory,
             store=self.store,
             auth=self.auth)
-        yield handler.send_message(event)
+        yield handler.send_message(event, suppress_auth=True)

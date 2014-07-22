@@ -2,7 +2,7 @@
 """This module contains REST servlets to do with registration: /register"""
 from twisted.internet import defer
 
-from synapse.api.errors import RegistrationError
+from synapse.api.errors import SynapseError
 from base import RestServlet, InvalidHttpRequestError
 
 import json
@@ -41,7 +41,7 @@ class RegisterRestServlet(RestServlet):
             (user_id, token) = yield handler.register(user_id=desired_user_id)
             defer.returnValue((200,
                                {"user_id": user_id, "access_token": token}))
-        except RegistrationError as e:
+        except SynapseError as e:
             defer.returnValue((e.code, e.msg))
 
     def on_OPTIONS(self, request):

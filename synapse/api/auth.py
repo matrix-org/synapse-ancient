@@ -29,8 +29,7 @@ class Auth(object):
         """
         try:
             if event.type in [RoomTopicEvent.TYPE, MessageEvent.TYPE]:
-                if event.user_id != "_hs_":
-                    yield self.check_joined_room(event.room_id, event.user_id)
+                yield self.check_joined_room(event.room_id, event.user_id)
                 defer.returnValue(True)
             elif event.type == RoomMemberEvent.TYPE:
                 allowed = yield self.is_membership_change_allowed(event)
@@ -100,7 +99,7 @@ class Auth(object):
             if (event.user_id != event.target_user_id or not caller or
                     caller[0].membership not in
                     [Membership.INVITE, Membership.JOIN]):
-                raise AuthError(403, "Cannot join.")
+                raise AuthError(403, "You are not invited to this room.")
         elif Membership.LEAVE == event.membership:
             if not caller_in_room or event.target_user_id != event.user_id:
                 # trying to leave a room you aren't joined or trying to force

@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import EventStreamError
-from base import FilterStream, StreamData
+from synapse.api.streams import FilterStream, StreamData
 
 
 class MessagesStreamData(StreamData):
