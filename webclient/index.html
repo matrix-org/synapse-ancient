@@ -105,6 +105,7 @@
                     "params": {
                         "access_token" : $scope.state.access_token,
                         "from" : $scope.state.events_from,
+                        "timeout" : 25,
                     }})
                     .then(function(response) {
                         $scope.feedback = "Success";
@@ -118,7 +119,7 @@
                             }
                         }
                         
-                        $timeout(shortPoll, 1000);
+                        $timeout(shortPoll, 0);
                     }, function(response) {
                         $scope.feedback = "Can't stream: " + response.data;
                         $timeout(shortPoll, 1000);
