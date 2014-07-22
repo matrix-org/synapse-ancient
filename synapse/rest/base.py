@@ -29,6 +29,9 @@ class RestServletFactory(object):
         import register
         register.register_servlets(hs, http_server)
 
+        import profile
+        profile.register_servlets(hs, http_server)
+
 
 class RestServlet(object):
 
