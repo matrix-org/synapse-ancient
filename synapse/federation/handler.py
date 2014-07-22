@@ -19,7 +19,7 @@ class FederationEventHandler(object):
         )
         self.server_name = hs.hostname
 
-        self.lock_manager = hs.get_lock_manager()
+        self.lock_manager = hs.get_room_lock_manager()
 
         self.replication_layer.set_handler(self)
 

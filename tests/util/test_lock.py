@@ -3,7 +3,7 @@
 from twisted.internet import defer
 from twisted.trial import unittest
 
-from synapse.util.lockutil import LockManager
+from synapse.util.lockutils import LockManager
 
 
 class LockManagerTestCase(unittest.TestCase):

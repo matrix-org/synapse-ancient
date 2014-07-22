@@ -6,7 +6,7 @@ from .replication import ReplicationLayer, ReplicationHandler
 from .transport import TransportLayer
 
 
-def initialize_http_federation(homeserver):
+def initialize_http_replication(homeserver):
     transport = TransportLayer(
         homeserver.hostname,
         server=homeserver.get_http_server(),

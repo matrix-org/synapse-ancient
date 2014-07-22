@@ -9,7 +9,7 @@ import logging
 from ..utils import MockHttpServer
 
 from synapse.server import BaseHomeServer
-from synapse.federation import initialize_http_federation
+from synapse.federation import initialize_http_replication
 from synapse.persistence.transactions import PduTuple, PduEntry
 
 
@@ -47,7 +47,7 @@ class FederationTestCase(unittest.TestCase):
                 db_pool=None,
                 persistence_service=self.mock_persistence
         )
-        self.federation = initialize_http_federation(hs)
+        self.federation = initialize_http_replication(hs)
 
     @defer.inlineCallbacks
     def test_get_state(self):

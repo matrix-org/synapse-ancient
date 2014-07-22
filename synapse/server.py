@@ -6,12 +6,15 @@
 
 # Imports required for the default HomeServer() implementation
 from synapse.persistence import PersistenceService
-from synapse.federation import initialize_http_federation
+from synapse.federation import initialize_http_replication
+from synapse.federation.handler import FederationEventHandler
 from synapse.api.storage import DataStore
 from synapse.api.events.factory import EventFactory
 from synapse.api.auth import Auth
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
+from synapse.state import StateHandler
+from synapse.util.lockutils import LockManager
 
 
 class BaseHomeServer(object):
@@ -39,11 +42,14 @@ class BaseHomeServer(object):
             'db_pool',
             'persistence_service',
             'federation',
+            'replication_layer',
             'event_data_store',
             'event_factory',
             'event_handler_factory',
             'auth',
             'rest_servlet_factory',
+            'state_handler',
+            'room_lock_manager',
             ]
 
     def __init__(self, hostname, **kwargs):
@@ -94,8 +100,11 @@ class HomeServer(BaseHomeServer):
     def build_persistence_service(self):
         return PersistenceService(self)
 
+    def build_replication_layer(self):
+        return initialize_http_replication(self)
+
     def build_federation(self):
-        return initialize_http_federation(self)
+        return FederationEventHandler(self)
 
     def build_event_data_store(self):
         return DataStore(self)
@@ -114,3 +123,9 @@ class HomeServer(BaseHomeServer):
 
     def build_rest_servlet_factory(self):
         return RestServletFactory(self)
+
+    def build_state_handler(self):
+        return StateHandler(self)
+
+    def build_room_lock_manager(self):
+        return LockManager()
