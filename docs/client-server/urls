@@ -50,3 +50,19 @@ Feedback
 
 Paginating messages
   GET /rooms/$roomid/messages/list
+
+Profiles
+--------
+
+Display name
+  GET /profile/$userid/displayname
+  PUT /profile/$userid/displayname
+
+Avatar
+  GET /profile/$userid/avatar
+  PUT /profile/$userid/avatar
+    Content-Type: image/*
+
+Metadata
+  GET  /profile/$userid/metadata
+  POST /profile/$userid/metadata
