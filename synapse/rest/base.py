@@ -41,10 +41,6 @@ class RestServletFactory(object):
         self.servlets.append(register.RegisterRestServlet(handler_fac,
                                                       event_fac, auth))
 
-        import profiles
-        self.servlets.append(profiles.ProfileRestServlet(handler_fac,
-                                                        event_fac, auth))
-
     def register_servlets(self, http_server):
         """ Registers all REST servlets with an HTTP server.
 
