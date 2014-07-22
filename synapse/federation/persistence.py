@@ -126,7 +126,7 @@ class PduActions(object):
     @defer.inlineCallbacks
     @log_function
     def _persist(self, pdu):
-        kwargs = copy.copy(pdu.dictionary)
+        kwargs = copy.copy(pdu.__dict__)
         unrec_keys = copy.copy(pdu.unrecognized_keys)
         del kwargs["content"]
         kwargs["content_json"] = json.dumps(pdu.content)
