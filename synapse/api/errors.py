@@ -6,7 +6,7 @@ class CodeMessageException(Exception):
     """An exception with code and message attributes."""
 
     def __init__(self, code, msg):
-        super(CodeMessageException, self).__init__()
+        super(CodeMessageException, self).__init__("%d: %s" % (code, msg))
         self.code = code
         self.msg = msg
 
