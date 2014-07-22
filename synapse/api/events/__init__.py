@@ -26,14 +26,15 @@ class SynapseEvent(JsonEncodedObject):
         "type",
         "room_id",
         "user_id",  # sender/initiator
-        "content"  # HTTP body, JSON
+        "content",  # HTTP body, JSON
     ]
 
     internal_keys = [
         "is_state",
         "state_key",
         "prev_events",
-        "prev_state"
+        "prev_state",
+        "depth",
     ]
 
     def __init__(self, raises=True, **kwargs):
