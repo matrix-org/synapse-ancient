@@ -20,10 +20,11 @@ class StateTestCase(unittest.TestCase):
         self.persistence = Mock(spec=["get_unresolved_state_tree"])
         self.replication = Mock(spec=["get_pdu"])
 
-        self.state = StateHandler(
-            persistence_service=self.persistence,
-            replication_layer=self.replication,
-        )
+        hs = Mock(spec=["get_persistence_service", "get_replication_layer"])
+        hs.get_persistence_service.return_value = self.persistence
+        hs.get_replication_layer.return_value = self.replication
+
+        self.state = StateHandler(hs)
 
     @defer.inlineCallbacks
     def test_new_state_key(self):
