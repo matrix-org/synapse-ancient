@@ -99,23 +99,19 @@ class RoomTopicRestServlet(RestServlet):
         try:
             user_id = yield (self.auth.get_user_by_req(request))
 
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                room_id=room_id,
-                user_id=user_id
-                )
-
             msg_handler = self.handler_factory.message_handler()
             data = yield msg_handler.get_room_path_data(
-                    event=event,
-                    path=request.path
+                    user_id=user_id,
+                    room_id=room_id,
+                    path=request.path,
+                    event_type=RoomTopicEvent.TYPE
                 )
 
             if not data:
                 defer.returnValue((404, cs_error("Topic not found.")))
-            defer.returnValue((200, json.loads(data[0].content)))
+            defer.returnValue((200, json.loads(data.content)))
         except SynapseError as e:
-            defer.returnValue((e.code, ""))
+            defer.returnValue((e.code, e.msg))
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
@@ -161,7 +157,6 @@ class RoomMemberRestServlet(RestServlet):
             handler = self.handler_factory.room_member_handler()
             member = yield handler.get_room_member(room_id, member_user_id,
                                                    user_id)
-
             if not member:
                 defer.returnValue((404, cs_error("Member not found.")))
             defer.returnValue((200, json.loads(member.content)))

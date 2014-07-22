@@ -2,7 +2,6 @@
 """Tests REST events for /rooms paths."""
 
 # twisted imports
-from twisted.enterprise import adbapi
 from twisted.internet import defer
 
 # trial imports
@@ -12,37 +11,13 @@ from synapse.api.auth import Auth
 from synapse.rest.room import (MessageRestServlet, RoomMemberRestServlet,
                                RoomTopicRestServlet, RoomCreateRestServlet)
 from synapse.api.constants import Membership
-from synapse.persistence import read_schema
 
 from synapse.server import HomeServer
 
 # python imports
 import json
-import os
-import sqlite3
 
-from ..utils import MockHttpServer
-
-DB_PATH = "_temp.db"
-
-
-def make_mock_dbpool(db_name, schemas):
-    # FIXME: This is basically a copy of synapse.app.homeserver's setup
-    # routine. It would be nice if we could reuse that.
-    dbpool = adbapi.ConnectionPool(
-        'sqlite3', db_name, check_same_thread=False,
-        cp_min=1, cp_max=1)
-
-    for sql_loc in schemas:
-        sql_script = read_schema(sql_loc)
-
-        with sqlite3.connect(db_name) as db_conn:
-            c = db_conn.cursor()
-            c.executescript(sql_script)
-            c.close()
-            db_conn.commit()
-
-    return dbpool
+from ..utils import MockHttpServer, MemoryDataStore
 
 
 class RoomPermissionsTestCase(unittest.TestCase):
@@ -58,7 +33,8 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
-                db_pool=make_mock_dbpool(DB_PATH, ["im", "users"]))
+                db_pool=None)
+        hs.event_data_store = MemoryDataStore()
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
         self.auth_user_id = self.rmcreator_id
@@ -111,10 +87,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
         self.auth_user_id = self.user_id
 
     def tearDown(self):
-        try:
-            os.remove(DB_PATH)
-        except:
-            pass
+        pass
 
     @defer.inlineCallbacks
     def _change_membership(self, room, source, target, membership,
@@ -219,37 +192,37 @@ class RoomPermissionsTestCase(unittest.TestCase):
         (code, response) = yield self.mock_server.trigger(
                            "PUT", "/rooms/%s/topic" % self.uncreated_rmid,
                            topic_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
         (code, response) = yield self.mock_server.trigger_get(
                            "/rooms/%s/topic" % self.uncreated_rmid)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # set/get topic in created PRIVATE room not joined, expect 403
         (code, response) = yield self.mock_server.trigger(
                            "PUT", topic_path, topic_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
         (code, response) = yield self.mock_server.trigger_get(topic_path)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # set topic in created PRIVATE room and invited, expect 403
         yield self._change_membership(self.created_rmid, self.rmcreator_id,
                                       self.user_id, Membership.INVITE)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", topic_path, topic_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # get topic in created PRIVATE room and invited, expect 200 (or 404)
         (code, response) = yield self.mock_server.trigger_get(topic_path)
-        self.assertEquals(404, code)
+        self.assertEquals(404, code, msg=str(response))
 
         # set/get topic in created PRIVATE room and joined, expect 200
         yield self._change_membership(self.created_rmid, self.user_id,
                                       self.user_id, Membership.JOIN)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", topic_path, topic_content)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
         (code, response) = yield self.mock_server.trigger_get(topic_path)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
         self.assertEquals(json.loads(topic_content), response)
 
         # set/get topic in created PRIVATE room and left, expect 403
@@ -257,21 +230,21 @@ class RoomPermissionsTestCase(unittest.TestCase):
                                       self.user_id, Membership.LEAVE)
         (code, response) = yield self.mock_server.trigger(
                            "PUT", topic_path, topic_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
         (code, response) = yield self.mock_server.trigger_get(topic_path)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
         # get topic in PUBLIC room, not joined, expect 200 (or 404)
         (code, response) = yield self.mock_server.trigger_get(
                            "/rooms/%s/topic" % self.created_public_rmid)
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, msg=str(response))
 
         # set topic in PUBLIC room, not joined, expect 403
         (code, response) = yield self.mock_server.trigger(
                            "PUT",
                            "/rooms/%s/topic" % self.created_public_rmid,
                            topic_content)
-        self.assertEquals(403, code)
+        self.assertEquals(403, code, msg=str(response))
 
     @defer.inlineCallbacks
     def _test_membership(self, room=None, members=[], expect_code=None):
@@ -361,7 +334,8 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
-                db_pool=make_mock_dbpool(DB_PATH, ["im", "users"]))
+                db_pool=None)
+        hs.event_data_store = MemoryDataStore()
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
@@ -372,10 +346,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         RoomCreateRestServlet(h_fac, ev_fac, auth).register(self.mock_server)
 
     def tearDown(self):
-        try:
-            os.remove(DB_PATH)
-        except:
-            pass
+        pass
 
     @defer.inlineCallbacks
     def test_post_room(self):
@@ -466,7 +437,8 @@ class RoomsTestCase(unittest.TestCase):
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
-                db_pool=make_mock_dbpool(DB_PATH, ["im"]))
+                db_pool=None)
+        hs.event_data_store = MemoryDataStore()
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
@@ -485,10 +457,7 @@ class RoomsTestCase(unittest.TestCase):
         self.assertEquals(200, code)
 
     def tearDown(self):
-        try:
-            os.remove(DB_PATH)
-        except:
-            pass
+        pass
 
     @defer.inlineCallbacks
     def _test_invalid_puts(self, path):

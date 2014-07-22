@@ -5,6 +5,7 @@ from twisted.internet import defer
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
+from synapse.util import stringutils
 from . import BaseHandler
 
 import json
@@ -31,12 +32,12 @@ class MessageHandler(BaseHandler):
         yield self.auth.check_joined_room(room_id, user_id)
 
         # Pull out the message from the db
-        results = yield self.store.get_message(room_id=room_id,
+        msg = yield self.store.get_message(room_id=room_id,
                                                msg_id=msg_id,
                                                user_id=sender_id)
 
-        if results:
-            defer.returnValue(results[0])
+        if msg:
+            defer.returnValue(msg)
         defer.returnValue(None)
 
     @defer.inlineCallbacks
@@ -78,7 +79,8 @@ class MessageHandler(BaseHandler):
                                          content=json.dumps(event.content))
 
     @defer.inlineCallbacks
-    def get_room_path_data(self, event=None, path=None,
+    def get_room_path_data(self, user_id=None, room_id=None, path=None,
+                           event_type=None,
                            public_room_rules=[],
                            private_room_rules=["join"]):
         """ Get path data from a room.
@@ -97,22 +99,21 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
-        if event.type == RoomTopicEvent.TYPE:
+        if event_type == RoomTopicEvent.TYPE:
             # anyone invited/joined can read the topic
             private_room_rules = ["invite", "join"]
 
         # does this room exist
-        room = yield self.store.get_room(event.room_id)
+        room = yield self.store.get_room(room_id)
         if not room:
             raise RoomError(403, "Room does not exist.")
-        room = room[0]
 
         # does this user exist in this room
         member = yield self.store.get_room_member(
-            room_id=event.room_id,
-            user_id="" if not event.user_id else event.user_id)
+            room_id=room_id,
+            user_id="" if not user_id else user_id)
 
-        member_state = member[0].membership if member else None
+        member_state = member.membership if member else None
 
         if room.is_public and public_room_rules:
             # make sure the user meets public room rules
@@ -142,21 +143,32 @@ class RoomCreationHandler(BaseHandler):
         Returns:
             The new room ID.
         Raises:
-            RoomError if the room ID was taken, couldn't be stored, or something
-            went horribly wrong.
+            SynapseError if the room ID was taken, couldn't be stored, or
+            something went horribly wrong.
         """
-        try:
-            new_room_id = yield self.store.store_room(
+        if room_id:
+            yield self.store.store_room_and_member(
                 room_id=room_id,
                 room_creator_user_id=user_id,
                 is_public=config["visibility"] == "public"
             )
-            if not new_room_id:
-                raise RoomError(409, "Room ID in use.")
-
-            defer.returnValue(new_room_id)
-        except StoreError:
-            raise RoomError(500, "Unable to create room.")
+            defer.returnValue(room_id)
+        else:
+            # autogen room IDs and try to create it. We may clash, so just
+            # try a few times till one goes through, giving up eventually.
+            attempts = 0
+            while attempts < 5:
+                try:
+                    gen_room_id = stringutils.random_string(18)
+                    yield self.store.store_room_and_member(
+                        room_id=gen_room_id,
+                        room_creator_user_id=user_id,
+                        is_public=config["visibility"] == "public"
+                    )
+                    defer.returnValue(gen_room_id)
+                except StoreError:
+                    attempts += 1
+            raise StoreError(500, "Couldn't generate a room ID.")
 
 
 class RoomMemberHandler(BaseHandler):
@@ -178,8 +190,6 @@ class RoomMemberHandler(BaseHandler):
 
         member = yield self.store.get_room_member(user_id=member_user_id,
                                                   room_id=room_id)
-        if member:
-            defer.returnValue(member[0])
         defer.returnValue(member)
 
     @defer.inlineCallbacks

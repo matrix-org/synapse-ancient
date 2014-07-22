@@ -5,7 +5,6 @@ from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
 from synapse.api.events.room import RoomMemberEvent, MessageEvent
-from synapse.util import stringutils
 from synapse.persistence.tables import (RoomDataTable, RoomMemberTable,
                                         MessagesTable, RoomsTable)
 
@@ -200,51 +199,27 @@ class RoomStore(object):
         txn.execute(query, [room_creator, room_id, "join", content])
 
     @defer.inlineCallbacks
-    def store_room(self, room_id=None, room_creator_user_id=None,
+    def store_room_and_member(self, room_id=None, room_creator_user_id=None,
                    is_public=None):
         """Stores a room.
-
-        If room_id is None, a randomly generated room ID will be used to store
-        this room.
 
         Args:
             room_id (str): The desired room ID, can be None.
             room_creator_user_id (str): The user ID of the room creator.
             is_public (bool): True to indicate that this room should appear in
             public room lists.
-        Returns:
-            str: The room ID of the room stored, or None if the room was not
-            stored due to a conflict (room_id in use).
         Raises:
-            StoreError if the room could not be stored due to an operational
-            error (e.g. db access error).
+            StoreError if the room could not be stored.
         """
         try:
-            if room_id:
-                try:
-                    yield self._db_pool.runInteraction(
-                            self._insert_room_and_member, room_id,
-                            room_creator_user_id, is_public)
-                except IntegrityError:
-                    defer.returnValue(None)
-                defer.returnValue(room_id)
-            else:
-                # autogen room IDs and try to create it. We may clash, so just
-                # try a few times till one goes through, giving up eventually.
-                attempts = 0
-                while attempts < 5:
-                    try:
-                        gen_room_id = stringutils.random_string(18)
-                        yield self._db_pool.runInteraction(
-                                self._insert_room_and_member, gen_room_id,
-                                room_creator_user_id, is_public)
-                        defer.returnValue(gen_room_id)
-                    except IntegrityError:
-                        attempts += 1
-                raise StoreError()
+            yield self._db_pool.runInteraction(
+                    self._insert_room_and_member, room_id,
+                    room_creator_user_id, is_public)
+        except IntegrityError:
+            raise StoreError(409, "Room ID in use.")
         except Exception as e:
             logger.error("store_room with room_id=%s failed: %s" % (room_id, e))
-            raise StoreError()
+            raise StoreError(500, "Problem creating room.")
 
     @defer.inlineCallbacks
     def get_room(self, room_id):
@@ -258,7 +233,9 @@ class RoomStore(object):
         query = RoomsTable.select_statement("room_id=?")
         res = yield self._db_pool.runInteraction(exec_single_with_result, query,
                     RoomsTable.decode_results, room_id)
-        defer.returnValue(res)
+        if res:
+            defer.returnValue(res[0])
+        defer.returnValue(None)
 
     @defer.inlineCallbacks
     def get_public_rooms(self):
@@ -282,7 +259,9 @@ class MessageStore(object):
                 "ORDER BY id DESC LIMIT 1")
         res = yield self._db_pool.runInteraction(exec_single_with_result, query,
                     MessagesTable.decode_results, user_id, room_id, msg_id)
-        defer.returnValue(res)
+        if res:
+            defer.returnValue(res[0])
+        defer.returnValue(None)
 
     @defer.inlineCallbacks
     def store_message(self, user_id=None, room_id=None, msg_id=None,
@@ -304,6 +283,8 @@ class RoomMemberStore(object):
             "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
         res = yield self._db_pool.runInteraction(exec_single_with_result, query,
                     RoomMemberTable.decode_results, room_id, user_id)
+        if res:
+            defer.returnValue(res[0])
         defer.returnValue(res)
 
     @defer.inlineCallbacks
@@ -336,7 +317,9 @@ class RoomPathStore(object):
             "path = ? ORDER BY id DESC LIMIT 1")
         res = yield self._db_pool.runInteraction(exec_single_with_result, query,
                     RoomDataTable.decode_results, path)
-        defer.returnValue(res)
+        if res:
+            defer.returnValue(res[0])
+        defer.returnValue(None)
 
     @defer.inlineCallbacks
     def store_path_data(self, path=None, room_id=None, content=None):

@@ -49,7 +49,7 @@ class Auth(object):
             member = yield self.store.get_room_member(
                         room_id=room_id,
                         user_id=user_id)
-            if not member or member[0].membership != Membership.JOIN:
+            if not member or member.membership != Membership.JOIN:
                 raise AuthError(403, "User %s not in room %s" %
                                 (user_id, room_id))
             defer.returnValue(member)
@@ -71,7 +71,7 @@ class Auth(object):
                 room_id=event.room_id)
         except:
             caller = None
-        caller_in_room = caller and caller[0].membership == "join"
+        caller_in_room = caller and caller.membership == "join"
 
         # get info about the target
         try:
@@ -80,7 +80,7 @@ class Auth(object):
                 room_id=event.room_id)
         except:
             target = None
-        target_in_room = target and target[0].membership == "join"
+        target_in_room = target and target.membership == "join"
 
         if not event.membership:
             # not a membership change, but a request for one. They can only do
@@ -97,7 +97,7 @@ class Auth(object):
             # invited: They are accepting the invitation
             # joined: It's a NOOP
             if (event.user_id != event.target_user_id or not caller or
-                    caller[0].membership not in
+                    caller.membership not in
                     [Membership.INVITE, Membership.JOIN]):
                 raise AuthError(403, "You are not invited to this room.")
         elif Membership.LEAVE == event.membership:

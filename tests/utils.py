@@ -1,8 +1,12 @@
 from synapse.util.http import HttpServer
+from synapse.api.errors import StoreError
+from synapse.api.constants import Membership
 
 from twisted.internet import defer
 
+from collections import namedtuple
 from mock import patch, Mock
+import json
 import urlparse
 
 
@@ -61,3 +65,90 @@ class MockHttpServer(HttpServer):
 
     def register_path(self, method, path_pattern, callback):
         self.callbacks.append((method, path_pattern, callback))
+
+
+class MemoryDataStore(object):
+
+    RoomMember = namedtuple("RoomMember",
+                            ["room_id", "user_id", "membership", "content"])
+
+    PathData = namedtuple("PathData",
+                          ["room_id", "path", "content"])
+
+    Message = namedtuple("Message",
+                         ["room_id", "msg_id", "user_id", "content"])
+
+    Room = namedtuple("Room",
+                      ["room_id", "is_public", "creator"])
+
+    def __init__(self):
+        self.tokens_to_users = {}
+        self.paths_to_content = {}
+        self.members = {}
+        self.messages = {}
+        self.rooms = {}
+
+    def register(self, user_id, token):
+        if user_id in self.tokens_to_users.values():
+            raise StoreError(400, "User in use.")
+        self.tokens_to_users[token] = user_id
+
+    def get_user(self, token=None):
+        try:
+            return self.tokens_to_users[token]
+        except:
+            return None
+
+    def get_room(self, room_id):
+        try:
+            return self.rooms[room_id]
+        except:
+            return None
+
+    def store_room_and_member(self, room_id=None, room_creator_user_id=None,
+                              is_public=None):
+        if room_id in self.rooms:
+            raise StoreError(409, "Conflicting room!")
+
+        room = MemoryDataStore.Room(room_id=room_id, is_public=is_public,
+                    creator=room_creator_user_id)
+        self.rooms[room_id] = room
+        self.store_room_member(user_id=room_creator_user_id, room_id=room_id,
+                               membership=Membership.JOIN,
+                               content={"membership": Membership.JOIN})
+
+    def get_message(self, user_id=None, room_id=None, msg_id=None):
+        try:
+            return self.messages[user_id + room_id + msg_id]
+        except:
+            return None
+
+    def store_message(self, user_id=None, room_id=None, msg_id=None,
+                      content=None):
+        msg = MemoryDataStore.Message(room_id=room_id, msg_id=msg_id,
+                    user_id=user_id, content=content)
+        self.messages[user_id + room_id + msg_id] = msg
+
+    def get_room_member(self, user_id=None, room_id=None):
+        try:
+            return self.members[user_id + room_id]
+        except:
+            return None
+
+    def store_room_member(self, user_id=None, room_id=None, membership=None,
+                          content=None):
+        member = MemoryDataStore.RoomMember(room_id=room_id, user_id=user_id,
+                            membership=membership, content=json.dumps(content))
+        self.members[user_id + room_id] = member
+
+    def get_path_data(self, path):
+        try:
+            return self.paths_to_content[path]
+        except:
+            return None
+
+    def store_path_data(self, path=None, room_id=None, content=None):
+        data = MemoryDataStore.PathData(path=path, room_id=room_id,
+                    content=content)
+        self.paths_to_content[path] = data
+
