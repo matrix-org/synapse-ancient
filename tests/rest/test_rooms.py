@@ -8,8 +8,7 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.api.auth import Auth
-from synapse.rest.room import (MessageRestServlet, RoomMemberRestServlet,
-                               RoomTopicRestServlet, RoomCreateRestServlet)
+import synapse.rest.room
 from synapse.api.constants import Membership
 
 from synapse.server import HomeServer
@@ -39,10 +38,7 @@ class RoomPermissionsTestCase(unittest.TestCase):
         hs.auth.get_user_by_token = self.mock_get_user_by_token
         self.auth_user_id = self.rmcreator_id
 
-        MessageRestServlet(hs).register(self.mock_server)
-        RoomMemberRestServlet(hs).register(self.mock_server)
-        RoomTopicRestServlet(hs).register(self.mock_server)
-        RoomCreateRestServlet(hs).register(self.mock_server)
+        synapse.rest.room.register_servlets(hs, self.mock_server)
 
         self.auth = hs.get_auth()
 
@@ -335,7 +331,7 @@ class RoomsCreateTestCase(unittest.TestCase):
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
-        RoomCreateRestServlet(hs).register(self.mock_server)
+        synapse.rest.room.register_servlets(hs, self.mock_server)
 
     def tearDown(self):
         pass
@@ -434,11 +430,7 @@ class RoomsTestCase(unittest.TestCase):
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
-
-        MessageRestServlet(hs).register(self.mock_server)
-        RoomMemberRestServlet(hs).register(self.mock_server)
-        RoomTopicRestServlet(hs).register(self.mock_server)
-        RoomCreateRestServlet(hs).register(self.mock_server)
+        synapse.rest.room.register_servlets(hs, self.mock_server)
 
         # create the room
         path = "/rooms/rid1"

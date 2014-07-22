@@ -62,3 +62,7 @@ class EventStreamRestServlet(RestServlet):
 
     def on_OPTIONS(self, request):
         return (200, {})
+
+
+def register_servlets(hs, http_server):
+    EventStreamRestServlet(hs).register(http_server)

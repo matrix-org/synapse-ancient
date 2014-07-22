@@ -21,16 +21,13 @@ class RestServletFactory(object):
         # file are defined, hence importing here instead.
 
         import room
-        room.RoomTopicRestServlet(hs).register(http_server)
-        room.RoomMemberRestServlet(hs).register(http_server)
-        room.MessageRestServlet(hs).register(http_server)
-        room.RoomCreateRestServlet(hs).register(http_server)
+        room.register_servlets(hs, http_server)
 
         import events
-        events.EventStreamRestServlet(hs).register(http_server)
+        events.register_servlets(hs, http_server)
 
         import register
-        register.RegisterRestServlet(hs).register(http_server)
+        register.register_servlets(hs, http_server)
 
 
 class RestServlet(object):

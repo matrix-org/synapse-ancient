@@ -276,3 +276,10 @@ def _parse_json(request):
         return json.loads(request.content.read())
     except ValueError:
         raise SynapseError(400, "Content not JSON.")
+
+
+def register_servlets(hs, http_server):
+    RoomTopicRestServlet(hs).register(http_server)
+    RoomMemberRestServlet(hs).register(http_server)
+    MessageRestServlet(hs).register(http_server)
+    RoomCreateRestServlet(hs).register(http_server)
