@@ -56,11 +56,11 @@ class MessageHandler(BaseHandler):
             yield self.auth.check(event, raises=True)
 
         # store message in db
-        yield self.store.store_message(user_id=event.user_id,
+        store_id = yield self.store.store_message(user_id=event.user_id,
                                        room_id=event.room_id,
                                        msg_id=event.msg_id,
                                        content=json.dumps(event.content))
-        self.notifier.on_new_event(event, 123)
+        self.notifier.on_new_event(event, store_id)
 
     @defer.inlineCallbacks
     def store_room_path_data(self, event=None, path=None):

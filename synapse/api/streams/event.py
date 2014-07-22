@@ -3,10 +3,12 @@
 from twisted.internet import defer
 
 from synapse.api.errors import EventStreamError
+from synapse.api.events.room import RoomMemberEvent, MessageEvent
 from synapse.api.streams import FilterStream, StreamData
 
 
 class MessagesStreamData(StreamData):
+    EVENT_TYPE = MessageEvent.TYPE
 
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key):
@@ -19,6 +21,7 @@ class MessagesStreamData(StreamData):
 
 
 class RoomMemberStreamData(StreamData):
+    EVENT_TYPE = RoomMemberEvent.TYPE
 
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key):

@@ -27,8 +27,7 @@ def exec_single_with_result(txn, query, func, *args):
     Returns:
         The result of func(results)
     """
-    logger.debug("[SQL] %s  Args=%s Func=%s.%s" % (query, args,
-                                                        func.im_self.__name__,
+    logger.debug("[SQL] %s  Args=%s Func=%s" % (query, args,
                                                         func.__name__))
     cursor = txn.execute(query, args)
     return func(cursor)
@@ -38,6 +37,10 @@ def exec_single(txn, query, *args):
     """Runs a single query, returning nothing."""
     logger.debug("[SQL] %s  Args=%s" % (query, args))
     txn.execute(query, args)
+
+
+def last_row_id(cursor):
+    return cursor.lastrowid
 
 
 class StreamStore(object):
@@ -268,8 +271,11 @@ class MessageStore(object):
                       content=None):
         query = ("INSERT INTO " + MessagesTable.table_name +
                  "(user_id, room_id, msg_id, content) VALUES(?,?,?,?)")
-        yield self._db_pool.runInteraction(exec_single, query, user_id, room_id,
-                    msg_id, content)
+        last_id = yield self._db_pool.runInteraction(
+                        exec_single_with_result,
+                        query, last_row_id, user_id, room_id,
+                        msg_id, content)
+        defer.returnValue(last_id)
 
 
 class RoomMemberStore(object):

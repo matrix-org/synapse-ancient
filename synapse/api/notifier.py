@@ -14,6 +14,7 @@ class Notifier(object):
 
     def __init__(self, hs):
         self.store = hs.get_event_data_store()
+        self.hs = hs
         self.stored_event_listeners = {}
 
     @defer.inlineCallbacks
@@ -33,7 +34,15 @@ class Notifier(object):
                 if member.user_id in self.stored_event_listeners:
                     logger.debug(("Notifying %s of a new event." %
                                  member.user_id))
-                    # TODO work out the new end token
+                    # work out the new end token
+                    stream_handler = (self.hs.get_event_handler_factory().
+                                        event_stream_handler())
+                    end = stream_handler.get_event_stream_token(
+                        event,
+                        store_id,
+                        self.stored_event_listeners[member.user_id]["start"]
+                        )
+                    self.stored_event_listeners[member.user_id]["end"] = end
 
                     # add the event to the chunk
                     chunk = self.stored_event_listeners[member.user_id]["chunk"]
