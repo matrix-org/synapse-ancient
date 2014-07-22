@@ -100,8 +100,7 @@ def run():
     # the replication layer
     hs.get_federation()
 
-    # TODO(paul): Should this always be done by the construction process itself?
-    hs.get_rest_servlet_factory().register_servlets(hs.get_http_server())
+    hs.register_servlets()
 
     hs.get_http_server().start_listening(args.port)
 

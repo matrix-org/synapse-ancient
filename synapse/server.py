@@ -134,3 +134,9 @@ class HomeServer(BaseHomeServer):
 
     def build_room_lock_manager(self):
         return LockManager()
+
+    def register_servlets(self):
+        """A convenient shortcut that servers will need to perform in order to
+        connect the HTTP servlets to the actual HTTP server."""
+        self.get_rest_servlet_factory().register_servlets(
+                self.get_http_server())
