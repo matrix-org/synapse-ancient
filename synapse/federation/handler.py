@@ -8,6 +8,12 @@ from .pdu_codec import PduCodec
 
 
 class FederationEventHandler(object):
+    """ Responsible for:
+        a) handling received Pdus before handing them on as Events to the rest
+        of the home server (including auth and state conflict resoultion)
+        b) converting events that were produced by local clients that may need
+        to be sent to remote home servers.
+    """
 
     def __init__(self, hs):
         self.persistence = hs.get_persistence_service()
@@ -27,6 +33,17 @@ class FederationEventHandler(object):
 
     @defer.inlineCallbacks
     def handle_new_event(self, event):
+        """ Takes in an event from the client to server side, that has already
+        been authed and handled by the state module, and sends it to any
+        remote home servers that may be interested.
+
+        Args:
+            event
+
+        Returns:
+            Deferred: Resolved when it has successfully been queued for
+            processing.
+        """
         yield self._fill_out_prev_events(event)
 
         pdu = self.pdu_codec.pdu_from_event(event)
@@ -45,6 +62,9 @@ class FederationEventHandler(object):
 
     @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
+        """ Called by the ReplicationLayer when we have a new pdu. We need to
+        do auth checks and put it throught the StateHandler.
+        """
         event = self.pdu_codec.event_from_pdu(pdu)
 
         try:

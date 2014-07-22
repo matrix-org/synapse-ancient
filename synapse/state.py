@@ -17,7 +17,7 @@ KeyStateTuple = namedtuple("KeyStateTuple", ("context", "type", "state_key"))
 
 
 class StateHandler(object):
-    """ StateHandler is repsonsible for doing state conflict resolution.
+    """ Repsonsible for doing state conflict resolution.
     """
 
     def __init__(self, hs):
@@ -27,7 +27,20 @@ class StateHandler(object):
 
     @defer.inlineCallbacks
     def handle_new_event(self, event, new_state_callback):
+        """ Given an event this works out if a) we have sufficient power level
+        to update the state and b) works out what the prev_state should be.
+
+        Returns:
+            Deferred: Resolved with a boolean indicating if we succesfully
+            updated the state.
+
+        Raised:
+            AuthError
+        """
         # This needs to be done in a transaction.
+
+        if not event.is_state:
+            return
 
         key = KeyStateTuple(
             event.room_id,
@@ -74,6 +87,8 @@ class StateHandler(object):
             pdu_type=key.type,
             state_key=key.state_key
         )
+
+        defer.returnValue(True)
 
     @defer.inlineCallbacks
     def handle_new_state(self, new_pdu, new_state_callback=None):
