@@ -36,7 +36,7 @@ class EventStreamRestServlet(RestServlet):
             "to_tok": FilterStream.TOK_END,
             "limit": None,
             "direction": 'f',
-            "timeout": 0
+            "timeout": 5
         }
         try:
             if request.args["dir"][0] not in ["f", "b"]:
@@ -49,8 +49,8 @@ class EventStreamRestServlet(RestServlet):
             params["from_tok"] = request.args["from"][0]
         if "to" in request.args:
             params["to_tok"] = request.args["to"][0]
-        if "lp" in request.args:
-            params["timeout"] = 5
+        if "timeout" in request.args:
+            params["timeout"] = int(request.args["timeout"][0])
         if "limit" in request.args:
             try:
                 params["limit"] = request.args["limit"][0]

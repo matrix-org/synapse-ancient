@@ -108,8 +108,8 @@ class Notifier(object):
         return d
 
     def _timeout(self, user_id):
-        logger.debug("%s event listening timed out." % user_id)
         try:
             self.stored_event_listeners[user_id]["defer"].callback(None)
+            logger.debug("%s event listening timed out." % user_id)
         except KeyError:
             pass
