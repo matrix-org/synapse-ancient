@@ -6,6 +6,7 @@ from .units import Pdu
 
 import time
 
+
 def decode_event_id(event_id, server_name):
     parts = event_id.split("@", 1)
     if len(parts) < 2:
