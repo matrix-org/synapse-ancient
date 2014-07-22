@@ -113,7 +113,8 @@ def _send_response(request, code, content):
     
     # Hack to turn on CORS for everyone for now...
     request.setHeader("Access-Control-Allow-Origin", "*");
-    # only needed for pre-flight OPTIONS requests in practice
+    request.setHeader("Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, OPTIONS");
     request.setHeader("Access-Control-Allow-Headers",
         "Origin, X-Requested-With, Content-Type, Accept");
 

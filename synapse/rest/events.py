@@ -14,6 +14,7 @@ class EventStreamRestServlet(RestServlet):
     def register(self, http_server):
         pattern = re.compile("^/events$")
         http_server.register_path("GET", pattern, self.on_GET)
+        http_server.register_path("OPTIONS", pattern, self.on_OPTIONS)
 
     @defer.inlineCallbacks
     def on_GET(self, request):
@@ -56,3 +57,6 @@ class EventStreamRestServlet(RestServlet):
                     "limit cannot be used with this stream.")
 
         return params
+
+    def on_OPTIONS(self, request):
+        return (200, {})

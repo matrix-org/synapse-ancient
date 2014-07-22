@@ -17,10 +17,16 @@ class RoomCreateRestServlet(RestServlet):
 
     def register(self, http_server):
         # /rooms OR /rooms/<roomid>
-        http_server.register_path("POST", re.compile("^/rooms$"), self.on_POST)
+        http_server.register_path("POST",
+                                  re.compile("^/rooms$"),
+                                  self.on_POST)
         http_server.register_path("PUT",
                                   re.compile("^/rooms/(?P<roomid>[^/]*)$"),
                                   self.on_PUT)
+        # define CORS for all of /rooms in RoomCreateRestServlet for simplicity
+        http_server.register_path("OPTIONS",
+                                  re.compile("^/rooms(?:/.*)?$"),
+                                  self.on_OPTIONS)
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
@@ -77,6 +83,8 @@ class RoomCreateRestServlet(RestServlet):
         except (ValueError, TypeError):
             raise InvalidHttpRequestError(400, "Body must be JSON.")
 
+    def on_OPTIONS(self, request):
+        return (200, {})
 
 class RoomTopicRestServlet(RestServlet):
 

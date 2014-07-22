@@ -184,7 +184,7 @@ class RoomMemberHandler(BaseHandler):
         Args:
             event (SynapseEvent): The membership event
             broadcast_msg (bool): True to inject a membership message into this
-            room on success.
+                room on success.
         Raises:
             SynapseError if there was a problem changing the membership.
         """
