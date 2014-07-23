@@ -365,8 +365,31 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
+        self.event_factory = hs.get_event_factory()
+        self._event_mappings = {
+            RoomMemberTable.EntryType: RoomMemberEvent.TYPE
+        }
 
-    def to_events(self, store_data):
+    def _create_event(self, store_data):
+        event_type = None
+        fields = {}
+        if store_data.__class__ == RoomMemberTable.EntryType:
+            event_type = RoomMemberEvent.TYPE
+            fields = {
+                "target_user_id": store_data.user_id,
+                "content": {"membership": store_data.membership},
+                "room_id": store_data.room_id,
+                "user_id": store_data.user_id
+            }
+        else:
+            raise StoreError("Cannot map class %s." % store_data.__class__)
+
+        return self.event_factory.create_event(
+            etype=event_type,
+            **fields
+            )
+
+    def to_events(self, store_data_list):
         """Converts a representation of store data into event streamable data.
 
         This maps the way data is represented from the database into events.
@@ -378,4 +401,7 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
         Raises:
             StoreError if there was a problem parsing these namedtuples.
         """
-        return store_data  # TODO
+        events = []
+        for d in store_data_list:
+            events.append(self._create_event(d).get_dict())
+        return events

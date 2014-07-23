@@ -82,17 +82,14 @@ class Auth(object):
             target = None
         target_in_room = target and target.membership == "join"
 
-        if not event.membership:
-            # not a membership change, but a request for one. They can only do
-            # that if they are in the room.
-            defer.returnValue(caller_in_room)
+        membership = event.content["membership"]
 
-        if Membership.INVITE == event.membership:
+        if Membership.INVITE == membership:
             # Invites are valid iff caller is in the room and target isn't.
             if not caller_in_room or target_in_room:
                 # caller isn't joined or the target is already in the room.
                 raise AuthError(403, "Cannot invite.")
-        elif Membership.JOIN == event.membership:
+        elif Membership.JOIN == membership:
             # Joins are valid iff caller == target and they were:
             # invited: They are accepting the invitation
             # joined: It's a NOOP
@@ -100,13 +97,13 @@ class Auth(object):
                     caller.membership not in
                     [Membership.INVITE, Membership.JOIN]):
                 raise AuthError(403, "You are not invited to this room.")
-        elif Membership.LEAVE == event.membership:
+        elif Membership.LEAVE == membership:
             if not caller_in_room or event.target_user_id != event.user_id:
                 # trying to leave a room you aren't joined or trying to force
                 # another user to leave
                 raise AuthError(403, "Cannot leave.")
         else:
-            raise AuthError(500, "Unknown membership %s" % event.membership)
+            raise AuthError(500, "Unknown membership %s" % membership)
 
         defer.returnValue(True)
 

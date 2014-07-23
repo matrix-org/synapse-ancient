@@ -245,14 +245,14 @@ class RoomMemberHandler(BaseHandler):
             user_id=event.target_user_id,
             room_id=event.room_id,
             content=event.content,
-            membership=event.membership)
+            membership=event.content["membership"])
 
         if broadcast_msg:
             yield self._inject_membership_msg(
                 source=event.user_id,
                 target=event.target_user_id,
                 room_id=event.room_id,
-                membership=event.membership)
+                membership=event.content["membership"])
 
     @defer.inlineCallbacks
     def _inject_membership_msg(self, room_id=None, source=None, target=None,

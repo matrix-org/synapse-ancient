@@ -18,7 +18,6 @@ class RoomMemberEvent(SynapseEvent):
 
     valid_keys = SynapseEvent.valid_keys + [
         "target_user_id",  # target
-        "membership",  # action
     ]
 
     def __init__(self, **kwargs):
