@@ -179,6 +179,36 @@ class RoomMemberHandler(BaseHandler):
         self.msg_handler = (hs.get_event_handler_factory().message_handler())
 
     @defer.inlineCallbacks
+    def get_room_members(self, room_id=None, user_id=None, limit=0,
+                         start_tok=None, end_tok=None):
+        """Retrieve a list of room members in the room.
+
+        Args:
+            room_id (str): The room to get the member list for.
+            user_id (str): The ID of the user making the request.
+            limit (int): The max number of members to return.
+            start_tok (str): Optional. The start token if known.
+            end_tok (str): Optional. The end token if known.
+        Returns:
+            dict: A filter streamable dict.
+        Raises:
+            SynapseError if something goes wrong.
+        """
+        yield self.auth.check_joined_room(room_id, user_id)
+
+        member_list = yield self.store.get_room_members(room_id=room_id)
+        event_list = self.store.to_events(member_list)
+        chunk_data = {
+            "start": "NOT_IMPLEMENTED",
+            "end": "NOT_IMPLEMENTED",
+            "chunk": event_list
+        }
+        # TODO honor filter stream params
+        # TODO snapshot this list to return on subsequent requests when
+        # paginating
+        defer.returnValue(chunk_data)
+
+    @defer.inlineCallbacks
     def get_room_member(self, room_id, member_user_id, auth_user_id):
         """Retrieve a room member from a room.
 

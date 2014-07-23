@@ -309,7 +309,8 @@ class RoomMemberStore(object):
         res = yield self._db_pool.runInteraction(exec_single_with_result, query,
                     self.room_member_decode, room_id)
         # strip memberships which don't match
-        res = [entry for entry in res if entry.membership == membership]
+        if membership:
+            res = [entry for entry in res if entry.membership == membership]
         defer.returnValue(res)
 
     def room_member_decode(self, cursor):
@@ -372,3 +373,17 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
+
+    def to_events(self, store_data):
+        """Converts a representation of store data into event streamable data.
+
+        This maps the way data is represented from the database into events.
+
+        Args:
+            store_data (list): A list of namedtuples received from the store.
+        Returns:
+            list: A list of dicts which represent these namedtuples as events.
+        Raises:
+            StoreError if there was a problem parsing these namedtuples.
+        """
+        return store_data  # TODO
