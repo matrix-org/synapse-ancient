@@ -1,12 +1,9 @@
 import unittest
 
+from synapse.server import BaseHomeServer
 from synapse.types import UserID, UserName, RoomName
 
-class MockHomeServer(object):
-    def __init__(self):
-        self.hostname = "my.domain"
-
-mock_homeserver = MockHomeServer()
+mock_homeserver = BaseHomeServer(hostname="my.domain")
 
 class UserIDTestCase(unittest.TestCase):
 
@@ -21,6 +18,12 @@ class UserIDTestCase(unittest.TestCase):
         user = UserID("5678efgh", "my.domain", True)
 
         self.assertEquals(user.to_string(), "!5678efgh:my.domain")
+
+    def test_via_homeserver(self):
+        user = mock_homeserver.parse_userid("!3456ijkl:my.domain")
+
+        self.assertEquals("3456ijkl", user.localpart)
+        self.assertEquals("my.domain", user.domain)
 
 
 class UserNameTestCase(unittest.TestCase):

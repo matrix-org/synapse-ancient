@@ -15,6 +15,7 @@ from synapse.api.auth import Auth
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
 from synapse.state import StateHandler
+from synapse.types import UserID
 from synapse.util.lockutils import LockManager
 
 
@@ -83,6 +84,12 @@ class BaseHomeServer(object):
             )
 
         setattr(BaseHomeServer, "get_%s" % (depname), _get)
+
+    # Other utility methods
+    def parse_userid(self, s):
+        """Parse the string given by 's' as a User ID and return a UserID
+        object."""
+        return UserID.from_string(s, hs=self)
 
 # Build magic accessors for every dependency
 for depname in BaseHomeServer.DEPENDENCIES:
