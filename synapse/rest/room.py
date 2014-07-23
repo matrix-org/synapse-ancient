@@ -10,6 +10,7 @@ from synapse.api.constants import Membership
 
 import json
 import re
+import time
 
 
 class RoomCreateRestServlet(RestServlet):
@@ -253,6 +254,9 @@ class MessageRestServlet(RestServlet):
                 raise SynapseError(403, "Must send messages as yourself.")
 
             content = _parse_json(request)
+
+            # stamp the message with ms resolution
+            content["hsob_ts"] = int(time.time()) * 1000
 
             event = self.event_factory.create_event(
                 etype=self.get_event_type(),
