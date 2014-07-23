@@ -18,6 +18,8 @@ import json
 
 from ..utils import MockHttpServer, MemoryDataStore
 
+from mock import Mock
+
 
 class RoomPermissionsTestCase(unittest.TestCase):
     """ Tests room permissions. """
@@ -31,8 +33,11 @@ class RoomPermissionsTestCase(unittest.TestCase):
     def setUp(self):
         self.mock_server = MockHttpServer()
 
-        hs = HomeServer("test",
-                db_pool=None)
+        hs = HomeServer(
+            "test",
+            db_pool=None,
+            federation=Mock(),
+        )
         hs.event_data_store = MemoryDataStore()
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
@@ -325,8 +330,10 @@ class RoomsCreateTestCase(unittest.TestCase):
     def setUp(self):
         self.mock_server = MockHttpServer()
 
-        hs = HomeServer("test",
-                db_pool=None)
+        hs = HomeServer(
+            "test",
+            db_pool=None,
+        )
         hs.event_data_store = MemoryDataStore()
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
@@ -424,8 +431,12 @@ class RoomsTestCase(unittest.TestCase):
     def setUp(self):
         self.mock_server = MockHttpServer()
 
-        hs = HomeServer("test",
-                db_pool=None)
+        hs = HomeServer(
+            "test",
+            db_pool=None,
+            http_server=self.mock_server,
+            federation=Mock()
+        )
         hs.event_data_store = MemoryDataStore()
         hs.auth = Auth(hs.get_event_data_store())
         hs.auth.get_user_by_token = self.mock_get_user_by_token

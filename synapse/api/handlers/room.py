@@ -52,15 +52,19 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
-        if not suppress_auth:
-            yield self.auth.check(event, raises=True)
+        with (yield self.room_lock.lock(event.room_id)):
+            if not suppress_auth:
+                yield self.auth.check(event, raises=True)
 
-        # store message in db
-        store_id = yield self.store.store_message(user_id=event.user_id,
-                                       room_id=event.room_id,
-                                       msg_id=event.msg_id,
-                                       content=json.dumps(event.content))
-        self.notifier.on_new_event(event, store_id)
+            # store message in db
+            store_id = yield self.store.store_message(user_id=event.user_id,
+                                           room_id=event.room_id,
+                                           msg_id=event.msg_id,
+                                           content=json.dumps(event.content))
+
+            yield self.hs.get_federation().handle_new_event(event)
+
+            self.notifier.on_new_event(event, store_id)
 
     @defer.inlineCallbacks
     def store_room_path_data(self, event=None, path=None):
