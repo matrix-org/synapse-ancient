@@ -44,13 +44,13 @@ class UserNameTestCase(unittest.TestCase):
 class RoomNameTestCase(unittest.TestCase):
 
     def test_parse(self):
-        user = RoomName.from_string("#channel:my.domain", hs=mock_homeserver)
+        room = RoomName.from_string("#channel:my.domain", hs=mock_homeserver)
 
-        self.assertEquals("channel", user.localpart)
-        self.assertEquals("my.domain", user.domain)
-        self.assertEquals(True, user.is_mine)
+        self.assertEquals("channel", room.localpart)
+        self.assertEquals("my.domain", room.domain)
+        self.assertEquals(True, room.is_mine)
 
     def test_build(self):
-        user = RoomName("channel", "my.domain", True)
+        room = RoomName("channel", "my.domain", True)
 
-        self.assertEquals(user.to_string(), "#channel:my.domain")
+        self.assertEquals(room.to_string(), "#channel:my.domain")
