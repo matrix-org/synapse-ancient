@@ -3,6 +3,13 @@
 <head>
     <title>Synapse</title>
     <style type="text/css">
+        label {
+            float: left;
+            width: 5em;
+            text-align: right;
+            margin-right: 1em;
+        }
+
         .message .sender {
             float: left;
             width: 22em;
@@ -21,9 +28,12 @@
     <div ng-controller="LoginController" ng-hide="hideLogin" class="login">
         <h3>Login:</h3>
         <form novalidate>
-            User: <input type="text" auto-focus ng-model="account.user_id" /><br />
-            Server: <input type="text" ng-model="account.server" /><br />
-            Room: <input type="text" ng-model="room" /><br />
+            <label for="user_id">User:</label>
+            <input id="user_id" size="50" type="text" auto-focus ng-model="account.user_id" /><br />
+            <label for="server">Server:</label>
+            <input id="server" size="50" type="text" ng-model="account.server" /><br />
+            <label for="room">Room:</label>
+            <input id="room" size="50" type="text" ng-model="room" /><br />
             <button ng-click="login()">Login</button>
         </form>
         <br/>
@@ -60,7 +70,7 @@
             'use strict';
             $scope.state = state.state;
             $scope.account = {
-                "server": "http://localhost:8080",
+                "server": "http://matrix.openmarket.com",
             }
             $scope.room = "tng";
             
