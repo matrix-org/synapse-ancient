@@ -48,9 +48,9 @@ class FederationEventHandler(object):
 
         pdu = self.pdu_codec.pdu_from_event(event)
 
-        #pdu.destinations = yield self.persistence.get_servers_in_context(
-            #pdu.context
-        #)
+        # pdu.destinations = yield self.persistence.get_servers_in_context(
+        #     pdu.context
+        # )
 
         pdu.destinations = []
 
@@ -74,12 +74,12 @@ class FederationEventHandler(object):
                 # Auth is hard. Let's ignore it for now.
                 # yield self.auth_handler.check(event)
 
-                def _on_new_state(self, new_state_event):
+                def _on_new_state(new_state_event):
                     return self._on_new_state(pdu, new_state_event)
 
                 if event.is_state:
                     yield self.state_handler.handle_new_state(
-                        event,
+                        pdu,
                         _on_new_state
                     )
 
