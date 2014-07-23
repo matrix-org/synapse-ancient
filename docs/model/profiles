@@ -106,11 +106,18 @@ User ID in some external form (e.g. that can be printed on a business card).
 The format for Synapse user name will consist of a localpart specific to the
 directory server, and the domain name of that directory server:
 
-  @localname.some.domain.name
+  @localname:some.domain.name
+
+The localname is separated from the domain name using a colon, so as to ensure
+the localname can still contain periods, as users may want this for similarity
+to email addresses or the like, which typically can contain them. The format is
+also visually quite distinct from email addresses, phone numbers, etc... so
+hopefully reasonably "self-describing" when written on e.g. a business card
+without surrounding context.
 
 [[TODO(paul): we might have to think about this one - too close to email?
   Twitter? Also it suggests a format scheme for room names of
-  #localname.domain.name, which I quite like]]
+  #localname:domain.name, which I quite like]]
 
 Directory server administrators should be able to make some kind of policy
 decision on how these are allocated. Servers within some "closed" domain (such

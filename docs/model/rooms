@@ -28,11 +28,17 @@ any current member of a room can invite others to join it, can post messages
 that become part of its history, and can change the persistent state of the room
 (including its current set of permissions).
 
-Home servers can provide a directory service, allowing a lookup from some
+Home servers can provide a directory service, allowing a lookup from a
 convenient human-readable form of room label to a room ID. This mapping is
 scoped to the particular home server domain and so simply represents that server
 administrator's opinion of what room should take that label; it does not have to
 be globally replicated and does not form part of the stored state of that room.
+
+This room name takes the form
+
+  #localname:some.domain.name
+
+for similarity and consistency with user names on directories.
 
 To join a room (and therefore to be allowed to inspect past history, post new
 messages to it, and read its state), a user must become aware of the room's
