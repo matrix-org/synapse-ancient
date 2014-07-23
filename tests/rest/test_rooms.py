@@ -44,36 +44,38 @@ class RoomsTestCase(unittest.TestCase):
         self.auth_user_id = temp_id
 
     @defer.inlineCallbacks
-    def invite(self, room=None, src=None, targ=None):
+    def invite(self, room=None, src=None, targ=None, expect_code=200):
         yield self.change_membership(room=room, src=src, targ=targ,
-                                     membership=Membership.INVITE)
+                                     membership=Membership.INVITE,
+                                     expect_code=expect_code)
 
     @defer.inlineCallbacks
-    def join(self, room=None, user=None):
+    def join(self, room=None, user=None, expect_code=200):
         yield self.change_membership(room=room, src=user, targ=user,
-                                     membership=Membership.JOIN)
+                                     membership=Membership.JOIN,
+                                     expect_code=expect_code)
 
     @defer.inlineCallbacks
-    def leave(self, room=None, user=None):
+    def leave(self, room=None, user=None, expect_code=200):
         yield self.change_membership(room=room, src=user, targ=user,
-                                     membership=Membership.LEAVE)
+                                     membership=Membership.LEAVE,
+                                     expect_code=expect_code)
 
     @defer.inlineCallbacks
     def change_membership(self, room=None, src=None, targ=None,
-                          membership=None):
+                          membership=None, expect_code=200):
         temp_id = self.auth_user_id
         self.auth_user_id = src
-
         if membership == Membership.LEAVE:
             (code, response) = yield self.mock_server.trigger("DELETE",
                                     "/rooms/%s/members/%s/state" % (room, targ),
                                     None)
-            self.assertEquals(200, code, msg=str(response))
+            self.assertEquals(expect_code, code, msg=str(response))
         else:
             (code, response) = yield self.mock_server.trigger("PUT",
                                     "/rooms/%s/members/%s/state" % (room, targ),
                                     '{"membership":"%s"}' % membership)
-            self.assertEquals(200, code, msg=str(response))
+            self.assertEquals(expect_code, code, msg=str(response))
 
         self.auth_user_id = temp_id
 
@@ -267,7 +269,7 @@ class RoomPermissionsTestCase(RoomsTestCase):
         self.assertEquals(403, code, msg=str(response))
 
     @defer.inlineCallbacks
-    def _test_membership(self, room=None, members=[], expect_code=None):
+    def _test_get_membership(self, room=None, members=[], expect_code=None):
         path = "/rooms/%s/members/%s/state"
         for member in members:
             (code, response) = yield self.mock_server.trigger_get(
@@ -276,69 +278,147 @@ class RoomPermissionsTestCase(RoomsTestCase):
             self.assertEquals(expect_code, code)
 
     @defer.inlineCallbacks
-    def test_membership_perms(self):
+    def test_membership_basic_room_perms(self):
+        # === room does not exist ===
+        room = self.uncreated_rmid
         # get membership of self, get membership of other, uncreated room
         # expect all 403s
-        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
-                                    room=self.uncreated_rmid, expect_code=403)
+        yield self._test_get_membership(
+            members=[self.user_id, self.rmcreator_id],
+            room=room, expect_code=403)
 
-        # get membership of self, get membership of other, public room + invite
+        # trying to invite people to this room should 403
+        yield self.invite(room=room, src=self.user_id, targ=self.rmcreator_id,
+                          expect_code=403)
+
+        # set [invite/join/left] of self, set [invite/join/left] of other,
         # expect all 403s
-        yield self.invite(room=self.created_rmid, src=self.rmcreator_id,
-                          targ=self.user_id)
-        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
-                                    room=self.created_rmid, expect_code=403)
+        for usr in [self.user_id, self.rmcreator_id]:
+            yield self.join(room=room, user=usr, expect_code=403)
+            yield self.leave(room=room, user=usr, expect_code=403)
 
-        # get membership of self, get membership of other, public room + joined
-        # expect all 200s
-        yield self.join(room=self.created_rmid, user=self.user_id)
-        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
-                                    room=self.created_rmid, expect_code=200)
-
-        # get membership of self, get membership of other, public room + left
-        # expect all 403s
-        yield self.leave(room=self.created_rmid, user=self.user_id)
-        yield self._test_membership(members=[self.user_id, self.rmcreator_id],
-                                    room=self.created_rmid, expect_code=403)
-
+    @defer.inlineCallbacks
+    def test_membership_private_room_perms(self):
+        room = self.created_rmid
         # get membership of self, get membership of other, private room + invite
         # expect all 403s
+        yield self.invite(room=room, src=self.rmcreator_id,
+                          targ=self.user_id)
+        yield self._test_get_membership(
+            members=[self.user_id, self.rmcreator_id],
+            room=room, expect_code=403)
 
         # get membership of self, get membership of other, private room + joined
         # expect all 200s
+        yield self.join(room=room, user=self.user_id)
+        yield self._test_get_membership(
+            members=[self.user_id, self.rmcreator_id],
+            room=room, expect_code=200)
 
         # get membership of self, get membership of other, private room + left
         # expect all 403s
+        yield self.leave(room=room, user=self.user_id)
+        yield self._test_get_membership(
+            members=[self.user_id, self.rmcreator_id],
+            room=room, expect_code=403)
 
-
-        # === room does not exist ===
-        # set [invite/join/left] of self, set [invite/join/left] of other,
+    @defer.inlineCallbacks
+    def test_membership_public_room_perms(self):
+        room = self.created_public_rmid
+        # get membership of self, get membership of other, public room + invite
         # expect all 403s
+        yield self.invite(room=room, src=self.rmcreator_id,
+                          targ=self.user_id)
+        yield self._test_get_membership(
+            members=[self.user_id, self.rmcreator_id],
+            room=room, expect_code=403)
 
-        # === invited to room ===
-        # set [invite/left] of self, set [invite/join/left] of other,
+        # get membership of self, get membership of other, public room + joined
+        # expect all 200s
+        yield self.join(room=room, user=self.user_id)
+        yield self._test_get_membership(
+            members=[self.user_id, self.rmcreator_id],
+            room=room, expect_code=200)
+
+        # get membership of self, get membership of other, public room + left
         # expect all 403s
+        yield self.leave(room=room, user=self.user_id)
+        yield self._test_get_membership(
+            members=[self.user_id, self.rmcreator_id],
+            room=room, expect_code=403)
 
-        # set joined of self, expect 200
+    @defer.inlineCallbacks
+    def test_invited_permissions(self):
+        room = self.created_rmid
+        yield self.invite(room=room, src=self.rmcreator_id, targ=self.user_id)
 
-        # TODO: DELETE the invited = rejected invitation?
+        # set [invite/join/left] of other user, expect 403s
+        yield self.invite(room=room, src=self.user_id, targ=self.rmcreator_id,
+                          expect_code=403)
+        yield self.change_membership(room=room, src=self.user_id,
+                                     targ=self.rmcreator_id,
+                                     membership=Membership.JOIN,
+                                     expect_code=403)
+        yield self.change_membership(room=room, src=self.user_id,
+                                     targ=self.rmcreator_id,
+                                     membership=Membership.LEAVE,
+                                     expect_code=403)
 
-        # === joined room ===
-        # set invited of self, expect 400
+    @defer.inlineCallbacks
+    def test_joined_permissions(self):
+        room = self.created_rmid
+        yield self.invite(room=room, src=self.rmcreator_id, targ=self.user_id)
+        yield self.join(room=room, user=self.user_id)
+
+        # set invited of self, expect 403
+        yield self.invite(room=room, src=self.user_id, targ=self.user_id,
+                          expect_code=403)
 
         # set joined of self, expect 200 (NOOP)
+        yield self.join(room=room, user=self.user_id)
 
-        # set left of self, expect 200
-
+        other = "burgundy"
         # set invited of other, expect 200
+        yield self.invite(room=room, src=self.user_id, targ=other,
+                          expect_code=200)
 
         # set joined of other, expect 403
+        yield self.change_membership(room=room, src=self.user_id,
+                                     targ=other,
+                                     membership=Membership.JOIN,
+                                     expect_code=403)
 
         # set left of other, expect 403
+        yield self.change_membership(room=room, src=self.user_id,
+                                     targ=other,
+                                     membership=Membership.LEAVE,
+                                     expect_code=403)
 
-        # === left room ===
+        # set left of self, expect 200
+        yield self.leave(room=room, user=self.user_id)
+
+    @defer.inlineCallbacks
+    def test_leave_permissions(self):
+        room = self.created_rmid
+        yield self.invite(room=room, src=self.rmcreator_id, targ=self.user_id)
+        yield self.join(room=room, user=self.user_id)
+        yield self.leave(room=room, user=self.user_id)
+
         # set [invite/join/left] of self, set [invite/join/left] of other,
         # expect all 403s
+        for usr in [self.user_id, self.rmcreator_id]:
+            yield self.change_membership(room=room, src=self.user_id,
+                                     targ=usr,
+                                     membership=Membership.INVITE,
+                                     expect_code=403)
+            yield self.change_membership(room=room, src=self.user_id,
+                                     targ=usr,
+                                     membership=Membership.JOIN,
+                                     expect_code=403)
+            yield self.change_membership(room=room, src=self.user_id,
+                                     targ=usr,
+                                     membership=Membership.LEAVE,
+                                     expect_code=403)
 
 
 class RoomsMemberListTestCase(RoomsTestCase):
