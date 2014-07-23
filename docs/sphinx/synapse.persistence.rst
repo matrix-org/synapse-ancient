@@ -6,6 +6,7 @@ Submodules
 
 .. toctree::
 
+   synapse.persistence.service
    synapse.persistence.tables
    synapse.persistence.transactions
 

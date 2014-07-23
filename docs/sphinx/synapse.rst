@@ -8,10 +8,18 @@ Subpackages
 
     synapse.api
     synapse.app
-    synapse.db
     synapse.federation
     synapse.persistence
+    synapse.rest
     synapse.util
+
+Submodules
+----------
+
+.. toctree::
+
+   synapse.server
+   synapse.state
 
 Module contents
 ---------------

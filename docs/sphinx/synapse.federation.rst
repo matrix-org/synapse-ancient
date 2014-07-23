@@ -6,7 +6,8 @@ Submodules
 
 .. toctree::
 
-   synapse.federation.messaging
+   synapse.federation.handler
+   synapse.federation.pdu_codec
    synapse.federation.persistence
    synapse.federation.replication
    synapse.federation.transport

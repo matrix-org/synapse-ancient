@@ -1,20 +1,25 @@
 synapse.api package
 ===================
 
+Subpackages
+-----------
+
+.. toctree::
+
+    synapse.api.events
+    synapse.api.handlers
+    synapse.api.streams
+
 Submodules
 ----------
 
 .. toctree::
 
    synapse.api.auth
-   synapse.api.dbobjects
-   synapse.api.event_stream
-   synapse.api.events
+   synapse.api.constants
+   synapse.api.errors
    synapse.api.notifier
-   synapse.api.register_events
-   synapse.api.room_events
-   synapse.api.server
-   synapse.api.stream
+   synapse.api.storage
 
 Module contents
 ---------------

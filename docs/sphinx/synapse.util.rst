@@ -7,8 +7,9 @@ Submodules
 .. toctree::
 
    synapse.util.async
-   synapse.util.dbutils
    synapse.util.http
+   synapse.util.lockutils
+   synapse.util.logutils
    synapse.util.stringutils
 
 Module contents
