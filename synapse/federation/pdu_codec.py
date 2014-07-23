@@ -4,6 +4,7 @@
 from synapse.api.events import SynapseEvent
 from .units import Pdu
 
+import copy
 import time
 
 
@@ -76,7 +77,7 @@ class PduCodec(object):
                 decode_event_id(event.prev_state, self.server_name)
             )
 
-        kwargs = event.unrecognized_keys
+        kwargs = copy.deepcopy(event.unrecognized_keys)
         kwargs.update({
             k: v for k, v in d.items()
             if k not in ["event_id", "room_id", "type", "prev_events"]
