@@ -174,6 +174,10 @@ class RoomCreationHandler(BaseHandler):
 
 class RoomMemberHandler(BaseHandler):
 
+    def __init__(self, hs):
+        super(RoomMemberHandler, self).__init__(hs)
+        self.msg_handler = (hs.get_event_handler_factory().message_handler())
+
     @defer.inlineCallbacks
     def get_room_member(self, room_id, member_user_id, auth_user_id):
         """Retrieve a room member from a room.
@@ -247,9 +251,4 @@ class RoomMemberHandler(BaseHandler):
                 content=membership_json
                 )
 
-        handler = MessageHandler(
-            ev_factory=self.event_factory,
-            store=self.store,
-            notifier=self.notifier,
-            auth=self.auth)
-        yield handler.send_message(event, suppress_auth=True)
+        yield self.msg_handler.send_message(event, suppress_auth=True)

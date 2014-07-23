@@ -3,8 +3,8 @@
 
 class BaseHandler(object):
 
-    def __init__(self, store=None, ev_factory=None, notifier=None, auth=None):
-        self.store = store
-        self.event_factory = ev_factory
-        self.notifier = notifier
-        self.auth = auth
+    def __init__(self, hs):
+        self.store = hs.get_event_data_store()
+        self.event_factory = hs.get_event_factory()
+        self.auth = hs.get_auth()
+        self.notifier = hs.get_notifier()
