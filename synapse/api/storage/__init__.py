@@ -7,6 +7,7 @@ from synapse.persistence.tables import RoomMemberTable, MessagesTable
 import json
 
 from .message import MessageStore
+from .profile import ProfileStore
 from .registration import RegistrationStore
 from .room import RoomStore
 from .roommember import RoomMemberStore
@@ -15,7 +16,7 @@ from .stream import StreamStore
 
 
 class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
-                 RegistrationStore, StreamStore):
+                 RegistrationStore, StreamStore, ProfileStore):
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
