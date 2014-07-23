@@ -19,11 +19,14 @@ class EventFactory(object):
             self._event_list[event_class.TYPE] = event_class
 
     def create_event(self, etype=None, **kwargs):
+        kwargs["type"] = etype
+        if "event_id" not in kwargs:
+            kwargs["event_id"] = random_string(10)
+
         try:
-            kwargs["type"] = etype
-            if "event_id" not in kwargs:
-                kwargs["event_id"] = random_string(10)
-            return self._event_list[etype](**kwargs)
+            handler = self._event_list[etype]
         except KeyError:  # unknown event type
             # TODO allow custom event types.
             raise NotImplementedError("Unknown etype=%s" % etype)
+
+        return handler(**kwargs)
