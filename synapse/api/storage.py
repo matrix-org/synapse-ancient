@@ -307,27 +307,19 @@ class RoomMemberStore(object):
         query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
             " WHERE room_id = ? GROUP BY user_id")
         res = yield self._db_pool.runInteraction(exec_single_with_result, query,
-                    self.room_member_decode, room_id)
+                    self._room_member_decode, room_id)
         # strip memberships which don't match
         if membership:
             res = [entry for entry in res if entry.membership == membership]
         defer.returnValue(res)
 
-    def room_member_decode(self, cursor):
-        col_headers = [i[0] for i in cursor.description]
+    def _room_member_decode(self, cursor):
         results = cursor.fetchall()
-        entries = []
-        for result in results:
-            entries.append(AttributeDict(dict(zip(col_headers, result))))
-        return entries
-
-
-# would prefer not to do this but Table.decode_results is SUPER BRITTLE and
-# bails out when you give it columns it doesn't like, such as MAX(id)
-class AttributeDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttributeDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
+        # strip the MAX(id) column from the results so it can be made into
+        # a namedtuple (which requires exactly the number of columns of the
+        # table)
+        entries = [t[0:-1] for t in results]
+        return RoomMemberTable.decode_results(entries)
 
 
 class RoomPathStore(object):
