@@ -78,7 +78,7 @@ class StateHandler(object):
 
         # Assume we would have raised if we got here and couldn't clobber
         # the old state
-        yield defer.maybeDeferred(new_state_callback(event))
+        yield defer.maybeDeferred(new_state_callback, event)
 
         yield self._persistence.update_current_state(
             pdu_id=event.event_id,
@@ -106,7 +106,7 @@ class StateHandler(object):
         is_new = yield self._handle_new_state(new_pdu)
 
         if is_new and new_state_callback:
-            yield defer.maybeDeferred(new_state_callback(new_pdu))
+            yield defer.maybeDeferred(new_state_callback, new_pdu)
 
             yield self._persistence.update_current_state(
                 pdu_id=new_pdu.pdu_id,
