@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import SynapseError
-from synapse.api.streams.base import FilterStream
+from synapse.api.streams import FilterStream
 from synapse.rest.base import RestServlet, InvalidHttpRequestError
 
 import re
