@@ -43,7 +43,13 @@ class ProfileDisplaynameRestServlet(RestServlet):
         if not user.is_mine:
             defer.returnValue((400, "User is not hosted on this Home Server"))
 
-        ## TODO: Authentication
+        try:
+            auth_user_id = yield self.auth.get_user_by_req(request)
+        except SynapseError as e:
+            defer.returnValue((e.code, cs_error(e.msg)))
+
+        if user.localpart != auth_user_id:
+            defer.returnValue((400, "Cannot set another user's displayname"))
 
         try:
             new_name = json.loads(request.content.read())
