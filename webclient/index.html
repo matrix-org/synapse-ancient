@@ -147,6 +147,9 @@
             };
             
             $scope.send = function() {
+                if ($scope.textInput == "") {
+                    return;
+                }
                 var msg_id = "m" + new Date().getTime();
                 $http.put($scope.state.server + "/rooms/" + $scope.state.room + "/messages/" + $scope.state.user_id + "/" + msg_id, {
                         "body": $scope.textInput,
