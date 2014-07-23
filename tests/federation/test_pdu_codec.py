@@ -34,6 +34,21 @@ class PduCodecTestCase(unittest.TestCase):
     def test_encode_event_id(self):
         self.assertEquals("A@B", encode_event_id("A", "B"))
 
+    def test_codec_event_id(self):
+        event_id = "aa@bb.com"
+
+        self.assertEquals(
+            event_id,
+            encode_event_id(*decode_event_id(event_id, None))
+        )
+
+        pdu_id = ("aa", "bb.com")
+
+        self.assertEquals(
+            pdu_id,
+            decode_event_id(encode_event_id(*pdu_id), None)
+        )
+
     def test_event_from_pdu(self):
         pdu = Pdu(
             pdu_id="foo",
