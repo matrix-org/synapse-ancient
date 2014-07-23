@@ -7,5 +7,5 @@ class FederationHandler(BaseHandler):
 
     """Handles events that originated from federation."""
 
-    def on_receive(event=None):
+    def on_receive(self, event=None):
         pass
