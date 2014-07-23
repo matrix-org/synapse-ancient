@@ -9,6 +9,9 @@ from synapse.persistence.tables import RoomMemberTable, RoomsTable
 from ._base import SQLBaseStore
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class RoomStore(SQLBaseStore):
