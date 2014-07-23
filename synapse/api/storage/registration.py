@@ -10,7 +10,7 @@ from ._base import SQLBaseStore
 import time
 
 
-class RegistrationStore(object):
+class RegistrationStore(SQLBaseStore):
 
     def __init__(self, hs):
         super(RegistrationStore, self).__init__(hs)

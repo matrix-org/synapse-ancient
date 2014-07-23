@@ -6,7 +6,11 @@ from synapse.persistence.tables import MessagesTable
 from ._base import SQLBaseStore
 
 
-class MessageStore(object):
+def last_row_id(cursor):
+    return cursor.lastrowid
+
+
+class MessageStore(SQLBaseStore):
 
     def __init__(self, hs):
         super(MessageStore, self).__init__(hs)
@@ -16,8 +20,8 @@ class MessageStore(object):
         query = MessagesTable.select_statement(
                 "user_id = ? AND room_id = ? AND msg_id = ? " +
                 "ORDER BY id DESC LIMIT 1")
-        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
-                    MessagesTable.decode_results, user_id, room_id, msg_id)
+        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
+                query, MessagesTable.decode_results, user_id, room_id, msg_id)
         if res:
             defer.returnValue(res[0])
         defer.returnValue(None)
@@ -28,7 +32,7 @@ class MessageStore(object):
         query = ("INSERT INTO " + MessagesTable.table_name +
                  "(user_id, room_id, msg_id, content) VALUES(?,?,?,?)")
         last_id = yield self._db_pool.runInteraction(
-                        exec_single_with_result,
+                        self.exec_single_with_result,
                         query, last_row_id, user_id, room_id,
                         msg_id, content)
         defer.returnValue(last_id)

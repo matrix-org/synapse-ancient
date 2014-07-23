@@ -6,7 +6,7 @@ from synapse.persistence.tables import RoomDataTable
 from ._base import SQLBaseStore
 
 
-class RoomPathStore(object):
+class RoomPathStore(SQLBaseStore):
 
     """Provides various CRUD operations for Room Events. """
 
@@ -24,8 +24,8 @@ class RoomPathStore(object):
         """
         query = RoomDataTable.select_statement(
             "path = ? ORDER BY id DESC LIMIT 1")
-        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
-                    RoomDataTable.decode_results, path)
+        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
+                query, RoomDataTable.decode_results, path)
         if res:
             defer.returnValue(res[0])
         defer.returnValue(None)
@@ -40,5 +40,5 @@ class RoomPathStore(object):
         """
         query = ("INSERT INTO " + RoomDataTable.table_name +
                 "(path, room_id, content) VALUES (?,?,?)")
-        yield self._db_pool.runInteraction(exec_single, query, path, room_id,
-                content)
+        yield self._db_pool.runInteraction(self.exec_single, query, path,
+                room_id, content)

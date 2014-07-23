@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 class SQLBaseStore(object):
-    def exec_single_with_result(txn, query, func, *args):
+    def exec_single_with_result(self, txn, query, func, *args):
         """Runs a single query for a result set.
 
         Args:
@@ -23,10 +23,7 @@ class SQLBaseStore(object):
         cursor = txn.execute(query, args)
         return func(cursor)
 
-    def exec_single(txn, query, *args):
+    def exec_single(self, txn, query, *args):
         """Runs a single query, returning nothing."""
         logger.debug("[SQL] %s  Args=%s" % (query, args))
         txn.execute(query, args)
-
-    def last_row_id(cursor):
-        return cursor.lastrowid

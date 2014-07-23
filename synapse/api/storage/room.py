@@ -11,7 +11,7 @@ from ._base import SQLBaseStore
 import json
 
 
-class RoomStore(object):
+class RoomStore(SQLBaseStore):
 
     def __init__(self, hs):
         super(RoomStore, self).__init__(hs)
@@ -63,8 +63,8 @@ class RoomStore(object):
             A namedtuple containing the room information, or an empty list.
         """
         query = RoomsTable.select_statement("room_id=?")
-        res = yield self._db_pool.runInteraction(exec_single_with_result, query,
-                    RoomsTable.decode_results, room_id)
+        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
+                query, RoomsTable.decode_results, room_id)
         if res:
             defer.returnValue(res[0])
         defer.returnValue(None)
