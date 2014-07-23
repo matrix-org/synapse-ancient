@@ -36,13 +36,9 @@ class Notifier(object):
                     logger.debug(("Notifying %s of a new event." %
                                  member.user_id))
                     # work out the new end token
-                    stream_handler = (self.hs.get_event_handler_factory().
-                                        event_stream_handler())
-                    end = stream_handler.get_event_stream_token(
-                        event,
-                        store_id,
-                        self.stored_event_listeners[member.user_id]["start"]
-                        )
+                    token = self.stored_event_listeners[member.user_id]["start"]
+                    end = self._next_token(event, store_id, token)
+
                     self.stored_event_listeners[member.user_id]["end"] = end
 
                     # add the event to the chunk
@@ -53,11 +49,19 @@ class Notifier(object):
                     d = self.stored_event_listeners[member.user_id].pop("defer")
                     d.callback(self.stored_event_listeners[member.user_id])
 
-        # TODO invites MUST prod the person being invited, as well as people in
-        # the room
-        # if (event.type == RoomMemberEvent.TYPE and
-        #         event.membership == Membership.INVITE):
-        #     print "invite: prod %s" % event.target_user_id
+        # invites MUST prod the person being invited, who won't be in the room.
+        if (event.type == RoomMemberEvent.TYPE and
+                event.content["membership"] == Membership.INVITE):
+            print "invite: prod %s" % event.target_user_id
+
+    def _next_token(self, event, store_id, current_token):
+        stream_handler = (self.hs.get_event_handler_factory().
+                                        event_stream_handler())
+        return stream_handler.get_event_stream_token(
+            event,
+            store_id,
+            current_token
+            )
 
     def store_events_for(self, user_id=None, from_tok=None):
         """Store all incoming events for this user. This should be paired with

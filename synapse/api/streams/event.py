@@ -45,7 +45,7 @@ class EventStream(FilterStream):
 
     @defer.inlineCallbacks
     def get_chunk(self, from_tok=None, to_tok=None, direction=None, limit=None):
-        # TODO add support for limit and dir=b
+        # no support for limit and dir=b, makes no sense on the EventStream
         if limit or direction != 'f':
             raise EventStreamError(400, "Limit and dir=b not supported.")
 

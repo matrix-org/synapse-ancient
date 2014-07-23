@@ -839,12 +839,8 @@ unclaimed:
 - multi-user support / multiplex (SSO to HS, then different accounts)
 
 kegan:
-- code arch improvements (maintain a trivial mapping of col header > event key
-in the data store to prevent inconsistencies when updating schema, support a
-single point of event creation for the event stream (historical + live)
 - event stream bug fixes (double join messages, feed invites down the stream,
-topic updates, spec out room membership change event type (not just text), add
-support for dir=b and limit=, etc)
+topic updates, spec out room membership change event type (not just text))
 - longpoll improvements (document timeout=, support room members/topics
 x- room message list
 - 'im sync' catchup for initial state (primarily grouping 'room message list'
