@@ -846,7 +846,6 @@ single point of event creation for the event stream (historical + live)
 topic updates, spec out room membership change event type (not just text), add
 support for dir=b and limit=, etc)
 - longpoll improvements (document timeout=, support room members/topics
-x- room member list
 x- room message list
 - 'im sync' catchup for initial state (primarily grouping 'room message list'
 requests for all rooms the user is in. This will depend on client impls, since

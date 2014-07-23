@@ -164,3 +164,6 @@ class MemoryDataStore(object):
                     content=content)
         self.paths_to_content[path] = data
 
+    def to_events(self, data_store_list):
+        return data_store_list  # TODO
+

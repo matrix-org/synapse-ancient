@@ -212,7 +212,6 @@ class RoomMemberRestServlet(RestServlet):
             defer.returnValue((200, ""))
         except SynapseError as e:
             defer.returnValue((e.code, e.msg))
-        defer.returnValue((500, ""))
 
 
 class MessageRestServlet(RestServlet):
