@@ -1,6 +1,10 @@
 Installation
 ------------
 
+Installing prerequisites on ubuntu::
+
+    $ sudo apt-get install build-essential python-dev
+
 To install the synapse module run::
 
     $ python setup.py install
