@@ -3,23 +3,31 @@
 from twisted.web.http import HTTPClient
 from twisted.internet import defer, reactor
 from twisted.internet.protocol import ClientFactory
+from twisted.names.srvconnect import SRVConnector
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 @defer.inlineCallbacks
 def fetch_server_key(server_name, ssl_context_factory):
     """Fetch the keys for a remote server."""
-    # TODO: Look up server_name using SRV records
-    factory = ClientFactory()
-    factory.protocol = SynapseKeyClientProtocol
-    factory.remote_key = defer.Deferred()
-    reactor.connectSSL(server_name, 8443, factory, ssl_context_factory)
+
+    factory = SynapseKeyClientFactory()
+
+    SRVConnector(reactor, "matrix", server_name, factory,
+        protocol="tcp", connectFuncName="connectSSL", defaultPort=443,
+        connectFuncKwArgs=dict(contextFactory=ssl_context_factory)).connect()
+
     server_key, server_certificate = yield factory.remote_key
+
     defer.returnValue((server_key, server_certificate))
 
 
 class SynapseKeyClientError(Exception):
-    """The key wasn't retireved from the remote server.'"""
+    """The key wasn't retireved from the remote server."""
     pass
 
 
@@ -29,31 +37,68 @@ class SynapseKeyClientProtocol(HTTPClient):
     SSL connection."""
 
     def connectionMade(self):
+        logger.debug("Connected to %s" % self.transport.getHost())
         self.sendCommand(b"GET", b"/key")
         self.endHeaders()
+        self.timer = reactor.callLater(
+            self.factory.timeout_seconds,
+            self.on_timeout
+        )
 
     def handleStatus(self, version, status, message):
         if status != b"200":
-            self.factory.remote_key.errback(
-                SynapseKeyClientError("Non 200 status", status, message)
-            )
+            logger.info("Non-200 response from %s: %s %s"
+                % (self.transport.getHost(), status, message))
+            self.transport.abortConnection()
 
     def handleResponse(self, response_body_bytes):
         try:
             json_response = json.loads(response_body_bytes)
         except ValueError:
-            self.factory.remote_key.errback(SynapseKeyClientError(
-                "Invalid JSON response"))
+            logger.info("Invalid JSON response from %s"
+                % self.transport.getHost())
+            self.transport.abortConnection()
+            return
 
         certificate = self.transport.getPeerCertificate()
+        self.factory.on_remote_key((json_response, certificate))
+        self.transport.abortConnection()
+        self.timer.cancel()
 
-        self.factory.remote_key.callback((json_response, certificate))
+    def on_timeout(self):
+        logger.debug("Timeout waiting for response from %s"
+            % self.transport.getHost())
+        self.transport.abortConnection()
 
-        self.transport.loseConnection()
 
-    def connectionLost(self, reason):
-        HTTPClient.connectionLost(self, reason)
-        self.factory.remote_key.errback(
-            SynapseKeyClientError("Connection lost", reason)
-        )
+class SynapseKeyClientFactory(ClientFactory):
+    protocol = SynapseKeyClientProtocol
+    max_retries = 5
+    timeout_seconds = 30
 
+    def __init__(self):
+        self.succeeded = False
+        self.retries = 0
+        self.remote_key = defer.Deferred()
+
+    def on_remote_key(self, key):
+        self.succeeded = True
+        self.remote_key.callback(key)
+
+    def retry_connection(self, connector):
+        self.retries += 1
+        if self.retries < self.max_retries:
+            connector.connector = None
+            connector.connect()
+        else:
+            self.remote_key.errback(
+                SynapseKeyClientError("Max retries exceeded"))
+
+    def clientConnectionFailed(self, connector, reason):
+        logger.info("Connection failed %s", reason)
+        self.retry_connection(connector)
+
+    def clientConnectionLost(self, connector, reason):
+        logger.info("Connection lost %s", reason)
+        if not self.succeeded:
+            self.retry_connection(connector)
