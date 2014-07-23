@@ -37,6 +37,12 @@ class SynapseEvent(JsonEncodedObject):
         "depth",
     ]
 
+    required_keys = [
+        "event_id",
+        "room_id",
+        "content",
+    ]
+
     def __init__(self, raises=True, **kwargs):
         super(SynapseEvent, self).__init__(**kwargs)
         if "content" in kwargs:

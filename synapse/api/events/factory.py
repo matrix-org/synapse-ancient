@@ -2,6 +2,8 @@
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                     RoomMemberEvent)
 
+from synapse.util.stringutils import random_string
+
 
 class EventFactory(object):
 
@@ -19,6 +21,8 @@ class EventFactory(object):
     def create_event(self, etype=None, **kwargs):
         try:
             kwargs["type"] = etype
+            if "event_id" not in kwargs:
+                kwargs["event_id"] = random_string(10)
             return self._event_list[etype](**kwargs)
         except KeyError:  # unknown event type
             # TODO allow custom event types.
