@@ -6,6 +6,7 @@ class RoomTopicEvent(SynapseEvent):
     TYPE = "sy.room.topic"
 
     def __init__(self, **kwargs):
+        kwargs["state_key"] = ""
         super(RoomTopicEvent, self).__init__(**kwargs)
 
     def get_content_template(self):
@@ -21,6 +22,7 @@ class RoomMemberEvent(SynapseEvent):
     ]
 
     def __init__(self, **kwargs):
+        kwargs["state_key"] = kwargs["target_user_id"]
         super(RoomMemberEvent, self).__init__(**kwargs)
 
     def get_content_template(self):

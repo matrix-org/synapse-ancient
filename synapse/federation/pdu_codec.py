@@ -8,11 +8,11 @@ import time
 
 
 def decode_event_id(event_id, server_name):
-    parts = event_id.split("@", 1)
+    parts = event_id.split("@")
     if len(parts) < 2:
         return (event_id, server_name)
     else:
-        return tuple(parts)
+        return (parts[0], "".join(parts[1:]))
 
 
 def encode_event_id(pdu_id, origin):
@@ -42,7 +42,7 @@ class PduCodec(object):
 
         kwargs.update({
             k: v
-            for k, v in pdu.get_dict().items()
+            for k, v in pdu.get_full_dict().items()
             if k not in [
                 "pdu_id",
                 "origin",
@@ -57,7 +57,7 @@ class PduCodec(object):
         return self.event_factory.create_event(**kwargs)
 
     def pdu_from_event(self, event):
-        d = event.get_dict()
+        d = event.get_full_dict()
 
         d["pdu_id"], d["origin"] = decode_event_id(
             event.event_id, self.server_name

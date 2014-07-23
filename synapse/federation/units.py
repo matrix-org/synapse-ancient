@@ -81,6 +81,14 @@ class JsonEncodedObject(object):
         d.update(self.unrecognized_keys)
         return d
 
+    def get_full_dict(self):
+        d = {
+            k: v for (k, v) in self.__dict__.items()
+            if k in self.valid_keys or k in self.internal_keys
+        }
+        d.update(self.unrecognized_keys)
+        return d
+
     def __str__(self):
         return "(%s, %s)" % (self.__class__.__name__, repr(self.__dict__))
 

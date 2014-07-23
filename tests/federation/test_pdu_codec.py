@@ -130,5 +130,3 @@ class PduCodecTestCase(unittest.TestCase):
         self.assertEquals(event.content, pdu.content)
         self.assertEquals(event.type, pdu.pdu_type)
         self.assertEquals(event.state_key, pdu.state_key)
-
-    test_pdu_from_state_event.todo = "State Events need to have a `state_key`"
