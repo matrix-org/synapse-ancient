@@ -26,19 +26,41 @@ class ProfilesTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_get_my_name(self):
-        self.db_pool.runInteraction.return_value = defer.succeed("Frank")
+        mocked_ri = self.db_pool.runInteraction
+        mocked_ri.return_value = defer.succeed("Frank")
 
         (code, response) = yield self.mock_server.trigger("GET",
                 "/profile/%s/displayname" % (myid), None)
+
         self.assertEquals(200, code)
         self.assertEquals("Frank", response)
+        self.assertEquals(mocked_ri.call_args[0][1], "1234ABCD")
 
-        # TODO(paul): Current database interaction code makes a called_with*
-        # assertion hard
+    @defer.inlineCallbacks
+    def test_set_my_name(self):
+        mocked_ri = self.db_pool.runInteraction
+        mocked_ri.return_value = defer.succeed(())
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                "/profile/%s/displayname" % (myid), '"Frank Jr."')
+
+        self.assertEquals(200, code)
+        # Can't easily assert on the [0] positional argument as it's a callable
+        self.assertEquals(mocked_ri.call_args[0][1], "1234ABCD")
+        self.assertEquals(mocked_ri.call_args[0][2], "Frank Jr.")
 
     @defer.inlineCallbacks
     def test_get_other_name(self):
         (code, response) = yield self.mock_server.trigger("GET",
                 "/profile/%s/displayname" % ("!opaque:elsewhere"), None)
+
         self.assertEquals(200, code)
         self.assertEquals("Bob", response)
+
+    @defer.inlineCallbacks
+    def test_set_other_name(self):
+        (code, response) = yield self.mock_server.trigger("PUT",
+                "/profile/%s/displayname" % ("!opaque:elsewhere"), None)
+
+        self.assertTrue(400 <= code <= 499, 
+                msg="code %d is in the 4xx range" % (code))
