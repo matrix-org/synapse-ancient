@@ -179,13 +179,13 @@ class HomeServer(ReplicationHandler):
         """
         pdu_type = pdu.pdu_type
 
-        if pdu_type == "message":
+        if pdu_type == "sy.room.message":
             self._on_message(pdu)
-        elif pdu_type == "membership":
-            if "joinee" in pdu.content:
-                self._on_join(pdu.context, pdu.content["joinee"])
-            elif "invitee" in pdu.content:
-                self._on_invite(pdu.origin, pdu.context, pdu.content["invitee"])
+        elif pdu_type == "sy.room.member" and "membership" in pdu.content:
+            if pdu.content["membership"] == "join":
+                self._on_join(pdu.context, pdu.state_key)
+            elif pdu.content["membership"] == "invite":
+                self._on_invite(pdu.origin, pdu.context, pdu.state_key)
         else:
             self.output.print_line("#%s (unrec) %s = %s" %
                 (pdu.context, pdu.pdu_type, json.dumps(pdu.content))
@@ -243,7 +243,7 @@ class HomeServer(ReplicationHandler):
             yield self.replication_layer.send_pdu(
                 Pdu.create_new(
                     context=room_name,
-                    pdu_type="message",
+                    pdu_type="sy.room.message",
                     content={"sender": sender, "body": body},
                     origin=self.server_name,
                     destinations=destinations,
@@ -263,10 +263,10 @@ class HomeServer(ReplicationHandler):
         try:
             pdu = Pdu.create_new(
                     context=room_name,
-                    pdu_type="membership",
+                    pdu_type="sy.room.member",
                     is_state=True,
                     state_key=joinee,
-                    content={"sender": sender, "joinee": joinee},
+                    content={"membership": "join"},
                     origin=self.server_name,
                     destinations=destinations,
                 )
@@ -287,9 +287,9 @@ class HomeServer(ReplicationHandler):
                 Pdu.create_new(
                     context=room_name,
                     is_state=True,
-                    pdu_type="membership",
+                    pdu_type="sy.room.member",
                     state_key=invitee,
-                    content={"sender": sender, "invitee": invitee},
+                    content={"membership": "invite"},
                     origin=self.server_name,
                     destinations=destinations,
                 )
