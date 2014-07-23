@@ -55,9 +55,27 @@ Profile:
   A set of metadata about a user, such as a display name, provided for the
   benefit of other users. See also: doc/model/profiles
 
+Room ID:
+  An opaque string (of as-yet undecided format) that identifies a particular
+  room and used in PDUs referring to it.
+
+Room Name:
+  A human-readable string of the form #name:some.domain that users can use as a
+  pointer to identify a room; a Directory Server will map this to its Room ID
+
 State:
   A set of metadata maintained about a Context, which is replicated among the
   servers in addition to the history of Events.
+
+User ID:
+  A string of the form !localpart:domain.name that identifies a user for
+  wire-protocol purposes. The localpart is meaningless outside of a particular
+  home server.
+
+User Name:
+  A human-readable string of the form @name:some.domain that users can use to
+  identify themselves and each other; a Directory Server will map this to the
+  User ID.
 
 Transaction:
   A message which relates to the communication between a given pair of servers.

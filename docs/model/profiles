@@ -36,7 +36,7 @@ Metadata Fields
 think of them. At the very least, any sort of supported ID for the 3rd Party ID
 servers should be accounted for here.]]
 
- * Synapse Directory Server username
+ * Synapse Directory Server username(s)
 
  * Email address
 
