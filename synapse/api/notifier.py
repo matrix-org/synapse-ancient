@@ -31,33 +31,35 @@ class Notifier(object):
             store_id (int): The ID of this event after it was stored with the
             data store.
         '"""
-
         # prod everyone who is online in the room
         member_list = yield self.store.get_room_members(room_id=event.room_id,
                                                         membership="join")
         if member_list:
             for member in member_list:
                 if member.user_id in self.stored_event_listeners:
-                    logger.debug(("Notifying %s of a new event." %
-                                 member.user_id))
-                    # work out the new end token
-                    token = self.stored_event_listeners[member.user_id]["start"]
-                    end = self._next_token(event, store_id, token)
-
-                    self.stored_event_listeners[member.user_id]["end"] = end
-
-                    # add the event to the chunk
-                    chunk = self.stored_event_listeners[member.user_id]["chunk"]
-                    chunk.append(event.get_dict())
-
-                    # callback the defer
-                    d = self.stored_event_listeners[member.user_id].pop("defer")
-                    d.callback(self.stored_event_listeners[member.user_id])
+                    self._notify_and_callback(member.user_id, event, store_id)
 
         # invites MUST prod the person being invited, who won't be in the room.
         if (event.type == RoomMemberEvent.TYPE and
                 event.content["membership"] == Membership.INVITE):
-            print "invite: prod %s" % event.target_user_id
+            if event.target_user_id in self.stored_event_listeners:
+                self._notify_and_callback(event.target_user_id, event, store_id)
+
+    def _notify_and_callback(self, user_id, event, store_id):
+        logger.debug(("Notifying %s of a new event." %
+                                 user_id))
+        # work out the new end token
+        token = self.stored_event_listeners[user_id]["start"]
+        end = self._next_token(event, store_id, token)
+        self.stored_event_listeners[user_id]["end"] = end
+
+        # add the event to the chunk
+        chunk = self.stored_event_listeners[user_id]["chunk"]
+        chunk.append(event.get_dict())
+
+        # callback the defer
+        d = self.stored_event_listeners[user_id].pop("defer")
+        d.callback(self.stored_event_listeners[user_id])
 
     def _next_token(self, event, store_id, current_token):
         stream_handler = (self.hs.get_event_handler_factory().
