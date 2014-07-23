@@ -112,10 +112,12 @@ class FederationEventHandler(object):
 
     @defer.inlineCallbacks
     def _fill_out_prev_events(self, event):
-        if hasattr("prev_events", event):
+        if hasattr(event, "prev_events"):
             return
 
-        results = yield self.service.get_latest_pdus_in_context(event.room_id)
+        results = yield self.persistence.get_latest_pdus_in_context(
+            event.room_id
+        )
 
         event.prev_events = [
             "%s@%s" % (p_id, origin) for p_id, origin, _ in results
