@@ -348,7 +348,8 @@ class RoomsMemberListTestCase(RoomsTestCase):
         self.mock_server = MockHttpServer()
 
         hs = HomeServer("test",
-                db_pool=None)
+                db_pool=None,
+                federation=Mock())
         hs.event_data_store = MemoryDataStore()
         self.auth_user_id = self.user_id
         hs.auth = Auth(hs.get_event_data_store())
