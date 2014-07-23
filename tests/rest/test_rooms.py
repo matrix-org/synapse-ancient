@@ -697,6 +697,11 @@ class RoomsTestCase(unittest.TestCase):
         self.assertEquals(200, code, msg=str(response))
         self.assertEquals(json.loads(content), response)
 
+    def _assert_dict(self, required, actual):
+        for key in required:
+            self.assertEquals(required[key], actual[key],
+                              msg="%s mismatch. %s" % (key, actual))
+
     @defer.inlineCallbacks
     def test_rooms_messages_sent(self):
         path = "/rooms/rid1/messages/%s/mid1" % self.user_id
@@ -713,7 +718,7 @@ class RoomsTestCase(unittest.TestCase):
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(content), response)
+        self._assert_dict(json.loads(content), response)
 
         # sy.text message type
         path = "/rooms/rid1/messages/%s/mid2" % self.user_id
@@ -723,7 +728,7 @@ class RoomsTestCase(unittest.TestCase):
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(content), response)
+        self._assert_dict(json.loads(content), response)
 
         # trying to send message in different user path
         path = "/rooms/rid1/messages/%s/mid2" % ("invalid" + self.user_id)

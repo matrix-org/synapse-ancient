@@ -254,7 +254,6 @@ class MessageRestServlet(RestServlet):
                 raise SynapseError(403, "Must send messages as yourself.")
 
             content = _parse_json(request)
-
             # stamp the message with ms resolution
             content["hsob_ts"] = int(time.time()) * 1000
 
@@ -297,7 +296,10 @@ class RoomMemberListRestServlet(RestServlet):
 
 def _parse_json(request):
     try:
-        return json.loads(request.content.read())
+        content = json.loads(request.content.read())
+        if type(content) != dict:
+            raise SynapseError(400, "Content must be a JSON object.")
+        return content
     except ValueError:
         raise SynapseError(400, "Content not JSON.")
 
