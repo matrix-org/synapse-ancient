@@ -67,7 +67,7 @@ class PduCodec(object):
 
         if hasattr(event, "prev_events"):
             d["prev_pdus"] = [
-                decode_event_id(e.event_id, self.server_name)
+                decode_event_id(e, self.server_name)
                 for e in event.prev_events
             ]
 
