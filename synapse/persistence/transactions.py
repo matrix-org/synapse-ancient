@@ -709,6 +709,7 @@ class StateQueries(object):
 
         return return_value
 
+    @classmethod
     def update_current_state(clx, txn, pdu_id, origin, context, pdu_type,
                              state_key):
 
