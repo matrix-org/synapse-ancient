@@ -45,7 +45,7 @@ class BaseHomeServer(object):
             'persistence_service',
             'federation',
             'replication_layer',
-            'event_data_store',
+            'datastore',
             'event_factory',
             'event_handler_factory',
             'auth',
@@ -115,7 +115,7 @@ class HomeServer(BaseHomeServer):
     def build_federation(self):
         return FederationEventHandler(self)
 
-    def build_event_data_store(self):
+    def build_datastore(self):
         return DataStore(self)
 
     def build_event_factory(self):
@@ -130,8 +130,8 @@ class HomeServer(BaseHomeServer):
     def build_auth(self):
         # TODO(paul): Likely the Auth() constructor just wants to take a
         # HomeServer instance perhaps
-        event_data_store = self.get_event_data_store()
-        return Auth(event_data_store)
+        datastore = self.get_datastore()
+        return Auth(datastore)
 
     def build_rest_servlet_factory(self):
         return RestServletFactory(self)

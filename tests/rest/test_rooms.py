@@ -97,8 +97,8 @@ class RoomPermissionsTestCase(RoomsTestCase):
             db_pool=None,
             federation=Mock(),
         )
-        hs.event_data_store = MemoryDataStore()
-        hs.auth = Auth(hs.get_event_data_store())
+        hs.datastore = MemoryDataStore()
+        hs.auth = Auth(hs.get_datastore())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
         self.auth_user_id = self.rmcreator_id
 
@@ -430,9 +430,9 @@ class RoomsMemberListTestCase(RoomsTestCase):
         hs = HomeServer("test",
                 db_pool=None,
                 federation=Mock())
-        hs.event_data_store = MemoryDataStore()
+        hs.datastore = MemoryDataStore()
         self.auth_user_id = self.user_id
-        hs.auth = Auth(hs.get_event_data_store())
+        hs.auth = Auth(hs.get_datastore())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
@@ -499,8 +499,8 @@ class RoomsCreateTestCase(unittest.TestCase):
             "test",
             db_pool=None,
         )
-        hs.event_data_store = MemoryDataStore()
-        hs.auth = Auth(hs.get_event_data_store())
+        hs.datastore = MemoryDataStore()
+        hs.auth = Auth(hs.get_datastore())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
@@ -602,8 +602,8 @@ class RoomsTestCase(unittest.TestCase):
             http_server=self.mock_server,
             federation=Mock()
         )
-        hs.event_data_store = MemoryDataStore()
-        hs.auth = Auth(hs.get_event_data_store())
+        hs.datastore = MemoryDataStore()
+        hs.auth = Auth(hs.get_datastore())
         hs.auth.get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)

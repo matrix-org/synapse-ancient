@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class Notifier(object):
 
     def __init__(self, hs):
-        self.store = hs.get_event_data_store()
+        self.store = hs.get_datastore()
         self.hs = hs
         self.stored_event_listeners = {}
 
