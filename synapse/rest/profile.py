@@ -14,7 +14,12 @@ class ProfileDisplaynameRestServlet(RestServlet):
                 self.on_GET)
 
     def on_GET(self, request, user_id):
-        return defer.returnValue((200, "Frank"))
+        user = self.hs.parse_userid(user_id)
+
+        if user.is_mine:
+            return defer.returnValue((200, "Frank"))
+        else:
+            return defer.returnValue((200, "Bob"))
 
 
 def register_servlets(hs, http_server):

@@ -8,7 +8,7 @@ from ..utils import MockHttpServer
 
 from synapse.server import HomeServer
 
-myid = "1234ABCD@test"
+myid = "!1234ABCD:test"
 
 class ProfilesTestCase(unittest.TestCase):
     """ Tests profile management. """
@@ -27,3 +27,10 @@ class ProfilesTestCase(unittest.TestCase):
                 "/profile/%s/displayname" % (myid), None)
         self.assertEquals(200, code)
         self.assertEquals("Frank", response)
+
+    @defer.inlineCallbacks
+    def test_get_other_name(self):
+        (code, response) = yield self.mock_server.trigger("GET",
+                "/profile/%s/displayname" % ("!opaque:elsewhere"), None)
+        self.assertEquals(200, code)
+        self.assertEquals("Bob", response)
