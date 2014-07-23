@@ -5,20 +5,23 @@
     <style type="text/css">
         .message .sender {
             float: left;
+            width: 22em;
+            text-align: right;
+            margin-right: 1em;
         }
         
         .message .body {
-            margin-left: 100px;
+            margin-left: 22em;
         }
     </style>
-    <script src="js/angular.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.20/angular.min.js"></script>
 </head>
 <body>
 
     <div ng-controller="LoginController" ng-hide="hideLogin" class="login">
         <h3>Login:</h3>
         <form novalidate>
-            User: <input type="text" ng-model="account.user_id" /><br />
+            User: <input type="text" auto-focus ng-model="account.user_id" /><br />
             Server: <input type="text" ng-model="account.server" /><br />
             Room: <input type="text" ng-model="room" /><br />
             <button ng-click="login()">Login</button>
@@ -28,15 +31,15 @@
     </div>
 
     <div ng-controller="ChatController" ng-hide="hideChat" class="chat">
-        <h3>{{ state.room }} ({{ state.user_id }})</h3>
+        <h3>{{ state.room }}</h3>
         
         <div class="message" ng-repeat="msg in messages">
             <!-- XXX: need timestamp support!!! -->
-            <div class="sender">{{msg.user_id}}</div>
+            <div class="sender">&lt;{{msg.user_id}}&gt;</div>
             <div class="body">{{msg.content.body}}</div>
         </div>
         
-        <input size="80" ng-model="text" ng-enter="send()" />
+        {{ state.user_id }} <input id="textInput" size="132" ng-model="textInput" ng-enter="send()" />
         <button ng-click="send()">Send</button>
         <br/>
         {{ feedback }}
@@ -92,6 +95,13 @@
                 });
             };
         })
+        .directive('autoFocus', ['$timeout', function($timeout) {
+            return {
+                link: function(scope, element, attr) {
+                    $timeout(function() { element[0].focus() }, 0);
+                }
+            }
+        }])
         .controller('ChatController', ['$scope', '$log', '$q', '$http', '$timeout', 'state',
                                        function($scope, $log, $q, $http, $timeout, state) {
            'use strict';
@@ -129,7 +139,7 @@
             $scope.send = function() {
                 var msg_id = "m" + new Date().getTime();
                 $http.put($scope.state.server + "/rooms/" + $scope.state.room + "/messages/" + $scope.state.user_id + "/" + msg_id, {
-                        "body": $scope.text,
+                        "body": $scope.textInput,
                         "msgtype": "sy.text",
                     }, {
                         "params" : {
@@ -138,7 +148,7 @@
                     })
                     .success(function(data, status, headers, config) {
                         $scope.feedback = "Sent successfully";
-                        $scope.text = "";
+                        $scope.textInput = "";
                     })
                     .error(function(data, status, headers, config) {
                         $scope.feedback = "Failed to send: " + response.data;
@@ -147,6 +157,7 @@
                         
             $scope.$on('loginEvent', function() {
                 $scope.hideChat = false;
+                $timeout(function() { document.getElementById('textInput').focus() }, 0);
 
                 $http.put($scope.state.server + "/rooms/" + $scope.state.room + "/members/" + $scope.state.user_id + "/state", {
                         "membership": "join"
