@@ -71,22 +71,8 @@ class StreamStore(object):
             query += " AND messages.id < ?"
             query_args.append(to_pkey)
 
-        txn.execute(query, query_args)
-
-        col_headers = [i[0] for i in txn.description]
-        result_set = txn.fetchall()
-        data = []
-        last_pkey = from_pkey
-        for result in result_set:
-            result_dict = dict(zip(col_headers, result))
-            last_pkey = result_dict["id"]
-            result_dict.pop("id")
-            if "content" in result_dict:
-                result_dict["content"] = json.loads(result_dict["content"])
-            result_dict["type"] = MessageEvent.TYPE
-            data.append(result_dict)
-
-        return (data, last_pkey)
+        cursor = txn.execute(query, query_args)
+        return self._as_events(cursor, MessagesTable, from_pkey)
 
     @defer.inlineCallbacks
     def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):
@@ -107,22 +93,16 @@ class StreamStore(object):
             query += " AND rm.id < ?"
             query_args.append(to_pkey)
 
-        txn.execute(query, query_args)
+        cursor = txn.execute(query, query_args)
+        return self._as_events(cursor, RoomMemberTable, from_pkey)
 
-        col_headers = [i[0] for i in txn.description]
-        result_set = txn.fetchall()
-        data = []
+    def _as_events(self, cursor, table, from_pkey):
+        data_entries = table.decode_results(cursor)
         last_pkey = from_pkey
-        for result in result_set:
-            result_dict = dict(zip(col_headers, result))
-            last_pkey = result_dict["id"]
-            result_dict.pop("id")
-            if "content" in result_dict:
-                result_dict["content"] = json.loads(result_dict["content"])
-            result_dict["type"] = RoomMemberEvent.TYPE
-            data.append(result_dict)
-
-        return (data, last_pkey)
+        if data_entries:
+            last_pkey = data_entries[-1].id
+        events = self.to_events(data_entries)
+        return (events, last_pkey)
 
 
 class RegistrationStore(object):
@@ -366,9 +346,6 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
         self.event_factory = hs.get_event_factory()
-        self._event_mappings = {
-            RoomMemberTable.EntryType: RoomMemberEvent.TYPE
-        }
 
     def _create_event(self, store_data):
         event_type = None
@@ -380,6 +357,14 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                 "content": {"membership": store_data.membership},
                 "room_id": store_data.room_id,
                 "user_id": store_data.user_id
+            }
+        elif store_data.__class__ == MessagesTable.EntryType:
+            event_type = MessageEvent.TYPE
+            fields = {
+                "room_id": store_data.room_id,
+                "user_id": store_data.user_id,
+                "msg_id": store_data.msg_id,
+                "content": json.loads(store_data.content)
             }
         else:
             raise StoreError("Cannot map class %s." % store_data.__class__)
