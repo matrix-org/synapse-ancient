@@ -37,6 +37,7 @@ class SynapseHomeServer(HomeServer):
                 "transactions",
                 "pdu",
                 "users",
+                "profiles",
                 "im"
         ]
 

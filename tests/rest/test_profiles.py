@@ -4,6 +4,8 @@
 from twisted.trial import unittest
 from twisted.internet import defer
 
+from mock import Mock
+
 from ..utils import MockHttpServer
 
 from synapse.server import HomeServer
@@ -15,18 +17,24 @@ class ProfilesTestCase(unittest.TestCase):
 
     def setUp(self):
         self.mock_server = MockHttpServer()
+        self.db_pool=Mock(spec=["runInteraction"])
 
         hs = HomeServer("test",
-                db_pool=None,
+                db_pool=self.db_pool,
                 http_server=self.mock_server)
         hs.register_servlets()
 
     @defer.inlineCallbacks
     def test_get_my_name(self):
+        self.db_pool.runInteraction.return_value = defer.succeed("Frank")
+
         (code, response) = yield self.mock_server.trigger("GET",
                 "/profile/%s/displayname" % (myid), None)
         self.assertEquals(200, code)
         self.assertEquals("Frank", response)
+
+        # TODO(paul): Current database interaction code makes a called_with*
+        # assertion hard
 
     @defer.inlineCallbacks
     def test_get_other_name(self):
