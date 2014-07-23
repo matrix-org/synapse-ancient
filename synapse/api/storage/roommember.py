@@ -8,6 +8,10 @@ from ._base import SQLBaseStore
 import json
 
 
+def last_row_id(cursor):
+    return cursor.lastrowid
+
+
 class RoomMemberStore(SQLBaseStore):
 
     def __init__(self, hs):
@@ -29,8 +33,9 @@ class RoomMemberStore(SQLBaseStore):
         content_json = json.dumps(content)
         query = ("INSERT INTO " + RoomMemberTable.table_name +
                 "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
-        yield self._db_pool.runInteraction(self.exec_single,
-                query, user_id, room_id, membership, content_json)
+        row = yield self._db_pool.runInteraction(self.exec_single_with_result,
+                query, last_row_id, user_id, room_id, membership, content_json)
+        defer.returnValue(row)
 
     @defer.inlineCallbacks
     def get_room_members(self, room_id=None, membership=None):

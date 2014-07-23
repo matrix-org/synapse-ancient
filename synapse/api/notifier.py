@@ -22,11 +22,16 @@ class Notifier(object):
         """Called when there is a new event which may potentially be sent down
         a listening user's event stream.
 
+        This function looks for interested *users* who may want to be notified
+        for this event. This is different to users requesting from the event
+        stream which looks for interested *events* for this user.
+
         Args:
             event (SynapseEvent): The new event
             store_id (int): The ID of this event after it was stored with the
             data store.
         '"""
+
         # prod everyone who is online in the room
         member_list = yield self.store.get_room_members(room_id=event.room_id,
                                                         membership="join")

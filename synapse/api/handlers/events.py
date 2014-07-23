@@ -35,6 +35,12 @@ class EventStreamHandler(BaseHandler):
     @defer.inlineCallbacks
     def get_stream(self, auth_user_id, timeout=0, from_tok=None, to_tok=None,
                    direction=None, limit=None):
+        """Gets events as an event stream for this user.
+
+        This function looks for interesting *events* for this user. This is
+        different from the notifier, which looks for interested *users* who may
+        want to know about a single event.
+        """
         try:
             # register interest in receiving new events
             self.notifier.store_events_for(user_id=auth_user_id,

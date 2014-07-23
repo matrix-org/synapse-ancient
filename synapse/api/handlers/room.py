@@ -245,11 +245,13 @@ class RoomMemberHandler(BaseHandler):
         yield self.auth.check(event, raises=True)
 
         # store membership
-        yield self.store.store_room_member(
+        store_id = yield self.store.store_room_member(
             user_id=event.target_user_id,
             room_id=event.room_id,
             content=event.content,
             membership=event.content["membership"])
+
+        self.notifier.on_new_event(event, store_id)
 
         if broadcast_msg:
             yield self._inject_membership_msg(
