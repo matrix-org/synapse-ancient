@@ -1,11 +1,26 @@
 # -*- coding: utf-8 -*-
 """Contains handlers for federation events."""
+
 from . import BaseHandler
+from .room import MessageEvent
+
+from synapse.util.logutils import log_function
+
+from twisted.internet import defer
+
+import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class FederationHandler(BaseHandler):
 
     """Handles events that originated from federation."""
 
-    def on_receive(self, event=None):
-        pass
+    @log_function
+    @defer.inlineCallbacks
+    def on_receive(self, event):
+        store_id = yield self.store.persist_event(event)
+        yield self.notifier.on_new_event(event, store_id)

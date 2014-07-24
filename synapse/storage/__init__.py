@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from synapse.api.errors import StoreError
-from synapse.api.events.room import RoomMemberEvent, MessageEvent
+from synapse.api.events.room import (
+    RoomMemberEvent, MessageEvent, RoomTopicEvent
+)
 from synapse.persistence.tables import RoomMemberTable, MessagesTable
 
 import json
@@ -65,3 +67,29 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
         for d in store_data_list:
             events.append(self._create_event(d).get_dict())
         return events
+
+    def persist_event(self, event):
+        if event.type == MessageEvent.TYPE:
+            return self.store_message(
+                user_id=event.user_id,
+                room_id=event.room_id,
+                msg_id=event.msg_id,
+                content=json.dumps(event.content)
+            )
+        elif event.type == RoomMemberEvent.TYPE:
+            return self.store_room_member(
+                user_id=event.target_user_id,
+                room_id=event.room_id,
+                content=event.content,
+                membership=event.content["membership"]
+            )
+        #elif event.type == RoomTopicEvent.TYPE:
+        #    return self.store.store_path_data(
+        #        room_id=event.room_id,
+        #        path=path,
+        #        content=json.dumps(event.content)
+        #    )
+        else:
+            raise NotImplementedError(
+                "Don't know how to persist type=%s" % event.type
+            )
