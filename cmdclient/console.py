@@ -11,6 +11,7 @@ import shlex
 import sys
 import time
 import urllib
+import urlparse
 
 CONFIG_JSON = "cmdclient_config.json"
 
@@ -230,6 +231,14 @@ class SynapseCmd(cmd.Cmd):
         if args["method"].startswith("X"):
             qp = {}  # remove access token
             args["method"] = args["method"][1:]  # snip the X
+        else:
+            # append any query params the user has set
+            try:
+                parsed_url = urlparse.urlparse(args["path"])
+                qp.update(urlparse.parse_qs(parsed_url.query))
+                args["path"] = parsed_url.path
+            except:
+                pass
 
         reactor.callFromThread(self._run_and_pprint, args["method"],
                                                      args["path"],

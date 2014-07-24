@@ -6,7 +6,7 @@ from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
 from synapse.util import stringutils
-from . import BaseHandler
+from ._base import BaseHandler
 
 import json
 import time
