@@ -171,6 +171,38 @@ class SynapseCmd(cmd.Cmd):
         }
         reactor.callFromThread(self._run_and_pprint, "PUT", path, body_json)
 
+    def do_list(self, line):
+        """List data about a room.
+        "list members <roomid> [query]" - List all the members in this room.
+        "list messages <roomid> [query]" - List all the messages in this room.
+
+        Where [query] will be directly applied as query parameters, allowing
+        you to use the pagination API. E.g. the last 3 messages in this room:
+        "list messages <roomid> from=END&to=START&limit=3"
+        """
+        args = self._parse(line, ["type", "roomid", "qp"])
+        if not "type" in args or not "roomid" in args:
+            print "Must specify type and room ID."
+            return
+        if args["type"] not in ["members", "messages"]:
+            print "Unrecognised type: %s" % args["type"]
+            return
+        room_id = args["roomid"]
+        path = "/rooms/%s/%s/list" % (room_id, args["type"])
+
+        qp = {"access_token": self._tok()}
+        if "qp" in args:
+            for key_value_str in args["qp"].split("&"):
+                try:
+                    key_value = key_value_str.split("=")
+                    qp[key_value[0]] = key_value[1]
+                except:
+                    print "Bad query param: %s" % key_value
+                    return
+
+        reactor.callFromThread(self._run_and_pprint, "GET", path,
+                               query_params=qp)
+
     def do_create(self, line):
         """Creates a room.
         "create [public|private] <roomid>" - Create a room <roomid> with the
