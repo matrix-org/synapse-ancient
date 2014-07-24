@@ -54,9 +54,9 @@ class EventStream(PaginationStream):
 
     @defer.inlineCallbacks
     def get_chunk(self, config=None):
-        # no support for limit and dir=b, makes no sense on the EventStream
-        if config.limit or config.dir != 'f':
-            raise EventStreamError(400, "Limit and dir=b not supported.")
+        # no support for limit, makes no sense on the EventStream
+        if config.limit:
+            raise EventStreamError(400, "Limit not supported.")
 
         # replace TOK_START and TOK_END with 0_0_0 or -1_-1_-1 depending.
         replacements = [

@@ -6,18 +6,16 @@ class PaginationConfig(object):
 
     """A configuration object which stores pagination parameters."""
 
-    def __init__(self, from_tok=None, to_tok=None, direction=None, limit=0):
+    def __init__(self, from_tok=None, to_tok=None, limit=0):
         self.from_tok = from_tok
         self.to_tok = to_tok
-        self.dir = direction
         self.limit = limit
 
     def dict(self):
         return {
             "from": self.from_tok,
             "to": self.to_tok,
-            "limit": self.limit,
-            "dir": self.dir
+            "limit": self.limit
         }
 
     @classmethod
@@ -25,15 +23,13 @@ class PaginationConfig(object):
         params = {
             "from_tok": PaginationStream.TOK_START,
             "to_tok": PaginationStream.TOK_END,
-            "limit": 0,
-            "direction": 'f'
+            "limit": 0
         }
 
         query_param_mappings = [  # 3-tuple of qp_key, attribute, rules
             ("from", "from_tok", lambda x: type(x) == str),
             ("to", "to_tok", lambda x: type(x) == str),
-            ("limit", "limit", lambda x: x.isdigit()),
-            ("dir", "direction", lambda x: x in PaginationStream.DIRECTIONS)
+            ("limit", "limit", lambda x: x.isdigit())
         ]
 
         for qp, attr, is_valid in query_param_mappings:
@@ -52,7 +48,6 @@ class PaginationStream(object):
 
     TOK_START = "START"
     TOK_END = "END"
-    DIRECTIONS = ["f", "b"]
 
     def get_chunk(self, config=None):
         """ Return the next chunk in the stream.
