@@ -321,6 +321,7 @@ class ReplicationLayer(object):
         existing = yield self._get_persisted_pdu(pdu.pdu_id, pdu.origin)
 
         if existing and (not existing.outlier or pdu.outlier):
+            logger.debug("Already seen pdu %s %s", pdu.pdu_id, pdu.origin)
             defer.returnValue({})
             return
 
@@ -402,7 +403,7 @@ class _TransactionQueue(object):
             if d != self.server_name
         ]
 
-        logger.debug("Sending to: %s" % str(destinations))
+        logger.debug("Sending to: %s", str(destinations))
 
         if not destinations:
             return
