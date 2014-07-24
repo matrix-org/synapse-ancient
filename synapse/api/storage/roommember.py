@@ -19,17 +19,36 @@ class RoomMemberStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_room_member(self, user_id=None, room_id=None):
+        """Retrieve the current state of a room member.
+
+        Args:
+            user_id (str): The member's user ID.
+            room_id (str): The room the member is in.
+        Returns:
+            namedtuple: The room member from the database, or None if this
+            member does not exist.
+        """
         query = RoomMemberTable.select_statement(
             "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
         res = yield self._db_pool.runInteraction(self.exec_single_with_result,
                 query, RoomMemberTable.decode_results, room_id, user_id)
         if res:
             defer.returnValue(res[0])
-        defer.returnValue(res)
+        defer.returnValue(None)
 
     @defer.inlineCallbacks
     def store_room_member(self, user_id=None, room_id=None, membership=None,
                           content=None):
+        """Store a room member in the database.
+
+        Args:
+            user_id (str): The member's user ID.
+            room_id (str): The room in relation to the member.
+            membership (synapse.api.constants.Membership): The new membership
+            state.
+            content (dict): The content of the membership (JSON).
+        """
+
         content_json = json.dumps(content)
         query = ("INSERT INTO " + RoomMemberTable.table_name +
                 "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
@@ -39,6 +58,16 @@ class RoomMemberStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_room_members(self, room_id=None, membership=None):
+        """Retrieve the current room member list for a room.
+
+        Args:
+            room_id (str): The room to get the list of members.
+            membership (synapse.api.constants.Membership): The filter to apply
+            to this list, or None to return all members with some state
+            associated with this room.
+        Returns:
+            list of namedtuples representing the members in this room.
+        """
         query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
             " WHERE room_id = ? GROUP BY user_id")
         res = yield self._db_pool.runInteraction(self.exec_single_with_result,

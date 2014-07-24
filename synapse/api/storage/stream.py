@@ -14,6 +14,15 @@ class StreamStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_message_stream(self, user_id=None, from_key=None, to_key=None):
+        """Get all messages for this user between the given keys.
+
+        Args:
+            user_id (str): The user who is requesting messages.
+            from_key (int): The ID to start returning results from (exclusive).
+            to_key (int): The ID to stop returning results (exclusive).
+        Returns:
+            A tuple of rows (list of namedtuples), new_id(int)
+        """
         (rows, pkey) = yield self._db_pool.runInteraction(
                 self._get_message_rows, user_id, from_key, to_key)
         defer.returnValue((rows, pkey))
@@ -39,6 +48,15 @@ class StreamStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):
+        """Get all room membership events for this user between the given keys.
+
+        Args:
+            user_id (str): The user who is requesting membership events.
+            from_key (int): The ID to start returning results from (exclusive).
+            to_key (int): The ID to stop returning results (exclusive).
+        Returns:
+            A tuple of rows (list of namedtuples), new_id(int)
+        """
         (rows, pkey) = yield self._db_pool.runInteraction(
                 self._get_room_member_rows, user_id, from_key, to_key)
         defer.returnValue((rows, pkey))

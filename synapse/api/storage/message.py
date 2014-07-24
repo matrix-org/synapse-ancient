@@ -17,6 +17,13 @@ class MessageStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_message(self, user_id=None, room_id=None, msg_id=None):
+        """Get a message from the store.
+
+        Args:
+            user_id (str): The ID of the user who sent the message.
+            room_id (str): The room the message was sent in.
+            msg_id (str): The unique ID for this user/room combo.
+        """
         query = MessagesTable.select_statement(
                 "user_id = ? AND room_id = ? AND msg_id = ? " +
                 "ORDER BY id DESC LIMIT 1")
@@ -29,6 +36,14 @@ class MessageStore(SQLBaseStore):
     @defer.inlineCallbacks
     def store_message(self, user_id=None, room_id=None, msg_id=None,
                       content=None):
+        """Store a message in the store.
+
+        Args:
+            user_id (str): The ID of the user who sent the message.
+            room_id (str): The room the message was sent in.
+            msg_id (str): The unique ID for this user/room combo.
+            content (str): The content of the message (JSON)
+        """
         query = ("INSERT INTO " + MessagesTable.table_name +
                  "(user_id, room_id, msg_id, content) VALUES(?,?,?,?)")
         last_id = yield self._db_pool.runInteraction(
