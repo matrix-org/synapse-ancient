@@ -55,7 +55,7 @@ class RestServlet(object):
     def __init__(self, hs):
         self.hs = hs
 
-        self.handler_factory = hs.get_event_handler_factory()
+        self.handler_factory = hs.get_handler_factory()
         self.event_factory = hs.get_event_factory()
         self.auth = hs.get_auth()
 

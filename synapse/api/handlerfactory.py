@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from register import RegistrationHandler
-from room import MessageHandler, RoomCreationHandler, RoomMemberHandler
-from events import EventStreamHandler
-from federation import FederationHandler
+from .handlers.register import RegistrationHandler
+from .handlers.room import MessageHandler, RoomCreationHandler, RoomMemberHandler
+from .handlers.events import EventStreamHandler
+from .handlers.federation import FederationHandler
 
 
-class EventHandlerFactory(object):
+class HandlerFactory(object):
 
     """ A factory for creating synapse event handlers.
     """

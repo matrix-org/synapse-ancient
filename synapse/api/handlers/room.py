@@ -180,7 +180,7 @@ class RoomMemberHandler(BaseHandler):
 
     def __init__(self, hs):
         super(RoomMemberHandler, self).__init__(hs)
-        self.msg_handler = (hs.get_event_handler_factory().message_handler())
+        self.msg_handler = (hs.get_handler_factory().message_handler())
 
     @defer.inlineCallbacks
     def get_room_members(self, room_id=None, user_id=None, limit=0,
