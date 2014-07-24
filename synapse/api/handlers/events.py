@@ -39,6 +39,14 @@ class EventStreamHandler(BaseHandler):
         This function looks for interesting *events* for this user. This is
         different from the notifier, which looks for interested *users* who may
         want to know about a single event.
+
+        Args:
+            auth_user_id (str): The user requesting their event stream.
+            pagin_config (synapse.api.streams.PaginationConfig): The config to
+            use when obtaining the stream.
+            timeout (int): The max time to wait for an incoming event in ms.
+        Returns:
+            A pagination stream API dict
         """
         try:
             # register interest in receiving new events

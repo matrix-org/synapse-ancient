@@ -115,7 +115,7 @@ class Notifier(object):
 
         d = defer.Deferred()
         self.stored_event_listeners[user_id]["defer"] = d
-        reactor.callLater(timeout, self._timeout, user_id)
+        reactor.callLater((timeout / 1000.0), self._timeout, user_id)
         return d
 
     def _timeout(self, user_id):

@@ -12,13 +12,15 @@ import re
 class EventStreamRestServlet(RestServlet):
     PATTERN = re.compile("^/events$")
 
+    DEFAULT_LONGPOLL_TIME_MS = 5000
+
     @defer.inlineCallbacks
     def on_GET(self, request):
         auth_user_id = yield (self.auth.get_user_by_req(request))
 
         handler = self.handlers.event_stream_handler
         pagin_config = PaginationConfig.from_request(request)
-        timeout = 5
+        timeout = EventStreamRestServlet.DEFAULT_LONGPOLL_TIME_MS
         if "timeout" in request.args:
             try:
                 timeout = int(request.args["timeout"][0])
