@@ -2,6 +2,7 @@
 """Contains functions for performing events on rooms."""
 from twisted.internet import defer
 
+from synapse.types import UserID
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
@@ -58,10 +59,11 @@ class MessageHandler(BaseHandler):
                 yield self.auth.check(event, raises=True)
 
             # store message in db
-            store_id = yield self.store.store_message(user_id=event.user_id,
-                                           room_id=event.room_id,
-                                           msg_id=event.msg_id,
-                                           content=json.dumps(event.content))
+            store_id = yield self.store.persist_event(event)
+
+            event.destinations = yield self.store.get_joined_hosts_for_room(
+                event.room_id
+            )
 
             yield self.hs.get_federation().handle_new_event(event)
 
@@ -258,16 +260,28 @@ class RoomMemberHandler(BaseHandler):
         Raises:
             SynapseError if there was a problem changing the membership.
         """
-        yield self.auth.check(event, raises=True)
+        with (yield self.room_lock.lock(event.room_id)):
+            yield self.auth.check(event, raises=True)
 
-        # store membership
-        store_id = yield self.store.store_room_member(
-            user_id=event.target_user_id,
-            room_id=event.room_id,
-            content=event.content,
-            membership=event.content["membership"])
+            # store membership
+            store_id = yield self.store.store_room_member(
+                user_id=event.target_user_id,
+                room_id=event.room_id,
+                content=event.content,
+                membership=event.content["membership"]
+            )
 
-        self.notifier.on_new_event(event, store_id)
+            event.destinations = yield self.store.get_joined_hosts_for_room(
+                event.room_id
+            )
+
+            if event.content["membership"] == Membership.INVITE:
+                host = UserID.from_string(event.target_user_id, self.hs).domain
+                event.destinations.append(host)
+
+            yield self.hs.get_federation().handle_new_event(event)
+
+            self.notifier.on_new_event(event, store_id)
 
         if broadcast_msg:
             yield self._inject_membership_msg(
