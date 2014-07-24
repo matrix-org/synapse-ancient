@@ -187,8 +187,11 @@ Requests that a client can make to its Home Server
  * get/set my Display Name
    This should return/take a simple "text/plain" field
 
- * get/set my Avatar
-   This should return/take an image/* type
+ * get/set my Avatar URL
+   The avatar image data itself is not stored by this API; we'll just store a
+   URL to let the clients fetch it. Optionally HSes could integrate this with
+   their generic content attacmhent storage service, allowing a user to set
+   upload their profile Avatar and update the URL to point to it.
 
  * get/add/remove my metadata fields
    Also we need to actually define types of metadata

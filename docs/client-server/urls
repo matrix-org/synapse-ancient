@@ -58,10 +58,9 @@ Display name
   GET /profile/$userid/displayname
   PUT /profile/$userid/displayname
 
-Avatar
-  GET /profile/$userid/avatar
-  PUT /profile/$userid/avatar
-    Content-Type: image/*
+Avatar URL
+  GET /profile/$userid/avatar_url
+  PUT /profile/$userid/avatar_url
 
 Metadata
   GET  /profile/$userid/metadata
