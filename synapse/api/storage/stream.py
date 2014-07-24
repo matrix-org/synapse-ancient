@@ -45,12 +45,19 @@ class StreamStore(SQLBaseStore):
 
     def _get_room_member_rows(self, txn, user_id, from_pkey, to_pkey):
         # get all room membership events for rooms which the user is *currently*
-        # joined in on.
-        query = ("SELECT rm.* FROM room_memberships rm WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE user_id=? AND " +
-            "room_id = rm.room_id ORDER BY id DESC LIMIT 1) " +
-            "AND rm.id > ?")
-        query_args = ["join", user_id, from_pkey]
+        # joined in on, or all invite events for this user.
+        current_membership_sub_query = ("(SELECT membership from " +
+                     "room_memberships WHERE user_id=? AND " +
+                     "room_id = rm.room_id ORDER BY id DESC " +
+                     "LIMIT 1)")
+
+        query = ("SELECT rm.* FROM room_memberships rm WHERE " +
+                # all membership events for rooms you're currently joined in on.
+                "(? IN " + current_membership_sub_query + " OR " +
+                # all invite membership events for this user
+                "rm.membership=? AND user_id=?)"
+                " AND rm.id > ?")
+        query_args = ["join", user_id, "invite", user_id, from_pkey]
 
         if to_pkey != -1:
             query += " AND rm.id < ?"
