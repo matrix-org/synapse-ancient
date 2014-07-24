@@ -47,17 +47,35 @@ class StreamStore(SQLBaseStore):
             "room_id = messages.room_id ORDER BY id DESC LIMIT 1)")
         query_args = ["join", user_id]
 
-        if from_pkey != -1:
-            query += " AND messages.id > ?"
-            query_args.append(from_pkey)
-
         if room_id:
             query += " AND messages.room_id=?"
             query_args.append(room_id)
 
-        if to_pkey != -1:
-            query += " AND messages.id < ?"
-            query_args.append(to_pkey)
+        LATEST_ROW = -1
+        # e.g. if from==to (from=5 to=5 or from=-1 to=-1) then return nothing.
+        if from_pkey == to_pkey:
+            return ([], from_pkey)
+        elif to_pkey > from_pkey:
+            if from_pkey != LATEST_ROW:
+                # e.g. from=5 to=9 >> from 5 to 9 >> id>5 AND id<9
+                query += " AND messages.id > ? AND messages.id < ?"
+                query_args.append(from_pkey)
+                query_args.append(to_pkey)
+            else:
+                # e.g. from=-1 to=5 >> from now to 5 >> id>5 ORDER BY id DESC
+                query += " AND messages.id > ? ORDER BY id DESC"
+                query_args.append(to_pkey)
+        elif from_pkey > to_pkey:
+            if to_pkey != LATEST_ROW:
+                # from=9 to=5 >> from 9 to 5 >> id>5 AND id<9 ORDER BY id DESC
+                query += (" AND messages.id > ? AND messages.id < ? " +
+                         "ORDER BY id DESC")
+                query_args.append(to_pkey)
+                query_args.append(from_pkey)
+            else:
+                # from=5 to=-1 >> from 5 to now >> id>5
+                query += " AND messages.id > ?"
+                query_args.append(from_pkey)
 
         if limit and limit > 0:
             query += " LIMIT ?"
