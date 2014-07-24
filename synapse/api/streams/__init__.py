@@ -54,14 +54,11 @@ class PaginationStream(object):
     TOK_END = "END"
     DIRECTIONS = ["f", "b"]
 
-    def get_chunk(self, from_tok=None, to_tok=None, direction=None, limit=None):
+    def get_chunk(self, config=None):
         """ Return the next chunk in the stream.
 
         Args:
-            from_tok (str): The from token
-            to_tok (str): The to token
-            direction (str): The direction to navigate in.
-            limit (int) : The maximum number of results to return.
+            config (PaginationConfig): The config to aid which chunk to get.
         Returns:
             A dict containing the new start token "start", the new end token
             "end" and the data "chunk" as a list.

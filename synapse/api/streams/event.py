@@ -44,26 +44,26 @@ class EventStream(PaginationStream):
         self.stream_data = stream_data_list
 
     @defer.inlineCallbacks
-    def get_chunk(self, from_tok=None, to_tok=None, direction=None, limit=None):
+    def get_chunk(self, config=None):
         # no support for limit and dir=b, makes no sense on the EventStream
-        if limit or direction != 'f':
+        if config.limit or config.dir != 'f':
             raise EventStreamError(400, "Limit and dir=b not supported.")
 
-        if from_tok == PaginationStream.TOK_START:
-            from_tok = EventStream.SEPARATOR.join(
+        if config.from_tok == PaginationStream.TOK_START:
+            config.from_tok = EventStream.SEPARATOR.join(
                            ["0"] * len(self.stream_data))
 
-        if to_tok == PaginationStream.TOK_END:
-            to_tok = EventStream.SEPARATOR.join(
+        if config.to_tok == PaginationStream.TOK_END:
+            config.to_tok = EventStream.SEPARATOR.join(
                            ["-1"] * len(self.stream_data))
 
         try:
-            (chunk_data, next_tok) = yield self._get_chunk_data(from_tok,
-                                                                to_tok)
+            (chunk_data, next_tok) = yield self._get_chunk_data(config.from_tok,
+                                                                config.to_tok)
 
             defer.returnValue({
                 "chunk": chunk_data,
-                "start": from_tok,
+                "start": config.from_tok,
                 "end": next_tok
             })
         except EventStreamError as e:

@@ -59,12 +59,7 @@ class EventStreamHandler(BaseHandler):
                 stream_data_list.append(stream_class(self.store))
 
             event_stream = EventStream(auth_user_id, stream_data_list)
-            data_chunk = yield event_stream.get_chunk(
-                            from_tok=pagin_config.from_tok,
-                            to_tok=pagin_config.to_tok,
-                            direction=pagin_config.dir,
-                            limit=pagin_config.limit
-                        )
+            data_chunk = yield event_stream.get_chunk(config=pagin_config)
 
             # if there are previous events, return those. If not, wait on the
             # new events for 'timeout' seconds.
