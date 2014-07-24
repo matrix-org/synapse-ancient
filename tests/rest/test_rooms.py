@@ -82,7 +82,7 @@ class RoomsTestCase(unittest.TestCase):
 
 class RoomPermissionsTestCase(RoomsTestCase):
     """ Tests room permissions. """
-    user_id = "!sid1:red"
+    user_id = "@sid1:red"
     rmcreator_id = "notme"
 
     def mock_get_user_by_token(self, token=None):
@@ -377,7 +377,7 @@ class RoomPermissionsTestCase(RoomsTestCase):
         # set joined of self, expect 200 (NOOP)
         yield self.join(room=room, user=self.user_id)
 
-        other = "!burgundy:red"
+        other = "@burgundy:red"
         # set invited of other, expect 200
         yield self.invite(room=room, src=self.user_id, targ=other,
                           expect_code=200)
@@ -422,7 +422,7 @@ class RoomPermissionsTestCase(RoomsTestCase):
 
 
 class RoomsMemberListTestCase(RoomsTestCase):
-    user_id = "!sid1:red"
+    user_id = "@sid1:red"
 
     def setUp(self):
         self.mock_server = MockHttpServer()
@@ -465,7 +465,7 @@ class RoomsMemberListTestCase(RoomsTestCase):
     @defer.inlineCallbacks
     def test_get_member_list_mixed_memberships(self):
         room_id = "bb"
-        room_creator = "!some_other_guy:blue"
+        room_creator = "@some_other_guy:blue"
         room_path = "/rooms/%s/members/list" % room_id
         yield self.create_room_as(room_id, room_creator)
         yield self.invite(room=room_id, src=room_creator,
@@ -487,7 +487,7 @@ class RoomsMemberListTestCase(RoomsTestCase):
 
 class RoomsCreateTestCase(unittest.TestCase):
     """ Tests room creation for /rooms. """
-    user_id = "!sid1:red"
+    user_id = "@sid1:red"
 
     def mock_get_user_by_token(self, token=None):
         return self.user_id

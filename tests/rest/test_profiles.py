@@ -11,7 +11,7 @@ from ..utils import MockHttpServer
 from synapse.api.errors import SynapseError, AuthError
 from synapse.server import HomeServer
 
-myid = "!1234ABCD:test"
+myid = "@1234ABCD:test"
 
 
 class ProfilesTestCase(unittest.TestCase):
@@ -66,7 +66,7 @@ class ProfilesTestCase(unittest.TestCase):
         mocked_set.side_effect = AuthError(400, "message")
 
         (code, response) = yield self.mock_server.trigger("PUT",
-                "/profile/%s/displayname" % ("!4567:test"), '"Frank Jr."')
+                "/profile/%s/displayname" % ("@4567:test"), '"Frank Jr."')
 
         self.assertTrue(400 <= code < 499,
                 msg="code %d is in the 4xx range" % (code))
@@ -77,7 +77,7 @@ class ProfilesTestCase(unittest.TestCase):
         mocked_get.return_value = defer.succeed("Bob")
 
         (code, response) = yield self.mock_server.trigger("GET",
-                "/profile/%s/displayname" % ("!opaque:elsewhere"), None)
+                "/profile/%s/displayname" % ("@opaque:elsewhere"), None)
 
         self.assertEquals(200, code)
         self.assertEquals("Bob", response)
@@ -88,7 +88,7 @@ class ProfilesTestCase(unittest.TestCase):
         mocked_set.side_effect = SynapseError(400, "message")
 
         (code, response) = yield self.mock_server.trigger("PUT",
-                "/profile/%s/displayname" % ("!opaque:elsewhere"), None)
+                "/profile/%s/displayname" % ("@opaque:elsewhere"), None)
 
         self.assertTrue(400 <= code <= 499,
                 msg="code %d is in the 4xx range" % (code))

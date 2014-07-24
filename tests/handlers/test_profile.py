@@ -9,8 +9,6 @@ from synapse.api.auth import Auth
 from synapse.api.errors import AuthError
 from synapse.server import HomeServer
 
-myid = "!1234ABCD:test"
-
 
 class ProfileTestCase(unittest.TestCase):
     """ Tests profile management. """
@@ -21,7 +19,7 @@ class ProfileTestCase(unittest.TestCase):
         hs = HomeServer("test",
                 db_pool=self.db_pool)
 
-        self.frank = hs.parse_userid("!1234ABCD:test")
+        self.frank = hs.parse_userid("@1234ABCD:test")
 
         self.handlers = hs.get_handlers()
 

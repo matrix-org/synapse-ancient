@@ -51,11 +51,6 @@ class DomainSpecificString(object):
 
 class UserID(DomainSpecificString):
     """Structure representing a user ID."""
-    SIGIL = "!"
-
-
-class UserName(DomainSpecificString):
-    """Structure representing a user name."""
     SIGIL = "@"
 
 

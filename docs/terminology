@@ -68,14 +68,10 @@ State:
   servers in addition to the history of Events.
 
 User ID:
-  A string of the form !localpart:domain.name that identifies a user for
+  A string of the form @localpart:domain.name that identifies a user for
   wire-protocol purposes. The localpart is meaningless outside of a particular
-  home server.
-
-User Name:
-  A human-readable string of the form @name:some.domain that users can use to
-  identify themselves and each other; a Directory Server will map this to the
-  User ID.
+  home server. This takes a human-readable form that end-users can use directly
+  if they so wish, avoiding the 3PIDs.
 
 Transaction:
   A message which relates to the communication between a given pair of servers.
