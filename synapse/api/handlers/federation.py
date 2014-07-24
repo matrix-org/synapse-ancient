@@ -2,13 +2,11 @@
 """Contains handlers for federation events."""
 
 from . import BaseHandler
-from .room import MessageEvent
 
 from synapse.util.logutils import log_function
 
 from twisted.internet import defer
 
-import json
 import logging
 
 
