@@ -32,7 +32,7 @@ class DomainSpecificString(object):
             raise ValueError("Expected %s string to start with '%s'" %
                     (cls.__name__, cls.SIGIL))
 
-        parts = s[1:].split(':')
+        parts = s[1:].split(':', 1)
         if len(parts) != 2:
             raise ValueError("Expected %s of the form '%slocalname:domain'" %
                     (cls.__name__, cls.SIGIL))
