@@ -262,7 +262,7 @@ class RoomMessageListRestServlet(RestServlet):
     def on_GET(self, request, room_id):
         user_id = yield (self.auth.get_user_by_req(request))
         pagination_config = PaginationConfig.from_request(request)
-        handler = self.handler_factory.message_handler()
+        handler = self.handlers.message_handler
         msgs = yield handler.get_messages(
             room_id=room_id,
             user_id=user_id,

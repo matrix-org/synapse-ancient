@@ -5,6 +5,7 @@ from twisted.internet import defer
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError
 from synapse.api.events.room import RoomTopicEvent, MessageEvent
+from synapse.api.streams.event import EventStream, MessagesStreamData
 from synapse.util import stringutils
 from ._base import BaseHandler
 
@@ -80,9 +81,10 @@ class MessageHandler(BaseHandler):
         """
         yield self.auth.check_joined_room(room_id, user_id)
 
-        print pagin_config.dict()
-
-        defer.returnValue("NOT_IMPLEMENTED")
+        data_source = [MessagesStreamData(self.store, room_id=room_id)]
+        event_stream = EventStream(user_id, data_source)
+        data_chunk = yield event_stream.get_chunk(config=pagin_config)
+        defer.returnValue(data_chunk)
 
     @defer.inlineCallbacks
     def store_room_path_data(self, event=None, path=None):

@@ -10,6 +10,10 @@ from synapse.api.streams import PaginationStream, StreamData
 class MessagesStreamData(StreamData):
     EVENT_TYPE = MessageEvent.TYPE
 
+    def __init__(self, store, room_id=None):
+        super(MessagesStreamData, self).__init__(store)
+        self.room_id = room_id
+
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key):
         (data, latest_ver) = yield self.store.get_message_stream(
