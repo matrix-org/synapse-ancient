@@ -30,12 +30,9 @@ class ProfileDisplaynameRestServlet(RestServlet):
         except:
             defer.returnValue((400, "Unable to parse name"))
 
-        try:
-            auth_user_id = yield self.auth.get_user_by_req(request)
-            yield self.handlers.profile_handler.set_displayname(user,
-                    auth_user_id, new_name)
-        except SynapseError as e:
-            defer.returnValue((e.code, cs_error(e.msg)))
+        auth_user_id = yield self.auth.get_user_by_req(request)
+        yield self.handlers.profile_handler.set_displayname(user, auth_user_id,
+                new_name)
 
         defer.returnValue((200, ""))
 

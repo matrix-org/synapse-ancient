@@ -95,45 +95,39 @@ class RoomTopicRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
+        user_id = yield (self.auth.get_user_by_req(request))
 
-            msg_handler = self.handlers.message_handler
-            data = yield msg_handler.get_room_path_data(
-                    user_id=user_id,
-                    room_id=room_id,
-                    path=request.path,
-                    event_type=RoomTopicEvent.TYPE
-                )
+        msg_handler = self.handlers.message_handler
+        data = yield msg_handler.get_room_path_data(
+                user_id=user_id,
+                room_id=room_id,
+                path=request.path,
+                event_type=RoomTopicEvent.TYPE
+            )
 
-            if not data:
-                defer.returnValue((404, cs_error("Topic not found.")))
-            defer.returnValue((200, json.loads(data.content)))
-        except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
+        if not data:
+            defer.returnValue((404, cs_error("Topic not found.")))
+        defer.returnValue((200, json.loads(data.content)))
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
+        user_id = yield (self.auth.get_user_by_req(request))
 
-            content = _parse_json(request)
+        content = _parse_json(request)
 
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                content=content,
-                room_id=room_id,
-                user_id=user_id
-                )
-
-            msg_handler = self.handlers.message_handler
-            yield msg_handler.store_room_path_data(
-                event=event,
-                path=request.path
+        event = self.event_factory.create_event(
+            etype=self.get_event_type(),
+            content=content,
+            room_id=room_id,
+            user_id=user_id
             )
-            defer.returnValue((200, ""))
-        except SynapseError as e:
-            defer.returnValue((e.code, cs_error(e.msg)))
+
+        msg_handler = self.handlers.message_handler
+        yield msg_handler.store_room_path_data(
+            event=event,
+            path=request.path
+        )
+        defer.returnValue((200, ""))
 
 
 class RoomMemberRestServlet(RestServlet):
@@ -145,67 +139,57 @@ class RoomMemberRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, member_user_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
+        user_id = yield (self.auth.get_user_by_req(request))
 
-            handler = self.handlers.room_member_handler
-            member = yield handler.get_room_member(room_id, member_user_id,
-                                                   user_id)
-            if not member:
-                defer.returnValue((404, cs_error("Member not found.")))
-            defer.returnValue((200, json.loads(member.content)))
-        except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
+        handler = self.handlers.room_member_handler
+        member = yield handler.get_room_member(room_id, member_user_id,
+                                               user_id)
+        if not member:
+            defer.returnValue((404, cs_error("Member not found.")))
+        defer.returnValue((200, json.loads(member.content)))
 
     @defer.inlineCallbacks
     def on_DELETE(self, request, roomid, member_user_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
+        user_id = yield (self.auth.get_user_by_req(request))
 
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                target_user_id=member_user_id,
-                room_id=roomid,
-                user_id=user_id,
-                membership=Membership.LEAVE,
-                content={"membership": Membership.LEAVE}
-                )
+        event = self.event_factory.create_event(
+            etype=self.get_event_type(),
+            target_user_id=member_user_id,
+            room_id=roomid,
+            user_id=user_id,
+            membership=Membership.LEAVE,
+            content={"membership": Membership.LEAVE}
+            )
 
-            handler = self.handlers.room_member_handler
-            yield handler.change_membership(event, broadcast_msg=True)
-            defer.returnValue((200, ""))
-        except SynapseError as e:
-            defer.returnValue((e.code, ""))
-        defer.returnValue((500, ""))
+        handler = self.handlers.room_member_handler
+        yield handler.change_membership(event, broadcast_msg=True)
+        defer.returnValue((200, ""))
 
     @defer.inlineCallbacks
     def on_PUT(self, request, roomid, member_user_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
+        user_id = yield (self.auth.get_user_by_req(request))
 
-            content = _parse_json(request)
-            if "membership" not in content:
-                raise SynapseError(400, cs_error("No membership key"))
+        content = _parse_json(request)
+        if "membership" not in content:
+            raise SynapseError(400, cs_error("No membership key"))
 
-            if (content["membership"] not in
-                    [Membership.JOIN, Membership.INVITE]):
-                raise SynapseError(400,
-                    cs_error("Membership value must be join/invite."))
+        if (content["membership"] not in
+                [Membership.JOIN, Membership.INVITE]):
+            raise SynapseError(400,
+                cs_error("Membership value must be join/invite."))
 
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                target_user_id=member_user_id,
-                room_id=roomid,
-                user_id=user_id,
-                membership=content["membership"],
-                content=content
-                )
+        event = self.event_factory.create_event(
+            etype=self.get_event_type(),
+            target_user_id=member_user_id,
+            room_id=roomid,
+            user_id=user_id,
+            membership=content["membership"],
+            content=content
+            )
 
-            handler = self.handlers.room_member_handler
-            yield handler.change_membership(event, broadcast_msg=True)
-            defer.returnValue((200, ""))
-        except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
+        handler = self.handlers.room_member_handler
+        yield handler.change_membership(event, broadcast_msg=True)
+        defer.returnValue((200, ""))
 
 
 class MessageRestServlet(RestServlet):
@@ -217,47 +201,41 @@ class MessageRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, msg_sender_id, msg_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
+        user_id = yield (self.auth.get_user_by_req(request))
 
-            msg_handler = self.handlers.message_handler
-            msg = yield msg_handler.get_message(room_id=room_id,
-                                                sender_id=msg_sender_id,
-                                                msg_id=msg_id,
-                                                user_id=user_id
-                                                )
+        msg_handler = self.handlers.message_handler
+        msg = yield msg_handler.get_message(room_id=room_id,
+                                            sender_id=msg_sender_id,
+                                            msg_id=msg_id,
+                                            user_id=user_id
+                                            )
 
-            if not msg:
-                defer.returnValue((404, cs_error("Message not found.")))
+        if not msg:
+            defer.returnValue((404, cs_error("Message not found.")))
 
-            defer.returnValue((200, json.loads(msg.content)))
-        except SynapseError as e:
-            defer.returnValue((e.code, cs_error(e.msg)))
+        defer.returnValue((200, json.loads(msg.content)))
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, sender_id, msg_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
+        user_id = yield (self.auth.get_user_by_req(request))
 
-            if user_id != sender_id:
-                raise SynapseError(403, "Must send messages as yourself.")
+        if user_id != sender_id:
+            raise SynapseError(403, "Must send messages as yourself.")
 
-            content = _parse_json(request)
-            # stamp the message with ms resolution
-            content["hsob_ts"] = int(time.time()) * 1000
+        content = _parse_json(request)
+        # stamp the message with ms resolution
+        content["hsob_ts"] = int(time.time()) * 1000
 
-            event = self.event_factory.create_event(
-                etype=self.get_event_type(),
-                room_id=room_id,
-                user_id=user_id,
-                msg_id=msg_id,
-                content=content
-                )
+        event = self.event_factory.create_event(
+            etype=self.get_event_type(),
+            room_id=room_id,
+            user_id=user_id,
+            msg_id=msg_id,
+            content=content
+            )
 
-            msg_handler = self.handlers.message_handler
-            yield msg_handler.send_message(event)
-        except SynapseError as e:
-            defer.returnValue((e.code, cs_error(e.msg)))
+        msg_handler = self.handlers.message_handler
+        yield msg_handler.send_message(event)
 
         defer.returnValue((200, ""))
 
@@ -267,17 +245,14 @@ class RoomMemberListRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
-        try:
-            # TODO support Pagination stream API (limit/tokens)
-            user_id = yield (self.auth.get_user_by_req(request))
-            handler = self.handlers.room_member_handler
-            members = yield handler.get_room_members(
-                room_id=room_id,
-                user_id=user_id)
+        # TODO support Pagination stream API (limit/tokens)
+        user_id = yield (self.auth.get_user_by_req(request))
+        handler = self.handlers.room_member_handler
+        members = yield handler.get_room_members(
+            room_id=room_id,
+            user_id=user_id)
 
-            defer.returnValue((200, members))
-        except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
+        defer.returnValue((200, members))
 
 
 class RoomMessageListRestServlet(RestServlet):
@@ -285,18 +260,15 @@ class RoomMessageListRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
-        try:
-            user_id = yield (self.auth.get_user_by_req(request))
-            pagination_config = PaginationConfig.from_request(request)
-            handler = self.handler_factory.message_handler()
-            msgs = yield handler.get_messages(
-                room_id=room_id,
-                user_id=user_id,
-                pagin_config=pagination_config)
+        user_id = yield (self.auth.get_user_by_req(request))
+        pagination_config = PaginationConfig.from_request(request)
+        handler = self.handler_factory.message_handler()
+        msgs = yield handler.get_messages(
+            room_id=room_id,
+            user_id=user_id,
+            pagin_config=pagination_config)
 
-            defer.returnValue((200, msgs))
-        except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
+        defer.returnValue((200, msgs))
 
 
 def _parse_json(request):

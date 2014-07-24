@@ -14,17 +14,12 @@ class EventStreamRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request):
-        try:
-            auth_user_id = yield (self.auth.get_user_by_req(request))
+        auth_user_id = yield (self.auth.get_user_by_req(request))
 
-            handler = self.handlers.event_stream_handler
-            params = self._get_stream_parameters(request)
-            chunk = yield handler.get_stream(auth_user_id, **params)
-            defer.returnValue((200, chunk))
-        except SynapseError as e:
-            defer.returnValue((e.code, e.msg))
-
-        defer.returnValue((500, "This is not the stream you are looking for."))
+        handler = self.handlers.event_stream_handler
+        params = self._get_stream_parameters(request)
+        chunk = yield handler.get_stream(auth_user_id, **params)
+        defer.returnValue((200, chunk))
 
     def _get_stream_parameters(self, request):
         params = {

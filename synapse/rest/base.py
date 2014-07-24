@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """ This module contains base REST classes for constructing REST servlets. """
+from twisted.internet import defer
+
 from synapse.api.errors import cs_error, CodeMessageException
 
 
@@ -50,6 +52,9 @@ class RestServlet(object):
       on_POST
       on_DELETE
       on_OPTIONS
+
+    Automatically handles turning CodeMessageExceptions thrown by these methods
+    into the appropriate HTTP response.
     """
 
     def __init__(self, hs):
@@ -59,6 +64,20 @@ class RestServlet(object):
         self.event_factory = hs.get_event_factory()
         self.auth = hs.get_auth()
 
+    @classmethod
+    def error_wrap(cls, inner):
+        """Wrap an HTTP handler function to automatically turn raised
+        CodeMessageExceptions into HTTP responses."""
+        @defer.inlineCallbacks
+        def wrapped(*args, **kwargs):
+            try:
+                (code, response) = yield inner(*args, **kwargs)
+                defer.returnValue((code, response))
+            except CodeMessageException as e:
+                defer.returnValue((e.code, cs_error(e.msg)))
+
+        return wrapped
+
     def register(self, http_server):
         """ Register this servlet with the given HTTP server. """
         if hasattr(self, "PATTERN"):
@@ -66,8 +85,9 @@ class RestServlet(object):
 
             for method in ("GET", "PUT", "POST", "OPTIONS", "DELETE"):
                 if hasattr(self, "on_%s" % (method)):
-                    http_server.register_path(method, pattern,
+                    wrapped = RestServlet.error_wrap(
                             getattr(self, "on_%s" % (method)))
+                    http_server.register_path(method, pattern, wrapped)
         else:
             raise NotImplementedError("RestServlet must register something.")
 
