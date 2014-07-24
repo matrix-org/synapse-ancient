@@ -32,7 +32,7 @@ class RegisterRestServlet(RestServlet):
         except KeyError:
             pass  # user_id is optional
 
-        handler = self.handler_factory.register_handler()
+        handler = self.handler_factory.registration_handler()
         try:
             (user_id, token) = yield handler.register(user_id=desired_user_id)
             defer.returnValue((200,

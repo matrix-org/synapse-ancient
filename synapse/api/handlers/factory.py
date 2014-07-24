@@ -13,7 +13,7 @@ class EventHandlerFactory(object):
     def __init__(self, hs):
         self.hs = hs
 
-    def register_handler(self):
+    def registration_handler(self):
         return RegistrationHandler(self.hs)
 
     def message_handler(self):
