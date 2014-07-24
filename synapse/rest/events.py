@@ -10,11 +10,7 @@ import re
 
 
 class EventStreamRestServlet(RestServlet):
-
-    def register(self, http_server):
-        pattern = re.compile("^/events$")
-        http_server.register_path("GET", pattern, self.on_GET)
-        http_server.register_path("OPTIONS", pattern, self.on_OPTIONS)
+    PATTERN = re.compile("^/events$")
 
     @defer.inlineCallbacks
     def on_GET(self, request):

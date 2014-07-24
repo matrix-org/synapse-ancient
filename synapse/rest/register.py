@@ -11,11 +11,7 @@ import urllib
 
 
 class RegisterRestServlet(RestServlet):
-
-    def register(self, http_server):
-        pattern = re.compile("^/register$")
-        http_server.register_path("POST", pattern, self.on_POST)
-        http_server.register_path("OPTIONS", pattern, self.on_OPTIONS)
+    PATTERN = re.compile("^/register$")
 
     @defer.inlineCallbacks
     def on_POST(self, request):

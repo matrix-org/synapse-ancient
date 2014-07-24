@@ -9,18 +9,12 @@ import re
 
 
 class ProfileDisplaynameRestServlet(RestServlet):
+    PATTERN = re.compile("^/profile/(?P<user_id>[^/]*)/displayname")
 
     def __init__(self, hs):
         super(ProfileDisplaynameRestServlet, self).__init__(hs)
 
         self.datastore = hs.get_datastore()
-
-    # TODO(paul): SUUURELY this can be done automatically at a lower level??
-    def register(self, http_server):
-        pattern = re.compile("^/profile/(?P<user_id>[^/]*)/displayname")
-
-        http_server.register_path("GET", pattern, self.on_GET)
-        http_server.register_path("PUT", pattern, self.on_PUT)
 
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):

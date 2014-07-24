@@ -14,6 +14,7 @@ import time
 
 
 class RoomCreateRestServlet(RestServlet):
+    # No PATTERN; we have custom dispatch rules here
 
     def register(self, http_server):
         # /rooms OR /rooms/<roomid>
@@ -86,11 +87,7 @@ class RoomCreateRestServlet(RestServlet):
 
 
 class RoomTopicRestServlet(RestServlet):
-
-    def register(self, http_server):
-        pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
-        http_server.register_path("GET", pattern, self.on_GET)
-        http_server.register_path("PUT", pattern, self.on_PUT)
+    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
 
     def get_event_type(self):
         return RoomTopicEvent.TYPE
@@ -139,13 +136,8 @@ class RoomTopicRestServlet(RestServlet):
 
 
 class RoomMemberRestServlet(RestServlet):
-
-    def register(self, http_server):
-        pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/members/" +
-                          "(?P<userid>[^/]*)/state$")
-        http_server.register_path("GET", pattern, self.on_GET)
-        http_server.register_path("PUT", pattern, self.on_PUT)
-        http_server.register_path("DELETE", pattern, self.on_DELETE)
+    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/members/" +
+                      "(?P<userid>[^/]*)/state$")
 
     def get_event_type(self):
         return RoomMemberEvent.TYPE
@@ -216,12 +208,8 @@ class RoomMemberRestServlet(RestServlet):
 
 
 class MessageRestServlet(RestServlet):
-
-    def register(self, http_server):
-        pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
-                          "(?P<from>[^/]*)/(?P<msgid>[^/]*)$")
-        http_server.register_path("GET", pattern, self.on_GET)
-        http_server.register_path("PUT", pattern, self.on_PUT)
+    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
+                      "(?P<from>[^/]*)/(?P<msgid>[^/]*)$")
 
     def get_event_type(self):
         return MessageEvent.TYPE
@@ -274,10 +262,7 @@ class MessageRestServlet(RestServlet):
 
 
 class RoomMemberListRestServlet(RestServlet):
-
-    def register(self, http_server):
-        pattern = re.compile("^/rooms/(?P<roomid>[^/]*)/members/list$")
-        http_server.register_path("GET", pattern, self.on_GET)
+    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/members/list$")
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):

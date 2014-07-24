@@ -36,6 +36,20 @@ class RestServletFactory(object):
 class RestServlet(object):
 
     """ A Synapse REST Servlet.
+
+    An implementing class can either provide its own custom 'register' method,
+    or use the automatic pattern handling provided by the base class.
+
+    To use this latter, the implementing class instead provides a `PATTERN`
+    class attribute containing a pre-compiled regular expression. The automatic
+    register method will then use this method to register any of the following
+    instance methods associated with the corresponding HTTP method:
+
+      on_GET
+      on_PUT
+      on_POST
+      on_DELETE
+      on_OPTIONS
     """
 
     def __init__(self, hs):
@@ -47,7 +61,15 @@ class RestServlet(object):
 
     def register(self, http_server):
         """ Register this servlet with the given HTTP server. """
-        raise NotImplementedError("RestServlet must register something.")
+        if hasattr(self, "PATTERN"):
+            pattern = self.PATTERN
+
+            for method in ("GET", "PUT", "POST", "OPTIONS", "DELETE"):
+                if hasattr(self, "on_%s" % (method)):
+                    http_server.register_path(method, pattern,
+                            getattr(self, "on_%s" % (method)))
+        else:
+            raise NotImplementedError("RestServlet must register something.")
 
 
 class InvalidHttpRequestError(CodeMessageException):
