@@ -279,6 +279,24 @@ class RoomMemberListRestServlet(RestServlet):
             defer.returnValue((e.code, e.msg))
 
 
+class RoomMessageListRestServlet(RestServlet):
+    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/list$")
+
+    @defer.inlineCallbacks
+    def on_GET(self, request, room_id):
+        try:
+            # TODO support filter stream API (limit/tokens)
+            user_id = yield (self.auth.get_user_by_req(request))
+            handler = self.handler_factory.message_handler()
+            msgs = yield handler.get_messages(
+                room_id=room_id,
+                user_id=user_id)
+
+            defer.returnValue((200, msgs))
+        except SynapseError as e:
+            defer.returnValue((e.code, e.msg))
+
+
 def _parse_json(request):
     try:
         content = json.loads(request.content.read())
@@ -295,3 +313,4 @@ def register_servlets(hs, http_server):
     MessageRestServlet(hs).register(http_server)
     RoomCreateRestServlet(hs).register(http_server)
     RoomMemberListRestServlet(hs).register(http_server)
+    RoomMessageListRestServlet(hs).register(http_server)

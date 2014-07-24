@@ -67,6 +67,12 @@ class MessageHandler(BaseHandler):
             self.notifier.on_new_event(event, store_id)
 
     @defer.inlineCallbacks
+    def get_messages(self, user_id=None, room_id=None):
+        yield self.auth.check_joined_room(room_id, user_id)
+
+        defer.returnValue("NOT_IMPLEMENTED")
+
+    @defer.inlineCallbacks
     def store_room_path_data(self, event=None, path=None):
         """ Stores data for a room under a given path.
 
