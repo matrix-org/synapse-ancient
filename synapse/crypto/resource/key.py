@@ -3,14 +3,14 @@
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 from twisted.internet import defer
-from synapsekeyserver.util.base64util import encode_base64, decode_base64
-from synapsekeyserver.util.jsonutil import (
+from synapse.crypto.util.base64util import encode_base64, decode_base64
+from synapse.crypto.util.jsonutil import (
     encode_canonical_json,
     respond_with_json_bytes,
     respond_with_json_object,
 )
-from synapsekeyserver.keyclient import fetch_server_key
-from synapsekeyserver.crypto.signing import sign_json, verify_signed_json
+from synapse.crypto.keyclient import fetch_server_key
+from synapse.crypto.signing import sign_json, verify_signed_json
 from OpenSSL import crypto
 from nacl.signing import VerifyKey
 import logging
