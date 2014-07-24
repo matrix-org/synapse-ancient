@@ -8,13 +8,13 @@
 from synapse.persistence import PersistenceService
 from synapse.federation import initialize_http_replication
 from synapse.federation.handler import FederationEventHandler
-from synapse.api.storage import DataStore
 from synapse.api.events.factory import EventFactory
 from synapse.api.notifier import Notifier
 from synapse.api.auth import Auth
 from synapse.api.handlers.factory import EventHandlerFactory
 from synapse.rest.base import RestServletFactory
 from synapse.state import StateHandler
+from synapse.storage import DataStore
 from synapse.types import UserID
 from synapse.util.lockutils import LockManager
 
