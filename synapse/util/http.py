@@ -17,6 +17,12 @@ import urllib
 logger = logging.getLogger(__name__)
 
 
+_destination_mapping = {
+    "red": "localhost:8080",
+    "blue": "localhost:8081",
+}
+
+
 class HttpServer(object):
     """ Interface for registering callbacks on a HTTP server
     """
@@ -110,7 +116,7 @@ def _send_response(request, code, content):
     # XXX: really? the way to set a header on the response is to set it on the
     # request object?!
     request.setHeader("Content-Type", "application/json")
-    
+
     # Hack to turn on CORS for everyone for now...
     request.setHeader("Access-Control-Allow-Origin", "*");
     request.setHeader("Access-Control-Allow-Methods",
@@ -229,6 +235,9 @@ class TwistedHttpClient(HttpClient):
 
     @defer.inlineCallbacks
     def put_json(self, destination, path, data):
+        if destination in _destination_mapping:
+            destination = _destination_mapping[destination]
+
         response = yield self._create_put_request(
             "http://%s%s" % (destination, path),
             data,
@@ -243,6 +252,9 @@ class TwistedHttpClient(HttpClient):
 
     @defer.inlineCallbacks
     def get_json(self, destination, path, args=None):
+        if destination in _destination_mapping:
+            destination = _destination_mapping[destination]
+
         if args:
             # generates a list of strings of form "k=v".
             # First we generate a list of lists, and then flatten it using
