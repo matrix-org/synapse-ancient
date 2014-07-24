@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
+from synapse.types import UserID
+from synapse.api.constants import Membership
 from synapse.persistence.tables import RoomMemberTable
 
 from ._base import SQLBaseStore
 
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def last_row_id(cursor):
@@ -84,3 +90,30 @@ class RoomMemberStore(SQLBaseStore):
         # table)
         entries = [t[0:-1] for t in results]
         return RoomMemberTable.decode_results(entries)
+
+    @defer.inlineCallbacks
+    def get_joined_hosts_for_room(self, room_id):
+        query = (
+            "SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
+            " WHERE room_id = ? GROUP BY user_id"
+        )
+
+        res = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query, self._room_member_decode, room_id
+        )
+
+        def host_from_user_id_string(user_id):
+            domain = UserID.from_string(entry.user_id, self.hs).domain
+            return domain
+
+        # strip memberships which don't match
+        hosts = [
+            host_from_user_id_string(entry.user_id)
+            for entry in res
+            if entry.membership == Membership.JOIN
+        ]
+
+        logger.debug("Returning hosts: %s from results: %s", hosts, res)
+
+        defer.returnValue(hosts)

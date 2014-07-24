@@ -23,6 +23,7 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
         self.event_factory = hs.get_event_factory()
+        self.hs = hs
 
     def _create_event(self, store_data):
         event_type = None
