@@ -62,7 +62,7 @@ class Notifier(object):
         d.callback(self.stored_event_listeners[user_id])
 
     def _next_token(self, event, store_id, current_token):
-        stream_handler = self.hs.get_handler_factory().event_stream_handler()
+        stream_handler = self.hs.get_handlers().event_stream_handler
         return stream_handler.get_event_stream_token(
             event,
             store_id,

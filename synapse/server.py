@@ -11,7 +11,7 @@ from synapse.federation.handler import FederationEventHandler
 from synapse.api.events.factory import EventFactory
 from synapse.api.notifier import Notifier
 from synapse.api.auth import Auth
-from synapse.api.handlerfactory import HandlerFactory
+from synapse.api.handlers import Handlers
 from synapse.rest.base import RestServletFactory
 from synapse.state import StateHandler
 from synapse.storage import DataStore
@@ -47,7 +47,7 @@ class BaseHomeServer(object):
             'replication_layer',
             'datastore',
             'event_factory',
-            'handler_factory',
+            'handlers',
             'auth',
             'rest_servlet_factory',
             'state_handler',
@@ -130,8 +130,8 @@ class HomeServer(BaseHomeServer):
     def build_event_factory(self):
         return EventFactory()
 
-    def build_handler_factory(self):
-        return HandlerFactory(self)
+    def build_handlers(self):
+        return Handlers(self)
 
     def build_notifier(self):
         return Notifier(self)

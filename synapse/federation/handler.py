@@ -26,7 +26,7 @@ class FederationEventHandler(object):
         self.replication_layer = hs.get_replication_layer()
         self.state_handler = hs.get_state_handler()
         # self.auth_handler = gs.get_auth_handler()
-        self.event_handler = hs.get_handler_factory().federation_handler()
+        self.event_handler = hs.get_handlers().federation_handler
         self.server_name = hs.hostname
 
         self.lock_manager = hs.get_room_lock_manager()

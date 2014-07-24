@@ -62,7 +62,7 @@ class RoomCreateRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def make_room(self, room_config, auth_user_id, room_id):
-        handler = self.handler_factory.room_creation_handler()
+        handler = self.handlers.room_creation_handler
         new_room_id = yield handler.create_room(
                 user_id=auth_user_id,
                 room_id=room_id,
@@ -97,7 +97,7 @@ class RoomTopicRestServlet(RestServlet):
         try:
             user_id = yield (self.auth.get_user_by_req(request))
 
-            msg_handler = self.handler_factory.message_handler()
+            msg_handler = self.handlers.message_handler
             data = yield msg_handler.get_room_path_data(
                     user_id=user_id,
                     room_id=room_id,
@@ -125,7 +125,7 @@ class RoomTopicRestServlet(RestServlet):
                 user_id=user_id
                 )
 
-            msg_handler = self.handler_factory.message_handler()
+            msg_handler = self.handlers.message_handler
             yield msg_handler.store_room_path_data(
                 event=event,
                 path=request.path
@@ -147,7 +147,7 @@ class RoomMemberRestServlet(RestServlet):
         try:
             user_id = yield (self.auth.get_user_by_req(request))
 
-            handler = self.handler_factory.room_member_handler()
+            handler = self.handlers.room_member_handler
             member = yield handler.get_room_member(room_id, member_user_id,
                                                    user_id)
             if not member:
@@ -170,7 +170,7 @@ class RoomMemberRestServlet(RestServlet):
                 content={"membership": Membership.LEAVE}
                 )
 
-            handler = self.handler_factory.room_member_handler()
+            handler = self.handlers.room_member_handler
             yield handler.change_membership(event, broadcast_msg=True)
             defer.returnValue((200, ""))
         except SynapseError as e:
@@ -200,7 +200,7 @@ class RoomMemberRestServlet(RestServlet):
                 content=content
                 )
 
-            handler = self.handler_factory.room_member_handler()
+            handler = self.handlers.room_member_handler
             yield handler.change_membership(event, broadcast_msg=True)
             defer.returnValue((200, ""))
         except SynapseError as e:
@@ -219,7 +219,7 @@ class MessageRestServlet(RestServlet):
         try:
             user_id = yield (self.auth.get_user_by_req(request))
 
-            msg_handler = self.handler_factory.message_handler()
+            msg_handler = self.handlers.message_handler
             msg = yield msg_handler.get_message(room_id=room_id,
                                                 sender_id=msg_sender_id,
                                                 msg_id=msg_id,
@@ -253,7 +253,7 @@ class MessageRestServlet(RestServlet):
                 content=content
                 )
 
-            msg_handler = self.handler_factory.message_handler()
+            msg_handler = self.handlers.message_handler
             yield msg_handler.send_message(event)
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
@@ -269,7 +269,7 @@ class RoomMemberListRestServlet(RestServlet):
         try:
             # TODO support filter stream API (limit/tokens)
             user_id = yield (self.auth.get_user_by_req(request))
-            handler = self.handler_factory.room_member_handler()
+            handler = self.handlers.room_member_handler
             members = yield handler.get_room_members(
                 room_id=room_id,
                 user_id=user_id)

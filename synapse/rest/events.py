@@ -17,7 +17,7 @@ class EventStreamRestServlet(RestServlet):
         try:
             auth_user_id = yield (self.auth.get_user_by_req(request))
 
-            handler = self.handler_factory.event_stream_handler()
+            handler = self.handlers.event_stream_handler
             params = self._get_stream_parameters(request)
             chunk = yield handler.get_stream(auth_user_id, **params)
             defer.returnValue((200, chunk))

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Contains handlers for federation events."""
 
-from . import BaseHandler
+from ._base import BaseHandler
 
 from synapse.util.logutils import log_function
 
