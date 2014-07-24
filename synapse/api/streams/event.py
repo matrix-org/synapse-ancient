@@ -19,7 +19,8 @@ class MessagesStreamData(StreamData):
         (data, latest_ver) = yield self.store.get_message_stream(
                                 user_id=user_id,
                                 from_key=from_key,
-                                to_key=to_key
+                                to_key=to_key,
+                                room_id=self.room_id
                                 )
         defer.returnValue((data, latest_ver))
 

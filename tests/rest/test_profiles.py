@@ -13,11 +13,12 @@ from synapse.server import HomeServer
 
 myid = "!1234ABCD:test"
 
+
 class ProfilesTestCase(unittest.TestCase):
     """ Tests profile management. """
 
     def mock_get_user_by_token(self, token=None):
-        return "1234ABCD" # local part only
+        return "1234ABCD"  # local part only
 
     def setUp(self):
         self.mock_server = MockHttpServer()
@@ -89,5 +90,5 @@ class ProfilesTestCase(unittest.TestCase):
         (code, response) = yield self.mock_server.trigger("PUT",
                 "/profile/%s/displayname" % ("!opaque:elsewhere"), None)
 
-        self.assertTrue(400 <= code <= 499, 
+        self.assertTrue(400 <= code <= 499,
                 msg="code %d is in the 4xx range" % (code))

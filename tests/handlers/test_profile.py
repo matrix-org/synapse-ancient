@@ -11,6 +11,7 @@ from synapse.server import HomeServer
 
 myid = "!1234ABCD:test"
 
+
 class ProfileTestCase(unittest.TestCase):
     """ Tests profile management. """
 

@@ -13,21 +13,24 @@ class StreamStore(SQLBaseStore):
         self._db_pool = hs.get_db_pool()
 
     @defer.inlineCallbacks
-    def get_message_stream(self, user_id=None, from_key=None, to_key=None):
+    def get_message_stream(self, user_id=None, from_key=None, to_key=None,
+                            room_id=None):
         """Get all messages for this user between the given keys.
 
         Args:
             user_id (str): The user who is requesting messages.
             from_key (int): The ID to start returning results from (exclusive).
             to_key (int): The ID to stop returning results (exclusive).
+            room_id (str): Gets messages only for this room. Can be None, in
+            which case all room messages will be returned.
         Returns:
             A tuple of rows (list of namedtuples), new_id(int)
         """
         (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_message_rows, user_id, from_key, to_key)
+                self._get_message_rows, user_id, from_key, to_key, room_id)
         defer.returnValue((rows, pkey))
 
-    def _get_message_rows(self, txn, user_id, from_pkey, to_pkey):
+    def _get_message_rows(self, txn, user_id, from_pkey, to_pkey, room_id):
         # work out which rooms this user is joined in on and join them with
         # the room id on the messages table, bounded by the specified pkeys
 
@@ -38,6 +41,10 @@ class StreamStore(SQLBaseStore):
             "room_id = messages.room_id ORDER BY id DESC LIMIT 1) " +
             "AND messages.id > ?")
         query_args = ["join", user_id, from_pkey]
+
+        if room_id:
+            query += " AND messages.room_id=?"
+            query_args.append(room_id)
 
         if to_pkey != -1:
             query += " AND messages.id < ?"
