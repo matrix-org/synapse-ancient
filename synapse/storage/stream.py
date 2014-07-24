@@ -5,6 +5,10 @@ from synapse.persistence.tables import RoomMemberTable, MessagesTable
 
 from ._base import SQLBaseStore
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class StreamStore(SQLBaseStore):
 
@@ -14,7 +18,7 @@ class StreamStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_message_stream(self, user_id=None, from_key=None, to_key=None,
-                            room_id=None):
+                            room_id=None, limit=0):
         """Get all messages for this user between the given keys.
 
         Args:
@@ -27,10 +31,12 @@ class StreamStore(SQLBaseStore):
             A tuple of rows (list of namedtuples), new_id(int)
         """
         (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_message_rows, user_id, from_key, to_key, room_id)
+                self._get_message_rows, user_id, from_key, to_key, room_id,
+                limit)
         defer.returnValue((rows, pkey))
 
-    def _get_message_rows(self, txn, user_id, from_pkey, to_pkey, room_id):
+    def _get_message_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
+                          limit):
         # work out which rooms this user is joined in on and join them with
         # the room id on the messages table, bounded by the specified pkeys
 
@@ -42,7 +48,7 @@ class StreamStore(SQLBaseStore):
         query_args = ["join", user_id]
 
         if from_pkey != -1:
-            query += "AND messages.id > ?"
+            query += " AND messages.id > ?"
             query_args.append(from_pkey)
 
         if room_id:
@@ -53,6 +59,11 @@ class StreamStore(SQLBaseStore):
             query += " AND messages.id < ?"
             query_args.append(to_pkey)
 
+        if limit and limit > 0:
+            query += " LIMIT ?"
+            query_args.append(str(limit))
+
+        logger.debug("[SQL] %s : %s" % (query, query_args))
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, MessagesTable, from_pkey)
 

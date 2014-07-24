@@ -68,13 +68,14 @@ class StreamData(object):
     def __init__(self, store):
         self.store = store
 
-    def get_rows(self, user_id, from_pkey, to_pkey):
+    def get_rows(self, user_id, from_pkey, to_pkey, limit):
         """ Get event stream data between the specified pkeys.
 
         Args:
             user_id : The user's ID
             from_pkey : The starting pkey.
             to_pkey : The end pkey. May be -1 to mean "latest".
+            limit: The max number of results to return.
         Returns:
             A tuple containing the list of event stream data and the last pkey.
         """

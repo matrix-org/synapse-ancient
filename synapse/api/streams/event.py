@@ -19,11 +19,12 @@ class MessagesStreamData(StreamData):
         self.room_id = room_id
 
     @defer.inlineCallbacks
-    def get_rows(self, user_id, from_key, to_key):
+    def get_rows(self, user_id, from_key, to_key, limit):
         (data, latest_ver) = yield self.store.get_message_stream(
                                 user_id=user_id,
                                 from_key=from_key,
                                 to_key=to_key,
+                                limit=limit,
                                 room_id=self.room_id
                                 )
         defer.returnValue((data, latest_ver))
@@ -33,7 +34,7 @@ class RoomMemberStreamData(StreamData):
     EVENT_TYPE = RoomMemberEvent.TYPE
 
     @defer.inlineCallbacks
-    def get_rows(self, user_id, from_key, to_key):
+    def get_rows(self, user_id, from_key, to_key, limit):
         (data, latest_ver) = yield self.store.get_room_member_stream(
                                 user_id=user_id,
                                 from_key=from_key,
@@ -54,9 +55,10 @@ class EventStream(PaginationStream):
 
     @defer.inlineCallbacks
     def get_chunk(self, config=None):
-        # no support for limit, makes no sense on the EventStream
-        if config.limit:
-            raise EventStreamError(400, "Limit not supported.")
+        # no support for limit on >1 streams, makes no sense.
+        if config.limit and len(self.stream_data) > 1:
+            raise EventStreamError(400,
+                                  "Limit not supported on multiplexed streams.")
 
         # replace TOK_START and TOK_END with 0_0_0 or -1_-1_-1 depending.
         replacements = [
@@ -73,7 +75,8 @@ class EventStream(PaginationStream):
 
         try:
             (chunk_data, next_tok) = yield self._get_chunk_data(config.from_tok,
-                                                                config.to_tok)
+                                                                config.to_tok,
+                                                                config.limit)
 
             defer.returnValue({
                 "chunk": chunk_data,
@@ -86,7 +89,7 @@ class EventStream(PaginationStream):
             raise EventStreamError(400, "Bad tokens supplied.")
 
     @defer.inlineCallbacks
-    def _get_chunk_data(self, from_tok, to_tok):
+    def _get_chunk_data(self, from_tok, to_tok, limit):
         """ Get event data between the two tokens.
 
         Tokens are SEPARATOR separated values representing pkey values of
@@ -125,7 +128,7 @@ class EventStream(PaginationStream):
                 raise EventStreamError(400, "Index not integer.")
 
             (event_chunk, max_pkey) = yield self.stream_data[i].get_rows(
-                                        self.user_id, ifrom, ito)
+                                        self.user_id, ifrom, ito, limit)
 
             chunk += event_chunk
             next_ver.append(str(max_pkey))
