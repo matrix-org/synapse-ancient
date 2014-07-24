@@ -3,8 +3,8 @@
 from twisted.internet import defer
 
 from synapse.api.errors import SynapseError
-from synapse.api.streams import PaginationStream
-from synapse.rest.base import RestServlet, InvalidHttpRequestError
+from synapse.api.streams import PaginationConfig
+from synapse.rest.base import RestServlet
 
 import re
 
@@ -17,39 +17,17 @@ class EventStreamRestServlet(RestServlet):
         auth_user_id = yield (self.auth.get_user_by_req(request))
 
         handler = self.handlers.event_stream_handler
-        params = self._get_stream_parameters(request)
-        chunk = yield handler.get_stream(auth_user_id, **params)
-        defer.returnValue((200, chunk))
-
-    def _get_stream_parameters(self, request):
-        params = {
-            "from_tok": PaginationStream.TOK_START,
-            "to_tok": PaginationStream.TOK_END,
-            "limit": None,
-            "direction": 'f',
-            "timeout": 5
-        }
-        try:
-            if request.args["dir"][0] not in ["f", "b"]:
-                raise InvalidHttpRequestError(400, "Unknown dir value.")
-            params["direction"] = request.args["dir"][0]
-        except KeyError:
-            pass  # dir is optional
-
-        if "from" in request.args:
-            params["from_tok"] = request.args["from"][0]
-        if "to" in request.args:
-            params["to_tok"] = request.args["to"][0]
+        pagin_config = PaginationConfig.from_request(request)
+        timeout = 5
         if "timeout" in request.args:
-            params["timeout"] = int(request.args["timeout"][0])
-        if "limit" in request.args:
             try:
-                params["limit"] = request.args["limit"][0]
+                timeout = int(request.args["timeout"][0])
             except ValueError:
-                raise InvalidHttpRequestError(400,
-                    "limit cannot be used with this stream.")
+                raise SynapseError(400, "timeout must be in milliseconds.")
 
-        return params
+        chunk = yield handler.get_stream(auth_user_id, pagin_config,
+                                         timeout=timeout)
+        defer.returnValue((200, chunk))
 
     def on_OPTIONS(self, request):
         return (200, {})

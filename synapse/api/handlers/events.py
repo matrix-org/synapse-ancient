@@ -33,8 +33,7 @@ class EventStreamHandler(BaseHandler):
         raise RuntimeError("Didn't find a stream for this event %s" % event)
 
     @defer.inlineCallbacks
-    def get_stream(self, auth_user_id, timeout=0, from_tok=None, to_tok=None,
-                   direction=None, limit=None):
+    def get_stream(self, auth_user_id, pagin_config, timeout=0):
         """Gets events as an event stream for this user.
 
         This function looks for interesting *events* for this user. This is
@@ -44,7 +43,7 @@ class EventStreamHandler(BaseHandler):
         try:
             # register interest in receiving new events
             self.notifier.store_events_for(user_id=auth_user_id,
-                                           from_tok=from_tok)
+                                           from_tok=pagin_config.from_tok)
 
             # construct an event stream with the correct data ordering
             stream_data_list = []
@@ -53,10 +52,10 @@ class EventStreamHandler(BaseHandler):
 
             event_stream = EventStream(auth_user_id, stream_data_list)
             data_chunk = yield event_stream.get_chunk(
-                            from_tok=from_tok,
-                            to_tok=to_tok,
-                            direction=direction,
-                            limit=limit
+                            from_tok=pagin_config.from_tok,
+                            to_tok=pagin_config.to_tok,
+                            direction=pagin_config.dir,
+                            limit=pagin_config.limit
                         )
 
             # if there are previous events, return those. If not, wait on the
