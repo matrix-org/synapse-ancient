@@ -6,6 +6,10 @@ from synapse.api.errors import EventStreamError
 from synapse.api.events.room import RoomMemberEvent, MessageEvent
 from synapse.api.streams import PaginationStream, StreamData
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class MessagesStreamData(StreamData):
     EVENT_TYPE = MessageEvent.TYPE
@@ -54,13 +58,18 @@ class EventStream(PaginationStream):
         if config.limit or config.dir != 'f':
             raise EventStreamError(400, "Limit and dir=b not supported.")
 
-        if config.from_tok == PaginationStream.TOK_START:
-            config.from_tok = EventStream.SEPARATOR.join(
-                           ["0"] * len(self.stream_data))
-
-        if config.to_tok == PaginationStream.TOK_END:
-            config.to_tok = EventStream.SEPARATOR.join(
-                           ["-1"] * len(self.stream_data))
+        # replace TOK_START and TOK_END with 0_0_0 or -1_-1_-1 depending.
+        replacements = [
+            (PaginationStream.TOK_START, "0"),
+            (PaginationStream.TOK_END, "-1")
+        ]
+        for token, key in replacements:
+            if config.from_tok == token:
+                config.from_tok = EventStream.SEPARATOR.join(
+                                            [key] * len(self.stream_data))
+            if config.to_tok == token:
+                config.to_tok = EventStream.SEPARATOR.join(
+                                            [key] * len(self.stream_data))
 
         try:
             (chunk_data, next_tok) = yield self._get_chunk_data(config.from_tok,
@@ -71,8 +80,9 @@ class EventStream(PaginationStream):
                 "start": config.from_tok,
                 "end": next_tok
             })
-        except EventStreamError as e:
-            print e
+        except Exception as e:
+            logger.error("Failed to get chunk. Config %s. Exception: %s" %
+                        (config.dict(), e))
             raise EventStreamError(400, "Bad tokens supplied.")
 
     @defer.inlineCallbacks
@@ -98,7 +108,7 @@ class EventStream(PaginationStream):
                 to_tok.count(EventStream.SEPARATOR) or
                 (from_tok.count(EventStream.SEPARATOR) + 1) !=
                 len(self.stream_data)):
-            raise EventStreamError("Token lengths don't match.")
+            raise EventStreamError(400, "Token lengths don't match.")
 
         chunk = []
         next_ver = []
@@ -109,10 +119,10 @@ class EventStream(PaginationStream):
             try:
                 ifrom = int(from_pkey)
                 ito = int(to_pkey)
-                if ifrom < 0 or ifrom > ito and ito != -1:
-                    raise EventStreamError("Bad index.")
+                if ifrom < -1 or ito < -1:
+                    raise EventStreamError(400, "Bad index.")
             except ValueError:
-                raise EventStreamError("Index not integer.")
+                raise EventStreamError(400, "Index not integer.")
 
             (event_chunk, max_pkey) = yield self.stream_data[i].get_rows(
                                         self.user_id, ifrom, ito)

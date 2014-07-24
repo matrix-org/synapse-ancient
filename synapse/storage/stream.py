@@ -38,9 +38,12 @@ class StreamStore(SQLBaseStore):
         # this user in that room.
         query = ("SELECT messages.* FROM messages WHERE ? IN " +
             "(SELECT membership from room_memberships WHERE user_id=? AND " +
-            "room_id = messages.room_id ORDER BY id DESC LIMIT 1) " +
-            "AND messages.id > ?")
-        query_args = ["join", user_id, from_pkey]
+            "room_id = messages.room_id ORDER BY id DESC LIMIT 1)")
+        query_args = ["join", user_id]
+
+        if from_pkey != -1:
+            query += "AND messages.id > ?"
+            query_args.append(from_pkey)
 
         if room_id:
             query += " AND messages.room_id=?"

@@ -33,7 +33,7 @@ class PaginationConfig(object):
             ("from", "from_tok", lambda x: type(x) == str),
             ("to", "to_tok", lambda x: type(x) == str),
             ("limit", "limit", lambda x: x.isdigit()),
-            ("dir", "direction", lambda x: x in ['f', 'b'])
+            ("dir", "direction", lambda x: x in PaginationStream.DIRECTIONS)
         ]
 
         for qp, attr, is_valid in query_param_mappings:
