@@ -2,6 +2,7 @@
 """Contains functions for registering clients."""
 from twisted.internet import defer
 
+from synapse.types import UserID
 from synapse.api.errors import SynapseError, RegistrationError
 from ._base import BaseHandler
 import synapse.util.stringutils as stringutils
@@ -25,6 +26,7 @@ class RegistrationHandler(BaseHandler):
         """
 
         if user_id:
+            user_id = UserID(user_id, self.hs.hostname, True).to_string()
             token = self._generate_token(user_id)
             yield self.store.register(user_id, token)
             defer.returnValue((user_id, token))
@@ -35,7 +37,10 @@ class RegistrationHandler(BaseHandler):
             token = None
             while not user_id and not token:
                 try:
-                    user_id = self._generate_user_id()
+                    string = self._generate_user_id()
+                    user_id = UserID(
+                        string, self.hs.hostname, True
+                    ).to_string()
                     token = self._generate_token(user_id)
                     yield self.store.register(user_id, token)
                     defer.returnValue((user_id, token))
