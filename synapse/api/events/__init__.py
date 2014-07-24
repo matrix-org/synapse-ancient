@@ -35,6 +35,7 @@ class SynapseEvent(JsonEncodedObject):
         "prev_events",
         "prev_state",
         "depth",
+        "destinations",
     ]
 
     required_keys = [

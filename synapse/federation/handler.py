@@ -53,11 +53,8 @@ class FederationEventHandler(object):
 
         pdu = self.pdu_codec.pdu_from_event(event)
 
-        # pdu.destinations = yield self.persistence.get_servers_in_context(
-        #     pdu.context
-        # )
-
-        pdu.destinations = []
+        if not hasattr(pdu, "destinations") or not pdu.destinations:
+            pdu.destinations = []
 
         yield self.replication_layer.send_pdu(pdu)
 
