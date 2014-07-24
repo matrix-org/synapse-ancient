@@ -3,6 +3,7 @@ from .register import RegistrationHandler
 from .room import MessageHandler, RoomCreationHandler, RoomMemberHandler
 from .events import EventStreamHandler
 from .federation import FederationHandler
+from .profile import ProfileHandler
 
 
 class Handlers(object):
@@ -20,3 +21,4 @@ class Handlers(object):
         self.room_member_handler = RoomMemberHandler(hs)
         self.event_stream_handler = EventStreamHandler(hs)
         self.federation_handler = FederationHandler(hs)
+        self.profile_handler = ProfileHandler(hs)

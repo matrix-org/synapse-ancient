@@ -2,6 +2,8 @@
 """ This module contains REST servlets to do with profile: /profile/<paths> """
 from twisted.internet import defer
 
+from synapse.api.errors import SynapseError, cs_error
+
 from base import RestServlet, InvalidHttpRequestError
 
 import json
@@ -11,46 +13,30 @@ import re
 class ProfileDisplaynameRestServlet(RestServlet):
     PATTERN = re.compile("^/profile/(?P<user_id>[^/]*)/displayname")
 
-    def __init__(self, hs):
-        super(ProfileDisplaynameRestServlet, self).__init__(hs)
-
-        self.datastore = hs.get_datastore()
-
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):
         user = self.hs.parse_userid(user_id)
 
-        if user.is_mine:
-            displayname = yield self.datastore.get_profile_displayname(
-                    user.localpart)
+        displayname = yield self.handlers.profile_handler.get_displayname(user)
 
-            defer.returnValue((200, displayname))
-        else:
-            # TODO(paul): This should use the server-server API to ask another
-            # HS
-            defer.returnValue((200, "Bob"))
+        defer.returnValue((200, displayname))
 
     @defer.inlineCallbacks
     def on_PUT(self, request, user_id):
         user = self.hs.parse_userid(user_id)
-
-        if not user.is_mine:
-            defer.returnValue((400, "User is not hosted on this Home Server"))
-
-        try:
-            auth_user_id = yield self.auth.get_user_by_req(request)
-        except SynapseError as e:
-            defer.returnValue((e.code, cs_error(e.msg)))
-
-        if user.localpart != auth_user_id:
-            defer.returnValue((400, "Cannot set another user's displayname"))
 
         try:
             new_name = json.loads(request.content.read())
         except:
             defer.returnValue((400, "Unable to parse name"))
 
-        yield self.datastore.set_profile_displayname(user.localpart, new_name)
+        try:
+            auth_user_id = yield self.auth.get_user_by_req(request)
+            yield self.handlers.profile_handler.set_displayname(user,
+                    auth_user_id, new_name)
+        except SynapseError as e:
+            defer.returnValue((e.code, cs_error(e.msg)))
+
         defer.returnValue((200, ""))
 
 
