@@ -7,6 +7,7 @@ from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent)
 from synapse.api.constants import Membership
+from synapse.api.streams import PaginationConfig
 
 import json
 import re
@@ -267,7 +268,7 @@ class RoomMemberListRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
         try:
-            # TODO support filter stream API (limit/tokens)
+            # TODO support Pagination stream API (limit/tokens)
             user_id = yield (self.auth.get_user_by_req(request))
             handler = self.handlers.room_member_handler
             members = yield handler.get_room_members(
@@ -285,12 +286,13 @@ class RoomMessageListRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
         try:
-            # TODO support filter stream API (limit/tokens)
             user_id = yield (self.auth.get_user_by_req(request))
+            pagination_config = PaginationConfig.from_request(request)
             handler = self.handler_factory.message_handler()
             msgs = yield handler.get_messages(
                 room_id=room_id,
-                user_id=user_id)
+                user_id=user_id,
+                pagin_config=pagination_config)
 
             defer.returnValue((200, msgs))
         except SynapseError as e:

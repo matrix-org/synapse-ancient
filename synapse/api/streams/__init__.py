@@ -1,7 +1,52 @@
 # -*- coding: utf-8 -*-
+from synapse.api.errors import SynapseError
 
 
-class FilterStream(object):
+class PaginationConfig(object):
+
+    """A configuration object which stores pagination parameters."""
+
+    def __init__(self, from_tok=None, to_tok=None, direction=None, limit=0):
+        self.from_tok = from_tok
+        self.to_tok = to_tok
+        self.dir = direction
+        self.limit = limit
+
+    def dict(self):
+        return {
+            "from": self.from_tok,
+            "to": self.to_tok,
+            "limit": self.limit,
+            "dir": self.dir
+        }
+
+    @classmethod
+    def from_request(cls, request, raise_invalid_params=True):
+        params = {
+            "from_tok": PaginationStream.TOK_START,
+            "to_tok": PaginationStream.TOK_END,
+            "limit": 0,
+            "direction": 'f'
+        }
+
+        query_param_mappings = [  # 3-tuple of qp_key, attribute, rules
+            ("from", "from_tok", lambda x: type(x) == str),
+            ("to", "to_tok", lambda x: type(x) == str),
+            ("limit", "limit", lambda x: x.isdigit()),
+            ("dir", "direction", lambda x: x in ['f', 'b'])
+        ]
+
+        for qp, attr, is_valid in query_param_mappings:
+            if qp in request.args:
+                if is_valid(request.args[qp][0]):
+                    params[attr] = request.args[qp][0]
+                elif raise_invalid_params:
+                    raise SynapseError(400, "%s parameter is invalid." % qp)
+
+        return PaginationConfig(**params)
+
+
+class PaginationStream(object):
 
     """ An interface for streaming data as chunks. """
 

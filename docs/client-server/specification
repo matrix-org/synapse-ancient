@@ -25,10 +25,10 @@ a home server.
 Terminology
 -----------
 Stream Tokens: 
-An opaque token used to make further streaming requests. When using any filter 
-streaming API, responses will contain a start and end streaming token. When 
-reconnecting to the stream, these tokens can be used to tell the server where 
-the client got up to in the stream.
+An opaque token used to make further streaming requests. When using any 
+pagination streaming API, responses will contain a start and end streaming token. 
+When reconnecting to the stream, these tokens can be used to tell the server 
+where the client got up to in the stream.
 
 Event ID:
 Every event that comes down the event stream or that is returned from the REST
@@ -68,22 +68,22 @@ this API or from an event stream. An event stream is a special path which
 streams all events the client may be interested in. This makes it easy to 
 immediately receive updates from the REST API. All data is represented as JSON.
 
-Filter streaming API
-====================
+Pagination streaming API
+========================
 Clients are often interested in very large datasets. The data itself could
 be 1000s of messages in a given room, 1000s of rooms in a public room list, or
 1000s of events (presence, typing, messages, etc) in the system. It is not
 practical to send vast quantities of data to the client every time they
 request a list of public rooms for example. There needs to be a way to show a
-subset of this data, and apply various filters to it. This is what the filter
+subset of this data, and apply various filters to it. This is what the pagination
 streaming API is. This API defines standard request/response parameters which 
 can be used when navigating this stream of data.
 
-Filtering Request Query Parameters
-----------------------------------
-Clients may wish to filter results from the event stream, or other sources of 
+Pagination Request Query Parameters
+-----------------------------------
+Clients may wish to paginate results from the event stream, or other sources of 
 information where the amount of information may be a problem,
-e.g. in a room with 10,000s messages. The filtering query parameters provide a 
+e.g. in a room with 10,000s messages. The pagination query parameters provide a 
 way to navigate a 'window' around a large set of data. These
 parameters are only valid for GET requests.
        
@@ -138,9 +138,9 @@ S                                                           E
                          GET /rooms/list?from=9&to=END&dir=f&limit=5
                          Returns: R11,R12,R13,R14,R15
 
-Filter Response
----------------
-Responses to filtering requests MUST follow the format:
+Pagination Response
+-------------------
+Responses to pagination requests MUST follow the format:
 {
   "chunk": [ ... , Responses , ... ],
   "start" : $streamtoken,
@@ -154,17 +154,17 @@ If the client wants earlier results, they should use from=$start_streamtoken,
 to=START. Likewise, if the client wants later results, they should use
 from=$end_streamtoken, to=END.
 
-Unless specified, the default filtering parameters are from=START, to=END, 
+Unless specified, the default pagination parameters are from=START, to=END, 
 dir=f, without a limit set. This allows you to hit an API like
 /events without any query parameters to get everything.
 
 The Event Stream
 ----------------
-The event stream returns events using the filter streaming API. When the client
-disconnects for a while and wants to reconnect to the event stream, they should
-specify from=$end_streamtoken. This lets the server know where in the event 
-stream the client is. These tokens are completely opaque, and the client cannot 
-infer anything from them.
+The event stream returns events using the pagination streaming API. When the 
+client disconnects for a while and wants to reconnect to the event stream, they 
+should specify from=$end_streamtoken. This lets the server know where in the 
+event stream the client is. These tokens are completely opaque, and the client 
+cannot infer anything from them.
 
   GET /events?from=$LAST_STREAM_TOKEN
   Returns (success): A JSON array of Event Data.
@@ -173,7 +173,7 @@ infer anything from them.
 LAST_STREAM_TOKEN is the last stream token obtained from the event stream. If the 
 client is connecting for the first time and does not know any stream tokens,
 they can use "START" to request all events from the start. For more information 
-on this, see "Filtering Request Query Parameters".
+on this, see "Pagination Request Query Parameters".
 
 Event Data
 ----------
@@ -338,14 +338,14 @@ Setting the topic for a room
 See a list of public rooms
 --------------------------
   Event Type: sy.room.list
-  REST Path: /rooms/list?filtering_query_parameters
+  REST Path: /rooms/list?pagination_query_parameters
   Valid methods: GET
-  This API can use filtering query parameters.
+  This API can use pagination query parameters.
   Returns:
     {
       "chunk" : JSON array of RoomInfo JSON objects - Required.
-      "start" : "string (start token)" - See Filter Response.
-      "end" : "string (end token)" - See Filter Response.
+      "start" : "string (start token)" - See Pagination Response.
+      "end" : "string (end token)" - See Pagination Response.
       "total" : integer - Optional. The total number of rooms.
     }
 
@@ -562,9 +562,9 @@ Receiving messages (bulk/pagination)
   Query Parameters:
     feedback : [true|false] - Specify if feedback should be bundled with each 
     message.
-  This API can use filtering query parameters.
+  This API can use pagination query parameters.
   Returns:
-    A JSON array of Event Data in "chunk" (see Filter Response). If the 
+    A JSON array of Event Data in "chunk" (see Pagination Response). If the 
     "feedback" parameter was set, the Event Data will also contain a "feedback" 
     key which contains a JSON array of feedback, with each element as Event Data 
     with compressed feedback for this message.
@@ -876,7 +876,7 @@ Outstanding problems / missing spec:
   msisdn auth)
 - Spec out standard error responses (malformed json, missing keys, invalid 
   values for keys, unknown users (iff host is home server),
-  room id in use, filter query param error / index out of bounds, )
+  room id in use, Pagination query param error / index out of bounds, )
 - Spec out event streaming type (longpoll, long-lived)
 - User level config/settings
 - Push

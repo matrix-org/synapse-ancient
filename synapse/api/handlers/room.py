@@ -67,8 +67,20 @@ class MessageHandler(BaseHandler):
             self.notifier.on_new_event(event, store_id)
 
     @defer.inlineCallbacks
-    def get_messages(self, user_id=None, room_id=None):
+    def get_messages(self, user_id=None, room_id=None, pagin_config=None):
+        """Get messages in a room.
+
+        Args:
+            user_id (str): The user requesting messages.
+            room_id (str): The room they want messages from.
+            pagin_config (synapse.api.streams.PaginationConfig): The pagination
+            config rules to apply, if any.
+        Returns:
+            dict: Pagination API results
+        """
         yield self.auth.check_joined_room(room_id, user_id)
+
+        print pagin_config.dict()
 
         defer.returnValue("NOT_IMPLEMENTED")
 
@@ -196,7 +208,7 @@ class RoomMemberHandler(BaseHandler):
             start_tok (str): Optional. The start token if known.
             end_tok (str): Optional. The end token if known.
         Returns:
-            dict: A filter streamable dict.
+            dict: A Pagination streamable dict.
         Raises:
             SynapseError if something goes wrong.
         """
@@ -209,7 +221,7 @@ class RoomMemberHandler(BaseHandler):
             "end": "NOT_IMPLEMENTED",
             "chunk": event_list
         }
-        # TODO honor filter stream params
+        # TODO honor Pagination stream params
         # TODO snapshot this list to return on subsequent requests when
         # paginating
         defer.returnValue(chunk_data)

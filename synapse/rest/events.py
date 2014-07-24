@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import SynapseError
-from synapse.api.streams import FilterStream
+from synapse.api.streams import PaginationStream
 from synapse.rest.base import RestServlet, InvalidHttpRequestError
 
 import re
@@ -28,8 +28,8 @@ class EventStreamRestServlet(RestServlet):
 
     def _get_stream_parameters(self, request):
         params = {
-            "from_tok": FilterStream.TOK_START,
-            "to_tok": FilterStream.TOK_END,
+            "from_tok": PaginationStream.TOK_START,
+            "to_tok": PaginationStream.TOK_END,
             "limit": None,
             "direction": 'f',
             "timeout": 5

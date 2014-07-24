@@ -3,9 +3,9 @@
 from twisted.trial import unittest
 
 
-class EventStreamFilterApiTestCase(unittest.TestCase):
+class EventStreamPaginationApiTestCase(unittest.TestCase):
     """ Tests event streaming query parameters and start/end keys used in the
-    filter stream API. """
+    Pagination stream API. """
     user_id = "sid1"
 
     def setUp(self):

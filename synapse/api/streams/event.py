@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 from synapse.api.errors import EventStreamError
 from synapse.api.events.room import RoomMemberEvent, MessageEvent
-from synapse.api.streams import FilterStream, StreamData
+from synapse.api.streams import PaginationStream, StreamData
 
 
 class MessagesStreamData(StreamData):
@@ -34,7 +34,7 @@ class RoomMemberStreamData(StreamData):
         defer.returnValue((data, latest_ver))
 
 
-class EventStream(FilterStream):
+class EventStream(PaginationStream):
 
     SEPARATOR = '_'
 
@@ -49,11 +49,11 @@ class EventStream(FilterStream):
         if limit or direction != 'f':
             raise EventStreamError(400, "Limit and dir=b not supported.")
 
-        if from_tok == FilterStream.TOK_START:
+        if from_tok == PaginationStream.TOK_START:
             from_tok = EventStream.SEPARATOR.join(
                            ["0"] * len(self.stream_data))
 
-        if to_tok == FilterStream.TOK_END:
+        if to_tok == PaginationStream.TOK_END:
             to_tok = EventStream.SEPARATOR.join(
                            ["-1"] * len(self.stream_data))
 
