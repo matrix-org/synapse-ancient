@@ -2,6 +2,10 @@ from synapse.util.http import HttpServer
 from synapse.api.errors import StoreError
 from synapse.api.constants import Membership
 
+from synapse.api.events.room import (
+    RoomMemberEvent, MessageEvent
+)
+
 from twisted.internet import defer
 
 from collections import namedtuple
@@ -167,3 +171,25 @@ class MemoryDataStore(object):
     def to_events(self, data_store_list):
         return data_store_list  # TODO
 
+    def get_joined_hosts_for_room(self, room_id):
+        return defer.succeed([])
+
+    def persist_event(self, event):
+        if event.type == MessageEvent.TYPE:
+            return self.store_message(
+                user_id=event.user_id,
+                room_id=event.room_id,
+                msg_id=event.msg_id,
+                content=json.dumps(event.content)
+            )
+        elif event.type == RoomMemberEvent.TYPE:
+            return self.store_room_member(
+                user_id=event.target_user_id,
+                room_id=event.room_id,
+                content=event.content,
+                membership=event.content["membership"]
+            )
+        else:
+            raise NotImplementedError(
+                "Don't know how to persist type=%s" % event.type
+            )
