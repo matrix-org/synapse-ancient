@@ -61,6 +61,7 @@ class BaseHomeServer(object):
             hostname : The hostname for the server.
         """
         self.hostname = hostname
+        self._building = {}
 
         # Other kwargs are explicit dependencies
         for depname in kwargs:
@@ -72,11 +73,19 @@ class BaseHomeServer(object):
             if hasattr(self, depname):
                 return getattr(self, depname)
 
-            # TODO: prevent cyclic dependencies from deadlocking
             if hasattr(self, "build_%s" % (depname)):
+                # Prevent cyclic dependencies from deadlocking
+                if depname in self._building:
+                    raise ValueError("Cyclic dependency while building %s" %
+                            (depname))
+                self._building[depname] = 1
+
                 builder = getattr(self, "build_%s" % (depname))
                 dep = builder()
                 setattr(self, depname, dep)
+
+                del self._building[depname]
+
                 return dep
 
             raise NotImplementedError(
