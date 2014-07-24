@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
-from synapse.api.handlers import BaseHandler
+from ._base import BaseHandler
 from synapse.api.streams.event import (EventStream, MessagesStreamData,
                                        RoomMemberStreamData)
 

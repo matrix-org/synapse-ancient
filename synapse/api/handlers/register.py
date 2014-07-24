@@ -3,7 +3,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import SynapseError, RegistrationError
-from . import BaseHandler
+from ._base import BaseHandler
 import synapse.util.stringutils as stringutils
 
 import base64
