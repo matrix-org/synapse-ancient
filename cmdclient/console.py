@@ -246,15 +246,24 @@ class SynapseCmd(cmd.Cmd):
                                                      query_params=qp)
 
     def do_stream(self, line):
-        """Stream data from the server: "stream" """
-        reactor.callFromThread(self._do_event_stream, line)
+        """Stream data from the server: "stream <longpoll timeout ms>" """
+        args = self._parse(line, ["timeout"])
+        timeout = 5000
+        if "timeout" in args:
+            try:
+                timeout = int(args["timeout"])
+            except ValueError:
+                print "Timeout must be in milliseconds."
+                return
+        reactor.callFromThread(self._do_event_stream, timeout)
 
     @defer.inlineCallbacks
-    def _do_event_stream(self, line):
+    def _do_event_stream(self, timeout):
         res = yield self.http_client.get_json(
                 self._url() + "/events",
                 {
                     "access_token": self._tok(),
+                    "timeout": str(timeout),
                     "from": self.event_stream_token
                 })
         print json.dumps(res, indent=4)

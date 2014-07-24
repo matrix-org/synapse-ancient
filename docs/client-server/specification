@@ -171,6 +171,12 @@ client is connecting for the first time and does not know any stream tokens,
 they can use "START" to request all events from the start. For more information 
 on this, see "Pagination Request Query Parameters".
 
+The event stream supports shortpoll and longpoll with the "timeout" query
+parameter. This parameter specifies the number of milliseconds the server should
+hold onto the connection waiting for incoming events. If no events occur in this
+period, the connection will be closed and an empty chunk will be returned. To
+use shortpoll, specify "timeout=0".
+
 Event Data
 ----------
 This is a JSON object which looks like:
@@ -837,8 +843,7 @@ unclaimed:
 kegan:
 - event stream bug fixes (double join messages, feed invites down the stream,
 topic updates, spec out room membership change event type (not just text))
-- longpoll improvements (document timeout=, support room members/topics
-x- room message list
+- longpoll improvements (support room members/topics
 - 'im sync' catchup for initial state (primarily grouping 'room message list'
 requests for all rooms the user is in. This will depend on client impls, since
 we may just want to lazy load each room when clients select the room for the
