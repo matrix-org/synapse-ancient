@@ -2,9 +2,15 @@
 
 from twisted.internet import defer
 
-from synapse.api.errors import AuthError
-
 from .pdu_codec import PduCodec
+
+from synapse.api.errors import AuthError
+from synapse.util.logutils import log_function
+
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class FederationEventHandler(object):
@@ -31,6 +37,7 @@ class FederationEventHandler(object):
 
         self.pdu_codec = PduCodec(hs)
 
+    @log_function
     @defer.inlineCallbacks
     def handle_new_event(self, event):
         """ Takes in an event from the client to server side, that has already
@@ -56,12 +63,14 @@ class FederationEventHandler(object):
 
         yield self.replication_layer.send_pdu(pdu)
 
+    @log_function
     @defer.inlineCallbacks
     def backfill(self, room_id, limit):
         # TODO: Work out which destinations to ask for pagination
         # self.replication_layer.paginate(dest, room_id, limit)
         pass
 
+    @log_function
     @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
         """ Called by the ReplicationLayer when we have a new pdu. We need to
@@ -88,6 +97,7 @@ class FederationEventHandler(object):
 
                     return
                 else:
+                    logger.debug("Passing event %s to handler", event)
                     yield self.event_handler.on_receive(event)
 
         except AuthError:
