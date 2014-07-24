@@ -20,15 +20,17 @@ class KeyServerSSLContextFactory(ssl.ContextFactory):
     """Factory for PyOpenSSL SSL contexts that are used to handle incoming
     connections and to make connections to remote servers."""
 
-    def __init__(self, tls_certificate, tls_private_key):
+    def __init__(self, key_server):
         self._context = SSL.Context(SSL.SSLv23_METHOD)
-        self.configure_context(self._context, tls_certificate, tls_private_key)
+        self.configure_context(self._context, key_server)
 
     @staticmethod
-    def configure_context(context, tls_certificate, tls_private_key):
+    def configure_context(context, key_server):
         context.set_options(SSL.OP_NO_SSLv2 | SSL.OP_NO_SSLv3)
-        context.use_certificate(tls_certificate)
-        context.use_privatekey(tls_private_key)
+        context.use_certificate(key_server.tls_certificate)
+        context.use_privatekey(key_server.tls_private_key)
+        context.load_tmp_dh(key_server.tls_dh_params_path)
+        context.set_cipher_list("!ADH:HIGH+kEDH:!AECDH:HIGH+kEECDH")
 
     def getContext(self):
         return self._context
@@ -38,17 +40,15 @@ class KeyServer(object):
     """An HTTPS server serving LocalKey and RemoteKey resources."""
 
     def __init__(self, server_name, tls_certificate_path, tls_private_key_path,
-                 signing_key_path, bind_host, bind_port):
+                 tls_dh_params_path, signing_key_path, bind_host, bind_port):
         self.server_name = server_name
         self.tls_certificate = self.read_tls_certificate(tls_certificate_path)
         self.tls_private_key = self.read_tls_private_key(tls_private_key_path)
+        self.tls_dh_params_path = tls_dh_params_path
         self.signing_key = self.read_signing_key(signing_key_path)
         self.bind_host = bind_host
         self.bind_port = int(bind_port)
-        self.ssl_context_factory = KeyServerSSLContextFactory(
-            self.tls_certificate,
-            self.tls_private_key
-        )
+        self.ssl_context_factory = KeyServerSSLContextFactory(self)
 
     @staticmethod
     def read_tls_certificate(cert_path):

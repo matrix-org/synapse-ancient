@@ -37,29 +37,29 @@ class LocalKey(Resource):
         }
     """
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, key_server):
+        self.key_server = key_server
         self.response_body = encode_canonical_json(
-            self.response_json_object(config)
+            self.response_json_object(key_server)
         )
         Resource.__init__(self)
 
     @staticmethod
-    def response_json_object(config):
-        verify_key_bytes = config.signing_key.verify_key.encode()
+    def response_json_object(key_server):
+        verify_key_bytes = key_server.signing_key.verify_key.encode()
         x509_certificate_bytes = crypto.dump_certificate(
             crypto.FILETYPE_ASN1,
-            config.tls_certificate
+            key_server.tls_certificate
         )
         json_object = {
-            u"server_name": config.server_name,
+            u"server_name": key_server.server_name,
             u"signature_verify_key": encode_base64(verify_key_bytes),
             u"tls_certificate": encode_base64(x509_certificate_bytes)
         }
         signed_json = sign_json(
             json_object,
-            config.server_name,
-            config.signing_key
+            key_server.server_name,
+            key_server.signing_key
         )
         return signed_json
 
@@ -68,7 +68,7 @@ class LocalKey(Resource):
         if name == '':
             return self
         else:
-            return RemoteKey(name, self.config)
+            return RemoteKey(name, self.key_server)
 
     def render_GET(self, request):
         return respond_with_json_bytes(request, 200, self.response_body)
@@ -98,9 +98,9 @@ class RemoteKey(Resource):
 
     isLeaf = True
 
-    def __init__(self, server_name, config):
+    def __init__(self, server_name, key_server):
         self.server_name = server_name
-        self.config = config
+        self.key_server = key_server
         Resource.__init__(self)
 
     def render_GET(self, request):
@@ -112,7 +112,7 @@ class RemoteKey(Resource):
         try:
             server_keys, certificate = yield fetch_server_key(
                 self.server_name,
-                self.config.ssl_context_factory
+                self.key_server.ssl_context_factory
             )
 
             resp_server_name = server_keys[u"server_name"]
@@ -136,8 +136,8 @@ class RemoteKey(Resource):
 
             signed_json = sign_json(
                 server_keys,
-                self.config.server_name,
-                self.config.signing_key
+                self.key_server.server_name,
+                self.key_server.signing_key
             )
 
             respond_with_json_object(request, 200, signed_json)

@@ -8,6 +8,7 @@ import os
 from OpenSSL import crypto
 import nacl.signing
 from synapsekeyserver.util.base64util import encode_base64
+import subprocess
 
 
 def load_config(description, argv):
@@ -35,6 +36,8 @@ def load_config(description, argv):
                         help="PEM encoded X509 certificate for TLS")
     parser.add_argument("--tls-private-key-path",
                         help="PEM encoded private key for TLS")
+    parser.add_argument("--tls-dh-params-path",
+                        help="PEM encoded dh parameters for ephemeral keys")
     parser.add_argument("--bind-port", type=int,
                         help="TCP port to listen on")
     parser.add_argument("--bind-host", default="",
@@ -59,6 +62,8 @@ def generate_config(argv):
                         help="PEM encoded X509 certificate for TLS")
     parser.add_argument("--tls-private-key-path",
                         help="PEM encoded private key for TLS")
+    parser.add_argument("--tls-dh-params-path",
+                        help="PEM encoded dh parameters for ephemeral keys")
     parser.add_argument("--bind-port", type=int, required=True,
                         help="TCP port to listen on")
     parser.add_argument("--bind-host", default="",
@@ -77,6 +82,9 @@ def generate_config(argv):
 
     if args.tls_private_key_path is None:
         args.tls_private_key_path = base_key_name + ".tls.key"
+
+    if args.tls_dh_params_path is None:
+        args.tls_dh_params_path = base_key_name + ".tls.dh"
 
     if not os.path.exists(args.signing_key_path):
         with open(args.signing_key_path, "w") as signing_key_file:
@@ -115,6 +123,14 @@ def generate_config(argv):
             cert_pem = crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
 
             certifcate_file.write(cert_pem)
+
+    if not os.path.exists(args.tls_dh_params_path):
+        subprocess.check_call([
+            "openssl", "dhparam",
+            "-outform", "PEM",
+            "-out", args.tls_dh_params_path,
+            "2048"
+        ])
 
     config = configparser.SafeConfigParser()
     config.add_section("KeyServer")
