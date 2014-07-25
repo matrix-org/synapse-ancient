@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from synapse.api.errors import SynapseError
 
 from collections import namedtuple
 
@@ -29,12 +30,13 @@ class DomainSpecificString(
     def from_string(cls, s, hs):
         """Parse the string given by 's' into a structure object."""
         if s[0] != cls.SIGIL:
-            raise ValueError("Expected %s string to start with '%s'" %
+            raise SynapseError(400, "Expected %s string to start with '%s'" %
                     (cls.__name__, cls.SIGIL))
 
         parts = s[1:].split(':')
         if len(parts) != 2:
-            raise ValueError("Expected %s of the form '%slocalname:domain'" %
+            raise SynapseError(400,
+                    "Expected %s of the form '%slocalname:domain'" %
                     (cls.__name__, cls.SIGIL))
 
         domain = parts[1]
