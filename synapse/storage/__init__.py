@@ -92,7 +92,7 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                 msg_sender_id=event.msg_sender_id,
                 fb_sender_id=event.user_id,
                 fb_type=event.feedback_type,
-                content=event.content
+                content=json.dumps(event.content)
             )
         #elif event.type == RoomTopicEvent.TYPE:
         #    return self.store.store_path_data(
