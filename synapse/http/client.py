@@ -14,6 +14,12 @@ import urllib
 logger = logging.getLogger(__name__)
 
 
+_destination_mappings = {
+    "red": "localhost:8080",
+    "blue": "localhost:8081",
+}
+
+
 class HttpClient(object):
     """ Interface for talking json over http
     """
@@ -70,6 +76,9 @@ class TwistedHttpClient(HttpClient):
 
     @defer.inlineCallbacks
     def put_json(self, destination, path, data):
+        if destination in _destination_mappings:
+            destination = _destination_mappings[destination]
+
         response = yield self._create_put_request(
             "http://%s%s" % (destination, path),
             data,
@@ -84,6 +93,9 @@ class TwistedHttpClient(HttpClient):
 
     @defer.inlineCallbacks
     def get_json(self, destination, path, args=None):
+        if destination in _destination_mappings:
+            destination = _destination_mappings[destination]
+
         if args:
             # generates a list of strings of form "k=v".
             # First we generate a list of lists, and then flatten it using
