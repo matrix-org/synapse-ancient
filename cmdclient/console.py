@@ -31,7 +31,8 @@ class SynapseCmd(cmd.Cmd):
             "url": server_url,
             "user": username,
             "token": token,
-            "verbose": "on"
+            "verbose": "on",
+            "complete_usernames": "on"
         }
         self.event_stream_token = "START"
         self.prompt = ">>> "
@@ -51,6 +52,14 @@ class SynapseCmd(cmd.Cmd):
     def _url(self):
         return self.config["url"]
 
+    def _complete_users(self):
+        if "complete_usernames" in self.config:
+            return self.config["complete_usernames"] == "on"
+        return False
+
+    def _domain(self):
+        return self.config["user"].split(":")[1]
+
     def do_config(self, line):
         """ Show the config for this client: "config"
         Edit a key value mapping: "config key value" e.g. "config token 1234"
@@ -59,6 +68,9 @@ class SynapseCmd(cmd.Cmd):
             token: The access token to auth with.
             url: The url of the server.
             verbose: [on|off] The verbosity of requests/responses.
+            complete_usernames: [on|off] Auto complete partial usernames by
+            assuming they are on the same homeserver as you.
+            E.g. name >> @name:yourhost
         Additional key/values can be added and can be substituted into requests
         by using $. E.g. 'config roomid room1' then 'raw get /rooms/$roomid'.
         """
@@ -68,13 +80,26 @@ class SynapseCmd(cmd.Cmd):
 
         try:
             args = self._parse(line, ["key", "val"], force_keys=True)
-            if args["key"] == "verbose":
-                if args["val"] not in ["on", "off"]:
-                    print "Value must be 'on' or 'off'."
+
+            # make sure restricted config values are checked
+            config_rules = [  # key, valid_values
+                ("verbose", ["on", "off"]),
+                ("complete_usernames", ["on", "off"])
+            ]
+            for key, valid_vals in config_rules:
+                if key == args["key"] and args["val"] not in valid_vals:
+                    print "%s value must be one of %s" % (args["key"],
+                                                          valid_vals)
                     return
+
+            # toggle the http client verbosity
+            if args["key"] == "verbose":
                 self.http_client.verbose = "on" == args["val"]
+
+            # assign the new config
             self.config[args["key"]] = args["val"]
             print json.dumps(self.config, indent=4)
+
             save_config(self.config)
         except Exception as e:
             print e
@@ -144,7 +169,12 @@ class SynapseCmd(cmd.Cmd):
         """Invite a user to a room: "invite <userid> <roomid>" """
         try:
             args = self._parse(line, ["userid", "roomid"], force_keys=True)
-            self._do_membership_change(args["roomid"], "invite", args["userid"])
+
+            user_id = args["userid"]
+            if not args["userid"].startswith('@') and self._complete_users():
+                user_id = "@" + args["userid"] + ":" + self._domain()
+
+            self._do_membership_change(args["roomid"], "invite", user_id)
         except Exception as e:
             print e
 
