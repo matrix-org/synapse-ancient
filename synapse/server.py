@@ -16,6 +16,7 @@ from synapse.rest.base import RestServletFactory
 from synapse.state import StateHandler
 from synapse.storage import DataStore
 from synapse.types import UserID
+from synapse.util.distributor import Distributor
 from synapse.util.lockutils import LockManager
 
 
@@ -52,7 +53,8 @@ class BaseHomeServer(object):
             'rest_servlet_factory',
             'state_handler',
             'room_lock_manager',
-            'notifier'
+            'notifier',
+            'distributor',
             ]
 
     def __init__(self, hostname, **kwargs):
@@ -147,6 +149,9 @@ class HomeServer(BaseHomeServer):
 
     def build_room_lock_manager(self):
         return LockManager()
+
+    def build_distributor(self):
+        return Distributor()
 
     def register_servlets(self):
         """Simply building the ServletFactory is sufficient to have it
