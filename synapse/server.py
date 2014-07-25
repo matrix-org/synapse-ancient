@@ -137,10 +137,7 @@ class HomeServer(BaseHomeServer):
         return Notifier(self)
 
     def build_auth(self):
-        # TODO(paul): Likely the Auth() constructor just wants to take a
-        # HomeServer instance perhaps
-        datastore = self.get_datastore()
-        return Auth(datastore)
+        return Auth(self)
 
     def build_rest_servlet_factory(self):
         return RestServletFactory(self)

@@ -4,7 +4,6 @@
 # twisted imports
 from twisted.internet import defer
 
-from synapse.api.auth import Auth
 import synapse.rest.room
 from synapse.api.constants import Membership
 
@@ -35,10 +34,9 @@ class RoomPermissionsTestCase(RestTestCase):
             "test",
             db_pool=None,
             federation=Mock(),
+            datastore=MemoryDataStore(),
         )
-        hs.datastore = MemoryDataStore()
-        hs.auth = Auth(hs.get_datastore())
-        hs.auth.get_user_by_token = self.mock_get_user_by_token
+        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
         self.auth_user_id = self.rmcreator_id
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
@@ -369,11 +367,11 @@ class RoomsMemberListTestCase(RestTestCase):
 
         hs = HomeServer("test",
                 db_pool=None,
-                federation=Mock())
-        hs.datastore = MemoryDataStore()
+                federation=Mock(),
+                datastore=MemoryDataStore(),
+        )
         self.auth_user_id = self.user_id
-        hs.auth = Auth(hs.get_datastore())
-        hs.auth.get_user_by_token = self.mock_get_user_by_token
+        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -436,10 +434,9 @@ class RoomsCreateTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            datastore=MemoryDataStore(),
         )
-        hs.datastore = MemoryDataStore()
-        hs.auth = Auth(hs.get_datastore())
-        hs.auth.get_user_by_token = self.mock_get_user_by_token
+        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -557,11 +554,10 @@ class RoomTopicTestCase(RestTestCase):
             "test",
             db_pool=None,
             http_server=self.mock_server,
-            federation=Mock()
+            federation=Mock(),
+            datastore=MemoryDataStore(),
         )
-        hs.datastore = MemoryDataStore()
-        hs.auth = Auth(hs.get_datastore())
-        hs.auth.get_user_by_token = self.mock_get_user_by_token
+        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -649,11 +645,10 @@ class RoomMemberStateTestCase(RestTestCase):
             "test",
             db_pool=None,
             http_server=self.mock_server,
-            federation=Mock()
+            federation=Mock(),
+            datastore=MemoryDataStore(),
         )
-        hs.datastore = MemoryDataStore()
-        hs.auth = Auth(hs.get_datastore())
-        hs.auth.get_user_by_token = self.mock_get_user_by_token
+        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -753,11 +748,10 @@ class RoomMessagesTestCase(RestTestCase):
             "test",
             db_pool=None,
             http_server=self.mock_server,
-            federation=Mock()
+            federation=Mock(),
+            datastore=MemoryDataStore(),
         )
-        hs.datastore = MemoryDataStore()
-        hs.auth = Auth(hs.get_datastore())
-        hs.auth.get_user_by_token = self.mock_get_user_by_token
+        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 

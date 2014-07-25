@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 class Auth(object):
 
-    def __init__(self, store):
-        self.store = store
+    def __init__(self, hs):
+        self.store = hs.get_datastore()
 
     @defer.inlineCallbacks
     def check(self, event, raises=False):
