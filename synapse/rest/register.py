@@ -33,7 +33,7 @@ class RegisterRestServlet(RestServlet):
             pass  # user_id is optional
 
         handler = self.handlers.registration_handler
-        (user_id, token) = yield handler.register(user_id=desired_user_id)
+        (user_id, token) = yield handler.register(localpart=desired_user_id)
         defer.returnValue((200,
                            {"user_id": user_id, "access_token": token}))
 

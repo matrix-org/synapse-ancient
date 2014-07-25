@@ -13,20 +13,20 @@ import base64
 class RegistrationHandler(BaseHandler):
 
     @defer.inlineCallbacks
-    def register(self, user_id=None):
+    def register(self, localpart=None):
         """Registers a new client on the server.
 
         Args:
-            user_id : The user ID to register with. If None, one will be
-            randomly generated.
+            localpart : The local part of the user ID to register. If None,
+              one will be randomly generated.
         Returns:
             A tuple of (user_id, access_token).
         Raises:
             RegistrationError if there was a problem registering.
         """
 
-        if user_id:
-            user_id = UserID(user_id, self.hs.hostname, True).to_string()
+        if localpart:
+            user_id = UserID(localpart, self.hs.hostname, True).to_string()
             token = self._generate_token(user_id)
             yield self.store.register(user_id, token)
             defer.returnValue((user_id, token))
@@ -37,9 +37,9 @@ class RegistrationHandler(BaseHandler):
             token = None
             while not user_id and not token:
                 try:
-                    string = self._generate_user_id()
+                    localpart = self._generate_user_id()
                     user_id = UserID(
-                        string, self.hs.hostname, True
+                        localpart, self.hs.hostname, True
                     ).to_string()
                     token = self._generate_token(user_id)
                     yield self.store.register(user_id, token)
