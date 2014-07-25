@@ -12,9 +12,6 @@ a home server.
   first class events (e.g. messages)?
 - Generic mechanism for updating 'stuff about the room' (e.g. favourite coffee) 
   AND specifying clobbering rules (clobber/add to list/etc)?
-- Specify an actual event ID for each event (to de-duplicate unknown event 
-  types). Can do this inbound from other home servers on their PDU
-  ID (e.g. event id = pduid@senderhshost)
 - How to ensure a consistent view for clients paginating through room lists? 
   They aren't really ordered in any way, and if you're paginating
   through them, how can you show them a consistent result set? Temporary 'room 
@@ -538,9 +535,9 @@ London, UK", or some kind of content description for accessibility e.g.
 Sending feedback
 ----------------
 When you receive a message, you may want to send delivery receipt to let the 
-sender know that the message arrived. You may also
-want to send a read receipt when the user has read the message. These receipts 
-are collectively known as 'feedback'.
+sender know that the message arrived. You may also want to send a read receipt 
+when the user has read the message. These receipts are collectively known as 
+'feedback'.
 
   Event Type: sy.room.message.feedback
   REST Path: /rooms/$roomid/messages/$msgfrom/$msgid/feedback/$from/$feedback

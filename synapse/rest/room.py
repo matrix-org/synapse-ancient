@@ -5,7 +5,7 @@ from twisted.internet import defer
 from base import RestServlet, InvalidHttpRequestError
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
-                                     RoomMemberEvent)
+                                     RoomMemberEvent, FeedbackEvent)
 from synapse.api.constants import Membership
 from synapse.api.streams import PaginationConfig
 
@@ -240,6 +240,61 @@ class MessageRestServlet(RestServlet):
         defer.returnValue((200, ""))
 
 
+class FeedbackRestServlet(RestServlet):
+    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
+                      "(?P<from>[^/]*)/(?P<msgid>[^/]*)/feedback/" +
+                      "(?P<feedbacksender>[^/]*)/(?P<feedbacktype>[^/]*)$")
+
+    def get_event_type(self):
+        return FeedbackEvent.TYPE
+
+    @defer.inlineCallbacks
+    def on_GET(self, request, room_id, sender_id, msg_id, fb_sender_id,
+               fb_type):
+        user_id = yield (self.auth.get_user_by_req(request))
+
+        msg_handler = self.handlers.message_handler
+        feedback = yield msg_handler.get_feedback(room_id=room_id,
+                                            sender_id=sender_id,
+                                            msg_id=msg_id,
+                                            user_id=user_id,
+                                            fb_sender_id=fb_sender_id,
+                                            fb_type=fb_type
+                                            )
+
+        if not feedback:
+            defer.returnValue((404, cs_error("Feedback not found.")))
+
+        defer.returnValue((200, json.loads(feedback.content)))
+
+    @defer.inlineCallbacks
+    def on_PUT(self, request, room_id, sender_id, msg_id, fb_sender_id,
+               fb_type):
+        user_id = yield (self.auth.get_user_by_req(request))
+
+        if user_id != fb_sender_id:
+            raise SynapseError(403, "Must send feedback as yourself.")
+
+        content = _parse_json(request)
+        # stamp the message with ms resolution
+        content["hsob_ts"] = int(time.time()) * 1000
+
+        event = self.event_factory.create_event(
+            etype=self.get_event_type(),
+            room_id=room_id,
+            user_id=user_id,
+            msg_id=msg_id,
+            feedback_sender_id=fb_sender_id,
+            feedback_type=fb_type,
+            content=content
+            )
+
+        msg_handler = self.handlers.message_handler
+        yield msg_handler.send_feedback(event)
+
+        defer.returnValue((200, ""))
+
+
 class RoomMemberListRestServlet(RestServlet):
     PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/members/list$")
 
@@ -285,6 +340,7 @@ def register_servlets(hs, http_server):
     RoomTopicRestServlet(hs).register(http_server)
     RoomMemberRestServlet(hs).register(http_server)
     MessageRestServlet(hs).register(http_server)
+    FeedbackRestServlet(hs).register(http_server)
     RoomCreateRestServlet(hs).register(http_server)
     RoomMemberListRestServlet(hs).register(http_server)
     RoomMessageListRestServlet(hs).register(http_server)

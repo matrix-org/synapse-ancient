@@ -155,6 +155,13 @@ class MessageHandler(BaseHandler):
         data = yield self.store.get_path_data(path)
         defer.returnValue(data)
 
+    def get_feedback(self, room_id=None, sender_id=None, msg_id=None,
+                     user_id=None, fb_sender_id=None, fb_type=None):
+        pass  # TODO
+
+    def send_feedback(self, event):
+        pass  # TODO
+
 
 class RoomCreationHandler(BaseHandler):
 

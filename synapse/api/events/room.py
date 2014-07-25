@@ -42,3 +42,19 @@ class MessageEvent(SynapseEvent):
 
     def get_content_template(self):
         return {"msgtype": u"string"}
+
+
+class FeedbackEvent(SynapseEvent):
+    TYPE = "sy.room.message.feedback"
+
+    valid_keys = SynapseEvent.valid_keys + [
+        "msg_id",  # the message ID being acknowledged
+        "feedback_type",  # the type of feedback (delivery, read, etc)
+        "feedback_sender_id"  # person who is sending the feedback
+    ]
+
+    def __init__(self, **kwargs):
+        super(FeedbackEvent, self).__init__(**kwargs)
+
+    def get_content_template(self):
+        return {}
