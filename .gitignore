@@ -11,3 +11,6 @@ docs/build/
 
 cmdclient_config.json
 homeserver.db
+
+.coverage
+htmlcov
