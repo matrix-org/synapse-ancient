@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 
+from synapse.util.jsonutil import (
+    encode_canonical_json, encode_pretty_printed_json
+)
 
-from twisted.web import server, resource
 from twisted.internet import defer, reactor
+from twisted.web import server, resource
+from twisted.web.server import NOT_DONE_YET
 
-from collections import namedtuple
-
+import collections
 import logging
-import json
 
 
 logger = logging.getLogger(__name__)
@@ -35,69 +37,6 @@ class HttpServer(object):
         pass
 
 
-# Respond to the given HTTP request with a status code and content
-def _send_response(request, code, content):
-    """Sends a JSON response to the given request.
-
-    Args:
-        request (twisted.web.http.Request): The http request we are responding
-            to.
-        code (int): The HTTP response code.
-        content (dict): The content to be used json encoded and used as the
-            response body.
-
-    Returns:
-        twisted.web.server.NOT_DONE_YET
-
-    """
-    request.setResponseCode(code)
-
-    # Hack to send pretty printed json in response to requests made by
-    # curl.
-    ident = None
-    for h in request.requestHeaders.getRawHeaders("User-Agent", default=[]):
-        if "curl" in h:
-            ident = 4
-            break
-
-    # XXX: really? the way to set a header on the response is to set it on the
-    # request object?!
-    request.setHeader("Content-Type", "application/json")
-
-    # Hack to turn on CORS for everyone for now...
-    request.setHeader("Access-Control-Allow-Origin", "*")
-    request.setHeader("Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS")
-    request.setHeader("Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept")
-
-    request.write('%s\n' % json.dumps(content, indent=ident))
-    request.finish()
-
-
-# Used to indicate a particular request resulted in a fatal error
-def _handle_error(request, e):
-    """ Called when there was an error handling the request. Logs the exception
-    and repsonds to the request with a 500 Internal Server Error
-
-    Args:
-        request (twisted.web.http.Request): The HTTP request that went wrong.
-        e (Exception): The exception indicating what went wrong.
-    """
-    logger.exception(e)
-    _send_response(
-        request,
-        500,
-        {"error": "Internal server error"}
-    )
-
-
-_HttpClientPathEntry = namedtuple(
-    "_HttpClientPathEntry",
-    ["pattern", "callback"]
-)
-
-
 # The actual HTTP server impl, using twisted http server
 class TwistedHttpServer(HttpServer, resource.Resource):
     """ This wraps the twisted HTTP server, and triggers the correct callbacks
@@ -108,6 +47,8 @@ class TwistedHttpServer(HttpServer, resource.Resource):
 
     isLeaf = True
 
+    _PathEntry = collections.namedtuple("_PathEntry", ["pattern", "callback"])
+
     def __init__(self):
         resource.Resource.__init__(self)
 
@@ -115,7 +56,7 @@ class TwistedHttpServer(HttpServer, resource.Resource):
 
     def register_path(self, method, path_pattern, callback):
         self.path_regexs.setdefault(method, []).append(
-            _HttpClientPathEntry(path_pattern, callback)
+            self._PathEntry(path_pattern, callback)
         )
 
     def start_listening(self, port):
@@ -154,16 +95,66 @@ class TwistedHttpServer(HttpServer, resource.Resource):
                         *m.groups()
                     )
 
-                    _send_response(request, code, response)
+                    self._send_response(request, code, response)
                     return
 
             # Huh. No one wanted to handle that? Fiiiiiine. Send 400.
-            _send_response(
+            self._send_response(
                 request,
                 400,
                 {"error": "Unrecognized request"}
             )
         except Exception as e:
-            # Awww, what?!
-            # FIXME: Insert logging.
-            _handle_error(request, e)
+            logger.exception(e)
+            self._send_response(
+                request,
+                500,
+                {"error": "Internal server error"}
+            )
+
+    def _send_response(self, request, code, response_json_object):
+
+        if self._request_user_agent_is_curl(request):
+            json_bytes = encode_canonical_json(response_json_object)
+        else:
+            json_bytes = encode_pretty_printed_json(response_json_object)
+
+        # TODO: Only enable CORS for the requests that need it.
+        respond_with_json_bytes(request, code, json_bytes, send_cors=True)
+
+    @staticmethod
+    def _request_user_agent_is_curl(request):
+        user_agents = request.requestHeaders.getRawHeaders(
+            "User-Agent", default=[]
+        )
+        for user_agent in user_agents:
+            if "curl" in user_agent:
+                return True
+        return False
+
+
+def respond_with_json_bytes(request, code, json_bytes, send_cors=False):
+    """Sends encoded JSON in response to the given request.
+
+    Args:
+        request (twisted.web.http.Request): The http request to respond to.
+        code (int): The HTTP response code.
+        json_bytes (bytes): The json bytes to use as the response body.
+        send_cors (bool): Whether to send Cross-Origin Resource Sharing headers
+            http://www.w3.org/TR/cors/
+    Returns:
+        twisted.web.server.NOT_DONE_YET"""
+
+    request.setResponseCode(code)
+    request.setHeader(b"Content-Type", b"application/json")
+
+    if send_cors:
+        request.setHeader("Access-Control-Allow-Origin", "*")
+        request.setHeader("Access-Control-Allow-Methods",
+            "GET, POST, PUT, DELETE, OPTIONS")
+        request.setHeader("Access-Control-Allow-Headers",
+            "Origin, X-Requested-With, Content-Type, Accept")
+
+    request.write(json_bytes)
+    request.finish()
+    return NOT_DONE_YET
