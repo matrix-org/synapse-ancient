@@ -284,6 +284,21 @@ class RoomsTable(Table):
     EntryType = namedtuple("RoomEntry", fields)
 
 
+class FeedbackTable(Table):
+    table_name = "feedback"
+
+    fields = [
+        "content",
+        "feedback_type",
+        "fb_sender_id",
+        "msg_id",
+        "room_id",
+        "msg_sender_id"
+    ]
+
+    EntryType = namedtuple("FeedbackEntry", fields)
+
+
 class JoinHelper(object):
     """ Used to help do joins on tables by looking at the tables' fields and
     creating a list of unique fields to use with SELECTs and a namedtuple

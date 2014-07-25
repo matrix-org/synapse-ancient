@@ -5,6 +5,10 @@ logger = logging.getLogger(__name__)
 
 
 class SQLBaseStore(object):
+
+    def __init__(self, hs):
+        self._db_pool = hs.get_db_pool()
+
     def exec_single_with_result(self, txn, query, func, *args):
         """Runs a single query for a result set.
 

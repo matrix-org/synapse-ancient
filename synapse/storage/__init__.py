@@ -2,12 +2,13 @@
 
 from synapse.api.errors import StoreError
 from synapse.api.events.room import (
-    RoomMemberEvent, MessageEvent, RoomTopicEvent
+    RoomMemberEvent, MessageEvent, RoomTopicEvent, FeedbackEvent
 )
 from synapse.persistence.tables import RoomMemberTable, MessagesTable
 
 import json
 
+from .feedback import FeedbackStore
 from .message import MessageStore
 from .profile import ProfileStore
 from .registration import RegistrationStore
@@ -18,7 +19,7 @@ from .stream import StreamStore
 
 
 class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
-                 RegistrationStore, StreamStore, ProfileStore):
+                 RegistrationStore, StreamStore, ProfileStore, FeedbackStore):
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
@@ -83,6 +84,16 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                 room_id=event.room_id,
                 content=event.content,
                 membership=event.content["membership"]
+            )
+        elif event.type == FeedbackEvent.TYPE:
+            print event
+            return self.store_feedback(
+                room_id=event.room_id,
+                msg_id=event.msg_id,
+                msg_sender_id=event.msg_sender_id,
+                fb_sender_id=event.user_id,
+                fb_type=event.feedback_type,
+                content=event.content
             )
         #elif event.type == RoomTopicEvent.TYPE:
         #    return self.store.store_path_data(

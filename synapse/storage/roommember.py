@@ -20,9 +20,6 @@ def last_row_id(cursor):
 
 class RoomMemberStore(SQLBaseStore):
 
-    def __init__(self, hs):
-        super(RoomMemberStore, self).__init__(hs)
-
     @defer.inlineCallbacks
     def get_room_member(self, user_id=None, room_id=None):
         """Retrieve the current state of a room member.

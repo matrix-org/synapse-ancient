@@ -282,9 +282,9 @@ class FeedbackRestServlet(RestServlet):
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
             room_id=room_id,
-            user_id=user_id,
+            msg_sender_id=sender_id,
             msg_id=msg_id,
-            feedback_sender_id=fb_sender_id,
+            user_id=user_id,  # user sending the feedback
             feedback_type=fb_type,
             content=content
             )

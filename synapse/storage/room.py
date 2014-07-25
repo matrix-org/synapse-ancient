@@ -16,9 +16,6 @@ logger = logging.getLogger(__name__)
 
 class RoomStore(SQLBaseStore):
 
-    def __init__(self, hs):
-        super(RoomStore, self).__init__(hs)
-
     def _insert_room_and_member(self, txn, room_id, room_creator, is_public):
         # create room
         query = ("INSERT INTO " + RoomsTable.table_name +

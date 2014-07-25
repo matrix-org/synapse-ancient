@@ -5,7 +5,7 @@ from twisted.internet import defer
 from synapse.api.constants import Membership
 from synapse.api.errors import AuthError, StoreError
 from synapse.api.events.room import (RoomTopicEvent, RoomMemberEvent,
-                                     MessageEvent)
+                                     MessageEvent, FeedbackEvent)
 
 import logging
 
@@ -29,7 +29,8 @@ class Auth(object):
             be raised only if raises=True.
         """
         try:
-            if event.type in [RoomTopicEvent.TYPE, MessageEvent.TYPE]:
+            if event.type in [RoomTopicEvent.TYPE, MessageEvent.TYPE,
+                              FeedbackEvent.TYPE]:
                 yield self.check_joined_room(event.room_id, event.user_id)
                 defer.returnValue(True)
             elif event.type == RoomMemberEvent.TYPE:

@@ -12,9 +12,6 @@ def last_row_id(cursor):
 
 class MessageStore(SQLBaseStore):
 
-    def __init__(self, hs):
-        super(MessageStore, self).__init__(hs)
-
     @defer.inlineCallbacks
     def get_message(self, user_id=None, room_id=None, msg_id=None):
         """Get a message from the store.

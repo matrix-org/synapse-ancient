@@ -12,9 +12,6 @@ import time
 
 class RegistrationStore(SQLBaseStore):
 
-    def __init__(self, hs):
-        super(RegistrationStore, self).__init__(hs)
-
     @defer.inlineCallbacks
     def register(self, user_id, token):
         """Attempts to register an account.

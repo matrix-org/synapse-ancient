@@ -10,9 +10,6 @@ class RoomPathStore(SQLBaseStore):
 
     """Provides various CRUD operations for Room Events. """
 
-    def __init__(self, hs):
-        super(RoomPathStore, self).__init__(hs)
-
     @defer.inlineCallbacks
     def get_path_data(self, path):
         """Retrieve the data stored at this URL path.

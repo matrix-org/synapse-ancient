@@ -12,10 +12,6 @@ logger = logging.getLogger(__name__)
 
 class StreamStore(SQLBaseStore):
 
-    def __init__(self, hs):
-        super(StreamStore, self).__init__()
-        self._db_pool = hs.get_db_pool()
-
     @defer.inlineCallbacks
     def get_message_stream(self, user_id=None, from_key=None, to_key=None,
                             room_id=None, limit=0):

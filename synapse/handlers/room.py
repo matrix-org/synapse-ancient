@@ -159,8 +159,20 @@ class MessageHandler(BaseHandler):
                      user_id=None, fb_sender_id=None, fb_type=None):
         pass  # TODO
 
+    @defer.inlineCallbacks
     def send_feedback(self, event):
-        pass  # TODO
+        with (yield self.room_lock.lock(event.room_id)):
+            yield self.auth.check(event, raises=True)
+
+            # store message in db
+            store_id = yield self.store.persist_event(event)
+
+            event.destinations = yield self.store.get_joined_hosts_for_room(
+                event.room_id
+            )
+            yield self.hs.get_federation().handle_new_event(event)
+
+            self.notifier.on_new_event(event, store_id)
 
 
 class RoomCreationHandler(BaseHandler):

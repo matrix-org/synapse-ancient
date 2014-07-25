@@ -22,9 +22,12 @@ CREATE TABLE IF NOT EXISTS messages(
 
 CREATE TABLE IF NOT EXISTS feedback(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    type TEXT,
-    sender_synid TEXT,
-    msg_id INTEGER -- no foreign key, we may receive feedback before messages
+    content TEXT,
+    feedback_type TEXT,
+    fb_sender_id TEXT,
+    msg_id TEXT,
+    room_id TEXT,
+    msg_sender_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS room_data(

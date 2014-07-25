@@ -49,8 +49,8 @@ class FeedbackEvent(SynapseEvent):
 
     valid_keys = SynapseEvent.valid_keys + [
         "msg_id",  # the message ID being acknowledged
+        "msg_sender_id"  # person who is sending the feedback is 'user_id'
         "feedback_type",  # the type of feedback (delivery, read, etc)
-        "feedback_sender_id"  # person who is sending the feedback
     ]
 
     def __init__(self, **kwargs):
