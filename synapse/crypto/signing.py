@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from synapse.crypto.util.jsonutil import encode_canonical_json
-from synapse.crypto.util.base64util import encode_base64, decode_base64
+from synapse.util.jsonutil import encode_canonical_json
+from synapse.util.base64util import encode_base64, decode_base64
 
 
 def sign_json(json_object, signature_name, signing_key):

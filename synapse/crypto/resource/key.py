@@ -3,8 +3,8 @@
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 from twisted.internet import defer
-from synapse.crypto.util.base64util import encode_base64, decode_base64
-from synapse.crypto.util.jsonutil import (
+from synapse.util.base64util import encode_base64, decode_base64
+from synapse.util.jsonutil import (
     encode_canonical_json,
     respond_with_json_bytes,
     respond_with_json_object,
