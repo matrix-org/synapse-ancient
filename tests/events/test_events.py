@@ -15,7 +15,7 @@ class SynapseTemplateCheckTestCase(unittest.TestCase):
     def test_top_level_keys(self):
         template = {
             "person": {},
-            "friends": []
+            "friends": ["string"]
         }
 
         content = {
@@ -41,6 +41,70 @@ class SynapseTemplateCheckTestCase(unittest.TestCase):
         }
         self.assertFalse(event.check_json(content, raises=False))
 
+    def test_lists(self):
+        template = {
+            "person": {},
+            "friends": [{"name":"string"}]
+        }
+
+        content = {
+            "person": {"name": "bob"},
+            "friends": ["jill", "mike"]  # should be in objects
+        }
+
+        event = MockSynapseEvent(template)
+        self.assertFalse(event.check_json(content, raises=False))
+
+        content = {
+            "person": {"name": "bob"},
+            "friends": [{"name": "jill"}, {"name": "mike"}]
+        }
+        self.assertTrue(event.check_json(content, raises=False))
+
+    def test_nested_lists(self):
+        template = {
+            "results": {
+                "families": [
+                     {
+                        "name": "string",
+                        "members": [
+                            {}
+                        ]
+                     }
+                ]
+            }
+        }
+
+        content = {
+            "results": {
+                "families": [
+                     {
+                        "name": "Smith",
+                        "members": [
+                            "Alice", "Bob"  # wrong types
+                        ]
+                     }
+                ]
+            }
+        }
+
+        event = MockSynapseEvent(template)
+        self.assertFalse(event.check_json(content, raises=False))
+
+        content = {
+            "results": {
+                "families": [
+                     {
+                        "name": "Smith",
+                        "members": [
+                            {"name": "Alice"}, {"name": "Bob"}
+                        ]
+                     }
+                ]
+            }
+        }
+        self.assertTrue(event.check_json(content, raises=False))
+
     def test_nested_keys(self):
         template = {
             "person": {
@@ -49,7 +113,7 @@ class SynapseTemplateCheckTestCase(unittest.TestCase):
                     "eye": "string"
                 },
                 "age": 0,
-                "fav_books": []
+                "fav_books": ["string"]
             }
         }
         event = MockSynapseEvent(template)

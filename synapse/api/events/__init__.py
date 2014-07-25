@@ -91,7 +91,7 @@ class SynapseEvent(JsonEncodedObject):
             SynapseError if the check fails and raises=True.
         """
         # recursively call to inspect each layer
-        err_msg = self._check_json(content, self.get_content_template(), raises)
+        err_msg = self._check_json(content, self.get_content_template())
         if err_msg:
             if raises:
                 raise SynapseError(400, err_msg)
@@ -100,16 +100,39 @@ class SynapseEvent(JsonEncodedObject):
         else:
             return True
 
-    def _check_json(self, content, template, raises):
-        for key in template:
-            if key not in content:
-                return "Missing %s key" % key
+    def _check_json(self, content, template):
+        """Check content and template matches.
 
-            if type(content[key]) != type(template[key]):
-                return "Key %s is of the wrong type." % key
+        If the template is a dict, each key in the dict will be validated with
+        the content, else it will just compare the types of content and
+        template. This basic type check is required because this function will
+        be recursively called and could be called with just strs or ints.
 
-            if type(content[key]) == dict:
-                # we must go deeper
-                msg = self._check_json(content[key], template[key], raises)
-                if msg:
-                    return msg
+        Args:
+            content: The content to validate.
+            template: The validation template.
+        Returns:
+            str: An error message if the validation fails, else None.
+        """
+        if type(content) != type(template):
+            return "Mismatched types: %s" % template
+
+        if type(template) == dict:
+            for key in template:
+                if key not in content:
+                    return "Missing %s key" % key
+
+                if type(content[key]) != type(template[key]):
+                    return "Key %s is of the wrong type." % key
+
+                if type(content[key]) == dict:
+                    # we must go deeper
+                    msg = self._check_json(content[key], template[key])
+                    if msg:
+                        return msg
+                elif type(content[key]) == list:
+                    # make sure each item type in content matches the template
+                    for entry in content[key]:
+                        msg = self._check_json(entry, template[key][0])
+                        if msg:
+                            return msg
