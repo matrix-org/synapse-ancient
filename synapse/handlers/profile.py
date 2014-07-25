@@ -8,6 +8,15 @@ from ._base import BaseHandler
 
 class ProfileHandler(BaseHandler):
 
+    def __init__(self, hs):
+        super(ProfileHandler, self).__init__(hs)
+
+        distributor = hs.get_distributor()
+        distributor.observe("registered_user", self.registered_user)
+
+    def registered_user(self, user):
+        self.store.create_profile(user.localpart)
+
     @defer.inlineCallbacks
     def get_displayname(self, target_user):
         if target_user.is_mine:

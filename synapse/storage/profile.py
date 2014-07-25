@@ -8,6 +8,14 @@ from ._base import SQLBaseStore
 
 class ProfileStore(SQLBaseStore):
 
+    def create_profile(self, user_localpart):
+        return self._db_pool.runInteraction(self._create_profile,
+                user_localpart)
+
+    def _create_profile(self, txn, user_localpart):
+        txn.execute("INSERT INTO profiles (user_id) VALUES (?)",
+                [user_localpart])
+
     def get_profile_displayname(self, user_localpart):
         return self._db_pool.runInteraction(self._get_profile_displayname,
                 user_localpart)

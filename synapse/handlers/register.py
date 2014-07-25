@@ -12,6 +12,12 @@ import base64
 
 class RegistrationHandler(BaseHandler):
 
+    def __init__(self, hs):
+        super(RegistrationHandler, self).__init__(hs)
+
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("registered_user")
+
     @defer.inlineCallbacks
     def register(self, localpart=None):
         """Registers a new client on the server.
@@ -26,9 +32,13 @@ class RegistrationHandler(BaseHandler):
         """
 
         if localpart:
-            user_id = UserID(localpart, self.hs.hostname, True).to_string()
+            user = UserID(localpart, self.hs.hostname, True)
+            user_id = user.to_string()
+
             token = self._generate_token(user_id)
             yield self.store.register(user_id, token)
+
+            self.distributor.fire("registered_user", user)
             defer.returnValue((user_id, token))
         else:
             # autogen a random user ID
@@ -38,11 +48,13 @@ class RegistrationHandler(BaseHandler):
             while not user_id and not token:
                 try:
                     localpart = self._generate_user_id()
-                    user_id = UserID(
-                        localpart, self.hs.hostname, True
-                    ).to_string()
+                    user = UserID(localpart, self.hs.hostname, True)
+                    user_id = user.to_string()
+
                     token = self._generate_token(user_id)
                     yield self.store.register(user_id, token)
+
+                    self.distributor.fire("registered_user", user)
                     defer.returnValue((user_id, token))
                 except SynapseError:
                     # if user id is taken, just generate another
