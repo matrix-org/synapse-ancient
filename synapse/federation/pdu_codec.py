@@ -46,7 +46,6 @@ class PduCodec(object):
             for k, v in pdu.get_full_dict().items()
             if k not in [
                 "pdu_id",
-                "origin",
                 "context",
                 "pdu_type",
                 "prev_pdus",
