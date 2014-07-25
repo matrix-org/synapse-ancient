@@ -28,8 +28,7 @@ class ProfileHandler(BaseHandler):
         if not target_user.is_mine:
             raise SynapseError(400, "User is not hosted on this Home Server")
 
-        if (target_user.localpart != auth_user.localpart or
-            target_user.domain != auth_user.domain):
+        if target_user != auth_user:
             raise AuthError(400, "Cannot set another user's displayname")
 
         yield self.store.set_profile_displayname(target_user.localpart,

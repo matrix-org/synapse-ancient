@@ -19,6 +19,14 @@ class UserIDTestCase(unittest.TestCase):
 
         self.assertEquals(user.to_string(), "@5678efgh:my.domain")
 
+    def test_compare(self):
+        userA = UserID.from_string("@userA:my.domain", hs=mock_homeserver)
+        userAagain = UserID.from_string("@userA:my.domain", hs=mock_homeserver)
+        userB = UserID.from_string("@userB:my.domain", hs=mock_homeserver)
+
+        self.assertTrue(userA == userAagain)
+        self.assertTrue(userA != userB)
+
     def test_via_homeserver(self):
         user = mock_homeserver.parse_userid("@3456ijkl:my.domain")
 

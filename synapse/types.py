@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from collections import namedtuple
+
+
 def split_localpart_domain(s, sigil):
     """Splits a string of the form "{SIGIL}localpart:domain" into its local
     and domain parts and returns them. Requires that the first character of
@@ -8,7 +11,9 @@ def split_localpart_domain(s, sigil):
     return parts[0], parts[1]
 
 
-class DomainSpecificString(object):
+class DomainSpecificString(
+        namedtuple("DomainSpecificString", ("localpart", "domain", "is_mine"))
+):
     """Common base class among ID/name strings that have a local part and a
     domain name, prefixed with a sigil.
 
@@ -19,11 +24,6 @@ class DomainSpecificString(object):
         'is_mine' : Boolean indicating if the domain name is recognised by the
             HomeServer as being its own
     """
-
-    def __init__(self, localpart, domain, is_mine):
-        self.localpart = localpart
-        self.domain = domain
-        self.is_mine = is_mine
 
     @classmethod
     def from_string(cls, s, hs):
