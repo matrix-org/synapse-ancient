@@ -79,6 +79,17 @@ class RoomsTestCase(unittest.TestCase):
 
         self.auth_user_id = temp_id
 
+    def assert_dict(self, required, actual):
+        """Does a partial assert of a dict.
+
+        Args:
+            required (dict): The keys and value which MUST be in 'actual'.
+            actual (dict): The test result. Extra keys will not be checked.
+        """
+        for key in required:
+            self.assertEquals(required[key], actual[key],
+                              msg="%s mismatch. %s" % (key, actual))
+
 
 class RoomPermissionsTestCase(RoomsTestCase):
     """ Tests room permissions. """
@@ -422,6 +433,7 @@ class RoomPermissionsTestCase(RoomsTestCase):
 
 
 class RoomsMemberListTestCase(RoomsTestCase):
+    """ Tests /rooms/$room_id/members/list REST events."""
     user_id = "@sid1:red"
 
     def setUp(self):
@@ -485,15 +497,13 @@ class RoomsMemberListTestCase(RoomsTestCase):
         self.assertEquals(403, code, msg=str(response))
 
 
-class RoomsCreateTestCase(unittest.TestCase):
-    """ Tests room creation for /rooms. """
+class RoomsCreateTestCase(RoomsTestCase):
+    """ Tests /rooms and /rooms/$room_id REST events. """
     user_id = "@sid1:red"
-
-    def mock_get_user_by_token(self, token=None):
-        return self.user_id
 
     def setUp(self):
         self.mock_server = MockHttpServer()
+        self.auth_user_id = self.user_id
 
         hs = HomeServer(
             "test",
@@ -509,31 +519,39 @@ class RoomsCreateTestCase(unittest.TestCase):
         pass
 
     @defer.inlineCallbacks
-    def test_post_room(self):
+    def test_post_room_no_keys(self):
         # POST with no config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("POST", "/rooms",
                                                           "{}")
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_post_room_visibility_key(self):
         # POST with visibility config key, expect new room id
         (code, response) = yield self.mock_server.trigger("POST", "/rooms",
                                                 '{"visibility":"private"}')
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_post_room_custom_key(self):
         # POST with custom config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("POST", "/rooms",
                                                 '{"custom":"stuff"}')
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_post_room_known_and_unknown_keys(self):
         # POST with custom + known config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("POST", "/rooms",
                                  '{"visibility":"private","custom":"things"}')
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_post_room_invalid_content(self):
         # POST with invalid content / paths, expect 400
         (code, response) = yield self.mock_server.trigger("POST", "/rooms",
                                                           '{"visibili')
@@ -544,31 +562,39 @@ class RoomsCreateTestCase(unittest.TestCase):
         self.assertEquals(400, code)
 
     @defer.inlineCallbacks
-    def test_put_room(self):
+    def test_put_room_no_keys(self):
         # PUT with no config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("PUT", "/rooms/aa",
                                                           "{}")
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_put_room_visibility_key(self):
         # PUT with known config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("PUT", "/rooms/bb",
                                                   '{"visibility":"private"}')
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_put_room_custom_key(self):
         # PUT with custom config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("PUT", "/rooms/cc",
                                                '{"custom":"stuff"}')
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_put_room_known_and_unknown_keys(self):
         # PUT with custom + known config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("PUT", "/rooms/dd",
                                   '{"visibility":"private","custom":"things"}')
         self.assertEquals(200, code)
         self.assertTrue("room_id" in response)
 
+    @defer.inlineCallbacks
+    def test_put_room_invalid_content(self):
         # PUT with invalid content / room names, expect 400
 
         (code, response) = yield self.mock_server.trigger("PUT", "/rooms/ee",
@@ -579,23 +605,26 @@ class RoomsCreateTestCase(unittest.TestCase):
                                                           '["hello"]')
         self.assertEquals(400, code)
 
+    @defer.inlineCallbacks
+    def test_put_room_conflict(self):
+        yield self.create_room_as("aa", self.user_id)
+
         # PUT with conflicting room ID, expect 409
         (code, response) = yield self.mock_server.trigger("PUT", "/rooms/aa",
                                                           "{}")
         self.assertEquals(409, code)
 
 
-class RoomsTestCase(unittest.TestCase):
-    """ Tests /rooms REST events. """
+class RoomTopicTestCase(RoomsTestCase):
+    """ Tests /rooms/$room_id/topic REST events. """
     user_id = "sid1"
-
-    def mock_get_user_by_token(self, token=None):
-        return self.user_id
 
     @defer.inlineCallbacks
     def setUp(self):
         self.mock_server = MockHttpServer()
-
+        self.auth_user_id = self.user_id
+        self.room_id = "rid1"
+        self.path = "/rooms/%s/topic" % self.room_id
         hs = HomeServer(
             "test",
             db_pool=None,
@@ -609,15 +638,209 @@ class RoomsTestCase(unittest.TestCase):
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
         # create the room
-        path = "/rooms/rid1"
-        (code, response) = yield self.mock_server.trigger("PUT", path, "{}")
-        self.assertEquals(200, code)
+        yield self.create_room_as(self.room_id, self.user_id)
 
     def tearDown(self):
         pass
 
     @defer.inlineCallbacks
-    def _test_invalid_puts(self, path):
+    def test_invalid_puts(self):
+        # missing keys or invalid json
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, '{}')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, '{"_name":"bob"}')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, '{"nao')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, '[{"_name":"bob"},{"_name":"jill"}]')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, 'text only')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, '')
+        self.assertEquals(400, code, msg=str(response))
+
+        # valid key, wrong type
+        content = '{"topic":["Topic name"]}'
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self. path, content)
+        self.assertEquals(400, code, msg=str(response))
+
+    @defer.inlineCallbacks
+    def test_rooms_topic(self):
+        # nothing should be there
+        (code, response) = yield self.mock_server.trigger_get(self.path)
+        self.assertEquals(404, code, msg=str(response))
+
+        # valid put
+        content = '{"topic":"Topic name"}'
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, content)
+        self.assertEquals(200, code, msg=str(response))
+
+        # valid get
+        (code, response) = yield self.mock_server.trigger_get(self.path)
+        self.assertEquals(200, code, msg=str(response))
+        self.assertEquals(json.loads(content), response)
+
+    @defer.inlineCallbacks
+    def test_rooms_topic_with_extra_keys(self):
+        # valid put with extra keys
+        content = '{"topic":"Seasons","subtopic":"Summer"}'
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           self.path, content)
+        self.assertEquals(200, code, msg=str(response))
+
+        # valid get
+        (code, response) = yield self.mock_server.trigger_get(self.path)
+        self.assertEquals(200, code, msg=str(response))
+        self.assertEquals(json.loads(content), response)
+
+
+class RoomMemberStateTestCase(RoomsTestCase):
+    """ Tests /rooms/$room_id/members/$user_id/state REST events. """
+    user_id = "@sid1:red"
+
+    @defer.inlineCallbacks
+    def setUp(self):
+        self.mock_server = MockHttpServer()
+        self.auth_user_id = self.user_id
+        self.room_id = "rid1"
+
+        hs = HomeServer(
+            "test",
+            db_pool=None,
+            http_server=self.mock_server,
+            federation=Mock()
+        )
+        hs.datastore = MemoryDataStore()
+        hs.auth = Auth(hs.get_datastore())
+        hs.auth.get_user_by_token = self.mock_get_user_by_token
+
+        synapse.rest.room.register_servlets(hs, self.mock_server)
+
+        yield self.create_room_as(self.room_id, self.user_id)
+
+    def tearDown(self):
+        pass
+
+    @defer.inlineCallbacks
+    def test_invalid_puts(self):
+        path = "/rooms/%s/members/%s/state" % (self.room_id, self.user_id)
+        # missing keys or invalid json
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '{}')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '{"_name":"bob"}')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '{"nao')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '[{"_name":"bob"},{"_name":"jill"}]')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, 'text only')
+        self.assertEquals(400, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("PUT",
+                           path, '')
+        self.assertEquals(400, code, msg=str(response))
+
+        # valid keys, wrong types
+        content = ('{"membership":["%s","%s","%s"]}' %
+                  (Membership.INVITE, Membership.JOIN, Membership.LEAVE))
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
+        self.assertEquals(400, code, msg=str(response))
+
+    @defer.inlineCallbacks
+    def test_rooms_members_self(self):
+        path = "/rooms/rid1/members/%s/state" % self.user_id
+
+        # valid join message (NOOP since we made the room)
+        content = '{"membership":"%s"}' % Membership.JOIN
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
+        self.assertEquals(200, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
+        self.assertEquals(200, code, msg=str(response))
+        self.assertEquals(json.loads(content), response)
+
+    @defer.inlineCallbacks
+    def test_rooms_members_other(self):
+        self.other_id = "@zzsid1:red"
+        path = "/rooms/rid1/members/%s/state" % self.other_id
+
+        # valid invite message
+        content = '{"membership":"%s"}' % Membership.INVITE
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
+        self.assertEquals(200, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
+        self.assertEquals(200, code, msg=str(response))
+        self.assertEquals(json.loads(content), response)
+
+    @defer.inlineCallbacks
+    def test_rooms_members_other_custom_keys(self):
+        self.other_id = "@zzsid1:red"
+        path = "/rooms/rid1/members/%s/state" % self.other_id
+
+        # valid invite message with custom key
+        content = ('{"membership":"%s","invite_text":"%s"}' %
+                    (Membership.INVITE, "Join us!"))
+        (code, response) = yield self.mock_server.trigger("PUT", path, content)
+        self.assertEquals(200, code, msg=str(response))
+
+        (code, response) = yield self.mock_server.trigger("GET", path, None)
+        self.assertEquals(200, code, msg=str(response))
+        self.assertEquals(json.loads(content), response)
+
+
+class RoomMessagesTestCase(RoomsTestCase):
+    """ Tests /rooms/$room_id/messages/$user_id/$msg_id REST events. """
+    user_id = "@sid1:red"
+
+    @defer.inlineCallbacks
+    def setUp(self):
+        self.mock_server = MockHttpServer()
+        self.auth_user_id = self.user_id
+        self.room_id = "rid1"
+
+        hs = HomeServer(
+            "test",
+            db_pool=None,
+            http_server=self.mock_server,
+            federation=Mock()
+        )
+        hs.datastore = MemoryDataStore()
+        hs.auth = Auth(hs.get_datastore())
+        hs.auth.get_user_by_token = self.mock_get_user_by_token
+
+        synapse.rest.room.register_servlets(hs, self.mock_server)
+
+        yield self.create_room_as(self.room_id, self.user_id)
+
+    def tearDown(self):
+        pass
+
+    @defer.inlineCallbacks
+    def test_invalid_puts(self):
+        path = "/rooms/%s/messages/%s/mid1" % (self.room_id, self.user_id)
         # missing keys or invalid json
         (code, response) = yield self.mock_server.trigger("PUT",
                            path, '{}')
@@ -644,68 +867,8 @@ class RoomsTestCase(unittest.TestCase):
         self.assertEquals(400, code, msg=str(response))
 
     @defer.inlineCallbacks
-    def test_rooms_topic(self):
-        path = "/rooms/rid1/topic"
-        self._test_invalid_puts(path)
-
-        # valid key, wrong type
-        content = '{"topic":["Topic name"]}'
-        (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(400, code, msg=str(response))
-
-        # nothing should be there
-        (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(404, code, msg=str(response))
-
-        # valid put
-        content = '{"topic":"Topic name"}'
-        (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code, msg=str(response))
-
-        # valid get
-        (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(content), response)
-
-        # valid put with extra keys
-        content = '{"topic":"Seasons","subtopic":"Summer"}'
-        (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code, msg=str(response))
-
-        # valid get
-        (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(content), response)
-
-    @defer.inlineCallbacks
-    def test_rooms_members_state(self):
-        path = "/rooms/rid1/members/%s/state" % self.user_id
-        self._test_invalid_puts(path)
-
-        # valid keys, wrong types
-        content = ('{"membership":["%s","%s","%s"]}' %
-                  (Membership.INVITE, Membership.JOIN, Membership.LEAVE))
-        (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(400, code, msg=str(response))
-
-        # valid join message (NOOP since we made the room)
-        content = '{"membership":"%s"}' % Membership.JOIN
-        (code, response) = yield self.mock_server.trigger("PUT", path, content)
-        self.assertEquals(200, code, msg=str(response))
-
-        (code, response) = yield self.mock_server.trigger("GET", path, None)
-        self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(content), response)
-
-    def _assert_dict(self, required, actual):
-        for key in required:
-            self.assertEquals(required[key], actual[key],
-                              msg="%s mismatch. %s" % (key, actual))
-
-    @defer.inlineCallbacks
     def test_rooms_messages_sent(self):
         path = "/rooms/rid1/messages/%s/mid1" % self.user_id
-        self._test_invalid_puts(path)
 
         content = '{"body":"test","msgtype":{"type":"a"}}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
@@ -718,7 +881,7 @@ class RoomsTestCase(unittest.TestCase):
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code, msg=str(response))
-        self._assert_dict(json.loads(content), response)
+        self.assert_dict(json.loads(content), response)
 
         # sy.text message type
         path = "/rooms/rid1/messages/%s/mid2" % self.user_id
@@ -728,7 +891,7 @@ class RoomsTestCase(unittest.TestCase):
 
         (code, response) = yield self.mock_server.trigger("GET", path, None)
         self.assertEquals(200, code, msg=str(response))
-        self._assert_dict(json.loads(content), response)
+        self.assert_dict(json.loads(content), response)
 
         # trying to send message in different user path
         path = "/rooms/rid1/messages/%s/mid2" % ("invalid" + self.user_id)
