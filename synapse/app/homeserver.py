@@ -7,7 +7,8 @@ from synapse.server import HomeServer
 from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from twisted.python.log import PythonLoggingObserver
-from synapse.util.http import TwistedHttpServer, TwistedHttpClient
+from synapse.http.server import TwistedHttpServer
+from synapse.http.client import TwistedHttpClient
 
 import argparse
 import logging

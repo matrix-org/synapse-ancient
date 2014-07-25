@@ -26,10 +26,10 @@ class TransportLayer(object):
     Attributes:
         server_name (str): Local home server host
 
-        server (synapse.util.http.HttpServer): the http server to
+        server (synapse.http.server.HttpServer): the http server to
                 register listeners on
 
-        client (synapse.util.http.HttpClient): the http client used to
+        client (synapse.http.client.HttpClient): the http client used to
                 send requests
 
         request_handler (TransportRequestHandler): The handler to fire when we

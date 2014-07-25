@@ -1,4 +1,4 @@
-from synapse.util.http import HttpServer
+from synapse.http.server import HttpServer
 from synapse.api.errors import StoreError
 from synapse.api.constants import Membership
 

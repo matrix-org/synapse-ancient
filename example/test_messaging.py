@@ -13,23 +13,20 @@ Currently assumes the local address is localhost:<port>
 
 """
 
-from synapse.util.http import TwistedHttpServer, TwistedHttpClient
+
 from synapse.federation import (
-    initialize_http_replication, ReplicationHandler
+    ReplicationHandler
 )
 
 from synapse.federation.units import Pdu
 
 from synapse.util import origin_from_ucid
 
-from synapse.persistence import schema_path, PersistenceService
-
 from synapse.app.homeserver import SynapseHomeServer
 
 #from synapse.util.logutils import log_function
 
 from twisted.internet import reactor, defer
-from twisted.enterprise import adbapi
 from twisted.python import log
 
 import argparse
@@ -37,7 +34,6 @@ import json
 import logging
 import os
 import re
-import sqlite3
 
 import cursesio
 import curses.wrapper

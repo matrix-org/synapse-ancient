@@ -16,9 +16,9 @@ setup(
     description="Reference Synapse Home Server",
     install_requires=[
         "Twisted>=14.0.0",
-        "twistar>=1.3",
         "service_identity>=1.0.0",
         "pyasn1",
+        "pynacl"
     ],
     setup_requires=[
         "setuptools_trial",
