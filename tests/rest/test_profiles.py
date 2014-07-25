@@ -44,7 +44,7 @@ class ProfilesTestCase(unittest.TestCase):
                 "/profile/%s/displayname" % (myid), None)
 
         self.assertEquals(200, code)
-        self.assertEquals("Frank", response)
+        self.assertEquals({"displayname": "Frank"}, response)
         self.assertEquals(mocked_get.call_args[0][0].localpart, "1234ABCD")
 
     @defer.inlineCallbacks
@@ -53,7 +53,8 @@ class ProfilesTestCase(unittest.TestCase):
         mocked_set.return_value = defer.succeed(())
 
         (code, response) = yield self.mock_server.trigger("PUT",
-                "/profile/%s/displayname" % (myid), '"Frank Jr."')
+                "/profile/%s/displayname" % (myid),
+                '{"displayname": "Frank Jr."}')
 
         self.assertEquals(200, code)
         self.assertEquals(mocked_set.call_args[0][0].localpart, "1234ABCD")
@@ -80,7 +81,7 @@ class ProfilesTestCase(unittest.TestCase):
                 "/profile/%s/displayname" % ("@opaque:elsewhere"), None)
 
         self.assertEquals(200, code)
-        self.assertEquals("Bob", response)
+        self.assertEquals({"displayname": "Bob"}, response)
 
     @defer.inlineCallbacks
     def test_set_other_name(self):

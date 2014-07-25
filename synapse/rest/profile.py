@@ -19,14 +19,15 @@ class ProfileDisplaynameRestServlet(RestServlet):
 
         displayname = yield self.handlers.profile_handler.get_displayname(user)
 
-        defer.returnValue((200, displayname))
+        defer.returnValue((200, {"displayname": displayname}))
 
     @defer.inlineCallbacks
     def on_PUT(self, request, user_id):
         user = self.hs.parse_userid(user_id)
 
         try:
-            new_name = json.loads(request.content.read())
+            content = json.loads(request.content.read())
+            new_name = content["displayname"]
         except:
             defer.returnValue((400, "Unable to parse name"))
 
