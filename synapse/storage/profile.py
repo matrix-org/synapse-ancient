@@ -29,3 +29,5 @@ class ProfileStore(SQLBaseStore):
     def _set_profile_displayname(self, txn, user_localpart, new_displayname):
         txn.execute("UPDATE profiles SET displayname = ? WHERE user_id = ?",
                 [new_displayname, user_localpart])
+        if txn.rowcount == 0:
+            raise StoreError(404, "No such user ID")
