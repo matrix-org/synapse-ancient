@@ -42,10 +42,8 @@ class StateTestCase(unittest.TestCase):
             ReturnType([new_pdu], [])
         )
 
-        callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state(new_pdu)
 
-        callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
@@ -68,10 +66,8 @@ class StateTestCase(unittest.TestCase):
             ReturnType([new_pdu, old_pdu], [old_pdu])
         )
 
-        callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state(new_pdu)
 
-        callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
@@ -95,10 +91,8 @@ class StateTestCase(unittest.TestCase):
             ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state(new_pdu)
 
-        self.assertFalse(callback.called)
         self.assertFalse(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
@@ -122,10 +116,8 @@ class StateTestCase(unittest.TestCase):
             ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state(new_pdu)
 
-        callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
@@ -149,10 +141,8 @@ class StateTestCase(unittest.TestCase):
             ReturnType([new_pdu, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state(new_pdu)
 
-        callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
@@ -177,10 +167,8 @@ class StateTestCase(unittest.TestCase):
             ReturnType([new_pdu, old_pdu_3, old_pdu_1], [old_pdu_2, old_pdu_1])
         )
 
-        callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state(new_pdu)
 
-        callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_once_with(
@@ -218,10 +206,8 @@ class StateTestCase(unittest.TestCase):
 
         self.replication.get_pdu.side_effect = set_return_tree
 
-        callback = Mock(spec=[])
-        is_new = yield self.state.handle_new_state(new_pdu, callback)
+        is_new = yield self.state.handle_new_state(new_pdu)
 
-        callback.assert_called_once_with(new_pdu)
         self.assertTrue(is_new)
 
         self.persistence.get_unresolved_state_tree.assert_called_with(
@@ -246,10 +232,7 @@ class StateTestCase(unittest.TestCase):
         self.persistence.get_latest_pdus_in_context.return_value = pdus
         self.persistence.get_current_state.return_value = state_pdu
 
-        callback = Mock()
-
-        yield self.state.handle_new_event(event, callback)
-        callback.assert_called_once_with(event)
+        yield self.state.handle_new_event(event)
 
         self.assertLess(tup[2], event.depth)
 

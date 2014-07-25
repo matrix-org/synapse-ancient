@@ -19,6 +19,6 @@ class FederationHandler(BaseHandler):
 
     @log_function
     @defer.inlineCallbacks
-    def on_receive(self, event):
+    def on_receive(self, event, is_new_state):
         store_id = yield self.store.persist_event(event)
         yield self.notifier.on_new_event(event, store_id)

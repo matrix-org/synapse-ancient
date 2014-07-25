@@ -26,7 +26,7 @@ class StateHandler(object):
         self.server_name = hs.hostname
 
     @defer.inlineCallbacks
-    def handle_new_event(self, event, new_state_callback):
+    def handle_new_event(self, event):
         """ Given an event this works out if a) we have sufficient power level
         to update the state and b) works out what the prev_state should be.
 
@@ -76,10 +76,6 @@ class StateHandler(object):
         # than the power level of the user
         # power_level = self._get_power_level_for_event(event)
 
-        # Assume we would have raised if we got here and couldn't clobber
-        # the old state
-        yield defer.maybeDeferred(new_state_callback, event)
-
         yield self._persistence.update_current_state(
             pdu_id=event.event_id,
             origin=self.server_name,
@@ -91,7 +87,7 @@ class StateHandler(object):
         defer.returnValue(True)
 
     @defer.inlineCallbacks
-    def handle_new_state(self, new_pdu, new_state_callback=None):
+    def handle_new_state(self, new_pdu):
         """ Apply conflict resolution to `new_pdu`.
 
         This should be called on every new state pdu, regardless of whether or
@@ -105,9 +101,7 @@ class StateHandler(object):
 
         is_new = yield self._handle_new_state(new_pdu)
 
-        if is_new and new_state_callback:
-            yield defer.maybeDeferred(new_state_callback, new_pdu)
-
+        if is_new:
             yield self._persistence.update_current_state(
                 pdu_id=new_pdu.pdu_id,
                 origin=new_pdu.origin,

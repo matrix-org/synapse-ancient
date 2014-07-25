@@ -62,9 +62,9 @@ class Auth(object):
     @defer.inlineCallbacks
     def is_membership_change_allowed(self, event):
         # does this room even exist
-        room = self.store.get_room(event.room_id)
-        if not room:
-            raise AuthError(403, "Room does not exist")
+        #room = self.store.get_room(event.room_id)
+        #if not room:
+        #    raise AuthError(403, "Room does not exist")
 
         # get info about the caller
         try:

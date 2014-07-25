@@ -82,18 +82,15 @@ class FederationEventHandler(object):
                     return self._on_new_state(pdu, new_state_event)
 
                 if event.is_state:
-                    yield self.state_handler.handle_new_state(
-                        pdu,
-                        _on_new_state
+                    is_new_state = yield self.state_handler.handle_new_state(
+                        pdu
                     )
-
-                    # TODO: Do we want to inform people about state_events that
-                    # result in a clobber?
-
-                    return
+                    if not is_new_state:
+                        return
                 else:
-                    logger.debug("Passing event %s to handler", event)
-                    yield self.event_handler.on_receive(event)
+                    is_new_state = False
+
+            yield self.event_handler.on_receive(event, is_new_state)
 
         except AuthError:
             # TODO: Implement something in federation that allows us to
