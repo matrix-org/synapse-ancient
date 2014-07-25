@@ -2,7 +2,7 @@
 
 
 from twisted.web import server, resource
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 
 from collections import namedtuple
 
@@ -65,11 +65,11 @@ def _send_response(request, code, content):
     request.setHeader("Content-Type", "application/json")
 
     # Hack to turn on CORS for everyone for now...
-    request.setHeader("Access-Control-Allow-Origin", "*");
+    request.setHeader("Access-Control-Allow-Origin", "*")
     request.setHeader("Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS");
+        "GET, POST, PUT, DELETE, OPTIONS")
     request.setHeader("Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept");
+        "Origin, X-Requested-With, Content-Type, Accept")
 
     request.write('%s\n' % json.dumps(content, indent=ident))
     request.finish()
@@ -96,6 +96,7 @@ _HttpClientPathEntry = namedtuple(
     "_HttpClientPathEntry",
     ["pattern", "callback"]
 )
+
 
 # The actual HTTP server impl, using twisted http server
 class TwistedHttpServer(HttpServer, resource.Resource):

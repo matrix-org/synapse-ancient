@@ -4,6 +4,8 @@ from twisted.internet import defer, reactor
 from twisted.web.client import Agent, readBody
 from twisted.web.http_headers import Headers
 
+from synapse.util.async import sleep
+
 import json
 import logging
 import urllib
