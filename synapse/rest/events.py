@@ -16,7 +16,7 @@ class EventStreamRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request):
-        auth_user_id = yield (self.auth.get_user_by_req(request))
+        auth_user = yield self.auth.get_user_by_req(request)
 
         handler = self.handlers.event_stream_handler
         pagin_config = PaginationConfig.from_request(request)
@@ -27,7 +27,7 @@ class EventStreamRestServlet(RestServlet):
             except ValueError:
                 raise SynapseError(400, "timeout must be in milliseconds.")
 
-        chunk = yield handler.get_stream(auth_user_id, pagin_config,
+        chunk = yield handler.get_stream(auth_user.to_string(), pagin_config,
                                          timeout=timeout)
         defer.returnValue((200, chunk))
 

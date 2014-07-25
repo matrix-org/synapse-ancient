@@ -17,9 +17,6 @@ myid = "@1234ABCD:test"
 class ProfilesTestCase(unittest.TestCase):
     """ Tests profile management. """
 
-    def mock_get_user_by_token(self, token=None):
-        return "1234ABCD"  # local part only
-
     def setUp(self):
         self.mock_server = MockHttpServer()
         self.mock_handler = Mock(spec=[
@@ -30,7 +27,11 @@ class ProfilesTestCase(unittest.TestCase):
         hs = HomeServer("test",
                 db_pool=None,
                 http_server=self.mock_server)
-        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
+
+        def _get_user_by_token(token=None):
+            return hs.parse_userid(myid)
+        hs.get_auth().get_user_by_token = _get_user_by_token
+
         hs.get_handlers().profile_handler = self.mock_handler
 
         hs.register_servlets()
@@ -58,7 +59,7 @@ class ProfilesTestCase(unittest.TestCase):
 
         self.assertEquals(200, code)
         self.assertEquals(mocked_set.call_args[0][0].localpart, "1234ABCD")
-        self.assertEquals(mocked_set.call_args[0][1], "1234ABCD")
+        self.assertEquals(mocked_set.call_args[0][1].localpart, "1234ABCD")
         self.assertEquals(mocked_set.call_args[0][2], "Frank Jr.")
 
     @defer.inlineCallbacks

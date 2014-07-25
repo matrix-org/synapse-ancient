@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 class Auth(object):
 
     def __init__(self, hs):
+        self.hs = hs
         self.store = hs.get_datastore()
 
     @defer.inlineCallbacks
@@ -113,7 +114,7 @@ class Auth(object):
         Args:
             request - An HTTP request with an access_token query parameter.
         Returns:
-            str: The user ID of the user who has that access token.
+            UserID : User ID object of the user making the request
         Raises:
             AuthError if no user by that token exists or the token is invalid.
         """
@@ -130,13 +131,13 @@ class Auth(object):
         Args:
             token (str)- The access token to get the user by.
         Returns:
-            str: The user ID of the user who has that access token.
+            UserID : User ID object of the user who has that access token.
         Raises:
             AuthError if no user by that token exists or the token is invalid.
         """
         try:
             user_id = yield self.store.get_user(token=token)
-            defer.returnValue(user_id)
+            defer.returnValue(self.hs.parse_userid(user_id))
         except StoreError:
             raise AuthError(403, "Unrecognised access token.")
 

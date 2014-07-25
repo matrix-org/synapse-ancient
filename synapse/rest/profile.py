@@ -23,6 +23,7 @@ class ProfileDisplaynameRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_PUT(self, request, user_id):
+        auth_user = yield self.auth.get_user_by_req(request)
         user = self.hs.parse_userid(user_id)
 
         try:
@@ -31,9 +32,8 @@ class ProfileDisplaynameRestServlet(RestServlet):
         except:
             defer.returnValue((400, "Unable to parse name"))
 
-        auth_user_id = yield self.auth.get_user_by_req(request)
-        yield self.handlers.profile_handler.set_displayname(user, auth_user_id,
-                new_name)
+        yield self.handlers.profile_handler.set_displayname(user,
+                auth_user, new_name)
 
         defer.returnValue((200, ""))
 

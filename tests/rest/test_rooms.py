@@ -21,10 +21,7 @@ from mock import Mock
 class RoomPermissionsTestCase(RestTestCase):
     """ Tests room permissions. """
     user_id = "@sid1:red"
-    rmcreator_id = "notme"
-
-    def mock_get_user_by_token(self, token=None):
-        return self.auth_user_id
+    rmcreator_id = "@notme:red"
 
     @defer.inlineCallbacks
     def setUp(self):
@@ -36,7 +33,11 @@ class RoomPermissionsTestCase(RestTestCase):
             federation=Mock(),
             datastore=MemoryDataStore(),
         )
-        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
+
+        def _get_user_by_token(token=None):
+            return hs.parse_userid(self.auth_user_id)
+        hs.get_auth().get_user_by_token = _get_user_by_token
+
         self.auth_user_id = self.rmcreator_id
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
@@ -371,7 +372,10 @@ class RoomsMemberListTestCase(RestTestCase):
                 datastore=MemoryDataStore(),
         )
         self.auth_user_id = self.user_id
-        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
+
+        def _get_user_by_token(token=None):
+            return hs.parse_userid(self.auth_user_id)
+        hs.get_auth().get_user_by_token = _get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -395,7 +399,7 @@ class RoomsMemberListTestCase(RestTestCase):
     @defer.inlineCallbacks
     def test_get_member_list_no_permission(self):
         room_id = "bb"
-        yield self.create_room_as(room_id, "some_other_guy")
+        yield self.create_room_as(room_id, "@some_other_guy:red")
         (code, response) = yield self.mock_server.trigger_get(
                            "/rooms/%s/members/list" % room_id)
         self.assertEquals(403, code, msg=str(response))
@@ -436,7 +440,10 @@ class RoomsCreateTestCase(RestTestCase):
             db_pool=None,
             datastore=MemoryDataStore(),
         )
-        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
+
+        def _get_user_by_token(token=None):
+            return hs.parse_userid(self.auth_user_id)
+        hs.get_auth().get_user_by_token = _get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -542,7 +549,7 @@ class RoomsCreateTestCase(RestTestCase):
 
 class RoomTopicTestCase(RestTestCase):
     """ Tests /rooms/$room_id/topic REST events. """
-    user_id = "sid1"
+    user_id = "@sid1:red"
 
     @defer.inlineCallbacks
     def setUp(self):
@@ -557,7 +564,10 @@ class RoomTopicTestCase(RestTestCase):
             federation=Mock(),
             datastore=MemoryDataStore(),
         )
-        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
+
+        def _get_user_by_token(token=None):
+            return hs.parse_userid(self.auth_user_id)
+        hs.get_auth().get_user_by_token = _get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -648,7 +658,10 @@ class RoomMemberStateTestCase(RestTestCase):
             federation=Mock(),
             datastore=MemoryDataStore(),
         )
-        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
+
+        def _get_user_by_token(token=None):
+            return hs.parse_userid(self.auth_user_id)
+        hs.get_auth().get_user_by_token = _get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 
@@ -751,7 +764,10 @@ class RoomMessagesTestCase(RestTestCase):
             federation=Mock(),
             datastore=MemoryDataStore(),
         )
-        hs.get_auth().get_user_by_token = self.mock_get_user_by_token
+
+        def _get_user_by_token(token=None):
+            return hs.parse_userid(self.auth_user_id)
+        hs.get_auth().get_user_by_token = _get_user_by_token
 
         synapse.rest.room.register_servlets(hs, self.mock_server)
 

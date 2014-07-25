@@ -33,13 +33,13 @@ class RoomCreateRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
         try:
-            auth_user_id = yield (self.auth.get_user_by_req(request))
+            auth_user = yield self.auth.get_user_by_req(request)
 
             if not room_id:
                 raise InvalidHttpRequestError(400, "PUT must specify a room ID")
 
             room_config = self.get_room_config(request)
-            info = yield self.make_room(room_config, auth_user_id, room_id)
+            info = yield self.make_room(room_config, auth_user, room_id)
 
             defer.returnValue((200, info))
         except SynapseError as e:
@@ -50,10 +50,10 @@ class RoomCreateRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_POST(self, request):
         try:
-            auth_user_id = yield (self.auth.get_user_by_req(request))
+            auth_user = yield self.auth.get_user_by_req(request)
 
             room_config = self.get_room_config(request)
-            info = yield self.make_room(room_config, auth_user_id, None)
+            info = yield self.make_room(room_config, auth_user, None)
 
             defer.returnValue((200, info))
         except SynapseError as e:
@@ -62,10 +62,10 @@ class RoomCreateRestServlet(RestServlet):
             defer.returnValue((he.get_status_code(), he.get_response_body()))
 
     @defer.inlineCallbacks
-    def make_room(self, room_config, auth_user_id, room_id):
+    def make_room(self, room_config, auth_user, room_id):
         handler = self.handlers.room_creation_handler
         new_room_id = yield handler.create_room(
-                user_id=auth_user_id,
+                user_id=auth_user.to_string(),
                 room_id=room_id,
                 config=room_config
         )
@@ -95,11 +95,11 @@ class RoomTopicRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
 
         msg_handler = self.handlers.message_handler
         data = yield msg_handler.get_room_path_data(
-                user_id=user_id,
+                user_id=user.to_string(),
                 room_id=room_id,
                 path=request.path,
                 event_type=RoomTopicEvent.TYPE
@@ -111,7 +111,7 @@ class RoomTopicRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
 
         content = _parse_json(request)
 
@@ -119,7 +119,7 @@ class RoomTopicRestServlet(RestServlet):
             etype=self.get_event_type(),
             content=content,
             room_id=room_id,
-            user_id=user_id
+            user_id=user.to_string(),
             )
 
         msg_handler = self.handlers.message_handler
@@ -139,24 +139,24 @@ class RoomMemberRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, member_user_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
 
         handler = self.handlers.room_member_handler
         member = yield handler.get_room_member(room_id, member_user_id,
-                                               user_id)
+                                               user.to_string())
         if not member:
             defer.returnValue((404, cs_error("Member not found.")))
         defer.returnValue((200, json.loads(member.content)))
 
     @defer.inlineCallbacks
     def on_DELETE(self, request, roomid, member_user_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
 
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
             target_user_id=member_user_id,
             room_id=roomid,
-            user_id=user_id,
+            user_id=user.to_string(),
             membership=Membership.LEAVE,
             content={"membership": Membership.LEAVE}
             )
@@ -167,7 +167,7 @@ class RoomMemberRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_PUT(self, request, roomid, member_user_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
 
         content = _parse_json(request)
         if "membership" not in content:
@@ -182,7 +182,7 @@ class RoomMemberRestServlet(RestServlet):
             etype=self.get_event_type(),
             target_user_id=member_user_id,
             room_id=roomid,
-            user_id=user_id,
+            user_id=user.to_string(),
             membership=content["membership"],
             content=content
             )
@@ -201,13 +201,13 @@ class MessageRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, msg_sender_id, msg_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
 
         msg_handler = self.handlers.message_handler
         msg = yield msg_handler.get_message(room_id=room_id,
                                             sender_id=msg_sender_id,
                                             msg_id=msg_id,
-                                            user_id=user_id
+                                            user_id=user.to_string(),
                                             )
 
         if not msg:
@@ -217,9 +217,9 @@ class MessageRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, sender_id, msg_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
 
-        if user_id != sender_id:
+        if user.to_string() != sender_id:
             raise SynapseError(403, "Must send messages as yourself.")
 
         content = _parse_json(request)
@@ -229,7 +229,7 @@ class MessageRestServlet(RestServlet):
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
             room_id=room_id,
-            user_id=user_id,
+            user_id=user.to_string(),
             msg_id=msg_id,
             content=content
             )
@@ -301,11 +301,11 @@ class RoomMemberListRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
         # TODO support Pagination stream API (limit/tokens)
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
         handler = self.handlers.room_member_handler
         members = yield handler.get_room_members(
             room_id=room_id,
-            user_id=user_id)
+            user_id=user.to_string())
 
         defer.returnValue((200, members))
 
@@ -315,12 +315,12 @@ class RoomMessageListRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield self.auth.get_user_by_req(request)
         pagination_config = PaginationConfig.from_request(request)
         handler = self.handlers.message_handler
         msgs = yield handler.get_messages(
             room_id=room_id,
-            user_id=user_id,
+            user_id=user.to_string(),
             pagin_config=pagination_config)
 
         defer.returnValue((200, msgs))

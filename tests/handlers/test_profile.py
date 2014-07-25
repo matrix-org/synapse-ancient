@@ -20,6 +20,7 @@ class ProfileTestCase(unittest.TestCase):
                 db_pool=self.db_pool)
 
         self.frank = hs.parse_userid("@1234ABCD:test")
+        self.bob   = hs.parse_userid("@4567:test")
 
         self.handlers = hs.get_handlers()
 
@@ -41,14 +42,14 @@ class ProfileTestCase(unittest.TestCase):
         mocked_ri.return_value = defer.succeed(())
 
         yield self.handlers.profile_handler.set_displayname(
-                self.frank, "1234ABCD", "Frank Jr.")
+                self.frank, self.frank, "Frank Jr.")
 
         self.assertEquals(mocked_ri.call_args[0][1], "1234ABCD")
         self.assertEquals(mocked_ri.call_args[0][2], "Frank Jr.")
 
     @defer.inlineCallbacks
     def test_set_my_name_noauth(self):
-        d = self.handlers.profile_handler.set_displayname(self.frank, "4567",
+        d = self.handlers.profile_handler.set_displayname(self.frank, self.bob,
                 "Frank Jr.")
 
         yield self.assertFailure(d, AuthError)
