@@ -249,15 +249,15 @@ class FeedbackRestServlet(RestServlet):
         return FeedbackEvent.TYPE
 
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, sender_id, msg_id, fb_sender_id,
+    def on_GET(self, request, room_id, msg_sender_id, msg_id, fb_sender_id,
                fb_type):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield (self.auth.get_user_by_req(request))
 
         msg_handler = self.handlers.message_handler
         feedback = yield msg_handler.get_feedback(room_id=room_id,
-                                            sender_id=sender_id,
+                                            msg_sender_id=msg_sender_id,
                                             msg_id=msg_id,
-                                            user_id=user_id,
+                                            user_id=user.to_string(),
                                             fb_sender_id=fb_sender_id,
                                             fb_type=fb_type
                                             )
@@ -270,9 +270,9 @@ class FeedbackRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, sender_id, msg_id, fb_sender_id,
                fb_type):
-        user_id = yield (self.auth.get_user_by_req(request))
+        user = yield (self.auth.get_user_by_req(request))
 
-        if user_id != fb_sender_id:
+        if user.to_string() != fb_sender_id:
             raise SynapseError(403, "Must send feedback as yourself.")
 
         content = _parse_json(request)
@@ -284,7 +284,7 @@ class FeedbackRestServlet(RestServlet):
             room_id=room_id,
             msg_sender_id=sender_id,
             msg_id=msg_id,
-            user_id=user_id,  # user sending the feedback
+            user_id=user.to_string(),  # user sending the feedback
             feedback_type=fb_type,
             content=content
             )

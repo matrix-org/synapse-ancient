@@ -86,7 +86,6 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                 membership=event.content["membership"]
             )
         elif event.type == FeedbackEvent.TYPE:
-            print event
             return self.store_feedback(
                 room_id=event.room_id,
                 msg_id=event.msg_id,
