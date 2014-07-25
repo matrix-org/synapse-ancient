@@ -73,20 +73,15 @@ class EventStream(PaginationStream):
                 config.to_tok = EventStream.SEPARATOR.join(
                                             [key] * len(self.stream_data))
 
-        try:
-            (chunk_data, next_tok) = yield self._get_chunk_data(config.from_tok,
-                                                                config.to_tok,
-                                                                config.limit)
+        (chunk_data, next_tok) = yield self._get_chunk_data(config.from_tok,
+                                                            config.to_tok,
+                                                            config.limit)
 
-            defer.returnValue({
-                "chunk": chunk_data,
-                "start": config.from_tok,
-                "end": next_tok
-            })
-        except Exception as e:
-            logger.error("Failed to get chunk. Config %s. Exception: %s" %
-                        (config.dict(), e))
-            raise EventStreamError(400, "Bad tokens supplied.")
+        defer.returnValue({
+            "chunk": chunk_data,
+            "start": config.from_tok,
+            "end": next_tok
+        })
 
     @defer.inlineCallbacks
     def _get_chunk_data(self, from_tok, to_tok, limit):

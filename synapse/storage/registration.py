@@ -59,7 +59,7 @@ class RegistrationStore(SQLBaseStore):
     def _query_for_auth(self, txn, token):
         txn.execute("SELECT users.name FROM access_tokens LEFT JOIN users" +
                     " ON users.id = access_tokens.user_id WHERE token = ?",
-                    token)
+                    [token])
         row = txn.fetchone()
         if row:
             return row[0]

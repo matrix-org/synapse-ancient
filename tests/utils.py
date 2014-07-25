@@ -102,7 +102,7 @@ class MemoryDataStore(object):
         try:
             return self.tokens_to_users[token]
         except:
-            return None
+            raise StoreError(400, "User does not exist.")
 
     def get_room(self, room_id):
         try:
@@ -167,6 +167,13 @@ class MemoryDataStore(object):
         data = MemoryDataStore.PathData(path=path, room_id=room_id,
                     content=content)
         self.paths_to_content[path] = data
+
+    def get_message_stream(self, user_id=None, from_key=None, to_key=None,
+                            room_id=None, limit=0):
+        return ([], from_key)  # TODO
+
+    def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):
+        return ([], from_key)  # TODO
 
     def to_events(self, data_store_list):
         return data_store_list  # TODO

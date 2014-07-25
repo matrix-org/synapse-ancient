@@ -2,6 +2,26 @@
 """ Tests REST events for /events paths."""
 from twisted.trial import unittest
 
+# twisted imports
+from twisted.internet import defer
+
+import synapse.rest.events
+import synapse.rest.register
+import synapse.rest.room
+
+from synapse.server import HomeServer
+
+# python imports
+import json
+import logging
+
+from ..utils import MockHttpServer, MemoryDataStore
+from .utils import RestTestCase
+
+from mock import Mock
+
+logging.getLogger().addHandler(logging.NullHandler())
+
 
 class EventStreamPaginationApiTestCase(unittest.TestCase):
     """ Tests event streaming query parameters and start/end keys used in the
@@ -75,27 +95,70 @@ class EventStreamPaginationApiTestCase(unittest.TestCase):
         pass
 
 
-class EventStreamTestCase(unittest.TestCase):
+class EventStreamPermissionsTestCase(RestTestCase):
     """ Tests event streaming (GET /events). """
-    user_id = "sid1"
 
+    @defer.inlineCallbacks
     def setUp(self):
-        pass
+        self.mock_server = MockHttpServer()
+
+        hs = HomeServer("test",
+                db_pool=None,
+                federation=Mock())
+        hs.datastore = MemoryDataStore()
+        synapse.rest.register.register_servlets(hs, self.mock_server)
+        synapse.rest.events.register_servlets(hs, self.mock_server)
+        synapse.rest.room.register_servlets(hs, self.mock_server)
+
+        # register an account
+        self.user_id = "sid1"
+        response = yield self.register(self.user_id)
+        self.token = response["access_token"]
+        self.user_id = response["user_id"]
+
+        # register a 2nd account
+        self.other_user = "other1"
+        response = yield self.register(self.other_user)
+        self.other_token = response["access_token"]
+        self.other_user = response["user_id"]
 
     def tearDown(self):
         pass
 
-    def test_stream_perms(self):
+    @defer.inlineCallbacks
+    def test_stream_basic_permissions(self):
         # invalid token, expect 403
+        (code, response) = yield self.mock_server.trigger_get(
+                           "/events?access_token=%s" % ("invalid" + self.token))
+        self.assertEquals(403, code, msg=str(response))
 
         # valid token, expect content
+        (code, response) = yield self.mock_server.trigger_get(
+                           "/events?access_token=%s&timeout=0" % (self.token))
+        self.assertEquals(200, code, msg=str(response))
+        self.assertTrue("chunk" in response)
+        self.assertTrue("start" in response)
+        self.assertTrue("end" in response)
+
+    @defer.inlineCallbacks
+    def test_stream_room_permissions(self):
+        room_id = "rid1"
+        yield self.create_room_as(room_id, self.other_user,
+                                  tok=self.other_token)
+        yield self.send(room_id, self.other_user, tok=self.other_token)
 
         # invited to room (expect no content for room)
+        yield self.invite(room_id, src=self.other_user, targ=self.user_id,
+                          tok=self.other_token)
+        (code, response) = yield self.mock_server.trigger_get(
+                           "/events?access_token=%s&timeout=0" % (self.token))
+        self.assertEquals(200, code, msg=str(response))
+        self.assertEquals(0, len(response["chunk"]))
 
         # joined room (expect all content for room)
+        yield self.join(room=room_id, user=self.user_id, tok=self.token)
 
         # left to room (expect no content for room)
-        pass
 
     def test_stream_items(self):
         # new user, no content

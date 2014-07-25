@@ -4,9 +4,6 @@
 # twisted imports
 from twisted.internet import defer
 
-# trial imports
-from twisted.trial import unittest
-
 from synapse.api.auth import Auth
 import synapse.rest.room
 from synapse.api.constants import Membership
@@ -17,81 +14,12 @@ from synapse.server import HomeServer
 import json
 
 from ..utils import MockHttpServer, MemoryDataStore
+from .utils import RestTestCase
 
 from mock import Mock
 
 
-class RoomsTestCase(unittest.TestCase):
-    """Contains extra helper functions to quickly and clearly perform a given
-    action, which isn't the focus of the test.
-
-    This subclass assumes there are mock_server and auth_user_id attributes.
-    """
-
-    def mock_get_user_by_token(self, token=None):
-        return self.auth_user_id
-
-    @defer.inlineCallbacks
-    def create_room_as(self, room_id, room_creator, is_public=True):
-        temp_id = self.auth_user_id
-        self.auth_user_id = room_creator
-        content = "{}"
-        if not is_public:
-            content = '{"visibility":"private"}'
-        (code, response) = yield self.mock_server.trigger("PUT",
-                                "/rooms/%s" % room_id, content)
-        self.assertEquals(200, code, msg=str(response))
-        self.auth_user_id = temp_id
-
-    @defer.inlineCallbacks
-    def invite(self, room=None, src=None, targ=None, expect_code=200):
-        yield self.change_membership(room=room, src=src, targ=targ,
-                                     membership=Membership.INVITE,
-                                     expect_code=expect_code)
-
-    @defer.inlineCallbacks
-    def join(self, room=None, user=None, expect_code=200):
-        yield self.change_membership(room=room, src=user, targ=user,
-                                     membership=Membership.JOIN,
-                                     expect_code=expect_code)
-
-    @defer.inlineCallbacks
-    def leave(self, room=None, user=None, expect_code=200):
-        yield self.change_membership(room=room, src=user, targ=user,
-                                     membership=Membership.LEAVE,
-                                     expect_code=expect_code)
-
-    @defer.inlineCallbacks
-    def change_membership(self, room=None, src=None, targ=None,
-                          membership=None, expect_code=200):
-        temp_id = self.auth_user_id
-        self.auth_user_id = src
-        if membership == Membership.LEAVE:
-            (code, response) = yield self.mock_server.trigger("DELETE",
-                                    "/rooms/%s/members/%s/state" % (room, targ),
-                                    None)
-            self.assertEquals(expect_code, code, msg=str(response))
-        else:
-            (code, response) = yield self.mock_server.trigger("PUT",
-                                    "/rooms/%s/members/%s/state" % (room, targ),
-                                    '{"membership":"%s"}' % membership)
-            self.assertEquals(expect_code, code, msg=str(response))
-
-        self.auth_user_id = temp_id
-
-    def assert_dict(self, required, actual):
-        """Does a partial assert of a dict.
-
-        Args:
-            required (dict): The keys and value which MUST be in 'actual'.
-            actual (dict): The test result. Extra keys will not be checked.
-        """
-        for key in required:
-            self.assertEquals(required[key], actual[key],
-                              msg="%s mismatch. %s" % (key, actual))
-
-
-class RoomPermissionsTestCase(RoomsTestCase):
+class RoomPermissionsTestCase(RestTestCase):
     """ Tests room permissions. """
     user_id = "@sid1:red"
     rmcreator_id = "notme"
@@ -432,7 +360,7 @@ class RoomPermissionsTestCase(RoomsTestCase):
                                      expect_code=403)
 
 
-class RoomsMemberListTestCase(RoomsTestCase):
+class RoomsMemberListTestCase(RestTestCase):
     """ Tests /rooms/$room_id/members/list REST events."""
     user_id = "@sid1:red"
 
@@ -497,7 +425,7 @@ class RoomsMemberListTestCase(RoomsTestCase):
         self.assertEquals(403, code, msg=str(response))
 
 
-class RoomsCreateTestCase(RoomsTestCase):
+class RoomsCreateTestCase(RestTestCase):
     """ Tests /rooms and /rooms/$room_id REST events. """
     user_id = "@sid1:red"
 
@@ -615,7 +543,7 @@ class RoomsCreateTestCase(RoomsTestCase):
         self.assertEquals(409, code)
 
 
-class RoomTopicTestCase(RoomsTestCase):
+class RoomTopicTestCase(RestTestCase):
     """ Tests /rooms/$room_id/topic REST events. """
     user_id = "sid1"
 
@@ -707,7 +635,7 @@ class RoomTopicTestCase(RoomsTestCase):
         self.assertEquals(json.loads(content), response)
 
 
-class RoomMemberStateTestCase(RoomsTestCase):
+class RoomMemberStateTestCase(RestTestCase):
     """ Tests /rooms/$room_id/members/$user_id/state REST events. """
     user_id = "@sid1:red"
 
@@ -811,7 +739,7 @@ class RoomMemberStateTestCase(RoomsTestCase):
         self.assertEquals(json.loads(content), response)
 
 
-class RoomMessagesTestCase(RoomsTestCase):
+class RoomMessagesTestCase(RestTestCase):
     """ Tests /rooms/$room_id/messages/$user_id/$msg_id REST events. """
     user_id = "@sid1:red"
 

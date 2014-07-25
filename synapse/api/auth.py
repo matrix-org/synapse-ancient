@@ -119,7 +119,7 @@ class Auth(object):
         """
         # Can optionally look elsewhere in the request (e.g. headers)
         try:
-            return self.get_user_by_token(request.args["access_token"])
+            return self.get_user_by_token(request.args["access_token"][0])
         except KeyError:
             raise AuthError(403, "Missing access token.")
 
