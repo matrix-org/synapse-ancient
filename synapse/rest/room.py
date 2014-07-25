@@ -253,6 +253,9 @@ class FeedbackRestServlet(RestServlet):
                fb_type):
         user = yield (self.auth.get_user_by_req(request))
 
+        if fb_type not in ["d", "r"]:
+            raise SynapseError(400, "Bad feedback type.")
+
         msg_handler = self.handlers.message_handler
         feedback = yield msg_handler.get_feedback(room_id=room_id,
                                             msg_sender_id=msg_sender_id,
@@ -274,6 +277,9 @@ class FeedbackRestServlet(RestServlet):
 
         if user.to_string() != fb_sender_id:
             raise SynapseError(403, "Must send feedback as yourself.")
+
+        if fb_type not in ["d", "r"]:
+            raise SynapseError(400, "Bad feedback type.")
 
         content = _parse_json(request)
         # stamp the message with ms resolution
