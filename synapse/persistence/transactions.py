@@ -10,6 +10,8 @@ from .tables import (
     ContextDepthTable, JoinHelper
 )
 
+from synapse.util.logutils import log_function
+
 from collections import namedtuple
 
 import logging
@@ -242,9 +244,14 @@ class PduQueries(object):
             % CurrentStateTable.table_name
         )
 
+        logger.debug("get_current_state %s, Args=%s", query, context)
         txn.execute(query, (context,))
 
-        return cls._get_pdu_tuples(txn, txn.fetchall())
+        res = txn.fetchall()
+
+        logger.debug("get_current_state %d results", len(res))
+
+        return cls._get_pdu_tuples(txn, res)
 
     @classmethod
     def insert(cls, txn, prev_pdus, **cols):
@@ -564,6 +571,7 @@ class PduQueries(object):
         return [PduIdTuple(i, o) for i, o in txn.fetchall()]
 
     @staticmethod
+    @log_function
     def _handle_prev_pdus(txn, outlier, pdu_id, origin, prev_pdus,
                           context):
         txn.executemany(

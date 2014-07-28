@@ -217,6 +217,12 @@ class Pdu(JsonEncodedObject):
         else:
             return None
 
+    def __str__(self):
+        return "(%s, %s)" % (self.__class__.__name__, repr(self.__dict__))
+
+    def __repr__(self):
+        return "<%s, %s>" % (self.__class__.__name__, repr(self.__dict__))
+
 
 class Transaction(JsonEncodedObject):
     """ A transaction is a list of Pdus to be sent to a remote home

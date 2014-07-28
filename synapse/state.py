@@ -3,10 +3,14 @@
 from twisted.internet import defer
 
 from synapse.federation.pdu_codec import encode_event_id
+from synapse.util.logutils import log_function
 
 from collections import namedtuple
 
+import logging
 import hashlib
+
+logger = logging.getLogger(__name__)
 
 
 def _get_state_key_from_event(event):
@@ -26,6 +30,7 @@ class StateHandler(object):
         self.server_name = hs.hostname
 
     @defer.inlineCallbacks
+    @log_function
     def handle_new_event(self, event):
         """ Given an event this works out if a) we have sufficient power level
         to update the state and b) works out what the prev_state should be.
@@ -39,7 +44,7 @@ class StateHandler(object):
         """
         # This needs to be done in a transaction.
 
-        if not event.is_state:
+        if not hasattr(event, "state_key"):
             return
 
         key = KeyStateTuple(
@@ -58,19 +63,23 @@ class StateHandler(object):
         event.prev_events = [
             encode_event_id(p_id, origin) for p_id, origin, _ in results
         ]
+        event.prev_events = [
+            e for e in event.prev_events if e != event.event_id
+        ]
 
         if results:
             event.depth = max([int(v) for _, _, v in results]) + 1
         else:
             event.depth = 0
 
-        current_state = self._persistence.get_current_state(
+        current_state = yield self._persistence.get_current_state(
             key.context, key.type, key.state_key
         )
 
-        event.prev_state = encode_event_id(
-            current_state.pdu_id, current_state.origin
-        )
+        if current_state:
+            event.prev_state = encode_event_id(
+                current_state.pdu_id, current_state.origin
+            )
 
         # TODO check current_state to see if the min power level is less
         # than the power level of the user
@@ -87,6 +96,7 @@ class StateHandler(object):
         defer.returnValue(True)
 
     @defer.inlineCallbacks
+    @log_function
     def handle_new_state(self, new_pdu):
         """ Apply conflict resolution to `new_pdu`.
 
@@ -118,9 +128,15 @@ class StateHandler(object):
         return event.power_level
 
     @defer.inlineCallbacks
+    @log_function
     def _handle_new_state(self, new_pdu):
         tree = yield self._persistence.get_unresolved_state_tree(new_pdu)
         new_branch, current_branch = tree
+
+        logger.debug(
+            "_handle_new_state new=%s, current=%s",
+            new_branch, current_branch
+        )
 
         if not current_branch:
             # There is no current state

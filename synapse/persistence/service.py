@@ -133,6 +133,12 @@ class PersistenceService(object):
             depth=depth
         )
 
+    def get_current_state(self, context, pdu_type, state_key):
+        return self._db_pool.runInteraction(
+            StateQueries.current_state,
+            context, pdu_type, state_key
+        )
+
     def get_servers_in_context(self, context):
         raise NotImplementedError("get_servers_in_context")
 

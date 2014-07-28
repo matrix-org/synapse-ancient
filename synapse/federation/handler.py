@@ -123,9 +123,11 @@ class FederationEventHandler(object):
             event.room_id
         )
 
-        event.prev_events = [
+        es = [
             "%s@%s" % (p_id, origin) for p_id, origin, _ in results
         ]
+
+        event.prev_events = [e for e in es if e != event.event_id]
 
         if results:
             event.depth = max([int(v) for _, _, v in results]) + 1

@@ -94,7 +94,7 @@ class ReplicationLayer(object):
 
         logger.debug("[%s] Persisting PDU", pdu.pdu_id)
 
-        yield self.pdu_actions.populate_previous_pdus(pdu)
+        #yield self.pdu_actions.populate_previous_pdus(pdu)
 
         # Save *before* trying to send
         yield self.pdu_actions.persist_outgoing(pdu)
@@ -259,6 +259,8 @@ class ReplicationLayer(object):
             context
         )
 
+        logger.debug("Context returning %d results", len(results))
+
         pdus = [Pdu.from_pdu_tuple(p) for p in results]
         defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
 
@@ -293,6 +295,7 @@ class ReplicationLayer(object):
         )
 
     @defer.inlineCallbacks
+    @log_function
     def _get_persisted_pdu(self, pdu_id, pdu_origin):
         """ Get a PDU from the database with given origin and id.
 

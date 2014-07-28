@@ -76,6 +76,9 @@ class PduCodec(object):
                 decode_event_id(event.prev_state, self.server_name)
             )
 
+        if hasattr(event, "state_key"):
+            d["is_state"] = True
+
         kwargs = copy.deepcopy(event.unrecognized_keys)
         kwargs.update({
             k: v for k, v in d.items()
