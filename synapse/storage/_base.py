@@ -1,5 +1,7 @@
 import logging
 
+from twisted.internet import defer
+
 from synapse.api.errors import StoreError
 
 
@@ -53,17 +55,17 @@ class SQLBaseStore(object):
             txn.execute(sql, values.values())
         self._db_pool.runInteraction(func)
 
-    def interact_simple_select_one_one(self, table, keyvalues, retcol):
+    def interact_simple_select_one(self, table, keyvalues, retcols):
         """Executes a SELECT query on the named table, which is expected to
         return a single row, returning a single column from it.
 
         Args:
             table : string giving the table name
             keyvalues : dict of column names and values to select the row with
-            retcol : string giving the name of the column to return
+            retcols : list of strings giving the names of the columns to return
         """
         sql = "SELECT %s FROM %s WHERE %s" % (
-                retcol,
+                ", ".join(retcols),
                 table,
                 " AND ".join(["%s = ?" % (k) for k in keyvalues]))
 
@@ -76,8 +78,24 @@ class SQLBaseStore(object):
             if txn.rowcount > 1:
                 raise StoreError(500, "More than one row matched")
 
-            return row[0]
+            return dict(zip(retcols,row))
         return self._db_pool.runInteraction(func)
+
+    @defer.inlineCallbacks
+    def interact_simple_select_one_onecol(self, table, keyvalues, retcol):
+        """Executes a SELECT query on the named table, which is expected to
+        return a single row, returning a single column from it."
+
+        Args:
+            table : string giving the table name
+            keyvalues : dict of column names and values to select the row with
+            retcol : string giving the name of the column to return
+        """
+        ret = yield self.interact_simple_select_one(
+                table=table, keyvalues=keyvalues, retcols=[retcol]
+        )
+
+        defer.returnValue(ret[retcol])
 
     def interact_simple_update_one(self, table, keyvalues, updatevalues):
         """Exectes an UPDATE query on the named table, setting new values for

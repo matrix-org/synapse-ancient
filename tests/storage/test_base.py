@@ -58,12 +58,11 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         )
 
     @defer.inlineCallbacks
-    def test_select_one_one(self):
+    def test_select_one_1col(self):
         self.mock_txn.rowcount = 1
-        mocked_fetchone = self.mock_txn.fetchone
-        mocked_fetchone.return_value = ("Value",)
+        self.mock_txn.fetchone.return_value = ("Value",)
 
-        value = yield self.datastore.interact_simple_select_one_one(
+        value = yield self.datastore.interact_simple_select_one_onecol(
                 table="tablename",
                 keyvalues={"keycol": "TheKey"},
                 retcol="retcol"
@@ -72,6 +71,23 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.assertEquals("Value", value)
         self.mock_txn.execute.assert_called_with(
                 "SELECT retcol FROM tablename WHERE keycol = ?",
+                ["TheKey"]
+        )
+
+    @defer.inlineCallbacks
+    def test_select_one_3col(self):
+        self.mock_txn.rowcount = 1
+        self.mock_txn.fetchone.return_value = (1, 2, 3)
+
+        ret = yield self.datastore.interact_simple_select_one(
+                table="tablename",
+                keyvalues={"keycol": "TheKey"},
+                retcols=["colA", "colB", "colC"]
+        )
+
+        self.assertEquals({"colA": 1, "colB": 2, "colC": 3}, ret)
+        self.mock_txn.execute.assert_called_with(
+                "SELECT colA, colB, colC FROM tablename WHERE keycol = ?",
                 ["TheKey"]
         )
 
