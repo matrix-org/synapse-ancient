@@ -76,7 +76,8 @@ class MessageHandler(BaseHandler):
             self.notifier.on_new_event(event, store_id)
 
     @defer.inlineCallbacks
-    def get_messages(self, user_id=None, room_id=None, pagin_config=None):
+    def get_messages(self, user_id=None, room_id=None, pagin_config=None,
+                     feedback=False):
         """Get messages in a room.
 
         Args:
@@ -84,12 +85,14 @@ class MessageHandler(BaseHandler):
             room_id (str): The room they want messages from.
             pagin_config (synapse.api.streams.PaginationConfig): The pagination
             config rules to apply, if any.
+            feedback (bool): True to get compressed feedback with these messages
         Returns:
             dict: Pagination API results
         """
         yield self.auth.check_joined_room(room_id, user_id)
 
-        data_source = [MessagesStreamData(self.store, room_id=room_id)]
+        data_source = [MessagesStreamData(self.store, room_id=room_id,
+                                          feedback=feedback)]
         event_stream = EventStream(user_id, data_source)
         data_chunk = yield event_stream.get_chunk(config=pagin_config)
         defer.returnValue(data_chunk)

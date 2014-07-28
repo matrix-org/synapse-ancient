@@ -14,19 +14,23 @@ logger = logging.getLogger(__name__)
 class MessagesStreamData(StreamData):
     EVENT_TYPE = MessageEvent.TYPE
 
-    def __init__(self, store, room_id=None):
+    def __init__(self, store, room_id=None, feedback=False):
         super(MessagesStreamData, self).__init__(store)
         self.room_id = room_id
+        self.with_feedback = feedback
 
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key, limit):
-        (data, latest_ver) = yield self.store.get_message_stream(
-                                user_id=user_id,
-                                from_key=from_key,
-                                to_key=to_key,
-                                limit=limit,
-                                room_id=self.room_id
-                                )
+        if self.with_feedback:
+            defer.returnValue(([], "NOT_IMPLEMENTED"))
+        else:
+            (data, latest_ver) = yield self.store.get_message_stream(
+                                    user_id=user_id,
+                                    from_key=from_key,
+                                    to_key=to_key,
+                                    limit=limit,
+                                    room_id=self.room_id
+                                    )
         defer.returnValue((data, latest_ver))
 
 

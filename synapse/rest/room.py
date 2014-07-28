@@ -324,11 +324,13 @@ class RoomMessageListRestServlet(RestServlet):
     def on_GET(self, request, room_id):
         user = yield self.auth.get_user_by_req(request)
         pagination_config = PaginationConfig.from_request(request)
+        with_feedback = "feedback" in request.args
         handler = self.handlers.message_handler
         msgs = yield handler.get_messages(
             room_id=room_id,
             user_id=user.to_string(),
-            pagin_config=pagination_config)
+            pagin_config=pagination_config,
+            feedback=with_feedback)
 
         defer.returnValue((200, msgs))
 
