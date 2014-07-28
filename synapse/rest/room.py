@@ -23,7 +23,7 @@ class RoomCreateRestServlet(RestServlet):
                                   re.compile("^/rooms$"),
                                   self.on_POST)
         http_server.register_path("PUT",
-                                  re.compile("^/rooms/(?P<roomid>[^/]*)$"),
+                                  re.compile("^/rooms/(?P<room_id>[^/]*)$"),
                                   self.on_PUT)
         # define CORS for all of /rooms in RoomCreateRestServlet for simplicity
         http_server.register_path("OPTIONS",
@@ -88,7 +88,7 @@ class RoomCreateRestServlet(RestServlet):
 
 
 class RoomTopicRestServlet(RestServlet):
-    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/topic$")
+    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/topic$")
 
     def get_event_type(self):
         return RoomTopicEvent.TYPE
@@ -131,30 +131,30 @@ class RoomTopicRestServlet(RestServlet):
 
 
 class RoomMemberRestServlet(RestServlet):
-    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/members/" +
-                      "(?P<userid>[^/]*)/state$")
+    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/" +
+                      "(?P<target_user_id>[^/]*)/state$")
 
     def get_event_type(self):
         return RoomMemberEvent.TYPE
 
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, member_user_id):
+    def on_GET(self, request, room_id, target_user_id):
         user = yield self.auth.get_user_by_req(request)
 
         handler = self.handlers.room_member_handler
-        member = yield handler.get_room_member(room_id, member_user_id,
+        member = yield handler.get_room_member(room_id, target_user_id,
                                                user.to_string())
         if not member:
             defer.returnValue((404, cs_error("Member not found.")))
         defer.returnValue((200, json.loads(member.content)))
 
     @defer.inlineCallbacks
-    def on_DELETE(self, request, roomid, member_user_id):
+    def on_DELETE(self, request, roomid, target_user_id):
         user = yield self.auth.get_user_by_req(request)
 
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
-            target_user_id=member_user_id,
+            target_user_id=target_user_id,
             room_id=roomid,
             user_id=user.to_string(),
             membership=Membership.LEAVE,
@@ -166,21 +166,22 @@ class RoomMemberRestServlet(RestServlet):
         defer.returnValue((200, ""))
 
     @defer.inlineCallbacks
-    def on_PUT(self, request, roomid, member_user_id):
+    def on_PUT(self, request, roomid, target_user_id):
         user = yield self.auth.get_user_by_req(request)
 
         content = _parse_json(request)
         if "membership" not in content:
             raise SynapseError(400, cs_error("No membership key"))
 
-        if (content["membership"] not in
-                [Membership.JOIN, Membership.INVITE]):
+        valid_membership_values = [Membership.JOIN, Membership.INVITE]
+        if (content["membership"] not in valid_membership_values):
             raise SynapseError(400,
-                cs_error("Membership value must be join/invite."))
+                cs_error("Membership value must be %s." %
+                         valid_membership_values))
 
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
-            target_user_id=member_user_id,
+            target_user_id=target_user_id,
             room_id=roomid,
             user_id=user.to_string(),
             membership=content["membership"],
@@ -193,19 +194,19 @@ class RoomMemberRestServlet(RestServlet):
 
 
 class MessageRestServlet(RestServlet):
-    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
-                      "(?P<from>[^/]*)/(?P<msgid>[^/]*)$")
+    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/" +
+                      "(?P<sender_id>[^/]*)/(?P<msg_id>[^/]*)$")
 
     def get_event_type(self):
         return MessageEvent.TYPE
 
     @defer.inlineCallbacks
-    def on_GET(self, request, room_id, msg_sender_id, msg_id):
+    def on_GET(self, request, room_id, sender_id, msg_id):
         user = yield self.auth.get_user_by_req(request)
 
         msg_handler = self.handlers.message_handler
         msg = yield msg_handler.get_message(room_id=room_id,
-                                            sender_id=msg_sender_id,
+                                            sender_id=sender_id,
                                             msg_id=msg_id,
                                             user_id=user.to_string(),
                                             )
@@ -241,19 +242,19 @@ class MessageRestServlet(RestServlet):
 
 
 class FeedbackRestServlet(RestServlet):
-    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/" +
-                      "(?P<from>[^/]*)/(?P<msgid>[^/]*)/feedback/" +
-                      "(?P<feedbacksender>[^/]*)/(?P<feedbacktype>[^/]*)$")
+    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/" +
+                      "(?P<msg_sender_id>[^/]*)/(?P<msg_id>[^/]*)/feedback/" +
+                      "(?P<sender_id>[^/]*)/(?P<feedback_type>[^/]*)$")
 
     def get_event_type(self):
         return FeedbackEvent.TYPE
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, msg_sender_id, msg_id, fb_sender_id,
-               fb_type):
+               feedback_type):
         user = yield (self.auth.get_user_by_req(request))
 
-        if fb_type not in ["d", "r"]:
+        if feedback_type not in ["d", "r"]:
             raise SynapseError(400, "Bad feedback type.")
 
         msg_handler = self.handlers.message_handler
@@ -262,7 +263,7 @@ class FeedbackRestServlet(RestServlet):
                                             msg_id=msg_id,
                                             user_id=user.to_string(),
                                             fb_sender_id=fb_sender_id,
-                                            fb_type=fb_type
+                                            fb_type=feedback_type
                                             )
 
         if not feedback:
@@ -272,13 +273,13 @@ class FeedbackRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id, sender_id, msg_id, fb_sender_id,
-               fb_type):
+               feedback_type):
         user = yield (self.auth.get_user_by_req(request))
 
         if user.to_string() != fb_sender_id:
             raise SynapseError(403, "Must send feedback as yourself.")
 
-        if fb_type not in ["d", "r"]:
+        if feedback_type not in ["d", "r"]:
             raise SynapseError(400, "Bad feedback type.")
 
         content = _parse_json(request)
@@ -291,7 +292,7 @@ class FeedbackRestServlet(RestServlet):
             msg_sender_id=sender_id,
             msg_id=msg_id,
             user_id=user.to_string(),  # user sending the feedback
-            feedback_type=fb_type,
+            feedback_type=feedback_type,
             content=content
             )
 
@@ -302,7 +303,7 @@ class FeedbackRestServlet(RestServlet):
 
 
 class RoomMemberListRestServlet(RestServlet):
-    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/members/list$")
+    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/list$")
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
@@ -317,7 +318,7 @@ class RoomMemberListRestServlet(RestServlet):
 
 
 class RoomMessageListRestServlet(RestServlet):
-    PATTERN = re.compile("^/rooms/(?P<roomid>[^/]*)/messages/list$")
+    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/list$")
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
