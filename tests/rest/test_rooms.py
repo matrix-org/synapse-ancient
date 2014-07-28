@@ -27,11 +27,20 @@ class RoomPermissionsTestCase(RestTestCase):
     def setUp(self):
         self.mock_server = MockHttpServer()
 
+        state_handler = Mock(spec=["handle_new_event"])
+        state_handler.handle_new_event.return_value = True
+
+        persistence_service = Mock(spec=["get_latest_pdus_in_context"])
+        persistence_service.get_latest_pdus_in_context.return_value = []
+
         hs = HomeServer(
             "test",
             db_pool=None,
             federation=Mock(),
             datastore=MemoryDataStore(),
+            replication_layer=Mock(),
+            state_handler=state_handler,
+            persistence_service=persistence_service,
         )
 
         def _get_user_by_token(token=None):
@@ -366,11 +375,22 @@ class RoomsMemberListTestCase(RestTestCase):
     def setUp(self):
         self.mock_server = MockHttpServer()
 
-        hs = HomeServer("test",
-                db_pool=None,
-                federation=Mock(),
-                datastore=MemoryDataStore(),
+        state_handler = Mock(spec=["handle_new_event"])
+        state_handler.handle_new_event.return_value = True
+
+        persistence_service = Mock(spec=["get_latest_pdus_in_context"])
+        persistence_service.get_latest_pdus_in_context.return_value = []
+
+        hs = HomeServer(
+            "test",
+            db_pool=None,
+            federation=Mock(),
+            datastore=MemoryDataStore(),
+            replication_layer=Mock(),
+            state_handler=state_handler,
+            persistence_service=persistence_service,
         )
+
         self.auth_user_id = self.user_id
 
         def _get_user_by_token(token=None):
@@ -435,10 +455,20 @@ class RoomsCreateTestCase(RestTestCase):
         self.mock_server = MockHttpServer()
         self.auth_user_id = self.user_id
 
+        state_handler = Mock(spec=["handle_new_event"])
+        state_handler.handle_new_event.return_value = True
+
+        persistence_service = Mock(spec=["get_latest_pdus_in_context"])
+        persistence_service.get_latest_pdus_in_context.return_value = []
+
         hs = HomeServer(
             "test",
             db_pool=None,
+            federation=Mock(),
             datastore=MemoryDataStore(),
+            replication_layer=Mock(),
+            state_handler=state_handler,
+            persistence_service=persistence_service,
         )
 
         def _get_user_by_token(token=None):
@@ -455,7 +485,7 @@ class RoomsCreateTestCase(RestTestCase):
         # POST with no config keys, expect new room id
         (code, response) = yield self.mock_server.trigger("POST", "/rooms",
                                                           "{}")
-        self.assertEquals(200, code)
+        self.assertEquals(200, code, response)
         self.assertTrue("room_id" in response)
 
     @defer.inlineCallbacks
@@ -557,12 +587,21 @@ class RoomTopicTestCase(RestTestCase):
         self.auth_user_id = self.user_id
         self.room_id = "rid1"
         self.path = "/rooms/%s/topic" % self.room_id
+
+        state_handler = Mock(spec=["handle_new_event"])
+        state_handler.handle_new_event.return_value = True
+
+        persistence_service = Mock(spec=["get_latest_pdus_in_context"])
+        persistence_service.get_latest_pdus_in_context.return_value = []
+
         hs = HomeServer(
             "test",
             db_pool=None,
-            http_server=self.mock_server,
             federation=Mock(),
             datastore=MemoryDataStore(),
+            replication_layer=Mock(),
+            state_handler=state_handler,
+            persistence_service=persistence_service,
         )
 
         def _get_user_by_token(token=None):
@@ -651,12 +690,20 @@ class RoomMemberStateTestCase(RestTestCase):
         self.auth_user_id = self.user_id
         self.room_id = "rid1"
 
+        state_handler = Mock(spec=["handle_new_event"])
+        state_handler.handle_new_event.return_value = True
+
+        persistence_service = Mock(spec=["get_latest_pdus_in_context"])
+        persistence_service.get_latest_pdus_in_context.return_value = []
+
         hs = HomeServer(
             "test",
             db_pool=None,
-            http_server=self.mock_server,
             federation=Mock(),
             datastore=MemoryDataStore(),
+            replication_layer=Mock(),
+            state_handler=state_handler,
+            persistence_service=persistence_service,
         )
 
         def _get_user_by_token(token=None):
@@ -757,12 +804,20 @@ class RoomMessagesTestCase(RestTestCase):
         self.auth_user_id = self.user_id
         self.room_id = "rid1"
 
+        state_handler = Mock(spec=["handle_new_event"])
+        state_handler.handle_new_event.return_value = True
+
+        persistence_service = Mock(spec=["get_latest_pdus_in_context"])
+        persistence_service.get_latest_pdus_in_context.return_value = []
+
         hs = HomeServer(
             "test",
             db_pool=None,
-            http_server=self.mock_server,
             federation=Mock(),
             datastore=MemoryDataStore(),
+            replication_layer=Mock(),
+            state_handler=state_handler,
+            persistence_service=persistence_service,
         )
 
         def _get_user_by_token(token=None):

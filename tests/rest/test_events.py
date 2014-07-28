@@ -102,9 +102,21 @@ class EventStreamPermissionsTestCase(RestTestCase):
     def setUp(self):
         self.mock_server = MockHttpServer()
 
-        hs = HomeServer("test",
-                db_pool=None,
-                federation=Mock())
+        state_handler = Mock(spec=["handle_new_event"])
+        state_handler.handle_new_event.return_value = True
+
+        persistence_service = Mock(spec=["get_latest_pdus_in_context"])
+        persistence_service.get_latest_pdus_in_context.return_value = []
+
+        hs = HomeServer(
+            "test",
+            db_pool=None,
+            federation=Mock(),
+            replication_layer=Mock(),
+            state_handler=state_handler,
+            persistence_service=persistence_service,
+        )
+
         hs.datastore = MemoryDataStore()
         synapse.rest.register.register_servlets(hs, self.mock_server)
         synapse.rest.events.register_servlets(hs, self.mock_server)

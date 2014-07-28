@@ -119,7 +119,7 @@ class MemoryDataStore(object):
         except:
             return None
 
-    def store_room_and_member(self, room_id=None, room_creator_user_id=None,
+    def store_room(self, room_id=None, room_creator_user_id=None,
                               is_public=None):
         if room_id in self.rooms:
             raise StoreError(409, "Conflicting room!")
@@ -127,9 +127,9 @@ class MemoryDataStore(object):
         room = MemoryDataStore.Room(room_id=room_id, is_public=is_public,
                     creator=room_creator_user_id)
         self.rooms[room_id] = room
-        self.store_room_member(user_id=room_creator_user_id, room_id=room_id,
-                               membership=Membership.JOIN,
-                               content={"membership": Membership.JOIN})
+        #self.store_room_member(user_id=room_creator_user_id, room_id=room_id,
+                               #membership=Membership.JOIN,
+                               #content={"membership": Membership.JOIN})
 
     def get_message(self, user_id=None, room_id=None, msg_id=None):
         try:

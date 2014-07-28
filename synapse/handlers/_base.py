@@ -9,4 +9,5 @@ class BaseHandler(object):
         self.auth = hs.get_auth()
         self.notifier = hs.get_notifier()
         self.room_lock = hs.get_room_lock_manager()
+        self.state_handler = hs.get_state_handler()
         self.hs = hs

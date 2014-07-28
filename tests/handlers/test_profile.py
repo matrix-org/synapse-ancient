@@ -18,7 +18,10 @@ class ProfileTestCase(unittest.TestCase):
                 datastore=Mock(spec=[
                     "get_profile_displayname",
                     "set_profile_displayname",
-                ]))
+                ]),
+                http_server=Mock(),
+                http_client=Mock(),
+            )
         self.datastore = hs.get_datastore()
 
         self.frank = hs.parse_userid("@1234ABCD:test")

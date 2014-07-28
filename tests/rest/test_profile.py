@@ -25,11 +25,15 @@ class ProfileTestCase(unittest.TestCase):
         ])
 
         hs = HomeServer("test",
-                db_pool=None,
-                http_server=self.mock_server)
+            db_pool=None,
+            http_server=self.mock_server,
+            federation=Mock(),
+            replication_layer=Mock(),
+        )
 
         def _get_user_by_token(token=None):
             return hs.parse_userid(myid)
+
         hs.get_auth().get_user_by_token = _get_user_by_token
 
         hs.get_handlers().profile_handler = self.mock_handler

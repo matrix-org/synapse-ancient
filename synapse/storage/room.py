@@ -4,11 +4,10 @@ from twisted.internet import defer
 from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
-from synapse.persistence.tables import RoomMemberTable, RoomsTable
+from synapse.persistence.tables import RoomsTable
 
 from ._base import SQLBaseStore
 
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,26 +15,15 @@ logger = logging.getLogger(__name__)
 
 class RoomStore(SQLBaseStore):
 
-    def _insert_room_and_member(self, txn, room_id, room_creator, is_public):
+    def _insert_room(self, txn, room_id, room_creator, is_public):
         # create room
         query = ("INSERT INTO " + RoomsTable.table_name +
                     "(room_id, creator, is_public) VALUES(?,?,?)")
         logger.debug("insert_room_and_member %s  room=%s" % (query, room_id))
         txn.execute(query, [room_id, room_creator, is_public])
 
-        # auto join the creator
-        query = ("INSERT INTO " + RoomMemberTable.table_name +
-                "(user_id, sender, room_id, membership, content) " +
-                "VALUES(?,?,?,?,?)")
-        logger.debug("insert_room_and_member %s  room=%s" % (query, room_id))
-        content = json.dumps({"membership": "join"})
-        txn.execute(
-            query,
-            [room_creator, room_creator, room_id, "join", content]
-        )
-
     @defer.inlineCallbacks
-    def store_room_and_member(self, room_id=None, room_creator_user_id=None,
+    def store_room(self, room_id=None, room_creator_user_id=None,
                    is_public=None):
         """Stores a room.
 
@@ -49,7 +37,7 @@ class RoomStore(SQLBaseStore):
         """
         try:
             yield self._db_pool.runInteraction(
-                    self._insert_room_and_member, room_id,
+                    self._insert_room, room_id,
                     room_creator_user_id, is_public)
         except IntegrityError:
             raise StoreError(409, "Room ID in use.")

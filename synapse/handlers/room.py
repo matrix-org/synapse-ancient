@@ -6,7 +6,7 @@ from synapse.types import UserID
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError
 from synapse.api.events.room import (
-    RoomTopicEvent, MessageEvent, InviteJoinEvent
+    RoomTopicEvent, MessageEvent, InviteJoinEvent, RoomMemberEvent
 )
 from synapse.api.streams.event import EventStream, MessagesStreamData
 from synapse.util import stringutils
@@ -187,28 +187,47 @@ class RoomCreationHandler(BaseHandler):
             something went horribly wrong.
         """
         if room_id:
-            yield self.store.store_room_and_member(
+            yield self.store.store_room(
                 room_id=room_id,
                 room_creator_user_id=user_id,
                 is_public=config["visibility"] == "public"
             )
-            defer.returnValue(room_id)
         else:
             # autogen room IDs and try to create it. We may clash, so just
             # try a few times till one goes through, giving up eventually.
             attempts = 0
+            room_id = None
             while attempts < 5:
                 try:
                     gen_room_id = stringutils.random_string(18)
-                    yield self.store.store_room_and_member(
+                    yield self.store.store_room(
                         room_id=gen_room_id,
                         room_creator_user_id=user_id,
                         is_public=config["visibility"] == "public"
                     )
-                    defer.returnValue(gen_room_id)
+                    room_id = gen_room_id
+                    break
                 except StoreError:
                     attempts += 1
-            raise StoreError(500, "Couldn't generate a room ID.")
+            if not room_id:
+                raise StoreError(500, "Couldn't generate a room ID.")
+
+        content = {"membership": Membership.JOIN}
+        join_event = self.event_factory.create_event(
+            etype=RoomMemberEvent.TYPE,
+            target_user_id=user_id,
+            room_id=room_id,
+            user_id=user_id,
+            membership=Membership.JOIN,
+            content=content
+        )
+        yield self.hs.get_handlers().room_member_handler.change_membership(
+            join_event,
+            broadcast_msg=True,
+            do_auth=False
+        )
+
+        defer.returnValue(room_id)
 
 
 class RoomMemberHandler(BaseHandler):
@@ -263,7 +282,7 @@ class RoomMemberHandler(BaseHandler):
         defer.returnValue(member)
 
     @defer.inlineCallbacks
-    def change_membership(self, event=None, broadcast_msg=False):
+    def change_membership(self, event=None, broadcast_msg=False, do_auth=True):
         """ Change the membership status of a user in a room.
 
         Args:
@@ -306,7 +325,8 @@ class RoomMemberHandler(BaseHandler):
 
         if event.membership == Membership.JOIN:
             with (yield self.room_lock.lock(event.room_id)):
-                yield self.auth.check(event, raises=True)
+                if do_auth:
+                    yield self.auth.check(event, raises=True)
 
                 prev_state = yield self.store.get_room_member(
                     event.target_user_id, event.room_id
@@ -324,6 +344,7 @@ class RoomMemberHandler(BaseHandler):
 
                 if not is_remote_invite_join:
                     logger.debug("Doing normal join")
+                    yield self.state_handler.handle_new_event(event)
                     store_id = yield _do_update()
                     yield self.hs.get_federation().handle_new_event(event)
                     self.notifier.on_new_event(event, store_id)
@@ -343,6 +364,7 @@ class RoomMemberHandler(BaseHandler):
 
                 new_event.destinations = [inviter.domain]
 
+                #yield self.state_handler.handle_new_event(event)
                 yield federation.handle_new_event(new_event)
                 yield federation.get_state_for_room(
                     inviter.domain, event.room_id
@@ -350,7 +372,11 @@ class RoomMemberHandler(BaseHandler):
 
         else:
             with (yield self.room_lock.lock(event.room_id)):
-                yield self.auth.check(event, raises=True)
+                if do_auth:
+                    yield self.auth.check(event, raises=True)
+
+                yield self.state_handler.handle_new_event(event)
+
                 store_id = yield _do_update()
 
             yield self.hs.get_federation().handle_new_event(event)
