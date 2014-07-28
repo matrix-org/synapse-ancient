@@ -14,7 +14,7 @@ class ProfileStore(SQLBaseStore):
         )
 
     def get_profile_displayname(self, user_localpart):
-        return self.interact_simple_select_one_one(
+        return self.interact_simple_select_one_onecol(
             table="profiles",
             keyvalues={"user_id": user_localpart},
             retcol="displayname",
