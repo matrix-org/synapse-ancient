@@ -350,6 +350,7 @@ class RoomMemberHandler(BaseHandler):
 
         else:
             with (yield self.room_lock.lock(event.room_id)):
+                yield self.auth.check(event, raises=True)
                 store_id = yield _do_update()
 
             yield self.hs.get_federation().handle_new_event(event)

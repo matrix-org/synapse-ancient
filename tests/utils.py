@@ -73,8 +73,10 @@ class MockHttpServer(HttpServer):
 
 class MemoryDataStore(object):
 
-    RoomMember = namedtuple("RoomMember",
-                            ["room_id", "user_id", "membership", "content"])
+    RoomMember = namedtuple(
+        "RoomMember",
+        ["room_id", "user_id", "sender", "membership", "content"]
+    )
 
     PathData = namedtuple("PathData",
                           ["room_id", "path", "content"])
@@ -146,10 +148,10 @@ class MemoryDataStore(object):
         except:
             return None
 
-    def store_room_member(self, user_id=None, room_id=None, membership=None,
-                          content=None):
+    def store_room_member(self, user_id=None, sender=None, room_id=None,
+                          membership=None, content=None):
         member = MemoryDataStore.RoomMember(room_id=room_id, user_id=user_id,
-                            membership=membership, content=json.dumps(content))
+            sender=sender, membership=membership, content=json.dumps(content))
         self.members[user_id + room_id] = member
 
         # TODO should be latest state
