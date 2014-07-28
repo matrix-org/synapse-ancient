@@ -32,7 +32,8 @@ class SynapseCmd(cmd.Cmd):
             "user": username,
             "token": token,
             "verbose": "on",
-            "complete_usernames": "on"
+            "complete_usernames": "on",
+            "send_delivery_receipts": "on"
         }
         self.event_stream_token = "START"
         self.prompt = ">>> "
@@ -52,9 +53,9 @@ class SynapseCmd(cmd.Cmd):
     def _url(self):
         return self.config["url"]
 
-    def _complete_users(self):
-        if "complete_usernames" in self.config:
-            return self.config["complete_usernames"] == "on"
+    def _is_on(self, config_name):
+        if config_name in self.config:
+            return self.config[config_name] == "on"
         return False
 
     def _domain(self):
@@ -71,6 +72,8 @@ class SynapseCmd(cmd.Cmd):
             complete_usernames: [on|off] Auto complete partial usernames by
             assuming they are on the same homeserver as you.
             E.g. name >> @name:yourhost
+            send_delivery_receipts: [on|off] Automatically send receipts to
+            messages when performing a 'stream' command.
         Additional key/values can be added and can be substituted into requests
         by using $. E.g. 'config roomid room1' then 'raw get /rooms/$roomid'.
         """
@@ -84,7 +87,8 @@ class SynapseCmd(cmd.Cmd):
             # make sure restricted config values are checked
             config_rules = [  # key, valid_values
                 ("verbose", ["on", "off"]),
-                ("complete_usernames", ["on", "off"])
+                ("complete_usernames", ["on", "off"]),
+                ("send_delivery_receipts", ["on", "off"])
             ]
             for key, valid_vals in config_rules:
                 if key == args["key"] and args["val"] not in valid_vals:
@@ -171,7 +175,8 @@ class SynapseCmd(cmd.Cmd):
             args = self._parse(line, ["userid", "roomid"], force_keys=True)
 
             user_id = args["userid"]
-            if not args["userid"].startswith('@') and self._complete_users():
+            if (not args["userid"].startswith('@') and
+                    self._is_on("complete_usernames")):
                 user_id = "@" + args["userid"] + ":" + self._domain()
 
             self._do_membership_change(args["roomid"], "invite", user_id)
@@ -329,8 +334,24 @@ class SynapseCmd(cmd.Cmd):
                     "from": self.event_stream_token
                 })
         print json.dumps(res, indent=4)
+
+        for event in res["chunk"]:
+            if (event["type"] == "sy.room.message" and
+                    self._is_on("send_delivery_receipts") and
+                    event["user_id"] != self._usr()):  # we didn't send the msg
+                self._send_receipt(event, "d")
+
+        # update the position in the stram
         if "end" in res:
             self.event_stream_token = res["end"]
+
+    def _send_receipt(self, event, feedback_type):
+        path = ("/rooms/%s/messages/%s/%s/feedback/%s/%s" %
+               (event["room_id"], event["user_id"], event["msg_id"],
+                self._usr(), feedback_type))
+        data = {}
+        reactor.callFromThread(self._run_and_pprint, "PUT", path, data=data,
+                               alt_text="Sent receipt for %s" % event["msg_id"])
 
     def _do_membership_change(self, roomid, membership, userid):
         path = "/rooms/%s/members/%s/state" % (urllib.quote(roomid), userid)
@@ -375,7 +396,7 @@ class SynapseCmd(cmd.Cmd):
 
     @defer.inlineCallbacks
     def _run_and_pprint(self, method, path, data=None,
-                        query_params={"access_token": None}):
+                        query_params={"access_token": None}, alt_text=None):
         """ Runs an HTTP request and pretty prints the output.
 
         Args:
@@ -391,8 +412,10 @@ class SynapseCmd(cmd.Cmd):
         json_res = yield self.http_client.do_request(method, url,
                                                     data=data,
                                                     qparams=query_params)
-
-        print json.dumps(json_res, indent=4)
+        if alt_text:
+            print alt_text
+        else:
+            print json.dumps(json_res, indent=4)
 
 
 def save_config(config):
@@ -420,6 +443,10 @@ def main(server_url, username, token):
     try:
         with open(CONFIG_JSON, 'r') as config:
             syn_cmd.config = json.load(config)
+            try:
+                http_client.verbose = "on" == syn_cmd.config["verbose"]
+            except:
+                pass
             print "Loaded config from %s" % CONFIG_JSON
     except:
         pass
