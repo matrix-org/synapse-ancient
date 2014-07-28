@@ -340,6 +340,7 @@ class SynapseCmd(cmd.Cmd):
         reactor.callFromThread(self._run_and_pprint, "PUT", path, data=data)
 
     def do_displayname(self, line):
+        """Get or set my displayname: "displayname [new_name]" """
         args = self._parse(line, ["name"])
         path = "/profile/%s/displayname" % (self.config["user"])
 
