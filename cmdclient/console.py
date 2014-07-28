@@ -423,7 +423,7 @@ def save_config(config):
         json.dump(config, out)
 
 
-def main(server_url, username, token):
+def main(server_url, username, token, config_path):
     print "Synapse command line client"
     print "==========================="
     print "Server: %s" % server_url
@@ -440,14 +440,16 @@ def main(server_url, username, token):
     syn_cmd = SynapseCmd(http_client, server_url, username, token)
 
     # load synapse.json config from a previous session
+    global CONFIG_JSON
+    CONFIG_JSON = config_path  # bit cheeky, but just overwrite the global
     try:
-        with open(CONFIG_JSON, 'r') as config:
+        with open(config_path, 'r') as config:
             syn_cmd.config = json.load(config)
             try:
                 http_client.verbose = "on" == syn_cmd.config["verbose"]
             except:
                 pass
-            print "Loaded config from %s" % CONFIG_JSON
+            print "Loaded config from %s" % config_path
     except:
         pass
 
@@ -469,6 +471,9 @@ if __name__ == '__main__':
     parser.add_argument(
         "-t", "--token", dest="token",
         help="Your access token.")
+    parser.add_argument(
+        "-c", "--config", dest="config", default=CONFIG_JSON,
+        help="The location of the config.json file to read from.")
     args = parser.parse_args()
 
     if not args.server:
@@ -480,4 +485,4 @@ if __name__ == '__main__':
     if not server.startswith("http://"):
         server = "http://" + args.server
 
-    main(server, args.username, args.token)
+    main(server, args.username, args.token, args.config)
