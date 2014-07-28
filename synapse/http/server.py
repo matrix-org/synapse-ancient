@@ -3,6 +3,7 @@
 from synapse.util.jsonutil import (
     encode_canonical_json, encode_pretty_printed_json
 )
+from synapse.api.errors import cs_error, CodeMessageException
 
 from twisted.internet import defer, reactor
 from twisted.web import server, resource
@@ -103,6 +104,13 @@ class TwistedHttpServer(HttpServer, resource.Resource):
                 request,
                 400,
                 {"error": "Unrecognized request"}
+            )
+        except CodeMessageException as e:
+            logger.exception(e)
+            self._send_response(
+                request,
+                e.code,
+                cs_error(e.msg)
             )
         except Exception as e:
             logger.exception(e)

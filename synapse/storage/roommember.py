@@ -40,8 +40,8 @@ class RoomMemberStore(SQLBaseStore):
         defer.returnValue(None)
 
     @defer.inlineCallbacks
-    def store_room_member(self, user_id=None, room_id=None, membership=None,
-                          content=None):
+    def store_room_member(self, user_id=None, sender=None, room_id=None,
+                          membership=None, content=None):
         """Store a room member in the database.
 
         Args:
@@ -54,9 +54,13 @@ class RoomMemberStore(SQLBaseStore):
 
         content_json = json.dumps(content)
         query = ("INSERT INTO " + RoomMemberTable.table_name +
-                "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
-        row = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, last_row_id, user_id, room_id, membership, content_json)
+                "(user_id, sender, room_id, membership, content) "
+                "VALUES(?,?,?,?,?)")
+        row = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query,
+            last_row_id, user_id, sender, room_id, membership, content_json
+        )
         defer.returnValue(row)
 
     @defer.inlineCallbacks

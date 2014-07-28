@@ -5,13 +5,19 @@ from twisted.internet import defer
 from synapse.types import UserID
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError
-from synapse.api.events.room import RoomTopicEvent, MessageEvent
+from synapse.api.events.room import (
+    RoomTopicEvent, MessageEvent, InviteJoinEvent
+)
 from synapse.api.streams.event import EventStream, MessagesStreamData
 from synapse.util import stringutils
 from ._base import BaseHandler
 
+import logging
 import json
 import time
+
+
+logger = logging.getLogger(__name__)
 
 
 class MessageHandler(BaseHandler):
@@ -155,34 +161,12 @@ class MessageHandler(BaseHandler):
         data = yield self.store.get_path_data(path)
         defer.returnValue(data)
 
-    @defer.inlineCallbacks
-    def get_feedback(self, room_id=None, msg_sender_id=None, msg_id=None,
+    def get_feedback(self, room_id=None, sender_id=None, msg_id=None,
                      user_id=None, fb_sender_id=None, fb_type=None):
-        yield self.auth.check_joined_room(room_id, user_id)
+        pass  # TODO
 
-        # Pull out the feedback from the db
-        fb = yield self.store.get_feedback(
-                room_id=room_id, msg_id=msg_id, msg_sender_id=msg_sender_id,
-                fb_sender_id=fb_sender_id, fb_type=fb_type)
-
-        if fb:
-            defer.returnValue(fb)
-        defer.returnValue(None)
-
-    @defer.inlineCallbacks
     def send_feedback(self, event):
-        with (yield self.room_lock.lock(event.room_id)):
-            yield self.auth.check(event, raises=True)
-
-            # store message in db
-            store_id = yield self.store.persist_event(event)
-
-            event.destinations = yield self.store.get_joined_hosts_for_room(
-                event.room_id
-            )
-            yield self.hs.get_federation().handle_new_event(event)
-
-            self.notifier.on_new_event(event, store_id)
+        pass  # TODO
 
 
 class RoomCreationHandler(BaseHandler):
@@ -289,12 +273,13 @@ class RoomMemberHandler(BaseHandler):
         Raises:
             SynapseError if there was a problem changing the membership.
         """
-        with (yield self.room_lock.lock(event.room_id)):
-            yield self.auth.check(event, raises=True)
 
+        @defer.inlineCallbacks
+        def _do_update():
             # store membership
             store_id = yield self.store.store_room_member(
                 user_id=event.target_user_id,
+                sender=event.user_id,
                 room_id=event.room_id,
                 content=event.content,
                 membership=event.content["membership"]
@@ -305,11 +290,69 @@ class RoomMemberHandler(BaseHandler):
             )
 
             if event.content["membership"] == Membership.INVITE:
-                host = UserID.from_string(event.target_user_id, self.hs).domain
+                host = UserID.from_string(
+                    event.target_user_id, self.hs
+                ).domain
                 event.destinations.append(host)
+
+            host = UserID.from_string(
+                event.user_id, self.hs
+            ).domain
+            event.destinations.append(host)
 
             yield self.hs.get_federation().handle_new_event(event)
 
+            defer.returnValue(store_id)
+
+        if event.membership == Membership.JOIN:
+            with (yield self.room_lock.lock(event.room_id)):
+                yield self.auth.check(event, raises=True)
+
+                prev_state = yield self.store.get_room_member(
+                    event.target_user_id, event.room_id
+                )
+
+                if prev_state and prev_state.membership == Membership.INVITE:
+                    room = yield self.store.get_room(event.room_id)
+                    inviter = UserID.from_string(
+                        prev_state.sender, self.hs
+                    )
+
+                    is_remote_invite_join = not inviter.is_mine and not room
+                else:
+                    is_remote_invite_join = False
+
+                if not is_remote_invite_join:
+                    logger.debug("Doing normal join")
+                    store_id = yield _do_update()
+                    yield self.hs.get_federation().handle_new_event(event)
+                    self.notifier.on_new_event(event, store_id)
+
+            if is_remote_invite_join:
+                logger.debug("Doing remote join dance")
+
+                # do invite join dance
+                federation = self.hs.get_federation()
+                new_event = self.event_factory.create_event(
+                    etype=InviteJoinEvent.TYPE,
+                    target_user_id=event.user_id,
+                    room_id=event.room_id,
+                    user_id=event.user_id,
+                    content={}
+                )
+
+                new_event.destinations = [inviter.domain]
+
+                yield federation.handle_new_event(new_event)
+                yield federation.get_state_for_room(
+                    inviter.domain, event.room_id
+                )
+
+        else:
+            with (yield self.room_lock.lock(event.room_id)):
+                store_id = yield _do_update()
+
+            yield self.hs.get_federation().handle_new_event(event)
             self.notifier.on_new_event(event, store_id)
 
         if broadcast_msg:

@@ -251,6 +251,7 @@ class RoomMemberTable(Table):
         "id",
         "user_id",
         "room_id",
+        "sender",
         "membership",
         "content"
     ]

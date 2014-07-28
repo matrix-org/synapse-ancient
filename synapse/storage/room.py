@@ -25,10 +25,14 @@ class RoomStore(SQLBaseStore):
 
         # auto join the creator
         query = ("INSERT INTO " + RoomMemberTable.table_name +
-                "(user_id, room_id, membership, content) VALUES(?,?,?,?)")
+                "(user_id, sender, room_id, membership, content) " +
+                "VALUES(?,?,?,?,?)")
         logger.debug("insert_room_and_member %s  room=%s" % (query, room_id))
         content = json.dumps({"membership": "join"})
-        txn.execute(query, [room_creator, room_id, "join", content])
+        txn.execute(
+            query,
+            [room_creator, room_creator, room_id, "join", content]
+        )
 
     @defer.inlineCallbacks
     def store_room_and_member(self, room_id=None, room_creator_user_id=None,

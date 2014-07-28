@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS rooms(
 CREATE TABLE IF NOT EXISTS room_memberships(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL, -- no foreign key to users table, it could be an id belonging to another home server
+    sender TEXT NOT NULL,
     room_id TEXT NOT NULL,
     membership TEXT NOT NULL,
     content TEXT NOT NULL

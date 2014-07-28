@@ -3,6 +3,8 @@
 
 from ._base import BaseHandler
 
+from synapse.api.events.room import InviteJoinEvent, RoomMemberEvent
+from synapse.api.constants import Membership
 from synapse.util.logutils import log_function
 
 from twisted.internet import defer
@@ -20,5 +22,23 @@ class FederationHandler(BaseHandler):
     @log_function
     @defer.inlineCallbacks
     def on_receive(self, event, is_new_state):
-        store_id = yield self.store.persist_event(event)
+        if event.type == InviteJoinEvent.TYPE:
+            content = {"membership": Membership.JOIN}
+            new_event = self.event_factory.create_event(
+                etype=RoomMemberEvent.TYPE,
+                target_user_id=event.user_id,
+                room_id=event.room_id,
+                user_id=event.user_id,
+                membership=Membership.JOIN,
+                content=content
+            )
+            yield self.hs.get_handlers().room_member_handler.change_membership(
+                new_event,
+                True
+            )
+            return
+
+        with (yield self.room_lock.lock(event.room_id)):
+            store_id = yield self.store.persist_event(event)
+
         yield self.notifier.on_new_event(event, store_id)

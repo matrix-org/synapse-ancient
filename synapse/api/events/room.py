@@ -58,3 +58,13 @@ class FeedbackEvent(SynapseEvent):
 
     def get_content_template(self):
         return {}
+
+
+class InviteJoinEvent(SynapseEvent):
+    TYPE = "sy.room.invite_join"
+
+    def __init__(self, **kwargs):
+        super(InviteJoinEvent, self).__init__(**kwargs)
+
+    def get_content_template(self):
+        return {}

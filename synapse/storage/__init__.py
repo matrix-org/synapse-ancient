@@ -93,6 +93,7 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
         elif event.type == RoomMemberEvent.TYPE:
             return self.store_room_member(
                 user_id=event.target_user_id,
+                sender=event.user_id,
                 room_id=event.room_id,
                 content=event.content,
                 membership=event.content["membership"]

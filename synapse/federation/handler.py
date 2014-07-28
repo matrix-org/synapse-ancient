@@ -66,6 +66,12 @@ class FederationEventHandler(object):
         pass
 
     @log_function
+    def get_state_for_room(self, destination, room_id):
+        return self.replication_layer.get_state_for_context(
+            destination, room_id
+        )
+
+    @log_function
     @defer.inlineCallbacks
     def on_receive_pdu(self, pdu):
         """ Called by the ReplicationLayer when we have a new pdu. We need to
@@ -75,12 +81,6 @@ class FederationEventHandler(object):
 
         try:
             with (yield self.lock_manager.lock(pdu.context)):
-                # Auth is hard. Let's ignore it for now.
-                # yield self.auth_handler.check(event)
-
-                def _on_new_state(new_state_event):
-                    return self._on_new_state(pdu, new_state_event)
-
                 if event.is_state:
                     is_new_state = yield self.state_handler.handle_new_state(
                         pdu
