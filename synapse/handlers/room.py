@@ -355,6 +355,10 @@ class RoomMemberHandler(BaseHandler):
             if is_remote_invite_join:
                 logger.debug("Doing remote join dance")
 
+                yield self.store.store_room(
+                    event.room_id, str(inviter), is_public=False
+                )
+
                 # do invite join dance
                 federation = self.hs.get_federation()
                 new_event = self.event_factory.create_event(

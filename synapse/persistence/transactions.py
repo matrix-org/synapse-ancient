@@ -689,6 +689,7 @@ class StateQueries(object):
     """
 
     @classmethod
+    @log_function
     def get_unresolved_state_tree(cls, txn, new_pdu):
         current = cls._get_current_interaction(
             txn,
@@ -701,6 +702,7 @@ class StateQueries(object):
         return_value = ReturnType([new_pdu], [])
 
         if not current:
+            logger.debug("get_unresolved_state_tree No current state.")
             return return_value
 
         return_value.current_branch.append(current)
@@ -879,73 +881,90 @@ class StateQueries(object):
         return cls._get_current_interaction(txn, context, pdu_type, state_key)
 
     @classmethod
+    @log_function
     def _enumerate_state_branches(cls, txn, pdu_a, pdu_b):
         branch_a = pdu_a
         branch_b = pdu_b
 
-        depth_a = pdu_a.depth
-        depth_b = pdu_b.depth
-
         get_query = (
-            "SELECT p.depth, %(fields)s FROM %(state)s as s "
-            "INNER JOIN %(pdus)s as p "
+            "SELECT %(fields)s FROM %(pdus)s as p "
+            "LEFT JOIN %(state)s as s "
             "ON p.pdu_id = s.pdu_id AND p.origin = s.origin "
-            "WHERE s.pdu_id = ? AND s.origin = ? "
+            "WHERE p.pdu_id = ? AND p.origin = ? "
         ) % {
-            "fields": StatePdusTable.get_fields_string(prefix="s"),
-            "state": StatePdusTable.table_name,
+            "fields": _pdu_state_joiner.get_fields(
+                PdusTable="p", StatePdusTable="s"),
             "pdus": PdusTable.table_name,
+            "state": StatePdusTable.table_name,
         }
 
         while True:
             if (branch_a.pdu_id == branch_b.pdu_id
                     and branch_a.origin == branch_b.origin):
                 # Woo! We found a common ancestor
+                logger.debug("_enumerate_state_branches Found common ancestor")
                 break
 
-            if int(depth_a) < int(depth_b):
+            do_branch_a = (
+                hasattr(branch_a, "prev_state_id") and
+                branch_a.prev_state_id
+            )
+
+            do_branch_b = (
+                hasattr(branch_b, "prev_state_id") and
+                branch_b.prev_state_id
+            )
+
+            logger.debug(
+                "do_branch_a=%s, do_branch_b=%s",
+                do_branch_a, do_branch_b
+            )
+
+            if do_branch_a and do_branch_b:
+                do_branch_a = int(branch_a.depth) > int(branch_b.depth)
+
+            if do_branch_a:
                 pdu_tuple = PduIdTuple(
                     branch_a.prev_state_id,
                     branch_a.prev_state_origin
                 )
 
+                logger.debug("getting branch_a prev %s", pdu_tuple)
                 txn.execute(get_query, pdu_tuple)
 
-                res = txn.fetchall()
-                states = StatePdusTable.decode_results(
-                    res[1:]
-                )
-
                 prev_branch = branch_a
-                branch_a = states[0] if states else None
+
+                res = txn.fetchone()
+                branch_a = PduEntry(*res) if res else None
+
+                logger.debug("branch_a=%s", branch_a)
 
                 yield (0, prev_branch, branch_a)
 
                 if not branch_a:
                     break
-                else:
-                    depth_a = res[0]
-            else:
+            elif do_branch_b:
                 pdu_tuple = PduIdTuple(
                     branch_b.prev_state_id,
                     branch_b.prev_state_origin
                 )
                 txn.execute(get_query, pdu_tuple)
 
-                res = txn.fetchall()
-                states = StatePdusTable.decode_results(
-                    res[1:]
-                )
+                logger.debug("getting branch_b prev %s", pdu_tuple)
 
                 prev_branch = branch_b
-                branch_b = states[0] if states else None
+
+                res = txn.fetchone()
+                branch_b = PduEntry(*res) if res else None
+
+                logger.debug("branch_b=%s", branch_b)
 
                 yield (1, prev_branch, branch_b)
 
-                if not states:
+                if not branch_b:
                     break
-                else:
-                    depth_b = res[0]
+            else:
+                break
 
     @staticmethod
     def _get_current_interaction(txn, context, pdu_type, state_key):
