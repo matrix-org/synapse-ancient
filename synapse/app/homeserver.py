@@ -39,6 +39,7 @@ class SynapseHomeServer(HomeServer):
                 "pdu",
                 "users",
                 "profiles",
+                "presence",
                 "im"
         ]
 

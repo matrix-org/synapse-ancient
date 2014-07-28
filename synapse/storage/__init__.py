@@ -12,6 +12,7 @@ import json
 
 from .feedback import FeedbackStore
 from .message import MessageStore
+from .presence import PresenceStore
 from .profile import ProfileStore
 from .registration import RegistrationStore
 from .room import RoomStore
@@ -21,7 +22,8 @@ from .stream import StreamStore
 
 
 class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
-                 RegistrationStore, StreamStore, ProfileStore, FeedbackStore):
+                 RegistrationStore, StreamStore, ProfileStore, FeedbackStore,
+                 PresenceStore):
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)

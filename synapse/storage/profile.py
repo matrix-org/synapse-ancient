@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
-from synapse.api.errors import StoreError
-
 from ._base import SQLBaseStore
 
 

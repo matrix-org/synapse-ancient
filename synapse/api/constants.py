@@ -19,3 +19,11 @@ class Feedback(object):
     DELIVERED = u"d"
     READ = u"r"
     LIST = (DELIVERED, READ)
+
+
+class PresenceState(object):
+    """Represents the presence state of a user."""
+    OFFLINE = 0
+    BUSY = 1
+    ONLINE = 2
+    FREE_FOR_CHAT = 3
