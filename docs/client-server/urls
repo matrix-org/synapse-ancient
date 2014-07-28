@@ -65,3 +65,24 @@ Avatar URL
 Metadata
   GET  /profile/$userid/metadata
   POST /profile/$userid/metadata
+
+Presence
+--------
+
+My state or status message
+  GET /presence/$userid/status
+  PUT /presence/$userid/status
+    also 'GET' for fetching others
+
+TODO(paul): per-device idle time, device type; similar to above
+
+My presence list
+  GET  /presence_list/$myuserid
+  POST /presence_list/$myuserid?op=update
+
+Presence polling start/stop
+  POST /presence_list/$myuserid?op=start
+  POST /presence_list/$myuserid?op=stop
+
+Presence invite
+  POST /presence_list/$myuserid/invite/$targetuserid
