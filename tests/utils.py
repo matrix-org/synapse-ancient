@@ -1,5 +1,5 @@
 from synapse.http.server import HttpServer
-from synapse.api.errors import StoreError
+from synapse.api.errors import cs_error, CodeMessageException, StoreError
 from synapse.api.constants import Membership
 
 from synapse.api.events.room import (
@@ -63,8 +63,15 @@ class MockHttpServer(HttpServer):
 
             matcher = pattern.match(path)
             if matcher:
-                (code, response) = yield func(mock_request, *matcher.groups())
-                defer.returnValue((code, response))
+                try:
+                    (code, response) = yield func(
+                        mock_request,
+                        *matcher.groups()
+                    )
+                    defer.returnValue((code, response))
+                except CodeMessageException as e:
+                    defer.returnValue((e.code, cs_error(e.msg)))
+
         raise KeyError("No event can handle %s" % path)
 
     def register_path(self, method, path_pattern, callback):
