@@ -28,6 +28,7 @@ class ProfileStoreTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_get_displayname(self):
         mocked_execute = self.mock_txn.execute
+        self.mock_txn.rowcount = 1
         mocked_fetchone = self.mock_txn.fetchone
         mocked_fetchone.return_value = ("Frank",)
 
