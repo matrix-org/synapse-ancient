@@ -335,11 +335,12 @@ class SynapseCmd(cmd.Cmd):
                 })
         print json.dumps(res, indent=4)
 
-        for event in res["chunk"]:
-            if (event["type"] == "sy.room.message" and
-                    self._is_on("send_delivery_receipts") and
-                    event["user_id"] != self._usr()):  # we didn't send the msg
-                self._send_receipt(event, "d")
+        if "chunk" in res:
+            for event in res["chunk"]:
+                if (event["type"] == "sy.room.message" and
+                        self._is_on("send_delivery_receipts") and
+                        event["user_id"] != self._usr()):  # not sent by us
+                    self._send_receipt(event, "d")
 
         # update the position in the stram
         if "end" in res:
