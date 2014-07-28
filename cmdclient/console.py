@@ -339,6 +339,16 @@ class SynapseCmd(cmd.Cmd):
         }
         reactor.callFromThread(self._run_and_pprint, "PUT", path, data=data)
 
+    def do_displayname(self, line):
+        args = self._parse(line, ["name"])
+        path = "/profile/%s/displayname" % (self.config["user"])
+
+        if "name" in args:
+            data = {"displayname": args["name"]}
+            reactor.callFromThread(self._run_and_pprint, "PUT", path, data=data)
+        else:
+            reactor.callFromThread(self._run_and_pprint, "GET", path)
+
     def _parse(self, line, keys, force_keys=False):
         """ Parses the given line.
 
