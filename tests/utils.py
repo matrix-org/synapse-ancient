@@ -175,6 +175,10 @@ class MemoryDataStore(object):
     def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):
         return ([], from_key)  # TODO
 
+    def get_feedback_stream(self, user_id=None, from_key=None, to_key=None,
+                            room_id=None, limit=0):
+        return ([], from_key)  # TODO
+
     def to_events(self, data_store_list):
         return data_store_list  # TODO
 

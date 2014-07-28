@@ -4,7 +4,9 @@ from synapse.api.errors import StoreError
 from synapse.api.events.room import (
     RoomMemberEvent, MessageEvent, RoomTopicEvent, FeedbackEvent
 )
-from synapse.persistence.tables import RoomMemberTable, MessagesTable
+from synapse.persistence.tables import (
+    RoomMemberTable, MessagesTable, FeedbackTable
+)
 
 import json
 
@@ -43,6 +45,16 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                 "room_id": store_data.room_id,
                 "user_id": store_data.user_id,
                 "msg_id": store_data.msg_id,
+                "content": json.loads(store_data.content)
+            }
+        elif store_data.__class__ == FeedbackTable.EntryType:
+            event_type = FeedbackEvent.TYPE
+            fields = {
+                "room_id": store_data.room_id,
+                "msg_id": store_data.msg_id,
+                "msg_sender_id": store_data.msg_sender_id,
+                "user_id": store_data.fb_sender_id,
+                "feedback_type": store_data.feedback_type,
                 "content": json.loads(store_data.content)
             }
         else:

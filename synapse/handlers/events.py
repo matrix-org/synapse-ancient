@@ -3,14 +3,15 @@ from twisted.internet import defer
 
 from ._base import BaseHandler
 from synapse.api.streams.event import (EventStream, MessagesStreamData,
-                                       RoomMemberStreamData)
+                                       RoomMemberStreamData, FeedbackStreamData)
 
 
 class EventStreamHandler(BaseHandler):
 
     stream_data_classes = [
         MessagesStreamData,
-        RoomMemberStreamData
+        RoomMemberStreamData,
+        FeedbackStreamData
     ]
 
     def get_event_stream_token(self, event, store_id, start_token):

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
-from synapse.persistence.tables import RoomMemberTable, MessagesTable
+from synapse.persistence.tables import (RoomMemberTable, MessagesTable,
+                                       FeedbackTable)
 
 from ._base import SQLBaseStore
 
@@ -47,35 +48,8 @@ class StreamStore(SQLBaseStore):
             query += " AND messages.room_id=?"
             query_args.append(room_id)
 
-        LATEST_ROW = -1
-        # e.g. if from==to (from=5 to=5 or from=-1 to=-1) then return nothing.
-        if from_pkey == to_pkey:
-            return ([], from_pkey)
-        elif to_pkey > from_pkey:
-            if from_pkey != LATEST_ROW:
-                # e.g. from=5 to=9 >> from 5 to 9 >> id>5 AND id<9
-                query += " AND messages.id > ? AND messages.id < ?"
-                query_args.append(from_pkey)
-                query_args.append(to_pkey)
-            else:
-                # e.g. from=-1 to=5 >> from now to 5 >> id>5 ORDER BY id DESC
-                query += " AND messages.id > ? ORDER BY id DESC"
-                query_args.append(to_pkey)
-        elif from_pkey > to_pkey:
-            if to_pkey != LATEST_ROW:
-                # from=9 to=5 >> from 9 to 5 >> id>5 AND id<9 ORDER BY id DESC
-                query += (" AND messages.id > ? AND messages.id < ? " +
-                         "ORDER BY id DESC")
-                query_args.append(to_pkey)
-                query_args.append(from_pkey)
-            else:
-                # from=5 to=-1 >> from 5 to now >> id>5
-                query += " AND messages.id > ?"
-                query_args.append(from_pkey)
-
-        if limit and limit > 0:
-            query += " LIMIT ?"
-            query_args.append(str(limit))
+        (query, query_args) = self._append_stream_operations("messages",
+                                query, query_args, from_pkey, to_pkey, limit)
 
         logger.debug("[SQL] %s : %s" % (query, query_args))
         cursor = txn.execute(query, query_args)
@@ -118,6 +92,72 @@ class StreamStore(SQLBaseStore):
 
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, RoomMemberTable, from_pkey)
+
+    @defer.inlineCallbacks
+    def get_feedback_stream(self, user_id=None, from_key=None, to_key=None,
+                            room_id=None, limit=0):
+        (rows, pkey) = yield self._db_pool.runInteraction(
+                self._get_feedback_rows, user_id, from_key, to_key, room_id,
+                limit)
+        defer.returnValue((rows, pkey))
+
+    def _get_feedback_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
+                           limit):
+        # work out which rooms this user is joined in on and join them with
+        # the room id on the feedback table, bounded by the specified pkeys
+
+        # get all messages where the *current* membership state is 'join' for
+        # this user in that room.
+        query = ("SELECT feedback.* FROM feedback WHERE ? IN " +
+            "(SELECT membership from room_memberships WHERE user_id=? AND " +
+            "room_id = feedback.room_id ORDER BY id DESC LIMIT 1)")
+        query_args = ["join", user_id]
+
+        if room_id:
+            query += " AND feedback.room_id=?"
+            query_args.append(room_id)
+
+        (query, query_args) = self._append_stream_operations("feedback",
+                                query, query_args, from_pkey, to_pkey, limit)
+
+        logger.debug("[SQL] %s : %s" % (query, query_args))
+        cursor = txn.execute(query, query_args)
+        return self._as_events(cursor, FeedbackTable, from_pkey)
+
+    def _append_stream_operations(self, table_name, query, query_args,
+                                  from_pkey, to_pkey, limit):
+        LATEST_ROW = -1
+        # e.g. if from==to (from=5 to=5 or from=-1 to=-1) then return nothing.
+        if from_pkey == to_pkey:
+            return ([], from_pkey)
+        elif to_pkey > from_pkey:
+            if from_pkey != LATEST_ROW:
+                # e.g. from=5 to=9 >> from 5 to 9 >> id>5 AND id<9
+                query += (" AND %s.id > ? AND %s.id < ?" %
+                         (table_name, table_name))
+                query_args.append(from_pkey)
+                query_args.append(to_pkey)
+            else:
+                # e.g. from=-1 to=5 >> from now to 5 >> id>5 ORDER BY id DESC
+                query += " AND %s.id > ? ORDER BY id DESC" % table_name
+                query_args.append(to_pkey)
+        elif from_pkey > to_pkey:
+            if to_pkey != LATEST_ROW:
+                # from=9 to=5 >> from 9 to 5 >> id>5 AND id<9 ORDER BY id DESC
+                query += (" AND %s.id > ? AND %s.id < ? ORDER BY id DESC" %
+                          (table_name, table_name))
+                query_args.append(to_pkey)
+                query_args.append(from_pkey)
+            else:
+                # from=5 to=-1 >> from 5 to now >> id>5
+                query += " AND %s.id > ?" % table_name
+                query_args.append(from_pkey)
+
+        if limit and limit > 0:
+            query += " LIMIT ?"
+            query_args.append(str(limit))
+
+        return (query, query_args)
 
     def _as_events(self, cursor, table, from_pkey):
         data_entries = table.decode_results(cursor)

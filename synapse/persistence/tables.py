@@ -288,6 +288,7 @@ class FeedbackTable(Table):
     table_name = "feedback"
 
     fields = [
+        "id",
         "content",
         "feedback_type",
         "fb_sender_id",
