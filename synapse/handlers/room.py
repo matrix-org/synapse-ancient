@@ -402,7 +402,7 @@ class RoomMemberHandler(BaseHandler):
                 federation = self.hs.get_federation()
                 new_event = self.event_factory.create_event(
                     etype=InviteJoinEvent.TYPE,
-                    target_user_id=event.user_id,
+                    target_user_id=inviter.to_string(),
                     room_id=event.room_id,
                     user_id=event.user_id,
                     content={}

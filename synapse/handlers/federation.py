@@ -5,6 +5,7 @@ from ._base import BaseHandler
 
 from synapse.api.events.room import InviteJoinEvent, RoomMemberEvent
 from synapse.api.constants import Membership
+from synapse.types import UserID
 from synapse.util.logutils import log_function
 
 from twisted.internet import defer
@@ -22,7 +23,18 @@ class FederationHandler(BaseHandler):
     @log_function
     @defer.inlineCallbacks
     def on_receive(self, event, is_new_state):
+        target_is_mine = False
+        target_user = None
+        if hasattr(event, "target_user_id"):
+            target_user = UserID.from_string(event.target_user_id, self.hs)
+            target_is_mine = target_user.is_mine
+
         if event.type == InviteJoinEvent.TYPE:
+            if not target_is_mine:
+                logger.debug("Ignoring invite/join event %s", target_user)
+                logger.debug("Event: %s", event)
+                return
+
             # If we receive an invite/join event then we need to join the
             # sender to the given room.
             # TODO: We should probably auth this or some such
