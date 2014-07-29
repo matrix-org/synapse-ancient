@@ -42,4 +42,29 @@ class ProfileHandler(BaseHandler):
 
         yield self.store.set_profile_displayname(target_user.localpart,
                 new_displayname)
-        pass
+
+    @defer.inlineCallbacks
+    def get_avatar_url(self, target_user):
+        if target_user.is_mine:
+            avatar_url = yield self.store.get_profile_avatar_url(
+                    target_user.localpart)
+
+            defer.returnValue(avatar_url)
+        else:
+            # TODO(paul): This should use the server-server API to ask another
+            # HS
+            defer.returnValue("http://elsewhere/")
+
+    @defer.inlineCallbacks
+    def set_avatar_url(self, target_user, auth_user,
+            new_avatar_url):
+        """target_user is the user whose avatar_url is to be changed;
+        auth_user is the user attempting to make this change."""
+        if not target_user.is_mine:
+            raise SynapseError(400, "User is not hosted on this Home Server")
+
+        if target_user != auth_user:
+            raise AuthError(400, "Cannot set another user's avatar_url")
+
+        yield self.store.set_profile_avatar_url(target_user.localpart,
+                new_avatar_url)

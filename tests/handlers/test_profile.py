@@ -22,6 +22,8 @@ class ProfileTestCase(unittest.TestCase):
                 datastore=Mock(spec=[
                     "get_profile_displayname",
                     "set_profile_displayname",
+                    "get_profile_avatar_url",
+                    "set_profile_avatar_url",
                 ]),
                 http_server=Mock(),
                 http_client=Mock(),
@@ -60,3 +62,24 @@ class ProfileTestCase(unittest.TestCase):
                 "Frank Jr.")
 
         yield self.assertFailure(d, AuthError)
+
+    @defer.inlineCallbacks
+    def test_get_my_avatar(self):
+        mocked_get = self.datastore.get_profile_avatar_url
+        mocked_get.return_value = defer.succeed("http://my.server/me.png")
+
+        avatar_url = yield self.handlers.profile_handler.get_avatar_url(
+                self.frank)
+
+        self.assertEquals("http://my.server/me.png", avatar_url)
+        mocked_get.assert_called_with("1234ABCD")
+
+    @defer.inlineCallbacks
+    def test_set_my_avatar(self):
+        mocked_set = self.datastore.set_profile_avatar_url
+        mocked_set.return_value = defer.succeed(())
+
+        yield self.handlers.profile_handler.set_avatar_url(
+                self.frank, self.frank, "http://my.server/pic.gif")
+
+        mocked_set.assert_called_with("1234ABCD", "http://my.server/pic.gif")
