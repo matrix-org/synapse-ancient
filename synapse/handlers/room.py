@@ -200,9 +200,9 @@ class MessageHandler(BaseHandler):
             event.destinations = yield self.store.get_joined_hosts_for_room(
                 event.room_id
             )
-        yield self.hs.get_federation().handle_new_event(event)
+            yield self.hs.get_federation().handle_new_event(event)
 
-        self.notifier.on_new_event(event, store_id)
+            self.notifier.on_new_event(event, store_id)
 
 
 class RoomCreationHandler(BaseHandler):
@@ -267,6 +267,18 @@ class RoomCreationHandler(BaseHandler):
 
 
 class RoomMemberHandler(BaseHandler):
+
+    @defer.inlineCallbacks
+    def get_rooms_with_state(self, user_id=None):
+        """Retrieve the current list of membership state events for a user.
+
+        Args:
+            user_id (str): The ID of the user making the request.
+        Returns:
+            A list of events representing all the rooms this user currently has
+            membership state with (invited/joined).
+        """
+        pass
 
     @defer.inlineCallbacks
     def get_room_members(self, room_id=None, user_id=None, limit=0,
