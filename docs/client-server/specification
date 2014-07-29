@@ -613,6 +613,39 @@ NOTE: Care must be taken when using this API in conjunction with event
       then come down the event stream, resulting in a duplicate message. Clients 
       should clobber based on the global message ID, or event ID.
 
+
+Get current state for all rooms (aka IM Initial Sync API)
+-------------------------------
+  REST Path: /users/$user_id/rooms/list
+  Valid methods: GET
+  This API can use pagination query parameters. Pagination is applied on a per
+  *room* basis. E.g. limit=1 means "get 1 message for each room" and not "get 1
+  room's messages". If there is no limit, all messages for all rooms will be
+  returned.
+  If you want 1 room's messages, see "Receiving messages (bulk/pagination)".
+  Additional query parameters: 
+    feedback: [true] - Bundles feedback with messages.
+  Returns:
+    An array of RoomStateInfo.
+
+RoomStateInfo: A snapshot of information about a single room.
+  {
+    "room_id" : "string",
+    "membership" : "string [join|invite]",
+    "messages" : {
+      "start": "string",
+      "end": "string",
+      "chunk":
+      sy.room.message pagination stream events (with feedback if specified)
+    }
+  }
+The "membership" key is the calling user's membership state in the given 
+"room_id". The "messages" key may be omitted if the "membership" value is 
+"invite". Additional keys may be added to the top-level object, such as:
+  "topic" : "string" - The topic for the room in question.
+  "room_image_url" : "string" - The URL of the room image if specified.
+  "num_members" : integer - The number of members in the room.
+
 Examples
 ========
 
@@ -877,5 +910,4 @@ Outstanding problems / missing spec:
 - User level config/settings
 - Push
 - Typing notifications
-- 'IM sync' API (fresh client, get last X msgs f.e room)
 ]]
