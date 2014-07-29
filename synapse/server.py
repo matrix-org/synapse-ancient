@@ -91,7 +91,9 @@ class BaseHomeServer(object):
                 return dep
 
             raise NotImplementedError(
-                    "HomeServer has no %s nor a builder for it" % (depname)
+                    "%s has no %s nor a builder for it" % (
+                        type(self).__name__, depname
+                    )
             )
 
         setattr(BaseHomeServer, "get_%s" % (depname), _get)
