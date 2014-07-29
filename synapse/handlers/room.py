@@ -164,12 +164,34 @@ class MessageHandler(BaseHandler):
         data = yield self.store.get_path_data(path)
         defer.returnValue(data)
 
-    def get_feedback(self, room_id=None, sender_id=None, msg_id=None,
+    @defer.inlineCallbacks
+    def get_feedback(self, room_id=None, msg_sender_id=None, msg_id=None,
                      user_id=None, fb_sender_id=None, fb_type=None):
-        pass  # TODO
+        yield self.auth.check_joined_room(room_id, user_id)
 
+        # Pull out the feedback from the db
+        fb = yield self.store.get_feedback(
+                room_id=room_id, msg_id=msg_id, msg_sender_id=msg_sender_id,
+                fb_sender_id=fb_sender_id, fb_type=fb_type)
+
+        if fb:
+            defer.returnValue(fb)
+        defer.returnValue(None)
+
+    @defer.inlineCallbacks
     def send_feedback(self, event):
-        pass  # TODO
+        with (yield self.room_lock.lock(event.room_id)):
+            yield self.auth.check(event, raises=True)
+
+            # store message in db
+            store_id = yield self.store.persist_event(event)
+
+            event.destinations = yield self.store.get_joined_hosts_for_room(
+                event.room_id
+            )
+            yield self.hs.get_federation().handle_new_event(event)
+
+            self.notifier.on_new_event(event, store_id)
 
 
 class RoomCreationHandler(BaseHandler):
