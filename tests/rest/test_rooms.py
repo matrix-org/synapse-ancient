@@ -193,7 +193,7 @@ class RoomPermissionsTestCase(RestTestCase):
         self.assertEquals(200, code, msg=str(response))
         (code, response) = yield self.mock_server.trigger_get(topic_path)
         self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(topic_content), response)
+        self.assert_dict(json.loads(topic_content), response)
 
         # set/get topic in created PRIVATE room and left, expect 403
         yield self.leave(room=self.created_rmid, user=self.user_id)
@@ -664,7 +664,7 @@ class RoomTopicTestCase(RestTestCase):
         # valid get
         (code, response) = yield self.mock_server.trigger_get(self.path)
         self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(content), response)
+        self.assert_dict(json.loads(content), response)
 
     @defer.inlineCallbacks
     def test_rooms_topic_with_extra_keys(self):
@@ -677,7 +677,7 @@ class RoomTopicTestCase(RestTestCase):
         # valid get
         (code, response) = yield self.mock_server.trigger_get(self.path)
         self.assertEquals(200, code, msg=str(response))
-        self.assertEquals(json.loads(content), response)
+        self.assert_dict(json.loads(content), response)
 
 
 class RoomMemberStateTestCase(RestTestCase):
