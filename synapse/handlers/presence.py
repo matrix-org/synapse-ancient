@@ -45,3 +45,37 @@ class PresenceHandler(BaseHandler):
         # TODO(paul): Now this new state needs broadcasting to:
         #   every local user who is watching this one
         #   every remote HS on which at least one user is watching this one
+
+    @defer.inlineCallbacks
+    def send_invite(self, observer_user, observed_user):
+        if not observer_user.is_mine:
+            raise SynapseError(400, "User is not hosted on this Home Server")
+
+        yield self.store.add_presence_list_pending(
+                observer_user.localpart, observed_user.to_string())
+
+        if observed_user.is_mine:
+            yield self.invite_presence(observed_user, observer_user)
+        else:
+            # TODO(paul): Hand this down to Federation
+            pass
+
+    @defer.inlineCallbacks
+    def invite_presence(self, observed_user, observer_user):
+        # TODO(paul): Eventually we'll ask the user's permission for this
+        # before accepting. For now just accept any invite request
+        yield self.store.allow_presence_inbound(
+                observed_user.localpart, observer_user.to_string())
+
+        if observer_user.is_mine:
+            yield self.accept_presence(observed_user, observer_user)
+        else:
+            # TODO(paul): Hand this down to Federation
+            pass
+
+    @defer.inlineCallbacks
+    def accept_presence(self, observed_user, observer_user):
+        yield self.store.set_presence_list_accepted(
+                observer_user.localpart, observed_user.to_string())
+
+        # TODO(paul): Start exchanging messages
