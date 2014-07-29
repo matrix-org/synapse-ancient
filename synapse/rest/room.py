@@ -101,7 +101,8 @@ class RoomTopicRestServlet(RestServlet):
                 user_id=user.to_string(),
                 room_id=room_id,
                 path=request.path,
-                event_type=RoomTopicEvent.TYPE
+                event_type=RoomTopicEvent.TYPE,
+                state_key="",
             )
 
         if not data:
@@ -123,8 +124,7 @@ class RoomTopicRestServlet(RestServlet):
 
         msg_handler = self.handlers.message_handler
         yield msg_handler.store_room_path_data(
-            event=event,
-            path=request.path
+            event=event
         )
         defer.returnValue((200, ""))
 

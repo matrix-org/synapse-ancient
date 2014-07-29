@@ -14,8 +14,6 @@ from ._base import BaseHandler
 
 import logging
 import json
-import time
-
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +105,7 @@ class MessageHandler(BaseHandler):
         defer.returnValue(data_chunk)
 
     @defer.inlineCallbacks
-    def store_room_path_data(self, event=None, path=None, stamp_event=True):
+    def store_room_path_data(self, event=None, stamp_event=True):
         """ Stores data for a room under a given path.
 
         Args:
@@ -117,19 +115,32 @@ class MessageHandler(BaseHandler):
         Raises:
             SynapseError if something went wrong.
         """
-        yield self.auth.check(event, raises=True)
 
-        if stamp_event:
-            event.content["hsob_ts"] = int(self.clock.time_msec())
+        with (yield self.room_lock.lock(event.room_id)):
+            yield self.auth.check(event, raises=True)
 
-        # store in db
-        yield self.store.store_path_data(room_id=event.room_id,
-                                         path=path,
-                                         content=json.dumps(event.content))
+            if stamp_event:
+                event.content["hsob_ts"] = int(self.clock.time_msec())
+
+            yield self.state_handler.handle_new_event(event)
+
+            # store in db
+            yield self.store.store_path_data(
+                room_id=event.room_id,
+                etype=event.type,
+                state_key=event.state_key,
+                content=json.dumps(event.content)
+            )
+
+            event.destinations = yield self.store.get_joined_hosts_for_room(
+                event.room_id
+            )
+
+        yield self.hs.get_federation().handle_new_event(event)
 
     @defer.inlineCallbacks
     def get_room_path_data(self, user_id=None, room_id=None, path=None,
-                           event_type=None,
+                           event_type=None, state_key="",
                            public_room_rules=[],
                            private_room_rules=["join"]):
         """ Get path data from a room.
@@ -174,7 +185,7 @@ class MessageHandler(BaseHandler):
                 raise RoomError(
                     403, "Member does not meet private room rules.")
 
-        data = yield self.store.get_path_data(path)
+        data = yield self.store.get_path_data(room_id, event_type, state_key)
         defer.returnValue(data)
 
     @defer.inlineCallbacks
@@ -205,9 +216,9 @@ class MessageHandler(BaseHandler):
             event.destinations = yield self.store.get_joined_hosts_for_room(
                 event.room_id
             )
-            yield self.hs.get_federation().handle_new_event(event)
+        yield self.hs.get_federation().handle_new_event(event)
 
-            self.notifier.on_new_event(event, store_id)
+        self.notifier.on_new_event(event, store_id)
 
     @defer.inlineCallbacks
     def snapshot_all_rooms(self, user_id=None, pagin_config=None,
@@ -503,6 +514,7 @@ class RoomMemberHandler(BaseHandler):
             "msgtype": u"sy.text",
             "body": body
         }
+
         msg_id = "m%s" % int(self.clock.time_msec())
 
         event = self.event_factory.create_event(

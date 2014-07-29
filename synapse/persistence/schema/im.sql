@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS feedback(
 CREATE TABLE IF NOT EXISTS room_data(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id TEXT NOT NULL,
-    path TEXT NOT NULL,
+    type TEXT NOT NULL,
+    state_key TEXT NOT NULL,
     content TEXT
 );

@@ -107,12 +107,13 @@ class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
                 fb_type=event.feedback_type,
                 content=json.dumps(event.content)
             )
-        #elif event.type == RoomTopicEvent.TYPE:
-        #    return self.store.store_path_data(
-        #        room_id=event.room_id,
-        #        path=path,
-        #        content=json.dumps(event.content)
-        #    )
+        elif event.type == RoomTopicEvent.TYPE:
+            return self.store_path_data(
+                room_id=event.room_id,
+                etype=event.type,
+                state_key=event.state_key,
+                content=json.dumps(event.content)
+            )
         else:
             raise NotImplementedError(
                 "Don't know how to persist type=%s" % event.type
