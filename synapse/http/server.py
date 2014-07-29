@@ -122,7 +122,7 @@ class TwistedHttpServer(HttpServer, resource.Resource):
 
     def _send_response(self, request, code, response_json_object):
 
-        if self._request_user_agent_is_curl(request):
+        if not self._request_user_agent_is_curl(request):
             json_bytes = encode_canonical_json(response_json_object)
         else:
             json_bytes = encode_pretty_printed_json(response_json_object)
