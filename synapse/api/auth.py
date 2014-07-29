@@ -88,9 +88,11 @@ class Auth(object):
 
         if Membership.INVITE == membership:
             # Invites are valid iff caller is in the room and target isn't.
-            if not caller_in_room or target_in_room:
-                # caller isn't joined or the target is already in the room.
-                raise AuthError(403, "Cannot invite.")
+            if not caller_in_room:  # caller isn't joined
+                raise AuthError(403, "You are not in room %s." % event.room_id)
+            elif target_in_room:  # the target is already in the room.
+                raise AuthError(403, "%s is already in the room." %
+                                     event.target_user_id)
         elif Membership.JOIN == membership:
             # Joins are valid iff caller == target and they were:
             # invited: They are accepting the invitation
@@ -100,10 +102,12 @@ class Auth(object):
                     [Membership.INVITE, Membership.JOIN]):
                 raise AuthError(403, "You are not invited to this room.")
         elif Membership.LEAVE == membership:
-            if not caller_in_room or event.target_user_id != event.user_id:
-                # trying to leave a room you aren't joined or trying to force
-                # another user to leave
-                raise AuthError(403, "Cannot leave.")
+            if not caller_in_room:  # trying to leave a room you aren't joined
+                raise AuthError(403, "You are not in room %s." % event.room_id)
+            elif event.target_user_id != event.user_id:
+                # trying to force another user to leave
+                raise AuthError(403, "Cannot force %s to leave." %
+                                event.target_user_id)
         else:
             raise AuthError(500, "Unknown membership %s" % membership)
 
