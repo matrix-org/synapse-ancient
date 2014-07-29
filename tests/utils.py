@@ -178,7 +178,7 @@ class MemoryDataStore(object):
         self.paths_to_content[path] = data
 
     def get_message_stream(self, user_id=None, from_key=None, to_key=None,
-                            room_id=None, limit=0):
+                            room_id=None, limit=0, with_feedback=False):
         return ([], from_key)  # TODO
 
     def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):

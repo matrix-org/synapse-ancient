@@ -13,6 +13,20 @@ class SQLBaseStore(object):
     def __init__(self, hs):
         self._db_pool = hs.get_db_pool()
 
+    def cursor_to_dict(self, cursor):
+        """Converts a SQL cursor into an list of dicts.
+
+        Args:
+            cursor : The DBAPI cursor which has executed a query.
+        Returns:
+            A list of dicts where the key is the column header.
+        """
+        col_headers = list(map(lambda x: x[0], cursor.description))
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(zip(col_headers, row)))
+        return results
+
     def exec_single_with_result(self, txn, query, func, *args):
         """Runs a single query for a result set.
 

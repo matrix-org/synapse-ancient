@@ -6,6 +6,7 @@ from synapse.persistence.tables import (RoomMemberTable, MessagesTable,
 
 from ._base import SQLBaseStore
 
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ class StreamStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_message_stream(self, user_id=None, from_key=None, to_key=None,
-                            room_id=None, limit=0):
+                            room_id=None, limit=0, with_feedback=False):
         """Get all messages for this user between the given keys.
 
         Args:
@@ -27,7 +28,12 @@ class StreamStore(SQLBaseStore):
         Returns:
             A tuple of rows (list of namedtuples), new_id(int)
         """
-        (rows, pkey) = yield self._db_pool.runInteraction(
+        if with_feedback and room_id:  # with fb MUST specify a room ID
+            (rows, pkey) = yield self._db_pool.runInteraction(
+                self._get_message_rows_with_feedback, user_id, from_key, to_key,
+                room_id, limit)
+        else:
+            (rows, pkey) = yield self._db_pool.runInteraction(
                 self._get_message_rows, user_id, from_key, to_key, room_id,
                 limit)
         defer.returnValue((rows, pkey))
@@ -54,6 +60,50 @@ class StreamStore(SQLBaseStore):
         logger.debug("[SQL] %s : %s" % (query, query_args))
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, MessagesTable, from_pkey)
+
+    def _get_message_rows_with_feedback(self, txn, user_id, from_pkey, to_pkey,
+                                        room_id, limit):
+        # this col represents the compressed feedback JSON as per spec
+        compressed_feedback_col = ("'[' || group_concat('{\"sender_id\":\"' ||"
+        " f.fb_sender_id || '\",\"feedback_type\":\"' || f.feedback_type ||"
+        " '\",\"content\":' || f.content || '}') || ']'")
+
+        global_msg_id_join = ("f.room_id = messages.room_id and " +
+        "f.msg_id = messages.msg_id and messages.user_id = f.msg_sender_id")
+
+        select_query = ("SELECT messages.*, f.content AS fb_content, " +
+        "f.fb_sender_id, " + compressed_feedback_col + " AS compressed_fb " +
+        "FROM messages LEFT JOIN feedback f ON " + global_msg_id_join)
+
+        current_membership_sub_query = ("(SELECT membership from " +
+        "room_memberships rm WHERE user_id=? AND room_id = rm.room_id " +
+        "ORDER BY id DESC LIMIT 1)")
+
+        where = (" WHERE ? IN " + current_membership_sub_query + " AND " +
+        "messages.room_id=?")
+
+        query = select_query + where + " GROUP BY messages.id"
+        query_args = ["join", user_id, room_id]
+
+        logger.debug("[SQL] %s : %s" % (query, query_args))
+        cursor = txn.execute(query, query_args)
+
+        # convert the result set into events
+        entries = self.cursor_to_dict(cursor)
+        events = []
+        for entry in entries:
+            # TODO we should spec the cursor > event mapping somewhere else.
+            event = {}
+            straight_mappings = ["msg_id", "user_id", "room_id"]
+            for key in straight_mappings:
+                event[key] = entry[key]
+            event["content"] = json.loads(entry["content"])
+            event["feedback"] = json.loads(entry["compressed_fb"])
+            events.append(event)
+
+        latest_pkey = from_pkey if len(entries) == 0 else entries[-1]["id"]
+
+        return (events, latest_pkey)
 
     @defer.inlineCallbacks
     def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):

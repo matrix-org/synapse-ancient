@@ -21,16 +21,14 @@ class MessagesStreamData(StreamData):
 
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key, limit):
-        if self.with_feedback:
-            defer.returnValue(([], "NOT_IMPLEMENTED"))
-        else:
-            (data, latest_ver) = yield self.store.get_message_stream(
-                                    user_id=user_id,
-                                    from_key=from_key,
-                                    to_key=to_key,
-                                    limit=limit,
-                                    room_id=self.room_id
-                                    )
+        (data, latest_ver) = yield self.store.get_message_stream(
+                                user_id=user_id,
+                                from_key=from_key,
+                                to_key=to_key,
+                                limit=limit,
+                                room_id=self.room_id,
+                                with_feedback=self.with_feedback
+                                )
         defer.returnValue((data, latest_ver))
 
 
