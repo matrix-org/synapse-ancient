@@ -1,5 +1,7 @@
 import unittest
 
+from twisted.internet import defer
+
 from mock import Mock, patch
 
 from synapse.util.distributor import Distributor
@@ -16,9 +18,25 @@ class DistributorTestCase(unittest.TestCase):
         observer = Mock()
         self.dist.observe("alert", observer)
 
-        self.dist.fire("alert", 1, 2, 3)
+        d = self.dist.fire("alert", 1, 2, 3)
 
+        self.assertTrue(d.called)
         observer.assert_called_with(1, 2, 3)
+
+    def test_signal_dispatch_deferred(self):
+        self.dist.declare("whine")
+
+        d_inner = defer.Deferred()
+        def observer():
+            return d_inner
+        self.dist.observe("whine", observer)
+
+        d_outer = self.dist.fire("whine")
+
+        self.assertFalse(d_outer.called)
+
+        d_inner.callback(None)
+        self.assertTrue(d_outer.called)
 
     def test_signal_catch(self):
         self.dist.declare("alarm")
@@ -30,15 +48,16 @@ class DistributorTestCase(unittest.TestCase):
         observers[0].side_effect = Exception("Awoogah!")
 
         with patch("synapse.util.distributor.logger",
-                spec=["exception"]
+                spec=["warning"]
         ) as mock_logger:
-            self.dist.fire("alarm", "Go")
+            d = self.dist.fire("alarm", "Go")
+            self.assertTrue(d.called)
 
             observers[0].assert_called_once("Go")
             observers[1].assert_called_once("Go")
 
-            self.assertEquals(mock_logger.exception.call_count, 1)
-            self.assertIsInstance(mock_logger.exception.call_args[0][0],
+            self.assertEquals(mock_logger.warning.call_count, 1)
+            self.assertIsInstance(mock_logger.warning.call_args[0][0],
                     str)
 
     def test_signal_prereg(self):

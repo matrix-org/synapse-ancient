@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from twisted.internet import defer
 
 import logging
 
@@ -46,7 +47,7 @@ class Distributor(object):
         if name not in self.signals:
             raise KeyError("%r does not have a signal named %s" % (self, name))
 
-        self.signals[name].fire(*args, **kwargs)
+        return self.signals[name].fire(*args, **kwargs)
 
 
 class Signal(object):
@@ -65,17 +66,24 @@ class Signal(object):
 
     def observe(self, observer):
         """Adds a new callable to the observer list which will be invoked by
-        the 'fire' method."""
+        the 'fire' method.
+
+        Each observer callable may return a Deferred."""
         self.observers.append(observer)
 
     def fire(self, *args, **kwargs):
         """Invokes every callable in the observer list, passing in the args and
         kwargs. Exceptions thrown by observers are logged but ignored. It is
-        not an error to fire a signal with no observers."""
+        not an error to fire a signal with no observers.
+
+        Returns a Deferred that will complete when all the observers have
+        completed."""
+        deferreds = []
         for observer in self.observers:
-            try:
-                observer(*args, **kwargs)
-            except:
-                logger.exception("%s signal observer %s raised an exception" %
-                        (self, observer))
-                pass
+            d = defer.maybeDeferred(observer, *args, **kwargs)
+            def eb(failure):
+                logger.warning("%s signal observer %s failed: %r" % (
+                    self.name, observer, failure))
+            deferreds.append(d.addErrback(eb))
+
+        return defer.DeferredList(deferreds)
