@@ -422,6 +422,7 @@ class RoomMemberHandler(BaseHandler):
                 if do_auth:
                     yield self.auth.check(event, raises=True)
 
+                yield self.state_handler.handle_new_event(event)
                 store_id = yield _do_membership_update()
 
             yield self.hs.get_federation().handle_new_event(event)
