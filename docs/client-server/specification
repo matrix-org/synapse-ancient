@@ -28,9 +28,9 @@ where the client got up to in the stream.
 
 Event ID:
 Every event that comes down the event stream or that is returned from the REST
-API has an associated event ID (eid). This ID will be the same between the REST 
-API and the event stream, so any duplicate events can be clobbered correctly 
-without knowing anything else about the event.
+API has an associated event ID (event_id). This ID will be the same between the 
+REST API and the event stream, so any duplicate events can be clobbered 
+correctly without knowing anything else about the event.
 
 Message ID:
 The ID of a message sent by a client in a room. Clients send IMs to each other 
@@ -570,8 +570,8 @@ Receiving messages (bulk/pagination)
 
 Event Data with compressed feedback is a special type of feedback with 
 contextual keys removed. It is designed to limit the amount of redundant data 
-being sent for feedback. This removes the type, eid, room ID, message sender ID 
-and message ID keys.
+being sent for feedback. This removes the type, event_id, room ID, 
+message sender ID and message ID keys.
 
      ORIGINAL (via event streaming)
 {
