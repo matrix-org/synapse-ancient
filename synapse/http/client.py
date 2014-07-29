@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _destination_mappings = {
     "red": "localhost:8080",
     "blue": "localhost:8081",
+    "green": "localhost:8082",
 }
 
 
