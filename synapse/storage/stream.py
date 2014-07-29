@@ -103,7 +103,8 @@ class StreamStore(SQLBaseStore):
             for key in straight_mappings:
                 event[key] = entry[key]
             event["content"] = json.loads(entry["content"])
-            event["feedback"] = json.loads(entry["compressed_fb"])
+            if entry["compressed_fb"]:
+                event["feedback"] = json.loads(entry["compressed_fb"])
             events.append(event)
 
         latest_pkey = from_pkey if len(entries) == 0 else entries[-1]["id"]

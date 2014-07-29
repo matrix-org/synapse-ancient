@@ -231,6 +231,12 @@ class MessageHandler(BaseHandler):
         room_list = yield self.store.get_rooms_for_user_where_membership_is(
                         user_id=user_id,
                         membership_list=[Membership.INVITE, Membership.JOIN])
+        for room_info in room_list:
+            event_chunk = yield self.get_messages(user_id=user_id,
+                                                  pagin_config=pagin_config,
+                                                  feedback=feedback,
+                                                  room_id=room_info["room_id"])
+            room_info["messages"] = event_chunk
         defer.returnValue(room_list)
 
 
