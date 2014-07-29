@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from twisted.internet import defer, reactor
-from twisted.web.client import Agent, readBody
+from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
+from twisted.names.srvconnect import SRVConnector
+from twisted.web.client import _AgentBase, _URI, readBody
 from twisted.web.http_headers import Headers
 
 from synapse.util.async import sleep
@@ -63,6 +65,81 @@ class HttpClient(object):
         pass
 
 
+class MatrixInsecureEndpoint(object):
+
+    def __init__(self, reactor, host, port, timeout=None):
+        self.reactor = reactor
+        self.host = host
+        self.timeout = timeout
+
+    def connect(self, protocolFactory):
+        return SRVConnector(
+            reactor, "matrix", self.host, protocolFactory,
+            protocol="tcp", connectFuncName="connectTCP", defaultPort=80,
+            connectFuncKwArgs=dict(timeout=self.timeout)
+        ).connect()
+
+
+class MatrixSecureEndpoint(object):
+
+    def __init__(self, host, port, ssl_context_factory, timeout=None):
+        self.host = host
+        self.ssl_context_factory = ssl_context_factory
+        self.timeout = timeout
+
+    def connect(self, protocolFactory):
+        return SRVConnector(
+            reactor, "matrix", self.server_name, protocolFactory,
+            protocol="tcp", connectFuncName="connectSSL", defaultPort=443,
+            connectFuncKwArgs=dict(
+                contextFactory=self.ssl_context_factory,
+                timeout=self.timeout
+            )
+        ).connect()
+
+
+class MatrixHttpAgent(_AgentBase):
+
+    def __init__(self, reactor, pool=None):
+        _AgentBase.__init__(self, reactor, pool)
+
+    def _get_endpoint(self, host, port=None, ssl_context_factory=None,
+                      timeout=None):
+        if port is None:
+            secure_endpoint = MatrixSecureEndpoint
+            insecure_endpoint = MatrixInsecureEndpoint
+        else:
+            secure_endpoint = SSL4ClientEndpoint
+            insecure_endpoint = TCP4ClientEndpoint
+
+        if ssl_context_factory is not None:
+            return secure_endpoint(self._reactor, host, port,
+                                   ssl_context_factory, timeout=timeout)
+        else:
+            return insecure_endpoint(self._reactor, host, port, timeout=timeout)
+
+    def request(self, method, uri_bytes, headers, body_producer):
+        parsed_URI = _URI.fromBytes(uri_bytes)
+
+        server_name = parsed_URI.netloc
+
+        host_port = server_name.split(":")
+        host = host_port[0]
+        port = int(host_port[1]) if host_port[1:] else None
+
+        logging.debug("Sending request to %s:%s", host, port)
+
+        # TODO: setup and pass in an ssl_context to enable TLS
+        endpoint = self._get_endpoint(host, port, ssl_context_factory=None,
+                                      timeout=10)
+
+        key = server_name
+
+        return self._requestWithEndpoint(key, endpoint, method, parsed_URI,
+                                         headers, body_producer,
+                                         parsed_URI.originForm)
+
+
 class TwistedHttpClient(HttpClient):
     """ Wrapper around the twisted HTTP client api.
 
@@ -72,7 +149,7 @@ class TwistedHttpClient(HttpClient):
     """
 
     def __init__(self):
-        self.agent = Agent(reactor)
+        self.agent = MatrixHttpAgent(reactor)
 
     @defer.inlineCallbacks
     def put_json(self, destination, path, data):
@@ -157,7 +234,7 @@ class TwistedHttpClient(HttpClient):
                 logger.debug("Got response to %s" % method)
                 break
             except Exception as e:
-                logger.error("Got error in _create_request")
+                logger.exception("Got error in _create_request")
                 _print_ex(e)
 
                 if retries_left:
