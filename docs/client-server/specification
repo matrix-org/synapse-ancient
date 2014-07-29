@@ -636,7 +636,8 @@ RoomStateInfo: A snapshot of information about a single room.
       "start": "string",
       "end": "string",
       "chunk":
-      sy.room.message pagination stream events (with feedback if specified)
+      sy.room.message pagination stream events (with feedback if specified),
+      this is the same as "Receiving messages (bulk/pagination)".
     }
   }
 The "membership" key is the calling user's membership state in the given 

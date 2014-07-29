@@ -84,6 +84,35 @@ class RoomMemberStore(SQLBaseStore):
             res = [entry for entry in res if entry.membership == membership]
         defer.returnValue(res)
 
+    @defer.inlineCallbacks
+    def get_rooms_for_user_where_membership_is(self, user_id=None,
+                                               membership_list=None):
+        """ Get all the rooms for this user where the membership for this user
+        matches one in the membership list.
+
+        Args:
+            user_id (str): The user ID.
+            membership_list (list): A list of synapse.api.constants.Membership
+            values which the user must be in.
+        Returns:
+            A list of dicts with "room_id" and "membership" keys.
+        """
+        if not membership_list:
+            defer.returnValue(None)
+
+        args = [user_id]
+        membership_placeholder = ["membership=?"] * len(membership_list)
+        where_membership = "(" + " OR ".join(membership_placeholder) + ")"
+        for membership in membership_list:
+            args.append(membership)
+
+        query = ("SELECT room_id, membership FROM room_memberships " +
+                 "WHERE user_id=? AND " + where_membership +
+                 " GROUP BY room_id ORDER BY id DESC")
+        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
+                query, self.cursor_to_dict, *args)
+        defer.returnValue(res)
+
     def _room_member_decode(self, cursor):
         results = cursor.fetchall()
         # strip the MAX(id) column from the results so it can be made into

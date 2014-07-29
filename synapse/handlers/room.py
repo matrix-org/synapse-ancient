@@ -209,6 +209,30 @@ class MessageHandler(BaseHandler):
 
             self.notifier.on_new_event(event, store_id)
 
+    @defer.inlineCallbacks
+    def snapshot_all_rooms(self, user_id=None, pagin_config=None,
+                                   feedback=False):
+        """Retrieve a snapshot of all rooms the user is invited or joined in on.
+
+        This snapshot may include messages for all rooms where the user is
+        joined, depending on the pagination config.
+
+        Args:
+            user_id (str): The ID of the user making the request.
+            pagin_config (synapse.api.streams.PaginationConfig): The pagination
+            config used to determine how many messages *PER ROOM* to return.
+            feedback (bool): True to get feedback along with these messages.
+        Returns:
+            A list of dicts with "room_id" and "membership" keys for all rooms
+            the user is currently invited or joined in on. Rooms where the user
+            is joined on, may return a "messages" key with messages, depending
+            on the specified PaginationConfig.
+        """
+        room_list = yield self.store.get_rooms_for_user_where_membership_is(
+                        user_id=user_id,
+                        membership_list=[Membership.INVITE, Membership.JOIN])
+        defer.returnValue(room_list)
+
 
 class RoomCreationHandler(BaseHandler):
 
@@ -277,18 +301,6 @@ class RoomMemberHandler(BaseHandler):
         super(RoomMemberHandler, self).__init__(hs)
 
         self.clock = hs.get_clock()
-
-    @defer.inlineCallbacks
-    def get_rooms_with_state(self, user_id=None):
-        """Retrieve the current list of membership state events for a user.
-
-        Args:
-            user_id (str): The ID of the user making the request.
-        Returns:
-            A list of events representing all the rooms this user currently has
-            membership state with (invited/joined).
-        """
-        pass
 
     @defer.inlineCallbacks
     def get_room_members(self, room_id=None, user_id=None, limit=0,
