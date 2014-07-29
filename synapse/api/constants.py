@@ -9,3 +9,13 @@ class Membership(object):
     JOIN = u"join"
     KNOCK = u"knock"
     LEAVE = u"leave"
+
+
+class Feedback(object):
+
+    """Represents the types of feedback a user can send in response to a
+    message."""
+
+    DELIVERED = u"d"
+    READ = u"r"
+    LIST = (DELIVERED, READ)

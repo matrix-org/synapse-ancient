@@ -846,7 +846,6 @@ requests for all rooms the user is in. This will depend on client impls, since
 we may just want to lazy load each room when clients select the room for the
 first time, in which case we just need to know which rooms the client is in.
 - public room list
-- feedback (delivery/read)
 
 erik:
 x- link to federation
@@ -875,7 +874,6 @@ Outstanding problems / missing spec:
 - Spec out standard error responses (malformed json, missing keys, invalid 
   values for keys, unknown users (iff host is home server),
   room id in use, Pagination query param error / index out of bounds, )
-- Spec out event streaming type (longpoll, long-lived)
 - User level config/settings
 - Push
 - Typing notifications

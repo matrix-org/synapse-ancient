@@ -6,7 +6,7 @@ from base import RestServlet, InvalidHttpRequestError
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent, FeedbackEvent)
-from synapse.api.constants import Membership
+from synapse.api.constants import Feedback, Membership
 from synapse.api.streams import PaginationConfig
 
 import json
@@ -251,7 +251,7 @@ class FeedbackRestServlet(RestServlet):
                feedback_type):
         user = yield (self.auth.get_user_by_req(request))
 
-        if feedback_type not in ["d", "r"]:
+        if feedback_type not in Feedback.LIST:
             raise SynapseError(400, "Bad feedback type.")
 
         msg_handler = self.handlers.message_handler
@@ -276,7 +276,7 @@ class FeedbackRestServlet(RestServlet):
         if user.to_string() != fb_sender_id:
             raise SynapseError(403, "Must send feedback as yourself.")
 
-        if feedback_type not in ["d", "r"]:
+        if feedback_type not in Feedback.LIST:
             raise SynapseError(400, "Bad feedback type.")
 
         content = _parse_json(request)

@@ -463,7 +463,7 @@ class RoomMemberHandler(BaseHandler):
             "msgtype": u"sy.text",
             "body": body
         }
-        msg_id = "m%s" % int(time.time())
+        msg_id = "m%s" % int(time.time() * 1000)
 
         event = self.event_factory.create_event(
                 etype=MessageEvent.TYPE,
