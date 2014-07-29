@@ -384,6 +384,17 @@ class PduQueries(object):
         return cls._get_pdu_tuples(txn, pdus)
 
     @classmethod
+    def get_all_pdus_from_context(cls, txn, context):
+        query = (
+            "SELECT pdu_id, origin FROM %s "
+            "WHERE context = ?"
+        ) % PdusTable.table_name
+
+        txn.execute(query, (context,))
+
+        return cls._get_pdu_tuples(txn, txn.fetchall())
+
+    @classmethod
     def paginate(cls, txn, context, pdu_list, limit):
         """Get a list of Pdus for a given topic that occured before (and
         including) the pdus in pdu_list. Return a list of max size `limit`.

@@ -94,6 +94,12 @@ class PduActions(object):
 
     @defer.inlineCallbacks
     @log_function
+    def get_all_pdus_from_context(self, context):
+        results = yield self.service.get_all_pdus_from_context(context)
+        defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
+
+    @defer.inlineCallbacks
+    @log_function
     def paginate(self, context, pdu_list, limit):
         """ For a given list of PDU id and origins return the proceeding
         `limit` `Pdu`s in the given `context`.

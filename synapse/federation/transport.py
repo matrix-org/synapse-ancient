@@ -229,6 +229,13 @@ class TransportLayer(object):
                 )
         )
 
+        self.server.register_path(
+            "GET",
+            re.compile("^/context/([^/]*)/$"),
+            lambda request, context:
+                handler.on_context_pdus_request(context)
+        )
+
     @defer.inlineCallbacks
     @log_function
     def _on_send_request(self, request, transaction_id):

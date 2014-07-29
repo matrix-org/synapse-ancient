@@ -81,6 +81,12 @@ class PersistenceService(object):
             transaction_id, destination
         )
 
+    def get_all_pdus_from_context(self, context):
+        return self._db_pool.runInteraction(
+            PduQueries.get_all_pdus_from_context,
+            context,
+        )
+
     def get_pagination(self, context, pdu_list, limit):
         return self._db_pool.runInteraction(
             PduQueries.paginate,

@@ -205,6 +205,14 @@ class ReplicationLayer(object):
 
     @defer.inlineCallbacks
     @log_function
+    def on_context_pdus_request(self, context):
+        pdus = yield self.pdu_actions.get_all_pdus_from_context(
+            context
+        )
+        defer.returnValue((200, self._transaction_from_pdus(pdus).get_dict()))
+
+    @defer.inlineCallbacks
+    @log_function
     def on_paginate_request(self, context, versions, limit):
 
         pdus = yield self.pdu_actions.paginate(context, versions, limit)
