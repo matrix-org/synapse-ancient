@@ -143,6 +143,10 @@ class EventStream(PaginationStream):
             except ValueError:
                 raise EventStreamError(400, "Index not integer.")
 
+            if ifrom == ito:  # tokens are the same, we have nothing to do.
+                next_ver.append(str(ito))
+                continue
+
             (event_chunk, max_pkey) = yield self.stream_data[i].get_rows(
                                         self.user_id, ifrom, ito, limit)
 

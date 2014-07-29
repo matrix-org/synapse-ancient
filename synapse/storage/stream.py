@@ -186,10 +186,7 @@ class StreamStore(SQLBaseStore):
                                   group_by=""):
         LATEST_ROW = -1
         order_by = ""
-        # e.g. if from==to (from=5 to=5 or from=-1 to=-1) then return nothing.
-        if from_pkey == to_pkey:
-            return ([], from_pkey)
-        elif to_pkey > from_pkey:
+        if to_pkey > from_pkey:
             if from_pkey != LATEST_ROW:
                 # e.g. from=5 to=9 >> from 5 to 9 >> id>5 AND id<9
                 query += (" AND %s.id > ? AND %s.id < ?" %
