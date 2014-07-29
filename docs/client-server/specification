@@ -8,7 +8,7 @@ a home server.
 [[TODO(kegan): 4/7/14 Grilling
 - Mechanism for getting historical state changes (e.g. topic updates) - add 
   query param flag?
-- Generic mechanism for linking first class events (e.g. feedback) with other 
+- Generic mechanism for linking first class events (e.g. feedback) with other s
   first class events (e.g. messages)?
 - Generic mechanism for updating 'stuff about the room' (e.g. favourite coffee) 
   AND specifying clobbering rules (clobber/add to list/etc)?
@@ -44,17 +44,17 @@ servers unique hostname. When federating between home servers, the userid is
 used to uniquely identify users across multiple home servers.
 
 Room ID:
-The roomid@host style ID for the room. When rooms are created, the client either
+The room_id@host style ID for the room. When rooms are created, the client either
 specifies or is allocated a room ID. This room ID must be used to send messages 
 in that room. Like with clients, there may be multiple rooms with the same ID 
-across multiple home servers. The roomId is used to uniquely identify a room 
+across multiple home servers. The room_id is used to uniquely identify a room 
 when federating.
 
 Global message ID:
-The globally unique ID for a message. This ID is formed from the msgid, the 
-client's synapseUserId and the synapseRoomId. This uniquely identifies any 
+The globally unique ID for a message. This ID is formed from the msg_id, the 
+client's user_id and the room_id. This uniquely identifies any 
 message. It is represented with '-' as the delimeter between IDs. The 
-globalMsgId is of the form: synapseRoomId-synapseUserId-msgid
+global_msg_id is of the form: room_id-user_id-msg_id
 
 
 REST API and the Event Stream
@@ -178,7 +178,7 @@ Event Data
 ----------
 This is a JSON object which looks like:
 {
-  "eid" : $EVENT_ID,
+  "event_id" : $EVENT_ID,
   "type" : $EVENT_TYPE,
   $URL_ARGS,
   "content" : {
@@ -205,22 +205,22 @@ Every event MUST have a 'type' key.
 
 Most events will have a corresponding REST URL. This URL will generally have 
 data in it to represent the resource being modified,
-e.g. /rooms/$roomid. The event data will contain extra top-level keys to expose 
+e.g. /rooms/$room_id. The event data will contain extra top-level keys to expose 
 this information to clients listening on an event
 stream. The event content maps directly to the contents submitted via the REST 
 API.
 
 For example:
   Event Type: sy.example.room.members
-  REST Path: /examples/room/$roomid/members/$userid
+  REST Path: /examples/room/$room_id/members/$userid
   REST Content: { "membership" : "invited" }
   
 is represented in the event stream as:
 
 {
-  "eid" : "e_some_event_id",
+  "event_id" : "e_some_event_id",
   "type" : "sy.example.room.members",
-  "roomid" : $roomid,
+  "room_id" : $room_id,
   "userid" : $userid,
   "content" : {
     "membership" : "invited"
@@ -258,7 +258,7 @@ Registering for an account
         automatically.
   Returns (success): 200 OK with a JSON object:
                      {
-                       "user_id" : "string [synapseUserId]",
+                       "user_id" : "string [user_id]",
                        "access_token" : "string"
                      }
   Returns (failure): An Error Response.
@@ -290,12 +290,12 @@ Rooms
 A room is a conceptual place where users can send and receive messages. Rooms 
 can be created, joined and left. Messages are sent
 to a room, and all participants in that room will receive the message. Rooms are 
-uniquely identified via the synapseRoomId.
+uniquely identified via the room_id.
 
 Creating a room (with a room ID)
 --------------------------------
   Event Type: sy.room.create
-  REST Path: /rooms/$roomid
+  REST Path: /rooms/$room_id
   Valid methods: PUT
   Required keys: None.
   Optional keys:
@@ -305,7 +305,7 @@ Creating a room (with a room ID)
     On Failure: MAY return a suggested alternative room ID if this room ID is 
     taken.
     {
-      suggested_roomid : $new_roomid
+      suggested_room_id : $new_room_id
       error : "Room already in use."
       errcode : $errcode
     }
@@ -322,16 +322,16 @@ Creating a room (without a room ID)
   Returns:
     On Success: The allocated room ID.
     {
-      roomid : $roomid
+      room_id : $room_id
     }
 
 Setting the topic for a room
 ----------------------------
   Event Type: sy.room.topic
-  REST Path: /rooms/$roomid/topic
+  REST Path: /rooms/$room_id/topic
   Valid methods: GET/PUT
   Required keys: 
-    topic : $topicname - Set the topic to $topicname in room $roomid.
+    topic : $topicname - Set the topic to $topicname in room $room_id.
 
 
 See a list of public rooms
@@ -349,10 +349,10 @@ See a list of public rooms
     }
 
 RoomInfo: Information about a single room.
-  Servers MUST send the key: roomid
+  Servers MUST send the key: room_id
   Servers MAY send the keys: topic, num_members
   {
-    "roomid" : "string",
+    "room_id" : "string",
     "topic" : "string",
     "num_members" : integer
   }
@@ -363,20 +363,20 @@ Room Members
 Invite/Joining/Leaving a room
 -----------------------------
   Event Type: sy.room.members.state
-  REST Path: /rooms/$roomid/members/$userid/state
+  REST Path: /rooms/$room_id/members/$userid/state
   Valid methods: PUT/GET/DELETE
   Required keys:
-    membership : [join|invite] - The membership state of $userid in room $roomid
-                  join - Indicate you ($userid) are joining the room $roomid.
+    membership : [join|invite] - The membership state of $userid in room $room_id
+                  join - Indicate you ($userid) are joining the room $room_id.
                   invite - Indicate that $userid has been invited to room 
-                  $roomid.
+                  $room_id.
 
-  User $userid can leave room $roomid by DELETEing this path.
+  User $userid can leave room $room_id by DELETEing this path.
 
 Checking the user list of a room
 --------------------------------
   Event Type: sy.room.members.list
-  REST Path: /rooms/$roomid/members/list
+  REST Path: /rooms/$room_id/members/list
   Valid methods: GET
   Returns:
     A JSON object with room member userids as keys and their /members/$userid 
@@ -420,7 +420,7 @@ hsib_ts : integer
 Sending messages
 ----------------
   Event Type: sy.room.message
-  REST Path: /rooms/$roomid/messages/$from/$msgid
+  REST Path: /rooms/$room_id/messages/$from/$msg_id
   Valid methods: GET/PUT
   URL parameters:
     $from : userid - The sender's userid. This value will be clobbered by the 
@@ -540,7 +540,7 @@ when the user has read the message. These receipts are collectively known as
 'feedback'.
 
   Event Type: sy.room.message.feedback
-  REST Path: /rooms/$roomid/messages/$msgfrom/$msgid/feedback/$from/$feedback
+  REST Path: /rooms/$room_id/messages/$msgfrom/$msg_id/feedback/$from/$feedback
   Valid methods: GET/PUT
   URL parameters:
     $msgfrom - The sender of the message's userid.
@@ -556,7 +556,7 @@ when the user has read the message. These receipts are collectively known as
 Receiving messages (bulk/pagination)
 ------------------------------------
   Event Type: sy.room.message
-  REST Path: /rooms/$roomid/messages/list
+  REST Path: /rooms/$room_id/messages/list
   Valid methods: GET
   Query Parameters:
     feedback : [true|false] - Specify if feedback should be bundled with each 
@@ -575,12 +575,12 @@ and message ID keys.
 
      ORIGINAL (via event streaming)
 {
-  "eid":"e1247632487",
+  "event_id":"e1247632487",
   "type":"sy.room.message.feedback",
   "from":"string [userid]",
   "feedback":"string [d|r]",
-  "roomid":"$roomid",
-  "msgid":"$msgid",
+  "room_id":"$room_id",
+  "msg_id":"$msg_id",
   "msgfrom":"$msgfromid",
   "content":{
     "sender_ts":139880943
@@ -596,16 +596,16 @@ and message ID keys.
   }
 }
 
-When you join a room $roomid, you may want the last 10 messages with feedback. 
+When you join a room $room_id, you may want the last 10 messages with feedback. 
 This is represented as:
   GET 
-  /rooms/$roomid/messages/list?from=END&to=START&limit=10&feedback=true
+  /rooms/$room_id/messages/list?from=END&to=START&limit=10&feedback=true
 
 You may want to get 10 messages even earlier than that without feedback. If the 
 start stream token from the previous request was stok_019173, this request would 
 be:
   GET 
-  /rooms/$roomid/messages/list?from=stok_019173&to=START&limit=10&
+  /rooms/$room_id/messages/list?from=stok_019173&to=START&limit=10&
                                feedback=false
   
 NOTE: Care must be taken when using this API in conjunction with event 
@@ -686,9 +686,9 @@ Returns:
   "total":3,
   "chunk":
   [
-    { "roomid":"room_alpha@sy.org", "topic":"I am a fish" },
-    { "roomid":"room_beta@sy.org", "topic":"Hello world" },
-    { "roomid":"room_xyz@sy.org", "topic":"Goodbye cruel world" }
+    { "room_id":"room_alpha@sy.org", "topic":"I am a fish" },
+    { "room_id":"room_beta@sy.org", "topic":"Hello world" },
+    { "room_id":"room_xyz@sy.org", "topic":"Goodbye cruel world" }
   ]
 }
 
@@ -708,10 +708,10 @@ Returns:
   "chunk":
     [
       { 
-        "eid":"01948374", 
+        "event_id":"01948374", 
         "type":"sy.room.message",
-        "roomid":"room_beta@sy.org",
-        "msgid":"avefifu",
+        "room_id":"room_beta@sy.org",
+        "msg_id":"avefifu",
         "from":"alice@randomhost.org",
         "hs_ts":139985736,
         "content":{
@@ -730,10 +730,10 @@ Returns:
         ]
       },
       { 
-        "eid":"028dfe8373", 
+        "event_id":"028dfe8373", 
         "type":"sy.room.message",
-        "roomid":"room_beta@sy.org",
-        "msgid":"afhgfff",
+        "room_id":"room_beta@sy.org",
+        "msg_id":"afhgfff",
         "from":"alice@randomhost.org",
         "hs_ts":139970006,
         "content":{
@@ -771,19 +771,19 @@ Returns:
   "chunk": 
     [
       { 
-        "eid":"e10f3d2b", 
+        "event_id":"e10f3d2b", 
         "type":"sy.room.members.state",
-        "roomid":"room_beta@sy.org",
+        "room_id":"room_beta@sy.org",
         "userid":"bob@sy.org",
         "content":{
           "membership":"join"
         }
       },
       { 
-        "eid":"1b352d32", 
+        "event_id":"1b352d32", 
         "type":"sy.room.message",
-        "roomid":"room_beta@sy.org",
-        "msgid":"m0001",
+        "room_id":"room_beta@sy.org",
+        "msg_id":"m0001",
         "from":"bob@sy.org",
         "hs_ts":140193857,
         "content":{
@@ -805,19 +805,19 @@ Returns:
   "chunk": 
     [
       { 
-        "eid":"feee0294", 
+        "event_id":"feee0294", 
         "type":"sy.room.topic",
-        "roomid":"room_beta@sy.org",
+        "room_id":"room_beta@sy.org",
         "from":"alice@randomhost.org",
         "content":{
           "topic":"FRIENDS ONLY",
         }
       },
       { 
-        "eid":"a028bd9e", 
+        "event_id":"a028bd9e", 
         "type":"sy.room.message",
-        "roomid":"room_beta@sy.org",
-        "msgid":"z839409",
+        "room_id":"room_beta@sy.org",
+        "msg_id":"z839409",
         "from":"alice@randomhost.org",
         "hs_ts":140195000,
         "content":{
@@ -826,10 +826,10 @@ Returns:
         }
       },
       { 
-        "eid":"49372d9e", 
+        "event_id":"49372d9e", 
         "type":"sy.room.message",
-        "roomid":"room_beta@sy.org",
-        "msgid":"z839410",
+        "room_id":"room_beta@sy.org",
+        "msg_id":"z839410",
         "from":"alice@randomhost.org",
         "hs_ts":140196000,
         "content":{
@@ -838,10 +838,10 @@ Returns:
         }
       },
       { 
-        "eid":"10abdd01", 
+        "event_id":"10abdd01", 
         "type":"sy.room.message",
-        "roomid":"room_beta@sy.org",
-        "msgid":"z839411",
+        "room_id":"room_beta@sy.org",
+        "msg_id":"z839411",
         "from":"alice@randomhost.org",
         "hs_ts":140197000,
         "content":{
@@ -850,9 +850,9 @@ Returns:
         }
       },
       { 
-        "eid":"0018453d", 
+        "event_id":"0018453d", 
         "type":"sy.room.members.state",
-        "roomid":"commoners@randomhost.org",
+        "room_id":"commoners@randomhost.org",
         "from":"alice@randomhost.org",
         "userid":"bob@sy.org",
         "content":{
