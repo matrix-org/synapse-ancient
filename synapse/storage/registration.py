@@ -7,10 +7,13 @@ from synapse.api.errors import StoreError
 
 from ._base import SQLBaseStore
 
-import time
-
 
 class RegistrationStore(SQLBaseStore):
+
+    def __init__(self, hs):
+        super(RegistrationStore, self).__init__(hs)
+
+        self.clock = hs.get_clock()
 
     @defer.inlineCallbacks
     def register(self, user_id, token):
@@ -25,7 +28,7 @@ class RegistrationStore(SQLBaseStore):
         yield self._db_pool.runInteraction(self._register, user_id, token)
 
     def _register(self, txn, user_id, token):
-        now = int(time.time())
+        now = int(self.clock.time())
 
         try:
             txn.execute("INSERT INTO users(name, creation_ts) VALUES (?,?)",

@@ -5,18 +5,17 @@ from synapse.federation.pdu_codec import (
     PduCodec, encode_event_id, decode_event_id
 )
 from synapse.federation.units import Pdu
-from synapse.api.events.factory import EventFactory
 #from synapse.api.events.room import MessageEvent
+
+from synapse.server import HomeServer
 
 from mock import Mock
 
 
 class PduCodecTestCase(unittest.TestCase):
     def setUp(self):
-        self.event_factory = EventFactory()
-        self.hs = Mock(spec=["get_event_factory"])
-        self.hs.get_event_factory.return_value = self.event_factory
-        self.hs.hostname = "blargle.net"
+        self.hs = HomeServer("blargle.net")
+        self.event_factory = self.hs.get_event_factory()
 
         self.codec = PduCodec(self.hs)
 

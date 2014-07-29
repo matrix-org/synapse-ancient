@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 class MessageHandler(BaseHandler):
 
+    def __init__(self, hs):
+        super(MessageHandler, self).__init__(hs)
+
+        self.clock = hs.get_clock()
+
     @defer.inlineCallbacks
     def get_message(self, msg_id=None, room_id=None, sender_id=None,
                     user_id=None):
@@ -62,7 +67,7 @@ class MessageHandler(BaseHandler):
             SynapseError if something went wrong.
         """
         if stamp_event:
-            stamp(event)
+            event.content["hsob_ts"] = int(self.clock.time_msec())
 
         with (yield self.room_lock.lock(event.room_id)):
             if not suppress_auth:
@@ -115,7 +120,7 @@ class MessageHandler(BaseHandler):
         yield self.auth.check(event, raises=True)
 
         if stamp_event:
-            stamp(event)
+            event.content["hsob_ts"] = int(self.clock.time_msec())
 
         # store in db
         yield self.store.store_path_data(room_id=event.room_id,
@@ -189,7 +194,7 @@ class MessageHandler(BaseHandler):
     @defer.inlineCallbacks
     def send_feedback(self, event, stamp_event=True):
         if stamp_event:
-            stamp(event)
+            event.content["hsob_ts"] = int(self.clock.time_msec())
 
         with (yield self.room_lock.lock(event.room_id)):
             yield self.auth.check(event, raises=True)
@@ -267,6 +272,11 @@ class RoomCreationHandler(BaseHandler):
 
 
 class RoomMemberHandler(BaseHandler):
+
+    def __init__(self, hs):
+        super(RoomMemberHandler, self).__init__(hs)
+
+        self.clock = hs.get_clock()
 
     @defer.inlineCallbacks
     def get_rooms_with_state(self, user_id=None):
@@ -475,7 +485,7 @@ class RoomMemberHandler(BaseHandler):
             "msgtype": u"sy.text",
             "body": body
         }
-        msg_id = "m%s" % int(time.time() * 1000)
+        msg_id = "m%s" % int(self.clock.time_msec())
 
         event = self.event_factory.create_event(
                 etype=MessageEvent.TYPE,
@@ -487,7 +497,3 @@ class RoomMemberHandler(BaseHandler):
 
         handler = self.hs.get_handlers().message_handler
         yield handler.send_message(event, suppress_auth=True)
-
-
-def stamp(event):
-    event.content["hsob_ts"] = int(time.time() * 1000)

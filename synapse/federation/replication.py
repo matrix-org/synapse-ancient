@@ -13,7 +13,7 @@ from synapse.persistence.transactions import PduQueries
 from synapse.util.logutils import log_function
 
 import logging
-import time
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,7 @@ class ReplicationLayer(object):
         self._order = 0
 
         self._db_pool = hs.get_db_pool()
+        self._clock = hs.get_clock()
 
     def set_handler(self, handler):
         """Sets the handler that the replication layer will use to communicate
@@ -321,7 +322,7 @@ class ReplicationLayer(object):
         return Transaction(
             pdus=[p.get_dict() for p in pdu_list],
             origin=self.server_name,
-            ts=int(time.time() * 1000),
+            ts=int(self._clock.time_msec()),
             destination=None,
         )
 

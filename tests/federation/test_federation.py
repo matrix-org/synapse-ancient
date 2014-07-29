@@ -8,7 +8,7 @@ import logging
 
 from ..utils import MockHttpServer
 
-from synapse.server import BaseHomeServer
+from synapse.server import HomeServer
 from synapse.federation import initialize_http_replication
 from synapse.persistence.transactions import PduTuple, PduEntry
 
@@ -41,7 +41,7 @@ class FederationTestCase(unittest.TestCase):
             "get_current_state_for_context",
             "get_pdu",
         ])
-        hs = BaseHomeServer("test",
+        hs = HomeServer("test",
                 http_server=self.mock_http_server,
                 http_client=None,
                 db_pool=None,

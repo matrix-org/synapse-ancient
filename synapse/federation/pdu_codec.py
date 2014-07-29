@@ -25,6 +25,7 @@ class PduCodec(object):
     def __init__(self, hs):
         self.server_name = hs.hostname
         self.event_factory = hs.get_event_factory()
+        self.clock = hs.get_clock()
 
     def event_from_pdu(self, pdu):
         kwargs = {}
@@ -86,6 +87,6 @@ class PduCodec(object):
         })
 
         if "ts" not in kwargs:
-            kwargs["ts"] = int(time.time() * 1000)
+            kwargs["ts"] = int(self.clock.time_msec())
 
         return Pdu(**kwargs)

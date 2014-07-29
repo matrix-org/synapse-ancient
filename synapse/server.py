@@ -16,6 +16,7 @@ from synapse.rest.base import RestServletFactory
 from synapse.state import StateHandler
 from synapse.storage import DataStore
 from synapse.types import UserID
+from synapse.util import Clock
 from synapse.util.distributor import Distributor
 from synapse.util.lockutils import LockManager
 
@@ -40,6 +41,7 @@ class BaseHomeServer(object):
     """
 
     DEPENDENCIES = [
+            'clock',
             'http_server',
             'http_client',
             'db_pool',
@@ -118,6 +120,9 @@ class HomeServer(BaseHomeServer):
         http_client
         db_pool
     """
+
+    def build_clock(self):
+        return Clock()
 
     def build_persistence_service(self):
         return PersistenceService(self)
