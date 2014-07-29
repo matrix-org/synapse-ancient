@@ -135,3 +135,17 @@ class SQLBaseStoreTestCase(unittest.TestCase):
                     "colA = ? AND colB = ?",
                 [3, 4, 1, 2]
         )
+
+    @defer.inlineCallbacks
+    def test_delete_one(self):
+        self.mock_txn.rowcount = 1
+
+        yield self.datastore.interact_simple_delete_one(
+                table="tablename",
+                keyvalues={"keycol": "Go away"},
+        )
+
+        self.mock_txn.execute.assert_called_with(
+                "DELETE FROM tablename WHERE keycol = ?",
+                ["Go away"]
+        )

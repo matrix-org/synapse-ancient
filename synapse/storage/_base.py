@@ -123,7 +123,7 @@ class SQLBaseStore(object):
             defer.returnValue(None)
 
     def interact_simple_update_one(self, table, keyvalues, updatevalues):
-        """Exectes an UPDATE query on the named table, setting new values for
+        """Executes an UPDATE query on the named table, setting new values for
         columns in a row matching the key values.
 
         Args:
@@ -142,4 +142,24 @@ class SQLBaseStore(object):
                 raise StoreError(404, "No row found")
             if txn.rowcount > 1:
                 raise StoreError(500, "More than one row matched")
+        return self._db_pool.runInteraction(func)
+
+    def interact_simple_delete_one(self, table, keyvalues):
+        """Executes a DELETE query on the named table, expecting to delete a
+        single row.
+
+        Args:
+            table : string giving the table name
+            keyvalues : dict of column names and values to select the row with
+        """
+        sql = "DELETE FROM %s WHERE %s" % (
+                table,
+                " AND ".join(["%s = ?" % (k) for k in keyvalues]))
+
+        def func(txn):
+            txn.execute(sql, keyvalues.values())
+            if txn.rowcount == 0:
+                raise StoreError(404, "No row found")
+            if txn.rowcount > 1:
+                raise StoreError(500, "more than one row matched")
         return self._db_pool.runInteraction(func)
