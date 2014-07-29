@@ -92,6 +92,20 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         )
 
     @defer.inlineCallbacks
+    def test_select_one_missing(self):
+        self.mock_txn.rowcount = 0
+        self.mock_txn.fetchone.return_value = None
+
+        ret = yield self.datastore.interact_simple_select_one(
+                table="tablename",
+                keyvalues={"keycol": "Not here"},
+                retcols=["colA"],
+                allow_none=True
+        )
+
+        self.assertFalse(ret)
+
+    @defer.inlineCallbacks
     def test_update_one_1col(self):
         self.mock_txn.rowcount = 1
 

@@ -69,7 +69,8 @@ class SQLBaseStore(object):
             txn.execute(sql, values.values())
         self._db_pool.runInteraction(func)
 
-    def interact_simple_select_one(self, table, keyvalues, retcols):
+    def interact_simple_select_one(self, table, keyvalues, retcols,
+            allow_none=False):
         """Executes a SELECT query on the named table, which is expected to
         return a single row, returning a single column from it.
 
@@ -77,6 +78,9 @@ class SQLBaseStore(object):
             table : string giving the table name
             keyvalues : dict of column names and values to select the row with
             retcols : list of strings giving the names of the columns to return
+
+            allow_none : If true, return None instead of failing if the SELECT
+              statement returns no rows
         """
         sql = "SELECT %s FROM %s WHERE %s" % (
                 ", ".join(retcols),
@@ -88,6 +92,8 @@ class SQLBaseStore(object):
 
             row = txn.fetchone()
             if not row:
+                if allow_none:
+                    return None
                 raise StoreError(404, "No row found")
             if txn.rowcount > 1:
                 raise StoreError(500, "More than one row matched")
@@ -96,7 +102,8 @@ class SQLBaseStore(object):
         return self._db_pool.runInteraction(func)
 
     @defer.inlineCallbacks
-    def interact_simple_select_one_onecol(self, table, keyvalues, retcol):
+    def interact_simple_select_one_onecol(self, table, keyvalues, retcol,
+            allow_none=False):
         """Executes a SELECT query on the named table, which is expected to
         return a single row, returning a single column from it."
 
@@ -106,10 +113,14 @@ class SQLBaseStore(object):
             retcol : string giving the name of the column to return
         """
         ret = yield self.interact_simple_select_one(
-                table=table, keyvalues=keyvalues, retcols=[retcol]
+                table=table, keyvalues=keyvalues, retcols=[retcol],
+                allow_none=allow_none
         )
 
-        defer.returnValue(ret[retcol])
+        if ret:
+            defer.returnValue(ret[retcol])
+        else:
+            defer.returnValue(None)
 
     def interact_simple_update_one(self, table, keyvalues, updatevalues):
         """Exectes an UPDATE query on the named table, setting new values for
