@@ -63,6 +63,10 @@ class FeedbackEvent(SynapseEvent):
 class InviteJoinEvent(SynapseEvent):
     TYPE = "sy.room.invite_join"
 
+    valid_keys = SynapseEvent.valid_keys + [
+        "target_user_id"
+    ]
+
     def __init__(self, **kwargs):
         super(InviteJoinEvent, self).__init__(**kwargs)
 
