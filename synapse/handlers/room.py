@@ -49,7 +49,7 @@ class MessageHandler(BaseHandler):
         defer.returnValue(None)
 
     @defer.inlineCallbacks
-    def send_message(self, event=None, suppress_auth=False):
+    def send_message(self, event=None, suppress_auth=False, stamp_event=True):
         """ Send a message.
 
         Args:
@@ -57,9 +57,13 @@ class MessageHandler(BaseHandler):
             suppress_auth (bool) : True to suppress auth for this message. This
             is primarily so the home server can inject messages into rooms at
             will.
+            stamp_event (bool) : True to stamp event content with server keys.
         Raises:
             SynapseError if something went wrong.
         """
+        if stamp_event:
+            stamp(event)
+
         with (yield self.room_lock.lock(event.room_id)):
             if not suppress_auth:
                 yield self.auth.check(event, raises=True)
@@ -98,16 +102,20 @@ class MessageHandler(BaseHandler):
         defer.returnValue(data_chunk)
 
     @defer.inlineCallbacks
-    def store_room_path_data(self, event=None, path=None):
+    def store_room_path_data(self, event=None, path=None, stamp_event=True):
         """ Stores data for a room under a given path.
 
         Args:
             event : The room path event
             path : The path which can be used to retrieve the data.
+            stamp_event (bool) : True to stamp event content with server keys.
         Raises:
             SynapseError if something went wrong.
         """
         yield self.auth.check(event, raises=True)
+
+        if stamp_event:
+            stamp(event)
 
         # store in db
         yield self.store.store_path_data(room_id=event.room_id,
@@ -179,7 +187,10 @@ class MessageHandler(BaseHandler):
         defer.returnValue(None)
 
     @defer.inlineCallbacks
-    def send_feedback(self, event):
+    def send_feedback(self, event, stamp_event=True):
+        if stamp_event:
+            stamp(event)
+
         with (yield self.room_lock.lock(event.room_id)):
             yield self.auth.check(event, raises=True)
 
@@ -278,8 +289,8 @@ class RoomMemberHandler(BaseHandler):
         member_list = yield self.store.get_room_members(room_id=room_id)
         event_list = self.store.to_events(member_list)
         chunk_data = {
-            "start": "NOT_IMPLEMENTED",
-            "end": "NOT_IMPLEMENTED",
+            "start": "START",
+            "end": "END",
             "chunk": event_list
         }
         # TODO honor Pagination stream params
@@ -464,3 +475,7 @@ class RoomMemberHandler(BaseHandler):
 
         handler = self.hs.get_handlers().message_handler
         yield handler.send_message(event, suppress_auth=True)
+
+
+def stamp(event):
+    event.content["hsob_ts"] = int(time.time() * 1000)
