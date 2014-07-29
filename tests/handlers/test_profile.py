@@ -4,9 +4,13 @@ from twisted.trial import unittest
 from twisted.internet import defer
 
 from mock import Mock
+import logging
 
 from synapse.api.errors import AuthError
 from synapse.server import HomeServer
+
+
+logging.getLogger().addHandler(logging.NullHandler())
 
 
 class ProfileTestCase(unittest.TestCase):
@@ -38,7 +42,7 @@ class ProfileTestCase(unittest.TestCase):
                 self.frank)
 
         self.assertEquals("Frank", displayname)
-        self.assertEquals(mocked_get.call_args[0][0], "1234ABCD")
+        mocked_get.assert_called_with("1234ABCD")
 
     @defer.inlineCallbacks
     def test_set_my_name(self):
@@ -48,8 +52,7 @@ class ProfileTestCase(unittest.TestCase):
         yield self.handlers.profile_handler.set_displayname(
                 self.frank, self.frank, "Frank Jr.")
 
-        self.assertEquals(mocked_set.call_args[0][0], "1234ABCD")
-        self.assertEquals(mocked_set.call_args[0][1], "Frank Jr.")
+        mocked_set.assert_called_with("1234ABCD", "Frank Jr.")
 
     @defer.inlineCallbacks
     def test_set_my_name_noauth(self):
