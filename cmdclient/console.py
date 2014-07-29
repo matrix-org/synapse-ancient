@@ -223,7 +223,7 @@ class SynapseCmd(cmd.Cmd):
             print "Unrecognised type: %s" % args["type"]
             return
         room_id = args["roomid"]
-        path = "/rooms/%s/%s/list" % (room_id, args["type"])
+        path = "/rooms/%s/%s/list" % (urllib.quote(room_id), args["type"])
 
         qp = {"access_token": self._tok()}
         if "qp" in args:
