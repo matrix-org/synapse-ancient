@@ -200,9 +200,9 @@ class MessageHandler(BaseHandler):
             event.destinations = yield self.store.get_joined_hosts_for_room(
                 event.room_id
             )
-            yield self.hs.get_federation().handle_new_event(event)
+        yield self.hs.get_federation().handle_new_event(event)
 
-            self.notifier.on_new_event(event, store_id)
+        self.notifier.on_new_event(event, store_id)
 
 
 class RoomCreationHandler(BaseHandler):
