@@ -296,8 +296,10 @@ class RoomMemberHandler(BaseHandler):
             SynapseError if there was a problem changing the membership.
         """
 
+        #broadcast_msg = False
+
         @defer.inlineCallbacks
-        def _do_update():
+        def _do_membership_update():
             # store membership
             store_id = yield self.store.store_room_member(
                 user_id=event.target_user_id,
@@ -307,25 +309,33 @@ class RoomMemberHandler(BaseHandler):
                 membership=event.content["membership"]
             )
 
-            event.destinations = yield self.store.get_joined_hosts_for_room(
+            # Send a PDU to all hosts who have joined the room.
+            destinations = yield self.store.get_joined_hosts_for_room(
                 event.room_id
             )
 
+            # If we're inviting someone, then we should also send it to that
+            # HS.
             if event.content["membership"] == Membership.INVITE:
                 host = UserID.from_string(
                     event.target_user_id, self.hs
                 ).domain
-                event.destinations.append(host)
+                destinations.append(host)
 
-            host = UserID.from_string(
-                event.user_id, self.hs
-            ).domain
-            event.destinations.append(host)
+            # If we are joining a remote HS, include that.
+            if event.content["membership"] == Membership.JOIN:
+                host = UserID.from_string(
+                    event.target_user_id, self.hs
+                ).domain
+                destinations.append(host)
 
-            yield self.hs.get_federation().handle_new_event(event)
+            event.destinations = list(set(destinations))
 
             defer.returnValue(store_id)
 
+        # If we're trying to join a room then we have to do this differently
+        # if this HS is not currently in the room, i.e. we have to do the
+        # invite/join dance.
         if event.membership == Membership.JOIN:
             with (yield self.room_lock.lock(event.room_id)):
                 if do_auth:
@@ -335,6 +345,9 @@ class RoomMemberHandler(BaseHandler):
                     event.target_user_id, event.room_id
                 )
 
+                # Only do an invite join dance if a) we were invited,
+                # b) the person inviting was from a differnt HS and c) we are
+                # not currently in the room
                 if prev_state and prev_state.membership == Membership.INVITE:
                     room = yield self.store.get_room(event.room_id)
                     inviter = UserID.from_string(
@@ -345,14 +358,18 @@ class RoomMemberHandler(BaseHandler):
                 else:
                     is_remote_invite_join = False
 
+                # We want to do the _do_update inside the room lock.
                 if not is_remote_invite_join:
                     logger.debug("Doing normal join")
                     yield self.state_handler.handle_new_event(event)
-                    store_id = yield _do_update()
-                    yield self.hs.get_federation().handle_new_event(event)
-                    self.notifier.on_new_event(event, store_id)
+                    store_id = yield _do_membership_update()
 
-            if is_remote_invite_join:
+            # We don't want to send out the event notifs inside the room lock.
+            if not is_remote_invite_join:
+                yield self.hs.get_federation().handle_new_event(event)
+                self.notifier.on_new_event(event, store_id)
+
+            else:
                 logger.debug("Doing remote join dance")
 
                 yield self.store.store_room(
@@ -378,13 +395,12 @@ class RoomMemberHandler(BaseHandler):
                 )
 
         else:
+            # This is not a JOIN, so we can handle it normally.
             with (yield self.room_lock.lock(event.room_id)):
                 if do_auth:
                     yield self.auth.check(event, raises=True)
 
-                yield self.state_handler.handle_new_event(event)
-
-                store_id = yield _do_update()
+                store_id = yield _do_membership_update()
 
             yield self.hs.get_federation().handle_new_event(event)
             self.notifier.on_new_event(event, store_id)

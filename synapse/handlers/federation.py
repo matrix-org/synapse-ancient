@@ -23,6 +23,9 @@ class FederationHandler(BaseHandler):
     @defer.inlineCallbacks
     def on_receive(self, event, is_new_state):
         if event.type == InviteJoinEvent.TYPE:
+            # If we receive an invite/join event then we need to join the
+            # sender to the given room.
+            # TODO: We should probably auth this or some such
             content = {"membership": Membership.JOIN}
             new_event = self.event_factory.create_event(
                 etype=RoomMemberEvent.TYPE,
@@ -32,13 +35,14 @@ class FederationHandler(BaseHandler):
                 membership=Membership.JOIN,
                 content=content
             )
+
             yield self.hs.get_handlers().room_member_handler.change_membership(
                 new_event,
                 True
             )
-            return
 
-        with (yield self.room_lock.lock(event.room_id)):
-            store_id = yield self.store.persist_event(event)
+        else:
+            with (yield self.room_lock.lock(event.room_id)):
+                store_id = yield self.store.persist_event(event)
 
-        yield self.notifier.on_new_event(event, store_id)
+            yield self.notifier.on_new_event(event, store_id)
