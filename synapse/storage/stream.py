@@ -55,7 +55,8 @@ class StreamStore(SQLBaseStore):
             query_args.append(room_id)
 
         (query, query_args) = self._append_stream_operations("messages",
-                                query, query_args, from_pkey, to_pkey, limit)
+                                query, query_args, from_pkey, to_pkey)
+        (query, query_args) = self._append_limit(query, query_args, limit)
 
         logger.debug("[SQL] %s : %s" % (query, query_args))
         cursor = txn.execute(query, query_args)
@@ -82,8 +83,13 @@ class StreamStore(SQLBaseStore):
         where = (" WHERE ? IN " + current_membership_sub_query + " AND " +
         "messages.room_id=?")
 
-        query = select_query + where + " GROUP BY messages.id"
+        query = select_query + where
         query_args = ["join", user_id, room_id]
+
+        (query, query_args) = self._append_stream_operations("messages",
+                                query, query_args, from_pkey, to_pkey)
+        query += " GROUP BY messages.id"
+        (query, query_args) = self._append_limit(query, query_args, limit)
 
         logger.debug("[SQL] %s : %s" % (query, query_args))
         cursor = txn.execute(query, query_args)
@@ -168,14 +174,15 @@ class StreamStore(SQLBaseStore):
             query_args.append(room_id)
 
         (query, query_args) = self._append_stream_operations("feedback",
-                                query, query_args, from_pkey, to_pkey, limit)
+                                query, query_args, from_pkey, to_pkey)
+        (query, query_args) = self._append_limit(query, query_args, limit)
 
         logger.debug("[SQL] %s : %s" % (query, query_args))
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, FeedbackTable, from_pkey)
 
     def _append_stream_operations(self, table_name, query, query_args,
-                                  from_pkey, to_pkey, limit):
+                                  from_pkey, to_pkey):
         LATEST_ROW = -1
         # e.g. if from==to (from=5 to=5 or from=-1 to=-1) then return nothing.
         if from_pkey == to_pkey:
@@ -203,10 +210,12 @@ class StreamStore(SQLBaseStore):
                 query += " AND %s.id > ?" % table_name
                 query_args.append(from_pkey)
 
+        return (query, query_args)
+
+    def _append_limit(self, query, query_args, limit):
         if limit and limit > 0:
             query += " LIMIT ?"
             query_args.append(str(limit))
-
         return (query, query_args)
 
     def _as_events(self, cursor, table, from_pkey):
