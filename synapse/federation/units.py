@@ -13,7 +13,6 @@ from synapse.persistence.tables import ReceivedTransactionsTable
 import copy
 import logging
 import json
-import time
 
 
 logger = logging.getLogger(__name__)
@@ -151,9 +150,6 @@ class Pdu(JsonEncodedObject):
         "content",
     ]
 
-    # HACK to get unique tx id
-    _next_pdu_id = int(time.time() * 1000)
-
     # TODO: We need to make this properly load content rather than
     # just leaving it as a dict. (OR DO WE?!)
 
@@ -171,23 +167,6 @@ class Pdu(JsonEncodedObject):
             outlier=outlier,
             **kwargs
         )
-
-    @staticmethod
-    def create_new(**kwargs):
-        """ Used to create a new pdu. Will auto fill out the required `pdu_id`
-        and `ts` keys.
-
-        Returns:
-            Pdu
-        """
-        if "ts" not in kwargs:
-            kwargs["ts"] = int(time.time() * 1000)
-
-        if "pdu_id" not in kwargs:
-            kwargs["pdu_id"] = Pdu._next_pdu_id
-            Pdu._next_pdu_id += 1
-
-        return Pdu(**kwargs)
 
     @classmethod
     def from_pdu_tuple(cls, pdu_tuple):
@@ -262,9 +241,6 @@ class Transaction(JsonEncodedObject):
         "pdus",
     ]
 
-    # HACK to get unique tx id
-    _next_transaction_id = int(time.time() * 1000)
-
     def __init__(self, transaction_id=None, pdus=[], **kwargs):
         """ If we include a list of pdus then we decode then as PDU's
         automatically.
@@ -282,10 +258,9 @@ class Transaction(JsonEncodedObject):
         transaction_id and ts keys.
         """
         if "ts" not in kwargs:
-            kwargs["ts"] = int(time.time() * 1000)
+            raise KeyError("Require 'ts' to construct a Transaction")
         if "transaction_id" not in kwargs:
-            kwargs["transaction_id"] = Transaction._next_transaction_id
-            Transaction._next_transaction_id += 1
+            raise KeyError("Require 'transaction_id' to construct a Transaction")
 
         for p in pdus:
             p.transaction_id = kwargs["transaction_id"]

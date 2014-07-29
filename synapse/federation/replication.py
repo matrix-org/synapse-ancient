@@ -48,9 +48,7 @@ class ReplicationLayer(object):
         self.transaction_actions = TransactionActions(self.persistence_service)
 
         self._transaction_queue = _TransactionQueue(
-            self.server_name,
-            self.transaction_actions,
-            transport_layer
+            hs, self.transaction_actions, transport_layer
         )
 
         self.handler = None
@@ -388,9 +386,9 @@ class _TransactionQueue(object):
     It batches pending PDUs into single transactions.
     """
 
-    def __init__(self, server_name, transaction_actions, transport_layer):
+    def __init__(self, hs, transaction_actions, transport_layer):
 
-        self.server_name = server_name
+        self.server_name = hs.hostname
         self.transaction_actions = transaction_actions
         self.transport_layer = transport_layer
 
@@ -402,6 +400,9 @@ class _TransactionQueue(object):
         # Is a mapping from destination -> list of
         # tuple(pending pdus, deferred, order)
         self.pending_pdus_list = {}
+
+        # HACK to get unique tx id
+        self._next_transaction_id = int(hs.get_clock().time_msec())
 
     @defer.inlineCallbacks
     @log_function
@@ -455,10 +456,14 @@ class _TransactionQueue(object):
             pdus = [p[0] for p in tuple_list]
 
             transaction = Transaction.create_new(
+                ts=self._clock.time_msec(),
+                transaction_id = self._next_txn_id,
                 origin=self.server_name,
                 destination=destination,
                 pdus=pdus,
             )
+
+            self._next_txn_id += 1
 
             yield self.transaction_actions.prepare_to_send(transaction)
 
