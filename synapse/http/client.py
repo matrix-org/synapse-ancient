@@ -123,9 +123,6 @@ class TwistedHttpClient(HttpClient):
             destination = _destination_mappings[destination]
 
         if args:
-            # generates a list of strings of form "k=v".
-            # First we generate a list of lists, and then flatten it using
-            # the "fun" list comprehension syntax.
             qs = urllib.urlencode(args, True)
             path = "%s?%s" % (path, qs)
 
