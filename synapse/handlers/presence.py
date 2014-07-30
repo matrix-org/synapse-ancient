@@ -6,6 +6,11 @@ from synapse.api.constants import PresenceState
 
 from ._base import BaseHandler
 
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 # TODO(paul): Maybe there's one of these I can steal from somewhere
 def partition(l, func):
@@ -95,6 +100,9 @@ class PresenceHandler(BaseHandler):
         # TODO(paul): Sanity-check 'state'. Needs 'status' of suitable value
         # and optional status_msg.
 
+        logger.debug("Updating presence state of %s to %s",
+                target_user.localpart, state["state"])
+
         oldstate = yield self.store.set_presence_state(target_user.localpart,
                 state
         )
@@ -154,16 +162,20 @@ class PresenceHandler(BaseHandler):
         self.start_polling_presence(observer_user, target_user=observed_user)
 
     def start_polling_presence(self, user, target_user=None):
+        logger.debug("Start polling for presence from %s", user)
         # TODO(paul)
         pass
 
     def stop_polling_presence(self, user, target_user=None):
+        logger.debug("Stop polling for presence from %s", user)
         # TODO(paul)
         pass
 
     @defer.inlineCallbacks
     def push_presence(self, user, state=None):
         assert(user.is_mine)
+
+        logger.debug("Pusing presence update from %s", user)
 
         if user.localpart not in self._user_pushmap:
             defer.returnValue(None)
@@ -204,6 +216,8 @@ class PresenceHandler(BaseHandler):
 
         for push in pushes:
             user = self.hs.parse_userid(push["user_id"])
+
+            logger.debug("Incoming presence update from %s", user)
 
             if user not in self._remote_recvmap:
                 break
