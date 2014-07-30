@@ -455,7 +455,7 @@ class RoomMemberHandler(BaseHandler):
                 logger.debug("Doing remote join dance")
 
                 yield self.store.store_room(
-                    event.room_id, str(inviter), is_public=False
+                    event.room_id, inviter.to_string(), is_public=False
                 )
 
                 # do invite join dance

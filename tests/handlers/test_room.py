@@ -217,3 +217,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
 
         self.assertFalse(self.notifier.on_new_event.called)
         self.assertFalse(self.state_handler.handle_new_event.called)
+
+        self.datastore.store_room.assert_called_once_with(
+            room_id, prev_state.sender, is_public=False
+        )
