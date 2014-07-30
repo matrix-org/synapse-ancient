@@ -82,24 +82,8 @@ class SQLBaseStore(object):
             allow_none : If true, return None instead of failing if the SELECT
               statement returns no rows
         """
-        sql = "SELECT %s FROM %s WHERE %s" % (
-                ", ".join(retcols),
-                table,
-                " AND ".join(["%s = ?" % (k) for k in keyvalues]))
-
-        def func(txn):
-            txn.execute(sql, keyvalues.values())
-
-            row = txn.fetchone()
-            if not row:
-                if allow_none:
-                    return None
-                raise StoreError(404, "No row found")
-            if txn.rowcount > 1:
-                raise StoreError(500, "More than one row matched")
-
-            return dict(zip(retcols,row))
-        return self._db_pool.runInteraction(func)
+        return self._simple_selectupdate_one(table, keyvalues,
+                retcols=retcols, allow_none=allow_none)
 
     @defer.inlineCallbacks
     def interact_simple_select_one_onecol(self, table, keyvalues, retcol,
@@ -122,7 +106,8 @@ class SQLBaseStore(object):
         else:
             defer.returnValue(None)
 
-    def interact_simple_update_one(self, table, keyvalues, updatevalues):
+    def interact_simple_update_one(self, table, keyvalues, updatevalues,
+            retcols=None):
         """Executes an UPDATE query on the named table, setting new values for
         columns in a row matching the key values.
 
@@ -130,18 +115,59 @@ class SQLBaseStore(object):
             table : string giving the table name
             keyvalues : dict of column names and values to select the row with
             updatevalues : dict giving column names and values to update
+            retcols : optional list of column names to return
+
+        If present, retcols gives a list of column names on which to perform
+        a SELECT statement *before* performing the UPDATE statement. The values
+        of these will be returned in a dict.
+
+        These are performed within the same transaction, allowing an atomic
+        get-and-set.  This can be used to implement compare-and-set by putting
+        the update column in the 'keyvalues' dict as well.
         """
-        sql = "UPDATE %s SET %s WHERE %s" % (
-                table,
-                ", ".join(["%s = ?" % (k) for k in updatevalues]),
-                " AND ".join(["%s = ?" % (k) for k in keyvalues]))
+        return self._simple_selectupdate_one(table, keyvalues, updatevalues,
+                retcols=retcols)
+
+    def _simple_selectupdate_one(self, table, keyvalues,
+            updatevalues=None, retcols=None, allow_none=False):
+        """ Combined SELECT then UPDATE."""
+        if retcols:
+            select_sql = "SELECT %s FROM %s WHERE %s" % (
+                    ", ".join(retcols),
+                    table,
+                    " AND ".join(["%s = ?" % (k) for k in keyvalues]))
+
+        if updatevalues:
+            update_sql = "UPDATE %s SET %s WHERE %s" % (
+                    table,
+                    ", ".join(["%s = ?" % (k) for k in updatevalues]),
+                    " AND ".join(["%s = ?" % (k) for k in keyvalues]))
 
         def func(txn):
-            txn.execute(sql, updatevalues.values() + keyvalues.values())
-            if txn.rowcount == 0:
-                raise StoreError(404, "No row found")
-            if txn.rowcount > 1:
-                raise StoreError(500, "More than one row matched")
+            ret = None
+            if retcols:
+                txn.execute(select_sql, keyvalues.values())
+
+                row = txn.fetchone()
+                if not row:
+                    if allow_none:
+                        return None
+                    raise StoreError(404, "No row found")
+                if txn.rowcount > 1:
+                    raise StoreError(500, "More than one row matched")
+
+                ret = dict(zip(retcols, row))
+
+            if updatevalues:
+                txn.execute(update_sql,
+                        updatevalues.values() + keyvalues.values())
+
+                if txn.rowcount == 0:
+                    raise StoreError(404, "No row found")
+                if txn.rowcount > 1:
+                    raise StoreError(500, "More than one row matched")
+
+            return ret
         return self._db_pool.runInteraction(func)
 
     def interact_simple_delete_one(self, table, keyvalues):

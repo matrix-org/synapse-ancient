@@ -3,7 +3,7 @@
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from mock import Mock
+from mock import Mock, call
 
 from collections import OrderedDict
 
@@ -135,6 +135,26 @@ class SQLBaseStoreTestCase(unittest.TestCase):
                     "colA = ? AND colB = ?",
                 [3, 4, 1, 2]
         )
+
+    @defer.inlineCallbacks
+    def test_update_one_with_return(self):
+        self.mock_txn.rowcount = 1
+        self.mock_txn.fetchone.return_value = ("Old Value",)
+
+        ret = yield self.datastore.interact_simple_update_one(
+                table="tablename",
+                keyvalues={"keycol": "TheKey"},
+                updatevalues={"columname": "New Value"},
+                retcols=["columname"]
+        )
+
+        self.assertEquals({"columname": "Old Value"}, ret)
+        self.mock_txn.execute.assert_has_calls([
+                call('SELECT columname FROM tablename WHERE keycol = ?',
+                    ['TheKey']),
+                call("UPDATE tablename SET columname = ? WHERE keycol = ?",
+                    ["New Value", "TheKey"])
+        ])
 
     @defer.inlineCallbacks
     def test_delete_one(self):
