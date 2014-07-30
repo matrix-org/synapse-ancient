@@ -159,9 +159,9 @@ def respond_with_json_bytes(request, code, json_bytes, send_cors=False):
     if send_cors:
         request.setHeader("Access-Control-Allow-Origin", "*")
         request.setHeader("Access-Control-Allow-Methods",
-            "GET, POST, PUT, DELETE, OPTIONS")
+                          "GET, POST, PUT, DELETE, OPTIONS")
         request.setHeader("Access-Control-Allow-Headers",
-            "Origin, X-Requested-With, Content-Type, Accept")
+                          "Origin, X-Requested-With, Content-Type, Accept")
 
     request.write(json_bytes)
     request.finish()

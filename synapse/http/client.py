@@ -6,6 +6,7 @@ from twisted.names.srvconnect import SRVConnector
 from twisted.web.client import _AgentBase, _URI, readBody
 from twisted.web.http_headers import Headers
 
+from synapse.http.endpoint import matrix_endpoint
 from synapse.util.async import sleep
 
 import json
@@ -66,73 +67,17 @@ class HttpClient(object):
         pass
 
 
-class MatrixInsecureEndpoint(object):
-
-    def __init__(self, reactor, host, port, timeout=None):
-        self.reactor = reactor
-        self.host = host
-        self.timeout = timeout
-
-    def connect(self, protocolFactory):
-        return SRVConnector(
-            reactor, "matrix", self.host, protocolFactory,
-            protocol="tcp", connectFuncName="connectTCP", defaultPort=80,
-            connectFuncKwArgs=dict(timeout=self.timeout)
-        ).connect()
-
-
-class MatrixSecureEndpoint(object):
-
-    def __init__(self, host, port, ssl_context_factory, timeout=None):
-        self.host = host
-        self.ssl_context_factory = ssl_context_factory
-        self.timeout = timeout
-
-    def connect(self, protocolFactory):
-        return SRVConnector(
-            reactor, "matrix", self.server_name, protocolFactory,
-            protocol="tcp", connectFuncName="connectSSL", defaultPort=443,
-            connectFuncKwArgs=dict(
-                contextFactory=self.ssl_context_factory,
-                timeout=self.timeout
-            )
-        ).connect()
-
-
 class MatrixHttpAgent(_AgentBase):
 
     def __init__(self, reactor, pool=None):
         _AgentBase.__init__(self, reactor, pool)
 
-    def _get_endpoint(self, host, port=None, ssl_context_factory=None,
-                      timeout=None):
-        if port is None:
-            secure_endpoint = MatrixSecureEndpoint
-            insecure_endpoint = MatrixInsecureEndpoint
-        else:
-            secure_endpoint = SSL4ClientEndpoint
-            insecure_endpoint = TCP4ClientEndpoint
-
-        if ssl_context_factory is not None:
-            return secure_endpoint(self._reactor, host, port,
-                                   ssl_context_factory, timeout=timeout)
-        else:
-            return insecure_endpoint(self._reactor, host, port, timeout=timeout)
-
-    def request(self, method, uri_bytes, headers, body_producer):
+    def request(self, endpoint, method, uri_bytes, headers, body_producer):
         parsed_URI = _URI.fromBytes(uri_bytes)
 
         server_name = parsed_URI.netloc
 
-        host_port = server_name.split(":")
-        host = host_port[0]
-        port = int(host_port[1]) if host_port[1:] else None
-
-        logging.debug("Sending request to %s:%s", host, port)
-
-        # TODO: setup and pass in an ssl_context to enable TLS
-        endpoint = self._get_endpoint(host, port, ssl_context_factory=None,
-                                      timeout=10)
+        logging.debug("Sending request to %s", server_name)
 
         key = server_name
 
@@ -158,6 +103,7 @@ class TwistedHttpClient(HttpClient):
             destination = _destination_mappings[destination]
 
         response = yield self._create_put_request(
+            destination,
             "http://%s%s" % (destination, path),
             data,
             headers_dict={"Content-Type": ["application/json"]}
@@ -182,6 +128,7 @@ class TwistedHttpClient(HttpClient):
             path = "%s?%s" % (path, qs)
 
         response = yield self._create_get_request(
+            destination,
             "http://%s%s" % (destination, path)
         )
 
@@ -189,7 +136,8 @@ class TwistedHttpClient(HttpClient):
 
         defer.returnValue(json.loads(body))
 
-    def _create_put_request(self, url, json_data, headers_dict={}):
+    def _create_put_request(self, destination, url, json_data,
+                            headers_dict={}):
         """ Wrapper of _create_request to issue a PUT request
         """
 
@@ -198,23 +146,26 @@ class TwistedHttpClient(HttpClient):
                 RuntimeError("Must include Content-Type header for PUTs"))
 
         return self._create_request(
+            destination,
             "PUT",
             url,
             producer=_JsonProducer(json_data),
             headers_dict=headers_dict
         )
 
-    def _create_get_request(self, url, headers_dict={}):
+    def _create_get_request(self, destination, url, headers_dict={}):
         """ Wrapper of _create_request to issue a GET request
         """
         return self._create_request(
+            destination,
             "GET",
             url,
             headers_dict=headers_dict
         )
 
     @defer.inlineCallbacks
-    def _create_request(self, method, url, producer=None, headers_dict={}):
+    def _create_request(self, destination, method, url, producer=None,
+                        headers_dict={}):
         """ Creates and sends a request to the given url
         """
         headers_dict["User-Agent"] = ["Synapse"]
@@ -223,9 +174,13 @@ class TwistedHttpClient(HttpClient):
 
         retries_left = 5
 
+        # TODO: setup and pass in an ssl_context to enable TLS
+        endpoint = matrix_endpoint(reactor, destination, timeout=10)
+
         while True:
             try:
                 response = yield self.agent.request(
+                    endpoint,
                     method,
                     url.encode("UTF8"),
                     Headers(headers_dict),
