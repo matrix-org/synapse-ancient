@@ -106,6 +106,25 @@ class SQLBaseStore(object):
         else:
             defer.returnValue(None)
 
+    def _simple_select_list(self, table, keyvalues, retcols):
+        """Executes a SELECT query on the named table, which may return zero or
+        more rows, returning the result as a list of dicts.
+
+        Args:
+            table : string giving the table name
+            keyvalues : dict of column names and values to select the rows with
+            retcols : list of strings giving the names of the columns to return
+        """
+        sql = "SELECT %s FROM %s WHERE %s" % (
+                ", ".join(retcols),
+                table,
+                " AND ".join(["%s = ?" % (k) for k in keyvalues]))
+        def func(txn):
+            txn.execute(sql, keyvalues.values())
+
+            return self.cursor_to_dict(txn)
+        return self._db_pool.runInteraction(func)
+
     def _simple_update_one(self, table, keyvalues, updatevalues,
             retcols=None):
         """Executes an UPDATE query on the named table, setting new values for

@@ -106,6 +106,26 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.assertFalse(ret)
 
     @defer.inlineCallbacks
+    def test_select_list(self):
+        self.mock_txn.rowcount = 3;
+        self.mock_txn.fetchall.return_value = ((1,), (2,), (3,))
+        self.mock_txn.description = (
+                ("colA", None, None, None, None, None, None),
+        )
+
+        ret = yield self.datastore._simple_select_list(
+                table="tablename",
+                keyvalues={"keycol": "A set"},
+                retcols=["colA"],
+        )
+
+        self.assertEquals([{"colA": 1}, {"colA": 2}, {"colA": 3}], ret)
+        self.mock_txn.execute.assert_called_with(
+                "SELECT colA FROM tablename WHERE keycol = ?",
+                ["A set"]
+        )
+
+    @defer.inlineCallbacks
     def test_update_one_1col(self):
         self.mock_txn.rowcount = 1
 
