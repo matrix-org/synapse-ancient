@@ -24,13 +24,16 @@ class FederationTestCase(unittest.TestCase):
         hs = HomeServer(
             self.hostname,
             db_pool=None,
-            datastore=NonCallableMock(spec=[
+            datastore=NonCallableMock(spec_set=[
                 "persist_event",
             ]),
             http_server=NonCallableMock(),
-            http_client=NonCallableMock(),
-            notifier=NonCallableMock(spec=["on_new_event"]),
-            handlers=NonCallableMock(),
+            http_client=NonCallableMock(spec_set=[]),
+            notifier=NonCallableMock(spec_set=["on_new_event"]),
+            handlers=NonCallableMock(spec_set=[
+                "room_member_handler",
+                "federation_handler",
+            ]),
         )
 
         self.datastore = hs.get_datastore()
