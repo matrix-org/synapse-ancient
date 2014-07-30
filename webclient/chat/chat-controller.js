@@ -1,7 +1,8 @@
 angular.module('ChatController', [])
-.controller('ChatController', ['$scope', '$log', '$q', '$http', '$timeout', 'state',
-                               function($scope, $log, $q, $http, $timeout, state) {
+.controller('ChatController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams', 'state',
+                               function($scope, $log, $q, $http, $timeout, $routeParams, state) {
    'use strict';
+    $scope.room_id = $routeParams.room_id;
     $scope.state = state.state;
     $scope.messages = [];
     $scope.state.events_from = "START";
@@ -20,7 +21,7 @@ angular.module('ChatController', [])
 
                 for (var i = 0; i < response.data.chunk.length; i++) {
                     var chunk = response.data.chunk[i];
-                    if (chunk.room_id == $scope.state.room && chunk.type == "sy.room.message") {
+                    if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
                         $scope.messages.push(chunk);
                     }
                 }
@@ -37,7 +38,7 @@ angular.module('ChatController', [])
             return;
         }
         var msg_id = "m" + new Date().getTime();
-        $http.put($scope.state.server + "/rooms/" + $scope.state.room + "/messages/" + $scope.state.user_id + "/" + msg_id, {
+        $http.put($scope.state.server + "/rooms/" + $scope.room_id + "/messages/" + $scope.state.user_id + "/" + msg_id, {
                 "body": $scope.textInput,
                 "msgtype": "sy.text",
             }, {
@@ -57,7 +58,7 @@ angular.module('ChatController', [])
     $scope.onInit = function() {
         $timeout(function() { document.getElementById('textInput').focus() }, 0);
 
-        $http.put($scope.state.server + "/rooms/" + $scope.state.room + "/members/" + $scope.state.user_id + "/state", {
+        $http.put($scope.state.server + "/rooms/" + $scope.room_id + "/members/" + $scope.state.user_id + "/state", {
                 "membership": "join"
             }, {
                 "params" : {

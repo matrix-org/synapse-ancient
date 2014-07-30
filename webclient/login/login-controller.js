@@ -23,8 +23,7 @@ angular.module('LoginController', [])
                 $scope.state.server = $scope.account.server;
                 $scope.state.access_token = data.access_token;
                 $scope.state.user_id = data.user_id;
-                $scope.state.room = $scope.room;
-                $location.path("chat");
+                $location.path("chat/" + $scope.room);
             }).
             error(function(data, status, headers, config) {
                 $scope.feedback = "Failure: " + data;

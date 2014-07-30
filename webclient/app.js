@@ -11,7 +11,7 @@ synapseClient.config(['$routeProvider',
                 templateUrl: 'login/login.html',
                 controller: 'LoginController'
             }).
-            when('/chat', {
+            when('/chat/:room_id', {
                 templateUrl: 'chat/chat.html',
                 controller: 'ChatController'
             }).
