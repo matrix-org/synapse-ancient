@@ -404,7 +404,7 @@ class _TransactionQueue(object):
         self.pending_pdus_list = {}
 
         # HACK to get unique tx id
-        self._next_transaction_id = int(self._clock.time_msec())
+        self._next_txn_id = int(self._clock.time_msec())
 
     @defer.inlineCallbacks
     @log_function
