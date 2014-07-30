@@ -10,7 +10,7 @@ from synapse.api.constants import Membership
 from synapse.handlers.federation import FederationHandler
 from synapse.server import HomeServer
 
-from mock import Mock
+from mock import NonCallableMock
 
 import logging
 
@@ -24,13 +24,13 @@ class FederationTestCase(unittest.TestCase):
         hs = HomeServer(
             self.hostname,
             db_pool=None,
-            datastore=Mock(spec=[
+            datastore=NonCallableMock(spec=[
                 "persist_event",
             ]),
-            http_server=Mock(),
-            http_client=Mock(),
-            notifier=Mock(spec=["on_new_event"]),
-            handlers=Mock(),
+            http_server=NonCallableMock(),
+            http_client=NonCallableMock(),
+            notifier=NonCallableMock(spec=["on_new_event"]),
+            handlers=NonCallableMock(),
         )
 
         self.datastore = hs.get_datastore()
