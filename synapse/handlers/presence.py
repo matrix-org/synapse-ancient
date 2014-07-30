@@ -2,6 +2,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import SynapseError, AuthError
+from synapse.api.constants import PresenceState
 
 from ._base import BaseHandler
 
@@ -64,11 +65,17 @@ class PresenceHandler(BaseHandler):
         # TODO(paul): Sanity-check 'state'. Needs 'status' of suitable value
         # and optional status_msg.
 
-        yield self.store.set_presence_state(target_user.localpart, state)
+        oldstate = yield self.store.set_presence_state(target_user.localpart,
+                state
+        )
 
-        # TODO(paul): Now this new state needs broadcasting to:
-        #   every local user who is watching this one
-        #   every remote HS on which at least one user is watching this one
+        now_online = state["state"] != PresenceState.OFFLINE
+        was_online = oldstate != PresenceState.OFFLINE
+
+        if now_online and not was_online:
+            self.start_polling_presence(target_user)
+        elif not now_online and was_online:
+            self.stop_polling_presence(target_user)
 
     @defer.inlineCallbacks
     def send_invite(self, observer_user, observed_user):
@@ -112,4 +119,12 @@ class PresenceHandler(BaseHandler):
         yield self.store.set_presence_list_accepted(
                 observer_user.localpart, observed_user.to_string())
 
-        # TODO(paul): Start exchanging messages
+        self.start_polling_presence(observer_user, target_user=observed_user)
+
+    def start_polling_presence(self, user, target_user=None):
+        # TODO(paul)
+        pass
+
+    def stop_polling_presence(self, user, target_user=None):
+        # TODO(paul)
+        pass

@@ -23,6 +23,7 @@ class PresenceStore(SQLBaseStore):
             table="presence",
             keyvalues={"user_id": user_localpart},
             updatevalues={"state": new_state, "status_msg": new_msg},
+            retcols=["state"],
         )
 
     def allow_presence_inbound(self, observed_localpart, observer_userid):
