@@ -365,6 +365,9 @@ class PresencePollingTestCase(unittest.TestCase):
         self.u_banana = hs.parse_userid("@banana:test")
         self.u_clementine = hs.parse_userid("@clementine:test")
 
+        # Remote users
+        self.u_potato = hs.parse_userid("@potato:remote")
+
     @defer.inlineCallbacks
     def test_push_local(self):
         # apple goes online
@@ -424,3 +427,40 @@ class PresencePollingTestCase(unittest.TestCase):
 
         self.assertFalse("banana" in self.handler._local_pushmap)
         self.assertFalse("clementine" in self.handler._local_pushmap)
+
+    @defer.inlineCallbacks
+    def test_remote_poll_send(self):
+        # clementine goes online
+        yield self.handler.set_state(
+                target_user=self.u_clementine, auth_user=self.u_clementine,
+                state={"state": ONLINE})
+
+        self.send_edu_mock.assert_called_with(
+                destination="remote",
+                edu_type="sy.presence",
+                content={
+                    "poll": [ "@potato:remote" ],
+                },
+        )
+
+        # Gut-wrenching tests
+        self.assertTrue(self.u_potato in self.handler._remote_recvmap)
+        self.assertTrue(self.u_clementine in
+                self.handler._remote_recvmap[self.u_potato])
+
+        self.send_edu_mock.reset_mock()
+
+        # clementine goes offline
+        yield self.handler.set_state(
+                target_user=self.u_clementine, auth_user=self.u_clementine,
+                state={"state": OFFLINE})
+
+        self.send_edu_mock.assert_called_with(
+                destination="remote",
+                edu_type="sy.presence",
+                content={
+                    "unpoll": [ "@potato:remote" ],
+                },
+        )
+
+        self.assertFalse(self.u_potato in self.handler._remote_recvmap)

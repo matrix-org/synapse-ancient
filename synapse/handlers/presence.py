@@ -186,7 +186,12 @@ class PresenceHandler(BaseHandler):
         for target_user in localusers:
             deferreds.append(self._start_polling_local(user, target_user))
 
-        # TODO(paul): remotes
+        remoteusers_by_domain = partition(remoteusers, lambda u: u.domain)
+        for domain in remoteusers_by_domain:
+            remoteusers = remoteusers_by_domain[domain]
+
+            deferreds.append(self._start_polling_remote(user, domain,
+                remoteusers))
 
         yield defer.DeferredList(deferreds)
 
@@ -209,13 +214,41 @@ class PresenceHandler(BaseHandler):
                 state=target_state,
         )
 
+    def _start_polling_remote(self, user, domain, remoteusers):
+        for u in remoteusers:
+            if u not in self._remote_recvmap:
+                self._remote_recvmap[u] = set()
+
+            self._remote_recvmap[u].add(user)
+
+        return self.federation.send_edu(
+            destination=domain,
+            edu_type="sy.presence",
+            content={"poll": [u.to_string() for u in remoteusers]}
+        )
+
     def stop_polling_presence(self, user, target_user=None):
         logger.debug("Stop polling for presence from %s", user)
 
         if not target_user or target_user.is_mine:
             self._stop_polling_local(user, target_user=target_user)
 
-        # TODO(paul): remotes
+        deferreds = []
+
+        if target_user:
+            raise NotImplementedError("TODO: remove one user")
+
+        remoteusers = [u for u in self._remote_recvmap if
+                user in self._remote_recvmap[u]]
+        remoteusers_by_domain = partition(remoteusers, lambda u: u.domain)
+
+        for domain in remoteusers_by_domain:
+            remoteusers = remoteusers_by_domain[domain]
+
+            deferreds.append(
+                    self._stop_polling_remote(user, domain, remoteusers))
+
+        return defer.DeferredList(deferreds)
 
     def _stop_polling_local(self, user, target_user):
         for localpart in self._local_pushmap.keys():
@@ -227,6 +260,19 @@ class PresenceHandler(BaseHandler):
 
             if not self._local_pushmap[localpart]:
                 del self._local_pushmap[localpart]
+
+    def _stop_polling_remote(self, user, domain, remoteusers):
+        for u in remoteusers:
+            self._remote_recvmap[u].remove(user)
+
+            if not self._remote_recvmap[u]:
+                del self._remote_recvmap[u]
+
+        return self.federation.send_edu(
+                destination=domain,
+                edu_type="sy.presence",
+                content={"unpoll": [u.to_string() for u in remoteusers]}
+        )
 
     @defer.inlineCallbacks
     def push_presence(self, user, state=None):
