@@ -1,0 +1,14 @@
+<div ng-controller="LoginController" ng-hide="hideLogin" class="login">
+    <h3>Login:</h3>
+    <form novalidate>
+        <label for="user_id">User:</label>
+        <input id="user_id" size="50" type="text" auto-focus ng-model="account.user_id" /><br />
+        <label for="server">Server:</label>
+        <input id="server" size="50" type="text" ng-model="account.server" /><br />
+        <label for="room">Room:</label>
+        <input id="room" size="50" type="text" ng-model="room" /><br />
+        <button ng-click="login()">Login</button>
+    </form>
+    <br/>
+    {{ feedback }}
+</div>
