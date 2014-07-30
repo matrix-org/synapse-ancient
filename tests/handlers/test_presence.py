@@ -3,7 +3,7 @@
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from mock import Mock
+from mock import Mock, call
 import logging
 
 from synapse.server import HomeServer
@@ -192,3 +192,108 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
         self.mock_start.assert_called_with(
                 self.u_apple, target_user=self.u_cabbage)
+
+
+class PresencePushTestCase(unittest.TestCase):
+    """ Tests steady-state presence status updates.
+
+    They assert that presence state update messages are pushed around the place
+    when users change state, presuming that the watches are all established.
+
+    These tests are MASSIVELY fragile currently as they poke internals of the
+    presence handler; namely the _user_pushmap and _remote_recvmap.
+    BE WARNED...
+    """
+    def setUp(self):
+        hs = HomeServer("test",
+                db_pool=None,
+                datastore=Mock(spec=[
+                    "set_presence_state",
+                ]),
+                http_server=Mock(),
+                http_client=None,
+                replication_layer=Mock(spec=[
+                    "send_edu",
+                ]),
+            )
+
+        self.send_edu_mock = hs.get_replication_layer().send_edu
+        self.send_edu_mock.return_value = defer.succeed((200, "OK"))
+
+        self.mock_update_client = Mock()
+        self.mock_update_client.return_value = defer.succeed(None)
+
+        self.handler = hs.get_handlers().presence_handler
+        self.handler.push_update_to_clients = self.mock_update_client
+
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("received_edu")
+
+        # Some local users to test with
+        self.u_apple = hs.parse_userid("@apple:test")
+        self.u_banana = hs.parse_userid("@banana:test")
+        self.u_clementine = hs.parse_userid("@clementine:test")
+
+        # Remote user
+        self.u_potato = hs.parse_userid("@potato:remote")
+
+    @defer.inlineCallbacks
+    def test_push_local(self):
+        # TODO(paul): Gut-wrenching
+        apple_set = self.handler._user_pushmap.setdefault("apple", set())
+        apple_set.add(self.u_banana)
+        apple_set.add(self.u_clementine)
+
+        yield self.handler.set_state(self.u_apple, self.u_apple,
+                {"state": PresenceState.ONLINE})
+
+        self.mock_update_client.assert_has_calls([
+                call(observer_user=self.u_banana,
+                    observed_user=self.u_apple,
+                    state={"state": PresenceState.ONLINE}),
+                call(observer_user=self.u_clementine,
+                    observed_user=self.u_apple,
+                    state={"state": PresenceState.ONLINE}),
+        ], any_order=True)
+
+    @defer.inlineCallbacks
+    def test_push_remote(self):
+        # TODO(paul): Gut-wrenching
+        apple_set = self.handler._user_pushmap.setdefault("apple", set())
+        apple_set.add(self.u_potato)
+
+        yield self.handler.set_state(self.u_apple, self.u_apple,
+                {"state": PresenceState.ONLINE})
+
+        self.send_edu_mock.assert_called_with(
+                destination="remote",
+                edu_type="sy.presence",
+                content={
+                    "push": [
+                        {"user_id": "@apple:test",
+                         "state": 2},
+                    ],
+                },
+        )
+
+    @defer.inlineCallbacks
+    def test_recv_remote(self):
+        # TODO(paul): Gut-wrenching
+        potato_set = self.handler._remote_recvmap.setdefault(self.u_potato,
+                set())
+        potato_set.add(self.u_apple)
+
+        yield self.distributor.fire("received_edu",
+                "remote", "sy.presence", {
+                    "push": [
+                        {"user_id": "@potato:remote",
+                         "state": 2},
+                    ],
+                }
+        )
+
+        self.mock_update_client.assert_has_calls([
+                call(observer_user=self.u_apple,
+                    observed_user=self.u_potato,
+                    state={"state": PresenceState.ONLINE}),
+        ])

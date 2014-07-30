@@ -7,6 +7,28 @@ from synapse.api.constants import PresenceState
 from ._base import BaseHandler
 
 
+# TODO(paul): Maybe there's one of these I can steal from somewhere
+def partition(l, func):
+    """Partition the list by the result of func applied to each element."""
+    ret = {}
+
+    for x in l:
+        key = func(x)
+        if key not in ret:
+            ret[key] = []
+        ret[key].append(x)
+
+    return ret
+
+
+def partitionbool(l, func):
+    def boolfunc(x):
+        return bool(func(x))
+
+    ret = partition(l, boolfunc)
+    return ret.get(True, []), ret.get(False, [])
+
+
 class PresenceHandler(BaseHandler):
 
     def __init__(self, hs):
@@ -20,6 +42,12 @@ class PresenceHandler(BaseHandler):
 
         self.federation = hs.get_replication_layer()
 
+        # IN-MEMORY store, mapping local userparts to sets of users to be
+        # informed of state changes.
+        self._user_pushmap = {}
+        # map remote users to sets of local users who're interested in them
+        self._remote_recvmap = {}
+
     def registered_user(self, user):
         self.store.create_presence(user.localpart)
 
@@ -29,7 +57,9 @@ class PresenceHandler(BaseHandler):
         # TODO(paul): Maybe this suggests a nicer interface of
         #   federation.register_edu_handler("sy.presence_invite", callable...)
 
-        if edu_type == "sy.presence_invite":
+        if edu_type == "sy.presence":
+            return self.incoming_presence(pushes=content["push"])
+        elif edu_type == "sy.presence_invite":
             return self.invite_presence(
                 observed_user=hs.parse_userid(content["observed_user"]),
                 observer_user=hs.parse_userid(content["observer_user"]),
@@ -76,6 +106,8 @@ class PresenceHandler(BaseHandler):
             self.start_polling_presence(target_user)
         elif not now_online and was_online:
             self.stop_polling_presence(target_user)
+        elif now_online and was_online:
+            self.push_presence(target_user, state=state)
 
     @defer.inlineCallbacks
     def send_invite(self, observer_user, observed_user):
@@ -126,5 +158,69 @@ class PresenceHandler(BaseHandler):
         pass
 
     def stop_polling_presence(self, user, target_user=None):
+        # TODO(paul)
+        pass
+
+    @defer.inlineCallbacks
+    def push_presence(self, user, state=None):
+        assert(user.is_mine)
+
+        if user.localpart not in self._user_pushmap:
+            defer.returnValue(None)
+
+        if state is None:
+            state = yield self.store.get_presence_state(user.localpart)
+
+        localusers, remoteusers = partitionbool(
+                self._user_pushmap[user.localpart], lambda u: u.is_mine)
+
+        deferreds = []
+        for u in localusers:
+            deferreds.append(self.push_update_to_clients(
+                observer_user=u,
+                observed_user=user,
+                state=state
+            ))
+
+        remoteusers_by_domain = partition(remoteusers, lambda u: u.domain)
+        for domain in remoteusers_by_domain:
+            remoteusers = remoteusers_by_domain[domain]
+
+            deferreds.append(self.federation.send_edu(
+                destination=domain,
+                edu_type="sy.presence",
+                content={
+                    "push": [
+                        dict(user_id=user.to_string(), **state),
+                    ],
+                }
+            ))
+
+        yield defer.DeferredList(deferreds)
+
+    @defer.inlineCallbacks
+    def incoming_presence(self, pushes):
+        deferreds = []
+
+        for push in pushes:
+            user = self.hs.parse_userid(push["user_id"])
+
+            if user not in self._remote_recvmap:
+                break
+
+            observers = self._remote_recvmap[user]
+            state = dict(push)
+            del state["user_id"]
+
+            for observer_user in observers:
+                deferreds.append(self.push_update_to_clients(
+                        observer_user=observer_user,
+                        observed_user=user,
+                        state=state
+                ))
+
+        yield defer.DeferredList(deferreds)
+
+    def push_update_to_clients(self, observer_user, observed_user, state):
         # TODO(paul)
         pass
