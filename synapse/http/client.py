@@ -8,7 +8,7 @@ from twisted.web.http_headers import Headers
 
 from synapse.http.endpoint import matrix_endpoint
 from synapse.util.async import sleep
-from synapse.util.jsonutil import encode_canonical_json 
+from synapse.util.jsonutil import encode_canonical_json
 
 import json
 import logging
@@ -73,14 +73,18 @@ class MatrixHttpAgent(_AgentBase):
     def __init__(self, reactor, pool=None):
         _AgentBase.__init__(self, reactor, pool)
 
-    def request(self, endpoint, method, uri_bytes, headers, body_producer):
-        parsed_URI = _URI.fromBytes(uri_bytes)
+    def request(self, destination, endpoint, method, path, params, query,
+                headers, body_producer):
 
-        server_name = parsed_URI.netloc
+        host = b""
+        port = 0
+        fragment = b""
 
-        logging.debug("Sending request to %s", server_name)
+        parsed_URI = _URI(b"http", destination, host, port, path, params,
+                          query, fragment)
 
-        key = server_name
+        # Set the connection pool key to be the destination.
+        key = destination
 
         return self._requestWithEndpoint(key, endpoint, method, parsed_URI,
                                          headers, body_producer,
@@ -106,7 +110,7 @@ class TwistedHttpClient(HttpClient):
         response = yield self._create_request(
             destination,
             "PUT",
-            "http://%s%s" % (destination, path),
+            path,
             producer=_JsonProducer(data),
             headers_dict={"Content-Type": ["application/json"]}
         )
@@ -118,18 +122,17 @@ class TwistedHttpClient(HttpClient):
         defer.returnValue((response.code, body))
 
     @defer.inlineCallbacks
-    def get_json(self, destination, path, args=None):
+    def get_json(self, destination, path, args=[]):
         if destination in _destination_mappings:
             destination = _destination_mappings[destination]
 
-        if args:
-            qs = urllib.urlencode(args, True)
-            path = "%s?%s" % (path, qs)
+        query_bytes = urllib.urlencode(args, True)
 
         response = yield self._create_request(
             destination,
             "GET",
-            "http://%s%s" % (destination, path)
+            path,
+            query_bytes
         )
 
         body = yield readBody(response)
@@ -137,13 +140,15 @@ class TwistedHttpClient(HttpClient):
         defer.returnValue(json.loads(body))
 
     @defer.inlineCallbacks
-    def _create_request(self, destination, method, url, producer=None,
-                        headers_dict={}):
+    def _create_request(self, destination, method, path, param_bytes=b"",
+                        query_bytes=b"", producer=None, headers_dict={}):
         """ Creates and sends a request to the given url
         """
-        headers_dict["User-Agent"] = ["Synapse"]
+        headers_dict[b"User-Agent"] = [b"Synapse"]
+        headers_dict[b"Host"] = [destination]
 
-        logger.debug("Sending request: %s %s", method, url)
+        logger.debug("Sending request to %s: %s %s;%s?%s",
+                     destination, method, path, param_bytes, query_bytes)
 
         retries_left = 5
 
@@ -153,9 +158,12 @@ class TwistedHttpClient(HttpClient):
         while True:
             try:
                 response = yield self.agent.request(
+                    destination,
                     endpoint,
                     method,
-                    url.encode("UTF8"),
+                    path,
+                    param_bytes,
+                    query_bytes,
                     Headers(headers_dict),
                     producer
                 )
