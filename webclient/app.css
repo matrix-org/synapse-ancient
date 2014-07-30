@@ -1,0 +1,22 @@
+
+label {
+    float: left;
+    width: 5em;
+    text-align: right;
+    margin-right: 1em;
+}
+
+.message {
+    clear: both;
+}
+
+.message .sender {
+    float: left;
+    width: 22em;
+    text-align: right;
+    margin-right: 1em;
+}
+
+.message .body {
+    margin-left: 22em;
+}
