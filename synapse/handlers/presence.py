@@ -47,9 +47,12 @@ class PresenceHandler(BaseHandler):
 
         self.federation = hs.get_replication_layer()
 
-        # IN-MEMORY store, mapping local userparts to sets of users to be
-        # informed of state changes.
-        self._user_pushmap = {}
+        # IN-MEMORY store, mapping local userparts to sets of local users to
+        # be informed of state changes.
+        self._local_pushmap = {}
+        # map local users to sets of remote /domain names/ who are interested
+        # in them
+        self._remote_sendmap = {}
         # map remote users to sets of local users who're interested in them
         self._remote_recvmap = {}
 
@@ -193,10 +196,10 @@ class PresenceHandler(BaseHandler):
 
         # TODO(paul) permissions checks
 
-        if target_localpart not in self._user_pushmap:
-            self._user_pushmap[target_localpart] = set()
+        if target_localpart not in self._local_pushmap:
+            self._local_pushmap[target_localpart] = set()
 
-        self._user_pushmap[target_localpart].add(user)
+        self._local_pushmap[target_localpart].add(user)
 
         target_state = yield self.store.get_presence_state(target_localpart)
 
@@ -215,15 +218,15 @@ class PresenceHandler(BaseHandler):
         # TODO(paul): remotes
 
     def _stop_polling_local(self, user, target_user):
-        for localpart in self._user_pushmap.keys():
+        for localpart in self._local_pushmap.keys():
             if target_user and localpart != target_user.localpart:
                 continue
 
-            if user in self._user_pushmap[localpart]:
-                self._user_pushmap[localpart].remove(user)
+            if user in self._local_pushmap[localpart]:
+                self._local_pushmap[localpart].remove(user)
 
-            if not self._user_pushmap[localpart]:
-                del self._user_pushmap[localpart]
+            if not self._local_pushmap[localpart]:
+                del self._local_pushmap[localpart]
 
     @defer.inlineCallbacks
     def push_presence(self, user, state=None):
@@ -231,14 +234,14 @@ class PresenceHandler(BaseHandler):
 
         logger.debug("Pushing presence update from %s", user)
 
-        if user.localpart not in self._user_pushmap:
+        localusers = self._local_pushmap.get(user.localpart, [])
+        remotedomains = self._remote_sendmap.get(user.localpart, [])
+
+        if not localusers and not remotedomains:
             defer.returnValue(None)
 
         if state is None:
             state = yield self.store.get_presence_state(user.localpart)
-
-        localusers, remoteusers = partitionbool(
-                self._user_pushmap[user.localpart], lambda u: u.is_mine)
 
         deferreds = []
         for u in localusers:
@@ -248,10 +251,7 @@ class PresenceHandler(BaseHandler):
                 state=state
             ))
 
-        remoteusers_by_domain = partition(remoteusers, lambda u: u.domain)
-        for domain in remoteusers_by_domain:
-            remoteusers = remoteusers_by_domain[domain]
-
+        for domain in remotedomains:
             deferreds.append(self.federation.send_edu(
                 destination=domain,
                 edu_type="sy.presence",

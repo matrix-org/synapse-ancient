@@ -206,7 +206,7 @@ class PresencePushTestCase(unittest.TestCase):
     when users change state, presuming that the watches are all established.
 
     These tests are MASSIVELY fragile currently as they poke internals of the
-    presence handler; namely the _user_pushmap and _remote_recvmap.
+    presence handler; namely the _local_pushmap and _remote_recvmap.
     BE WARNED...
     """
     def setUp(self):
@@ -245,7 +245,7 @@ class PresencePushTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_push_local(self):
         # TODO(paul): Gut-wrenching
-        apple_set = self.handler._user_pushmap.setdefault("apple", set())
+        apple_set = self.handler._local_pushmap.setdefault("apple", set())
         apple_set.add(self.u_banana)
         apple_set.add(self.u_clementine)
 
@@ -264,8 +264,8 @@ class PresencePushTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_push_remote(self):
         # TODO(paul): Gut-wrenching
-        apple_set = self.handler._user_pushmap.setdefault("apple", set())
-        apple_set.add(self.u_potato)
+        apple_set = self.handler._remote_sendmap.setdefault("apple", set())
+        apple_set.add(self.u_potato.domain)
 
         yield self.handler.set_state(self.u_apple, self.u_apple,
                 {"state": ONLINE})
@@ -308,11 +308,12 @@ class PresencePollingTestCase(unittest.TestCase):
     """ Tests presence status polling. """
 
     # For this test, we have three local users; apple is watching and is
-    # watched by the other two, but the others don't watch each other
+    # watched by the other two, but the others don't watch each other.
+    # Additionally clementine is watching a remote user.
     PRESENCE_LIST = {
             'apple': [ "@banana:test", "@clementine:test" ],
             'banana': [ "@apple:test" ],
-            'clementine': [ "@apple:test" ],
+            'clementine': [ "@apple:test", "@potato:remote" ],
     }
 
 
@@ -382,10 +383,10 @@ class PresencePollingTestCase(unittest.TestCase):
         ], any_order=True)
 
         # Gut-wrenching tests
-        self.assertTrue("banana" in self.handler._user_pushmap)
-        self.assertTrue(self.u_apple in self.handler._user_pushmap["banana"])
-        self.assertTrue("clementine" in self.handler._user_pushmap)
-        self.assertTrue(self.u_apple in self.handler._user_pushmap["clementine"])
+        self.assertTrue("banana" in self.handler._local_pushmap)
+        self.assertTrue(self.u_apple in self.handler._local_pushmap["banana"])
+        self.assertTrue("clementine" in self.handler._local_pushmap)
+        self.assertTrue(self.u_apple in self.handler._local_pushmap["clementine"])
 
         self.mock_update_client.reset_mock()
 
@@ -404,8 +405,8 @@ class PresencePollingTestCase(unittest.TestCase):
                     state={"state": ONLINE}),
         ], any_order=True)
 
-        self.assertTrue("apple" in self.handler._user_pushmap)
-        self.assertTrue(self.u_banana in self.handler._user_pushmap["apple"])
+        self.assertTrue("apple" in self.handler._local_pushmap)
+        self.assertTrue(self.u_banana in self.handler._local_pushmap["apple"])
 
         self.mock_update_client.reset_mock()
 
@@ -421,5 +422,5 @@ class PresencePollingTestCase(unittest.TestCase):
                     state={"state": OFFLINE}),
         ], any_order=True)
 
-        self.assertFalse("banana" in self.handler._user_pushmap)
-        self.assertFalse("clementine" in self.handler._user_pushmap)
+        self.assertFalse("banana" in self.handler._local_pushmap)
+        self.assertFalse("clementine" in self.handler._local_pushmap)
