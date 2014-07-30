@@ -6,16 +6,18 @@ from synapse.persistence.tables import RoomDataTable
 from ._base import SQLBaseStore
 
 
-class RoomPathStore(SQLBaseStore):
+class RoomDataStore(SQLBaseStore):
 
     """Provides various CRUD operations for Room Events. """
 
     @defer.inlineCallbacks
-    def get_path_data(self, room_id, etype, state_key=""):
-        """Retrieve the data stored at this URL path.
+    def get_room_data(self, room_id, etype, state_key=""):
+        """Retrieve the data stored under this type and state_key.
 
         Args:
-            path (str)- The url path with something stored.
+            room_id (str)
+            etype (str)
+            state_key (str)
         Returns:
             namedtuple: Or None if nothing exists at this path.
         """
@@ -33,11 +35,13 @@ class RoomPathStore(SQLBaseStore):
         defer.returnValue(None)
 
     @defer.inlineCallbacks
-    def store_path_data(self, room_id, etype, state_key="", content=None):
-        """Stores path specific data.
+    def store_room_data(self, room_id, etype, state_key="", content=None):
+        """Stores room specific data.
 
         Args:
-            path (str)- The path where the data can be retrieved later.
+            room_id (str)
+            etype (str)
+            state_key (str)
             data (str)- The data to store for this path in JSON.
         """
         query = ("INSERT INTO " + RoomDataTable.table_name +

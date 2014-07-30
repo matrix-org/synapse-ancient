@@ -105,12 +105,11 @@ class MessageHandler(BaseHandler):
         defer.returnValue(data_chunk)
 
     @defer.inlineCallbacks
-    def store_room_path_data(self, event=None, stamp_event=True):
-        """ Stores data for a room under a given path.
+    def store_room_data(self, event=None, stamp_event=True):
+        """ Stores data for a room.
 
         Args:
             event : The room path event
-            path : The path which can be used to retrieve the data.
             stamp_event (bool) : True to stamp event content with server keys.
         Raises:
             SynapseError if something went wrong.
@@ -125,7 +124,7 @@ class MessageHandler(BaseHandler):
             yield self.state_handler.handle_new_event(event)
 
             # store in db
-            yield self.store.store_path_data(
+            yield self.store.store_room_data(
                 room_id=event.room_id,
                 etype=event.type,
                 state_key=event.state_key,
@@ -139,15 +138,14 @@ class MessageHandler(BaseHandler):
         yield self.hs.get_federation().handle_new_event(event)
 
     @defer.inlineCallbacks
-    def get_room_path_data(self, user_id=None, room_id=None, path=None,
+    def get_room_data(self, user_id=None, room_id=None,
                            event_type=None, state_key="",
                            public_room_rules=[],
                            private_room_rules=["join"]):
-        """ Get path data from a room.
+        """ Get data from a room.
 
         Args:
             event : The room path event
-            path : The path the data was stored under.
             public_room_rules : A list of membership states the user can be in,
             in order to read this data IN A PUBLIC ROOM. An empty list means
             'any state'.
@@ -185,7 +183,7 @@ class MessageHandler(BaseHandler):
                 raise RoomError(
                     403, "Member does not meet private room rules.")
 
-        data = yield self.store.get_path_data(room_id, event_type, state_key)
+        data = yield self.store.get_room_data(room_id, event_type, state_key)
         defer.returnValue(data)
 
     @defer.inlineCallbacks

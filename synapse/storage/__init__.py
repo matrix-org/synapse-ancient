@@ -16,11 +16,11 @@ from .profile import ProfileStore
 from .registration import RegistrationStore
 from .room import RoomStore
 from .roommember import RoomMemberStore
-from .roompath import RoomPathStore
+from .roomdata import RoomDataStore
 from .stream import StreamStore
 
 
-class DataStore(RoomPathStore, RoomMemberStore, MessageStore, RoomStore,
+class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
                  RegistrationStore, StreamStore, ProfileStore, FeedbackStore):
 
     def __init__(self, hs):

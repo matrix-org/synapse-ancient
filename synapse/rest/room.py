@@ -97,10 +97,9 @@ class RoomTopicRestServlet(RestServlet):
         user = yield self.auth.get_user_by_req(request)
 
         msg_handler = self.handlers.message_handler
-        data = yield msg_handler.get_room_path_data(
+        data = yield msg_handler.get_room_data(
                 user_id=user.to_string(),
                 room_id=room_id,
-                path=request.path,
                 event_type=RoomTopicEvent.TYPE,
                 state_key="",
             )
@@ -123,7 +122,7 @@ class RoomTopicRestServlet(RestServlet):
             )
 
         msg_handler = self.handlers.message_handler
-        yield msg_handler.store_room_path_data(
+        yield msg_handler.store_room_data(
             event=event
         )
         defer.returnValue((200, ""))

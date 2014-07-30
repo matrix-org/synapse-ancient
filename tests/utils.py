@@ -166,14 +166,14 @@ class MemoryDataStore(object):
             self.room_members[room_id] = []
         self.room_members[room_id].append(member)
 
-    def get_path_data(self, room_id, etype, state_key=""):
+    def get_room_data(self, room_id, etype, state_key=""):
         path = "%s-%s-%s" % (room_id, etype, state_key)
         try:
             return self.paths_to_content[path]
         except:
             return None
 
-    def store_path_data(self, room_id, etype, state_key="", content=None):
+    def store_room_data(self, room_id, etype, state_key="", content=None):
         path = "%s-%s-%s" % (room_id, etype, state_key)
         data = MemoryDataStore.PathData(path=path, room_id=room_id,
                     content=content)
