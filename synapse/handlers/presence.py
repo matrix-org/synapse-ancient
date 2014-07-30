@@ -114,8 +114,10 @@ class PresenceHandler(BaseHandler):
             self.start_polling_presence(target_user)
         elif not now_online and was_online:
             self.stop_polling_presence(target_user)
-        elif now_online and was_online:
-            self.push_presence(target_user, state=state)
+
+        # TODO(paul): perform a presence push as part of start/stop poll so
+        #   we don't have to do this all the time
+        self.push_presence(target_user, state=state)
 
     @defer.inlineCallbacks
     def send_invite(self, observer_user, observed_user):
@@ -161,21 +163,73 @@ class PresenceHandler(BaseHandler):
 
         self.start_polling_presence(observer_user, target_user=observed_user)
 
-    def start_polling_presence(self, user, target_user=None):
+    @defer.inlineCallbacks
+    def start_polling_presence(self, user, target_user=None, state=None):
         logger.debug("Start polling for presence from %s", user)
-        # TODO(paul)
-        pass
+
+        if target_user:
+            target_users = [target_user]
+        else:
+            target_user_ids = yield self.store.get_presence_list(user.localpart)
+            target_users = [self.hs.parse_userid(x) for x in target_user_ids]
+
+        if state is None:
+            state = yield self.store.get_presence_state(user.localpart)
+
+        localusers, remoteusers = partitionbool(target_users,
+                lambda u: u.is_mine)
+
+        deferreds = []
+        for target_user in localusers:
+            deferreds.append(self._start_polling_local(user, target_user))
+
+        # TODO(paul): remotes
+
+        yield defer.DeferredList(deferreds)
+
+    @defer.inlineCallbacks
+    def _start_polling_local(self, user, target_user):
+        target_localpart = target_user.localpart
+
+        # TODO(paul) permissions checks
+
+        if target_localpart not in self._user_pushmap:
+            self._user_pushmap[target_localpart] = set()
+
+        self._user_pushmap[target_localpart].add(user)
+
+        target_state = yield self.store.get_presence_state(target_localpart)
+
+        yield self.push_update_to_clients(
+                observer_user=user,
+                observed_user=target_user,
+                state=target_state,
+        )
 
     def stop_polling_presence(self, user, target_user=None):
         logger.debug("Stop polling for presence from %s", user)
-        # TODO(paul)
-        pass
+
+        if not target_user or target_user.is_mine:
+            self._stop_polling_local(user, target_user=target_user)
+
+        # TODO(paul): remotes
+
+    def _stop_polling_local(self, user, target_user):
+        for localpart in self._user_pushmap.keys():
+            if target_user and localpart != target_user.localpart:
+                continue
+
+            if user in self._user_pushmap[localpart]:
+                self._user_pushmap[localpart].remove(user)
+
+            if not self._user_pushmap[localpart]:
+                del self._user_pushmap[localpart]
 
     @defer.inlineCallbacks
     def push_presence(self, user, state=None):
         assert(user.is_mine)
 
-        logger.debug("Pusing presence update from %s", user)
+        logger.debug("Pushing presence update from %s", user)
 
         if user.localpart not in self._user_pushmap:
             defer.returnValue(None)

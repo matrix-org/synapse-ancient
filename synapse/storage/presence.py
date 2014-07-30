@@ -64,6 +64,14 @@ class PresenceStore(SQLBaseStore):
                 updatevalues={"accepted": True},
         )
 
+    def get_presence_list(self, observer_localpart):
+        return self._simple_select_list(
+                table="presence_list",
+                keyvalues={"user_id": observer_localpart,
+                           "accepted": True},
+                retcols=["observed_user_id"],
+        )
+
     def del_presence_list(self, observer_localpart, observed_userid):
         return self._simple_delete_one(
                 table="presence_list",
