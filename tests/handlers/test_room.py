@@ -81,6 +81,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         store_id = "store_id_fooo"
         self.datastore.store_room_member.return_value = defer.succeed(store_id)
 
+        # Actual invocation
         yield self.room_member_handler.change_membership(event)
 
         self.state_handler.handle_new_event.assert_called_once_with(event)
@@ -137,6 +138,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         prev_state.sender = "@foo:red"
         self.datastore.get_room_member.return_value = defer.succeed(prev_state)
 
+        # Actual invocation
         yield self.room_member_handler.change_membership(event)
 
         self.state_handler.handle_new_event.assert_called_once_with(event)
@@ -188,6 +190,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         prev_state.sender = "@foo:blue"
         self.datastore.get_room_member.return_value = defer.succeed(prev_state)
 
+        # Actual invocation
         yield self.room_member_handler.change_membership(event)
 
         self.datastore.get_room_member.assert_called_once_with(
