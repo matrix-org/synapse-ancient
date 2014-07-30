@@ -72,8 +72,12 @@ class PresenceInvitesTestCase(unittest.TestCase):
                 ]),
                 http_server=Mock(),
                 http_client=None,
+                replication_layer=Mock(spec=[
+                    "send_edu",
+                ]),
             )
         self.datastore = hs.get_datastore()
+        self.send_edu_mock = hs.get_replication_layer().send_edu
 
         # Some local users to test with
         self.u_apple = hs.parse_userid("@1234ABCD:test")
@@ -83,6 +87,9 @@ class PresenceInvitesTestCase(unittest.TestCase):
         self.u_cabbage = hs.parse_userid("@someone:elsewhere")
 
         self.handlers = hs.get_handlers()
+
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("received_edu")
 
     @defer.inlineCallbacks
     def test_invite_local(self):
@@ -98,3 +105,59 @@ class PresenceInvitesTestCase(unittest.TestCase):
                 "2345BCDE", "@1234ABCD:test")
         self.datastore.set_presence_list_accepted.assert_called_with(
                 "1234ABCD", "@2345BCDE:test")
+
+    @defer.inlineCallbacks
+    def test_invite_remote(self):
+        self.send_edu_mock.return_value = defer.succeed((200, "OK"))
+
+        yield self.handlers.presence_handler.send_invite(
+                observer_user=self.u_apple, observed_user=self.u_cabbage)
+
+        self.datastore.add_presence_list_pending.assert_called_with(
+                "1234ABCD", "@someone:elsewhere")
+
+        self.send_edu_mock.assert_called_with(
+                destination="elsewhere",
+                edu_type="sy.presence_invite",
+                content={
+                    "observer_user": "@1234ABCD:test",
+                    "observed_user": "@someone:elsewhere",
+                }
+        )
+
+    @defer.inlineCallbacks
+    def test_accept_remote(self):
+        # TODO(paul): This test will likely break if/when real auth permissions
+        # are added; for now the HS will always accept any invite
+        self.send_edu_mock.return_value = defer.succeed((200, "OK"))
+
+        yield self.distributor.fire("received_edu",
+                "elsewhere", "sy.presence_invite", {
+                    "observer_user": "@someone:elsewhere",
+                    "observed_user": "@1234ABCD:test",
+                }
+        )
+
+        self.datastore.allow_presence_inbound.assert_called_with(
+                "1234ABCD", "@someone:elsewhere")
+
+        self.send_edu_mock.assert_called_with(
+                destination="elsewhere",
+                edu_type="sy.presence_accept",
+                content={
+                    "observer_user": "@someone:elsewhere",
+                    "observed_user": "@1234ABCD:test",
+                }
+        )
+
+    @defer.inlineCallbacks
+    def test_accepted_remote(self):
+        yield self.distributor.fire("received_edu",
+                "elsewhere", "sy.presence_accept", {
+                    "observer_user": "@1234ABCD:test",
+                    "observed_user": "@someone:elsewhere",
+                }
+        )
+
+        self.datastore.set_presence_list_accepted.assert_called_with(
+                "1234ABCD", "@someone:elsewhere")

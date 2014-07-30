@@ -11,11 +11,35 @@ class PresenceHandler(BaseHandler):
     def __init__(self, hs):
         super(PresenceHandler, self).__init__(hs)
 
+        self.homeserver = hs
+
         distributor = hs.get_distributor()
         distributor.observe("registered_user", self.registered_user)
+        distributor.observe("received_edu", self._received_edu)
+
+        self.federation = hs.get_replication_layer()
 
     def registered_user(self, user):
         self.store.create_presence(user.localpart)
+
+    def _received_edu(self, origin, edu_type, content):
+        hs = self.homeserver
+
+        # TODO(paul): Maybe this suggests a nicer interface of
+        #   federation.register_edu_handler("sy.presence_invite", callable...)
+
+        if edu_type == "sy.presence_invite":
+            return self.invite_presence(
+                observed_user=hs.parse_userid(content["observed_user"]),
+                observer_user=hs.parse_userid(content["observer_user"]),
+            )
+        elif edu_type == "sy.presence_accept":
+            return self.accept_presence(
+                observed_user=hs.parse_userid(content["observed_user"]),
+                observer_user=hs.parse_userid(content["observer_user"]),
+            )
+        else:
+            return defer.succeed(None)
 
     @defer.inlineCallbacks
     def get_state(self, target_user, auth_user):
@@ -57,8 +81,13 @@ class PresenceHandler(BaseHandler):
         if observed_user.is_mine:
             yield self.invite_presence(observed_user, observer_user)
         else:
-            # TODO(paul): Hand this down to Federation
-            pass
+            yield self.federation.send_edu(
+                    destination=observed_user.domain,
+                    edu_type="sy.presence_invite",
+                    content={
+                        "observed_user": observed_user.to_string(),
+                        "observer_user": observer_user.to_string(),
+                    })
 
     @defer.inlineCallbacks
     def invite_presence(self, observed_user, observer_user):
@@ -70,8 +99,13 @@ class PresenceHandler(BaseHandler):
         if observer_user.is_mine:
             yield self.accept_presence(observed_user, observer_user)
         else:
-            # TODO(paul): Hand this down to Federation
-            pass
+            yield self.federation.send_edu(
+                    destination=observer_user.domain,
+                    edu_type="sy.presence_accept",
+                    content={
+                        "observed_user": observed_user.to_string(),
+                        "observer_user": observer_user.to_string(),
+                    })
 
     @defer.inlineCallbacks
     def accept_presence(self, observed_user, observer_user):
