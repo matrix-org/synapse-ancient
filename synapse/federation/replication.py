@@ -5,7 +5,7 @@ a given transport.
 
 from twisted.internet import defer
 
-from .units import Transaction, Pdu
+from .units import Transaction, Pdu, Edu
 
 from .persistence import PduActions, TransactionActions
 from synapse.persistence.transactions import PduQueries
@@ -58,6 +58,9 @@ class ReplicationLayer(object):
         self._db_pool = hs.get_db_pool()
         self._clock = hs.get_clock()
 
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("received_edu")
+
     def set_handler(self, handler):
         """Sets the handler that the replication layer will use to communicate
         receipt of new PDUs from other home servers. The required methods are
@@ -104,6 +107,18 @@ class ReplicationLayer(object):
         yield self._transaction_queue.enqueue_pdu(pdu, order)
 
         logger.debug("[%s] transaction_layer.enqueue_pdu... done", pdu.pdu_id)
+
+    @defer.inlineCallbacks
+    @log_function
+    def send_edu(self, destination, edu_type, content):
+        edu = Edu(
+                origin=self.server_name,
+                destination=destination,
+                edu_type=edu_type,
+                content=content,
+        )
+
+        yield self._transaction_queue.enqueue_edu(edu)
 
     @defer.inlineCallbacks
     @log_function
@@ -240,6 +255,10 @@ class ReplicationLayer(object):
         dl = []
         for pdu in pdu_list:
             dl.append(self._handle_new_pdu(pdu))
+
+        for edu in [Edu(**x) for x in transaction.edus]:
+            self.distributor.fire("received_edu",
+                    edu.origin, edu.edu_type, edu.content)
 
         results = yield defer.DeferredList(dl)
 
@@ -401,7 +420,9 @@ class _TransactionQueue(object):
 
         # Is a mapping from destination -> list of
         # tuple(pending pdus, deferred, order)
-        self.pending_pdus_list = {}
+        self.pending_pdus_by_dest = {}
+        # destination -> list of tuple(edu, deferred)
+        self.pending_edus_by_dest = {}
 
         # HACK to get unique tx id
         self._next_txn_id = int(self._clock.time_msec())
@@ -427,7 +448,7 @@ class _TransactionQueue(object):
 
         for destination in destinations:
             deferred = defer.Deferred()
-            self.pending_pdus_list.setdefault(destination, []).append(
+            self.pending_pdus_by_dest.setdefault(destination, []).append(
                 (pdu, deferred, order)
             )
 
@@ -437,27 +458,47 @@ class _TransactionQueue(object):
 
         yield defer.DeferredList(deferreds)
 
+    # NO inlineCallbacks
+    def enqueue_edu(self, edu):
+        destination = edu.destination
+
+        deferred = defer.Deferred()
+        self.pending_edus_by_dest.setdefault(destination, []).append(
+            (edu, deferred)
+        )
+
+        def eb(failure):
+            deferred.errback(failure)
+        self._attempt_new_transaction(destination).addErrback(eb)
+
+        return deferred
+
     @defer.inlineCallbacks
     @log_function
     def _attempt_new_transaction(self, destination):
         if destination in self.pending_transactions:
             return
 
-        # tuple_list is a list of (pending_pdu, deferred, order)
-        tuple_list = self.pending_pdus_list.pop(destination, None)
+        #  list of (pending_pdu, deferred, order)
+        pending_pdus = self.pending_pdus_by_dest.pop(destination, [])
+        pending_edus = self.pending_edus_by_dest.pop(destination, [])
 
-        if not tuple_list:
+        if not pending_pdus and not pending_edus:
             return
 
         logger.debug("TX [%s] Attempting new transaction", destination)
 
+        # Sort based on the order field
+        pending_pdus.sort(key=lambda t: t[2])
+
+        pdus = [x[0] for x in pending_pdus]
+        edus = [x[0] for x in pending_edus]
+        deferreds = [x[1] for x in pending_pdus + pending_edus]
+
         try:
-            # Sort based on the order field
-            tuple_list.sort(key=lambda t: t[2])
+            self.pending_transactions[destination] = 1
 
             logger.debug("TX [%s] Persisting transaction...", destination)
-
-            pdus = [p[0] for p in tuple_list]
 
             transaction = Transaction.create_new(
                 ts=self._clock.time_msec(),
@@ -465,6 +506,7 @@ class _TransactionQueue(object):
                 origin=self.server_name,
                 destination=destination,
                 pdus=pdus,
+                edus=edus,
             )
 
             self._next_txn_id += 1
@@ -476,7 +518,7 @@ class _TransactionQueue(object):
 
             # Actually send the transaction
             code, response = yield self.transport_layer.send_transaction(
-                transaction
+                    transaction
             )
 
             logger.debug("TX [%s] Sent transaction", destination)
@@ -489,7 +531,7 @@ class _TransactionQueue(object):
             logger.debug("TX [%s] Marked as delivered", destination)
             logger.debug("TX [%s] Yielding to callbacks...", destination)
 
-            for _, deferred, _ in tuple_list:
+            for deferred in deferreds:
                 if code == 200:
                     deferred.callback(None)
                 else:
@@ -508,7 +550,7 @@ class _TransactionQueue(object):
             # for this finishing functions deferred.
             logger.exception(e)
 
-            for _, deferred, _ in tuple_list:
+            for deferred in deferreds:
                 deferred.errback(e)
                 yield deferred
 

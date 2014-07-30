@@ -57,7 +57,12 @@ class FederationTestCase(unittest.TestCase):
             "update_min_depth_for_context",
             "prep_send_transaction",
             "delivered_txn",
+            "get_received_txn_response",
+            "set_received_txn_response",
         ])
+        self.mock_persistence.get_received_txn_response.return_value = (
+                defer.succeed(None)
+        )
         self.clock = MockClock()
         hs = HomeServer("test",
                 http_server=self.mock_http_server,
@@ -67,6 +72,7 @@ class FederationTestCase(unittest.TestCase):
                 clock=self.clock,
         )
         self.federation = initialize_http_replication(hs)
+        self.distributor = hs.get_distributor()
 
     @defer.inlineCallbacks
     def test_get_state(self):
@@ -175,4 +181,61 @@ class FederationTestCase(unittest.TestCase):
                         },
                     ]
                 }
+        )
+
+    @defer.inlineCallbacks
+    def test_send_edu(self):
+        self.mock_http_client.put_json.return_value = defer.succeed(
+                (200, "OK")
+        )
+
+        yield self.federation.send_edu(
+                destination="remote",
+                edu_type="sy.test",
+                content={"testing": "content here"},
+        )
+
+        # MockClock ensures we can guess these timestamps
+        self.mock_http_client.put_json.assert_called_with(
+                "remote",
+                path="/send/1000000/",
+                data={
+                    "origin": "test",
+                    "ts": 1000000,
+                    "pdus": [],
+                    "edus": [
+                        {
+                            "origin": "test",
+                            "destination": "remote",
+                            "edu_type": "sy.test",
+                            "content": {"testing": "content here"},
+                        }
+                    ],
+                })
+
+    @defer.inlineCallbacks
+    def test_recv_edu(self):
+        recv_observer = Mock()
+        recv_observer.return_value = defer.succeed(())
+
+        self.distributor.observe("received_edu", recv_observer)
+
+        yield self.mock_http_server.trigger("PUT", "/send/1001000/",
+                """{
+                    "origin": "remote",
+                    "ts": 1001000,
+                    "pdus": [],
+                    "edus": [
+                        {
+                            "origin": "remote",
+                            "destination": "test",
+                            "edu_type": "sy.test",
+                            "content": {"testing": "reply here"}
+                        }
+                    ]
+                }""")
+
+        recv_observer.assert_called_with(
+                "remote", "sy.test",
+                {"testing": "reply here"}
         )

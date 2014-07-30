@@ -14,6 +14,13 @@ Terms
 Context:
   A single human-level entity of interest (currently, a chat room)
 
+EDU (Ephemeral Data Unit):
+  A message that relates directly to a given pair of home servers that are
+  exchanging it. EDUs are short-lived messages that related only to one single
+  pair of servers; they are not persisted for a long time and are not forwarded
+  on to other servers. Because of this, they have no internal ID nor previous
+  EDUs reference chain.
+
 Event:
   A record of activity that records a single thing that happened on to a context
   (currently, a chat room). These are the "chat messages" that Synapse makes
@@ -26,7 +33,7 @@ Pagination:
   to backfill the event storage so that scrollback can be presented to the
   client(s).
 
-PDU (Protocol Delivery Unit):
+PDU (Persistent Data Unit):
   A message that relates to a single context, irrespective of the server that
   is communicating it. PDUs either encode a single Event, or a single State
   change. A PDU is referred to by its PDU ID; the pair of its origin server
@@ -75,4 +82,5 @@ User ID:
 
 Transaction:
   A message which relates to the communication between a given pair of servers.
+  A transaction contains possibly-empty lists of PDUs and EDUs.
 

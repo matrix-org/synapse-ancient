@@ -203,8 +203,30 @@ class Pdu(JsonEncodedObject):
         return "<%s, %s>" % (self.__class__.__name__, repr(self.__dict__))
 
 
+class Edu(JsonEncodedObject):
+    """ An Edu represents a piece of data sent from one homeserver to another.
+
+    In comparison to Pdus, Edus are not persisted for a long time on disk, are
+    not meaningful beyond a given pair of homeservers, and don't have an
+    internal ID or previous references graph.
+    """
+
+    valid_keys = [
+            "origin",
+            "destination",
+            "edu_type",
+            "content",
+    ]
+
+    required_keys = [
+            "origin",
+            "destination",
+            "edu_type",
+    ]
+
+
 class Transaction(JsonEncodedObject):
-    """ A transaction is a list of Pdus to be sent to a remote home
+    """ A transaction is a list of Pdus and Edus to be sent to a remote home
     server with some extra metadata.
 
     Example transaction::
@@ -226,6 +248,7 @@ class Transaction(JsonEncodedObject):
         "ts",
         "previous_ids",
         "pdus",
+        "edus",
     ]
 
     internal_keys = [
@@ -241,10 +264,15 @@ class Transaction(JsonEncodedObject):
         "pdus",
     ]
 
+
     def __init__(self, transaction_id=None, pdus=[], **kwargs):
         """ If we include a list of pdus then we decode then as PDU's
         automatically.
         """
+
+        # If there's no EDUs then remove the arg
+        if "edus" in kwargs and not kwargs["edus"]:
+            del kwargs["edus"]
 
         super(Transaction, self).__init__(
             transaction_id=transaction_id,
