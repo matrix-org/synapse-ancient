@@ -336,6 +336,9 @@ class PresencePollingTestCase(unittest.TestCase):
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
 
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("received_edu")
+
         # Mocked database state
         # Local users always start offline
         self.current_user_state = {
@@ -464,3 +467,33 @@ class PresencePollingTestCase(unittest.TestCase):
         )
 
         self.assertFalse(self.u_potato in self.handler._remote_recvmap)
+
+    @defer.inlineCallbacks
+    def test_remote_poll_receive(self):
+        yield self.distributor.fire("received_edu",
+                "remote", "sy.presence", {
+                    "poll": [ "@banana:test" ],
+                }
+        )
+
+        # Gut-wrenching tests
+        self.assertTrue(self.u_banana in self.handler._remote_sendmap)
+
+        self.send_edu_mock.assert_called_with(
+                destination="remote",
+                edu_type="sy.presence",
+                content={
+                    "push": [
+                        {"user_id": "@banana:test", "state": 0},
+                    ],
+                },
+        )
+
+        yield self.distributor.fire("received_edu",
+                "remote", "sy.presence", {
+                    "unpoll": [ "@banana:test" ],
+                }
+        )
+
+        # Gut-wrenching tests
+        self.assertFalse(self.u_banana in self.handler._remote_sendmap)

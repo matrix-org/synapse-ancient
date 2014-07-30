@@ -66,7 +66,7 @@ class PresenceHandler(BaseHandler):
         #   federation.register_edu_handler("sy.presence_invite", callable...)
 
         if edu_type == "sy.presence":
-            return self.incoming_presence(pushes=content["push"])
+            return self.incoming_presence(origin, content)
         elif edu_type == "sy.presence_invite":
             return self.invite_presence(
                 observed_user=hs.parse_userid(content["observed_user"]),
@@ -298,23 +298,31 @@ class PresenceHandler(BaseHandler):
             ))
 
         for domain in remotedomains:
-            deferreds.append(self.federation.send_edu(
-                destination=domain,
-                edu_type="sy.presence",
-                content={
-                    "push": [
-                        dict(user_id=user.to_string(), **state),
-                    ],
-                }
-            ))
+            deferreds.append(self._push_presence_remote(user, domain,
+                state=state))
 
         yield defer.DeferredList(deferreds)
 
     @defer.inlineCallbacks
-    def incoming_presence(self, pushes):
+    def _push_presence_remote(self, user, destination, state=None):
+        if state is None:
+            state = yield self.store.get_presence_state(user.localpart)
+
+        yield self.federation.send_edu(
+            destination=destination,
+            edu_type="sy.presence",
+            content={
+                "push": [
+                    dict(user_id=user.to_string(), **state),
+                ],
+            }
+        )
+
+    @defer.inlineCallbacks
+    def incoming_presence(self, origin, content):
         deferreds = []
 
-        for push in pushes:
+        for push in content.get("push", []):
             user = self.hs.parse_userid(push["user_id"])
 
             logger.debug("Incoming presence update from %s", user)
@@ -332,6 +340,33 @@ class PresenceHandler(BaseHandler):
                         observed_user=user,
                         state=state
                 ))
+
+        for poll in content.get("poll", []):
+            user = self.hs.parse_userid(poll)
+
+            if not user.is_mine:
+                continue
+
+            # TODO(paul) permissions checks
+
+            if not user in self._remote_sendmap:
+                self._remote_sendmap[user] = set()
+
+            self._remote_sendmap[user].add(origin)
+
+            deferreds.append(self._push_presence_remote(user, origin))
+
+        for unpoll in content.get("unpoll", []):
+            user = self.hs.parse_userid(unpoll)
+
+            if not user.is_mine:
+                continue
+
+            if user in self._remote_sendmap:
+                self._remote_sendmap[user].remove(origin)
+
+                if not self._remote_sendmap[user]:
+                    del self._remote_sendmap[user]
 
         yield defer.DeferredList(deferreds)
 
