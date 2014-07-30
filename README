@@ -5,6 +5,10 @@ Installing prerequisites on ubuntu::
 
     $ sudo apt-get install build-essential python-dev
 
+Installing prerequisites on Mac OS X::
+
+    $ xcode-select --install
+
 To install the synapse module run::
 
     $ python setup.py install
