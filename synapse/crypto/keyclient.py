@@ -17,7 +17,8 @@ def fetch_server_key(server_name, ssl_context_factory):
 
     factory = SynapseKeyClientFactory()
 
-    SRVConnector(reactor, "matrix", server_name, factory,
+    SRVConnector(
+        reactor, "matrix", server_name, factory,
         protocol="tcp", connectFuncName="connectSSL", defaultPort=443,
         connectFuncKwArgs=dict(contextFactory=ssl_context_factory)).connect()
 
@@ -47,16 +48,16 @@ class SynapseKeyClientProtocol(HTTPClient):
 
     def handleStatus(self, version, status, message):
         if status != b"200":
-            logger.info("Non-200 response from %s: %s %s"
-                % (self.transport.getHost(), status, message))
+            logger.info("Non-200 response from %s: %s %s",
+                        self.transport.getHost(), status, message)
             self.transport.abortConnection()
 
     def handleResponse(self, response_body_bytes):
         try:
             json_response = json.loads(response_body_bytes)
         except ValueError:
-            logger.info("Invalid JSON response from %s"
-                % self.transport.getHost())
+            logger.info("Invalid JSON response from %s",
+                        self.transport.getHost())
             self.transport.abortConnection()
             return
 
@@ -66,8 +67,8 @@ class SynapseKeyClientProtocol(HTTPClient):
         self.timer.cancel()
 
     def on_timeout(self):
-        logger.debug("Timeout waiting for response from %s"
-            % self.transport.getHost())
+        logger.debug("Timeout waiting for response from %s",
+                     self.transport.getHost())
         self.transport.abortConnection()
 
 

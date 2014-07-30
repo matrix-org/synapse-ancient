@@ -118,8 +118,8 @@ class RemoteKey(Resource):
             verify_key = VerifyKey(decode_base64(verify_key_b64))
 
             if resp_server_name != self.server_name:
-                raise ValueError("Wrong server name '%s' != '%s'"
-                        % (resp_server_name, self.server_name))
+                raise ValueError("Wrong server name '%s' != '%s'" %
+                                 (resp_server_name, self.server_name))
 
             x509_certificate_bytes = crypto.dump_certificate(
                 crypto.FILETYPE_ASN1,

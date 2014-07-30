@@ -13,8 +13,8 @@ import subprocess
 
 def load_config(description, argv):
     config_parser = argparse.ArgumentParser(add_help=False)
-    config_parser.add_argument("-c", "--config-path",
-                     help="Specify config file", metavar="CONFIG_FILE")
+    config_parser.add_argument("-c", "--config-path", metavar="CONFIG_FILE",
+                               help="Specify config file")
     config_args, remaining_args = config_parser.parse_known_args(argv)
     if config_args.config_path:
         config = configparser.SafeConfigParser()
