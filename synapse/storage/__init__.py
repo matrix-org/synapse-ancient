@@ -108,7 +108,7 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
                 content=json.dumps(event.content)
             )
         elif event.type == RoomTopicEvent.TYPE:
-            return self.store_path_data(
+            return self.store_room_data(
                 room_id=event.room_id,
                 etype=event.type,
                 state_key=event.state_key,
