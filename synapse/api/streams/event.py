@@ -31,6 +31,11 @@ class MessagesStreamData(StreamData):
                                 )
         defer.returnValue((data, latest_ver))
 
+    @defer.inlineCallbacks
+    def max_token(self):
+        val = yield self.store.get_max_message_id()
+        defer.returnValue(val)
+
 
 class RoomMemberStreamData(StreamData):
     EVENT_TYPE = RoomMemberEvent.TYPE
@@ -44,6 +49,11 @@ class RoomMemberStreamData(StreamData):
                                 )
 
         defer.returnValue((data, latest_ver))
+
+    @defer.inlineCallbacks
+    def max_token(self):
+        val = yield self.store.get_max_room_member_id()
+        defer.returnValue(val)
 
 
 class FeedbackStreamData(StreamData):
@@ -64,6 +74,11 @@ class FeedbackStreamData(StreamData):
                                 )
         defer.returnValue((data, latest_ver))
 
+    @defer.inlineCallbacks
+    def max_token(self):
+        val = yield self.store.get_max_feedback_id()
+        defer.returnValue(val)
+
 
 class EventStream(PaginationStream):
 
@@ -75,24 +90,46 @@ class EventStream(PaginationStream):
         self.stream_data = stream_data_list
 
     @defer.inlineCallbacks
-    def get_chunk(self, config=None):
-        # no support for limit on >1 streams, makes no sense.
-        if config.limit and len(self.stream_data) > 1:
-            raise EventStreamError(400,
-                                  "Limit not supported on multiplexed streams.")
+    def fix_tokens(self, pagination_config):
+        pagination_config.from_tok = yield self.fix_token(
+                                        pagination_config.from_tok)
+        pagination_config.to_tok = yield self.fix_token(
+                                        pagination_config.to_tok)
+        defer.returnValue(pagination_config)
 
+    @defer.inlineCallbacks
+    def fix_token(self, token):
+        """Fixes unknown values in a token to known values.
+
+        Args:
+            token (str): The token to fix up.
+        Returns:
+            The fixed-up token, which may == token.
+        """
         # replace TOK_START and TOK_END with 0_0_0 or -1_-1_-1 depending.
         replacements = [
             (PaginationStream.TOK_START, "0"),
             (PaginationStream.TOK_END, "-1")
         ]
-        for token, key in replacements:
-            if config.from_tok == token:
-                config.from_tok = EventStream.SEPARATOR.join(
-                                            [key] * len(self.stream_data))
-            if config.to_tok == token:
-                config.to_tok = EventStream.SEPARATOR.join(
-                                            [key] * len(self.stream_data))
+        for magic_token, key in replacements:
+            if magic_token == token:
+                token = EventStream.SEPARATOR.join(
+                            [key] * len(self.stream_data))
+
+        # replace -1 values with an actual pkey
+        token_segments = self._split_token(token)
+        for i, tok in enumerate(token_segments):
+            if tok == -1:
+                token_segments[i] = yield self.stream_data[i].max_token()
+        defer.returnValue(EventStream.SEPARATOR.join(
+                            [str(x) for x in token_segments]))
+
+    @defer.inlineCallbacks
+    def get_chunk(self, config=None):
+        # no support for limit on >1 streams, makes no sense.
+        if config.limit and len(self.stream_data) > 1:
+            raise EventStreamError(400,
+                                  "Limit not supported on multiplexed streams.")
 
         (chunk_data, next_tok) = yield self._get_chunk_data(config.from_tok,
                                                             config.to_tok,
@@ -132,25 +169,32 @@ class EventStream(PaginationStream):
         chunk = []
         next_ver = []
         for i, (from_pkey, to_pkey) in enumerate(zip(
-                                        from_tok.split(EventStream.SEPARATOR),
-                                        to_tok.split(EventStream.SEPARATOR))):
-            # convert to ints and sanity check
-            try:
-                ifrom = int(from_pkey)
-                ito = int(to_pkey)
-                if ifrom < -1 or ito < -1:
-                    raise EventStreamError(400, "Bad index.")
-            except ValueError:
-                raise EventStreamError(400, "Index not integer.")
-
-            if ifrom == ito:  # tokens are the same, we have nothing to do.
-                next_ver.append(str(ito))
+                                        self._split_token(from_tok),
+                                        self._split_token(to_tok))):
+            if from_pkey == to_pkey:
+                # tokens are the same, we have nothing to do.
+                next_ver.append(str(to_pkey))
                 continue
 
             (event_chunk, max_pkey) = yield self.stream_data[i].get_rows(
-                                        self.user_id, ifrom, ito, limit)
+                                        self.user_id, from_pkey, to_pkey, limit)
 
             chunk += event_chunk
             next_ver.append(str(max_pkey))
 
         defer.returnValue((chunk, EventStream.SEPARATOR.join(next_ver)))
+
+    def _split_token(self, token):
+        """Splits the given token into a list of pkeys.
+
+        Args:
+            token (str): The token with SEPARATOR values.
+        Returns:
+            A list of ints.
+        """
+        segments = token.split(EventStream.SEPARATOR)
+        try:
+            int_segments = [int(x) for x in segments]
+        except ValueError:
+            raise EventStreamError(400, "Bad token: %s" % token)
+        return int_segments

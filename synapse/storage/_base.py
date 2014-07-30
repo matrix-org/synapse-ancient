@@ -96,8 +96,8 @@ class SQLBaseStore(object):
             retcol : string giving the name of the column to return
         """
         ret = yield self._simple_select_one(
-            table=table, 
-            keyvalues=keyvalues, 
+            table=table,
+            keyvalues=keyvalues,
             retcols=[retcol],
             allow_none=allow_none
         )
@@ -215,4 +215,22 @@ class SQLBaseStore(object):
                 raise StoreError(404, "No row found")
             if txn.rowcount > 1:
                 raise StoreError(500, "more than one row matched")
+        return self._db_pool.runInteraction(func)
+
+    def _simple_max_id(self, table):
+        """Executes a SELECT query on the named table, expecting to return the
+        max value for the column "id".
+
+        Args:
+            table : string giving the table name
+        """
+        sql = "SELECT MAX(id) AS id FROM %s" % table
+
+        def func(txn):
+            txn.execute(sql)
+            max_id = self.cursor_to_dict(txn)[0]["id"]
+            if max_id is None:
+                return 0
+            return max_id
+
         return self._db_pool.runInteraction(func)

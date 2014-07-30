@@ -37,3 +37,8 @@ class FeedbackStore(SQLBaseStore):
         if res:
             defer.returnValue(res[0])
         defer.returnValue(None)
+
+    @defer.inlineCallbacks
+    def get_max_feedback_id(self):
+        max_id = yield self._simple_max_id(FeedbackTable.table_name)
+        defer.returnValue(max_id)

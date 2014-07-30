@@ -101,6 +101,7 @@ class MessageHandler(BaseHandler):
         data_source = [MessagesStreamData(self.store, room_id=room_id,
                                           feedback=feedback)]
         event_stream = EventStream(user_id, data_source)
+        pagin_config = yield event_stream.fix_tokens(pagin_config)
         data_chunk = yield event_stream.get_chunk(config=pagin_config)
         defer.returnValue(data_chunk)
 

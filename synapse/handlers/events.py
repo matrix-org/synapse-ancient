@@ -50,16 +50,20 @@ class EventStreamHandler(BaseHandler):
             A pagination stream API dict
         """
         try:
-            # register interest in receiving new events
-            self.notifier.store_events_for(user_id=auth_user_id,
-                                           from_tok=pagin_config.from_tok)
-
             # construct an event stream with the correct data ordering
             stream_data_list = []
             for stream_class in EventStreamHandler.stream_data_classes:
                 stream_data_list.append(stream_class(self.store))
-
             event_stream = EventStream(auth_user_id, stream_data_list)
+
+            # fix unknown tokens to known tokens
+            pagin_config = yield event_stream.fix_tokens(pagin_config)
+
+            # register interest in receiving new events
+            self.notifier.store_events_for(user_id=auth_user_id,
+                                           from_tok=pagin_config.from_tok)
+
+            # see if we can grab a chunk now
             data_chunk = yield event_stream.get_chunk(config=pagin_config)
 
             # if there are previous events, return those. If not, wait on the

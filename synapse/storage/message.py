@@ -48,3 +48,8 @@ class MessageStore(SQLBaseStore):
                         query, last_row_id, user_id, room_id,
                         msg_id, content)
         defer.returnValue(last_id)
+
+    @defer.inlineCallbacks
+    def get_max_message_id(self):
+        max_id = yield self._simple_max_id(MessagesTable.table_name)
+        defer.returnValue(max_id)

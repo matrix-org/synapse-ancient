@@ -193,6 +193,15 @@ class MemoryDataStore(object):
     def to_events(self, data_store_list):
         return data_store_list  # TODO
 
+    def get_max_message_id(self):
+        return 0  # TODO
+
+    def get_max_feedback_id(self):
+        return 0  # TODO
+
+    def get_max_room_member_id(self):
+        return 0  # TODO
+
     def get_joined_hosts_for_room(self, room_id):
         return defer.succeed([])
 

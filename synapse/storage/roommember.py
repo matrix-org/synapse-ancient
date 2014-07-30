@@ -147,3 +147,8 @@ class RoomMemberStore(SQLBaseStore):
         logger.debug("Returning hosts: %s from results: %s", hosts, res)
 
         defer.returnValue(hosts)
+
+    @defer.inlineCallbacks
+    def get_max_room_member_id(self):
+        max_id = yield self._simple_max_id(RoomMemberTable.table_name)
+        defer.returnValue(max_id)
