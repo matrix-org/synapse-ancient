@@ -32,7 +32,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_insert_1col(self):
         self.mock_txn.rowcount = 1
 
-        yield self.datastore.interact_simple_insert(
+        yield self.datastore._simple_insert(
                 table="tablename",
                 values={"columname": "Value"}
         )
@@ -46,7 +46,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_insert_3cols(self):
         self.mock_txn.rowcount = 1
 
-        yield self.datastore.interact_simple_insert(
+        yield self.datastore._simple_insert(
                 table="tablename",
                 # Use OrderedDict() so we can assert on the SQL generated
                 values=OrderedDict([("colA", 1), ("colB", 2), ("colC", 3)])
@@ -62,7 +62,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.mock_txn.rowcount = 1
         self.mock_txn.fetchone.return_value = ("Value",)
 
-        value = yield self.datastore.interact_simple_select_one_onecol(
+        value = yield self.datastore._simple_select_one_onecol(
                 table="tablename",
                 keyvalues={"keycol": "TheKey"},
                 retcol="retcol"
@@ -79,7 +79,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.mock_txn.rowcount = 1
         self.mock_txn.fetchone.return_value = (1, 2, 3)
 
-        ret = yield self.datastore.interact_simple_select_one(
+        ret = yield self.datastore._simple_select_one(
                 table="tablename",
                 keyvalues={"keycol": "TheKey"},
                 retcols=["colA", "colB", "colC"]
@@ -96,7 +96,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.mock_txn.rowcount = 0
         self.mock_txn.fetchone.return_value = None
 
-        ret = yield self.datastore.interact_simple_select_one(
+        ret = yield self.datastore._simple_select_one(
                 table="tablename",
                 keyvalues={"keycol": "Not here"},
                 retcols=["colA"],
@@ -109,7 +109,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_update_one_1col(self):
         self.mock_txn.rowcount = 1
 
-        yield self.datastore.interact_simple_update_one(
+        yield self.datastore._simple_update_one(
                 table="tablename",
                 keyvalues={"keycol": "TheKey"},
                 updatevalues={"columnname": "New Value"}
@@ -124,7 +124,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_update_one_4cols(self):
         self.mock_txn.rowcount = 1
 
-        yield self.datastore.interact_simple_update_one(
+        yield self.datastore._simple_update_one(
                 table="tablename",
                 keyvalues=OrderedDict([("colA", 1), ("colB", 2)]),
                 updatevalues=OrderedDict([("colC", 3), ("colD", 4)])
@@ -141,7 +141,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.mock_txn.rowcount = 1
         self.mock_txn.fetchone.return_value = ("Old Value",)
 
-        ret = yield self.datastore.interact_simple_update_one(
+        ret = yield self.datastore._simple_update_one(
                 table="tablename",
                 keyvalues={"keycol": "TheKey"},
                 updatevalues={"columname": "New Value"},
@@ -160,7 +160,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_delete_one(self):
         self.mock_txn.rowcount = 1
 
-        yield self.datastore.interact_simple_delete_one(
+        yield self.datastore._simple_delete_one(
                 table="tablename",
                 keyvalues={"keycol": "Go away"},
         )

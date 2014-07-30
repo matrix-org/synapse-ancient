@@ -53,7 +53,7 @@ class SQLBaseStore(object):
     # "Simple" SQL API methods that operate on a single table with no JOINs,
     # no complex WHERE clauses, just a dict of values for columns.
 
-    def interact_simple_insert(self, table, values):
+    def _simple_insert(self, table, values):
         """Executes an INSERT query on the named table.
 
         Args:
@@ -69,7 +69,7 @@ class SQLBaseStore(object):
             txn.execute(sql, values.values())
         self._db_pool.runInteraction(func)
 
-    def interact_simple_select_one(self, table, keyvalues, retcols,
+    def _simple_select_one(self, table, keyvalues, retcols,
             allow_none=False):
         """Executes a SELECT query on the named table, which is expected to
         return a single row, returning a single column from it.
@@ -86,7 +86,7 @@ class SQLBaseStore(object):
                 retcols=retcols, allow_none=allow_none)
 
     @defer.inlineCallbacks
-    def interact_simple_select_one_onecol(self, table, keyvalues, retcol,
+    def _simple_select_one_onecol(self, table, keyvalues, retcol,
             allow_none=False):
         """Executes a SELECT query on the named table, which is expected to
         return a single row, returning a single column from it."
@@ -96,7 +96,7 @@ class SQLBaseStore(object):
             keyvalues : dict of column names and values to select the row with
             retcol : string giving the name of the column to return
         """
-        ret = yield self.interact_simple_select_one(
+        ret = yield self._simple_select_one(
                 table=table, keyvalues=keyvalues, retcols=[retcol],
                 allow_none=allow_none
         )
@@ -106,7 +106,7 @@ class SQLBaseStore(object):
         else:
             defer.returnValue(None)
 
-    def interact_simple_update_one(self, table, keyvalues, updatevalues,
+    def _simple_update_one(self, table, keyvalues, updatevalues,
             retcols=None):
         """Executes an UPDATE query on the named table, setting new values for
         columns in a row matching the key values.
@@ -170,7 +170,7 @@ class SQLBaseStore(object):
             return ret
         return self._db_pool.runInteraction(func)
 
-    def interact_simple_delete_one(self, table, keyvalues):
+    def _simple_delete_one(self, table, keyvalues):
         """Executes a DELETE query on the named table, expecting to delete a
         single row.
 
