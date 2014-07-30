@@ -20,6 +20,11 @@ synapseClient.config(['$routeProvider',
             });
     }]);
 
+synapseClient.run(['$location', function($location) {
+    // As user info is not yet permanent, we need to go to the login page
+    // when the app starts
+    $location.path("login");
+}]);
 
 synapseClient
     .factory('state', function () {

@@ -3,7 +3,6 @@ angular.module('ChatController', [])
                                function($scope, $log, $q, $http, $timeout, state) {
    'use strict';
     $scope.state = state.state;
-    $scope.hideChat = true;
     $scope.messages = [];
     $scope.state.events_from = "START";
 
@@ -55,8 +54,7 @@ angular.module('ChatController', [])
             });                
     };
 
-    $scope.$on('loginEvent', function() {
-        $scope.hideChat = false;
+    $scope.onInit = function() {
         $timeout(function() { document.getElementById('textInput').focus() }, 0);
 
         $http.put($scope.state.server + "/rooms/" + $scope.state.room + "/members/" + $scope.state.user_id + "/state", {
@@ -73,5 +71,5 @@ angular.module('ChatController', [])
                 $scope.feedback = "Can't join room: " + response.data;
                 return $q.reject(response.data);
             });
-    }); 
+    }; 
 }]);

@@ -1,4 +1,4 @@
-<div ng-controller="ChatController" ng-hide="hideChat" class="chat">
+<div ng-controller="ChatController" data-ng-init="onInit()" class="chat">
     <h3>{{ state.room }}</h3>
 
     <div class="message" ng-repeat="msg in messages">

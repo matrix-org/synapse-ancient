@@ -1,6 +1,6 @@
 angular.module('LoginController', [])
-.controller('LoginController', ['$scope', '$rootScope', '$http', '$timeout', '$location', 'state',
-                                    function($scope, $rootScope, $http, $timeout, $location, state) {
+.controller('LoginController', ['$scope', '$http', '$timeout', '$location', 'state',
+                                    function($scope, $http, $timeout, $location, state) {
     'use strict';
     $scope.state = state.state;
     
@@ -24,9 +24,7 @@ angular.module('LoginController', [])
                 $scope.state.access_token = data.access_token;
                 $scope.state.user_id = data.user_id;
                 $scope.state.room = $scope.room;
-                $scope.hideLogin = true;
                 $location.path("chat");
-                $rootScope.$broadcast('loginEvent'); // XXX: how come emit doesn't work here?
             }).
             error(function(data, status, headers, config) {
                 $scope.feedback = "Failure: " + data;
