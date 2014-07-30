@@ -423,7 +423,7 @@ class _TransactionQueue(object):
         if not destinations:
             return
 
-        deferred_list = []
+        deferreds = []
 
         for destination in destinations:
             deferred = defer.Deferred()
@@ -433,7 +433,9 @@ class _TransactionQueue(object):
 
             self._attempt_new_transaction(destination)
 
-            yield deferred_list.append(deferred)
+            deferreds.append(deferred)
+
+        yield defer.DeferredList(deferreds)
 
     @defer.inlineCallbacks
     @log_function

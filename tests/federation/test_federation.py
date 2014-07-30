@@ -10,6 +10,7 @@ from ..utils import MockHttpServer
 
 from synapse.server import HomeServer
 from synapse.federation import initialize_http_replication
+from synapse.federation.units import Pdu
 from synapse.persistence.transactions import PduTuple, PduEntry
 
 
@@ -33,19 +34,37 @@ def make_pdu(prev_pdus=[], **kwargs):
     return PduTuple(PduEntry(**pdu_fields), prev_pdus)
 
 
+class MockClock(object):
+    now = 1000
+
+    def time(self):
+        return self.now
+
+    def time_msec(self):
+        return self.time() * 1000
+
+
 class FederationTestCase(unittest.TestCase):
     def setUp(self):
-        # TODO: mock an HTTP client and DB pool we can use
         self.mock_http_server = MockHttpServer()
+        self.mock_http_client = Mock(spec=[
+            "put_json",
+        ])
         self.mock_persistence = Mock(spec=[
             "get_current_state_for_context",
             "get_pdu",
+            "persist_pdu",
+            "update_min_depth_for_context",
+            "prep_send_transaction",
+            "delivered_txn",
         ])
+        self.clock = MockClock()
         hs = HomeServer("test",
                 http_server=self.mock_http_server,
-                http_client=None,
+                http_client=self.mock_http_client,
                 db_pool=None,
-                persistence_service=self.mock_persistence
+                persistence_service=self.mock_persistence,
+                clock=self.clock,
         )
         self.federation = initialize_http_replication(hs)
 
@@ -116,3 +135,44 @@ class FederationTestCase(unittest.TestCase):
         self.assertEquals(200, code)
         self.assertEquals(1, len(response["pdus"]))
         self.assertEquals("sy.text", response["pdus"][0]["pdu_type"])
+
+    @defer.inlineCallbacks
+    def test_send_pdu(self):
+        self.mock_http_client.put_json.return_value = defer.succeed(
+                (200, "OK")
+        )
+
+        pdu = Pdu(
+                pdu_id="abc123def456",
+                origin="red",
+                destinations=["remote"],
+                context="my-context",
+                ts=123456789002,
+                pdu_type="sy.test",
+                content={"testing": "content here"},
+                depth=1,
+        )
+
+        yield self.federation.send_pdu(pdu)
+
+        self.mock_http_client.put_json.assert_called_with(
+                "remote",
+                path="/send/1000000/",
+                data={
+                    "ts": 1000000,
+                    "origin": "test",
+                    "pdus": [
+                        {
+                            "origin": "red",
+                            "pdu_id": "abc123def456",
+                            "prev_pdus": [],
+                            "ts": 123456789002,
+                            "context": "my-context",
+                            "pdu_type": "sy.test",
+                            "is_state": False,
+                            "content": {"testing": "content here"},
+                            "depth": 1,
+                        },
+                    ]
+                }
+        )
