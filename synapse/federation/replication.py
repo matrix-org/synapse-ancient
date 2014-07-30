@@ -392,6 +392,8 @@ class _TransactionQueue(object):
         self.transaction_actions = transaction_actions
         self.transport_layer = transport_layer
 
+        self._clock = hs.get_clock()
+
         # Is a mapping from destinations -> deferreds. Used to keep track
         # of which destinations have transactions in flight and when they are
         # done
@@ -402,7 +404,7 @@ class _TransactionQueue(object):
         self.pending_pdus_list = {}
 
         # HACK to get unique tx id
-        self._next_transaction_id = int(hs.get_clock().time_msec())
+        self._next_transaction_id = int(self._clock.time_msec())
 
     @defer.inlineCallbacks
     @log_function
