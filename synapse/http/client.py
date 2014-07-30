@@ -8,6 +8,7 @@ from twisted.web.http_headers import Headers
 
 from synapse.http.endpoint import matrix_endpoint
 from synapse.util.async import sleep
+from synapse.util.jsonutil import encode_canonical_json 
 
 import json
 import logging
@@ -102,10 +103,11 @@ class TwistedHttpClient(HttpClient):
         if destination in _destination_mappings:
             destination = _destination_mappings[destination]
 
-        response = yield self._create_put_request(
+        response = yield self._create_request(
             destination,
+            "PUT",
             "http://%s%s" % (destination, path),
-            data,
+            producer=_JsonProducer(data),
             headers_dict={"Content-Type": ["application/json"]}
         )
 
@@ -127,41 +129,15 @@ class TwistedHttpClient(HttpClient):
             qs = urllib.urlencode(args, True)
             path = "%s?%s" % (path, qs)
 
-        response = yield self._create_get_request(
+        response = yield self._create_request(
             destination,
+            "GET",
             "http://%s%s" % (destination, path)
         )
 
         body = yield readBody(response)
 
         defer.returnValue(json.loads(body))
-
-    def _create_put_request(self, destination, url, json_data,
-                            headers_dict={}):
-        """ Wrapper of _create_request to issue a PUT request
-        """
-
-        if "Content-Type" not in headers_dict:
-            raise defer.error(
-                RuntimeError("Must include Content-Type header for PUTs"))
-
-        return self._create_request(
-            destination,
-            "PUT",
-            url,
-            producer=_JsonProducer(json_data),
-            headers_dict=headers_dict
-        )
-
-    def _create_get_request(self, destination, url, headers_dict={}):
-        """ Wrapper of _create_request to issue a GET request
-        """
-        return self._create_request(
-            destination,
-            "GET",
-            url,
-            headers_dict=headers_dict
-        )
 
     @defer.inlineCallbacks
     def _create_request(self, destination, method, url, producer=None,
@@ -228,7 +204,7 @@ class _JsonProducer(object):
     """ Used by the twisted http client to create the HTTP body from json
     """
     def __init__(self, jsn):
-        self.body = json.dumps(jsn).encode("utf8")
+        self.body = encode_canonical_json(jsn)
         self.length = len(self.body)
 
     def startProducing(self, consumer):
