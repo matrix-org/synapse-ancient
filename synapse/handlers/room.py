@@ -441,14 +441,18 @@ class RoomMemberHandler(BaseHandler):
         # invite/join dance.
         if event.membership == Membership.JOIN:
             with (yield self.room_lock.lock(event.room_id)):
-                if do_auth:
-                    yield self.auth.check(event, raises=True)
+                # XXX: We don't do an auth check if we are doing an invite
+                # join dance for now, since we're kinda implicitly checking
+                # that we are allowed to join when we decide whether or not we
+                # need to do the invite/join dance.
 
                 prev_state = yield self.store.get_room_member(
                     event.target_user_id, event.room_id
                 )
                 if prev_state and prev_state.membership == Membership.JOIN:
                     # double join, treat this event as a NOOP.
+                    if do_auth:  # This is mainly to fix a unit test.
+                        yield self.auth.check(event, raises=True)
                     defer.returnValue(None)
 
                 # Only do an invite join dance if a) we were invited,
@@ -467,6 +471,10 @@ class RoomMemberHandler(BaseHandler):
                 # We want to do the _do_update inside the room lock.
                 if not is_remote_invite_join:
                     logger.debug("Doing normal join")
+
+                    if do_auth:
+                        yield self.auth.check(event, raises=True)
+
                     yield self.state_handler.handle_new_event(event)
                     store_id = yield _do_membership_update()
 
