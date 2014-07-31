@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class MessagesStreamData(StreamData):
     EVENT_TYPE = MessageEvent.TYPE
 
-    def __init__(self, store, room_id=None, feedback=False):
-        super(MessagesStreamData, self).__init__(store)
+    def __init__(self, hs, room_id=None, feedback=False):
+        super(MessagesStreamData, self).__init__(hs)
         self.room_id = room_id
         self.with_feedback = feedback
 
@@ -59,8 +59,8 @@ class RoomMemberStreamData(StreamData):
 class FeedbackStreamData(StreamData):
     EVENT_TYPE = FeedbackEvent.TYPE
 
-    def __init__(self, store, room_id=None):
-        super(FeedbackStreamData, self).__init__(store)
+    def __init__(self, hs, room_id=None):
+        super(FeedbackStreamData, self).__init__(hs)
         self.room_id = room_id
 
     @defer.inlineCallbacks

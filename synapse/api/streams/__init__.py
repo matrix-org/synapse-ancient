@@ -65,8 +65,9 @@ class StreamData(object):
 
     """ An interface for obtaining streaming data from a table. """
 
-    def __init__(self, store):
-        self.store = store
+    def __init__(self, hs):
+        self.hs = hs
+        self.store = hs.get_datastore()
 
     def get_rows(self, user_id, from_pkey, to_pkey, limit):
         """ Get event stream data between the specified pkeys.

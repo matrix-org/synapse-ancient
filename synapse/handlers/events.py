@@ -53,7 +53,7 @@ class EventStreamHandler(BaseHandler):
             # construct an event stream with the correct data ordering
             stream_data_list = []
             for stream_class in EventStreamHandler.stream_data_classes:
-                stream_data_list.append(stream_class(self.store))
+                stream_data_list.append(stream_class(self.hs))
             event_stream = EventStream(auth_user_id, stream_data_list)
 
             # fix unknown tokens to known tokens
