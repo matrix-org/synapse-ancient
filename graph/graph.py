@@ -35,8 +35,7 @@ def make_graph(pdus, room, filename_prefix):
             color_map[o] = c
         except:
             print "Run out of colours!"
-            color_map[o] = "black" 
-        
+            color_map[o] = "black"
 
     graph = pydot.Dot(graph_name="Test")
 
@@ -44,7 +43,10 @@ def make_graph(pdus, room, filename_prefix):
         name = make_name(pdu.get("pdu_id"), pdu.get("origin"))
         pdu_map[name] = pdu
 
-        t = datetime.datetime.fromtimestamp(float(pdu["ts"])/1000).strftime('%Y-%m-%d %H:%M:%S,%f')
+        t = datetime.datetime.fromtimestamp(
+            float(pdu["ts"]) / 1000
+        ).strftime('%Y-%m-%d %H:%M:%S,%f')
+
         label = (
             "<"
             "<b>%(name)s </b><br/>"
@@ -62,11 +64,14 @@ def make_graph(pdus, room, filename_prefix):
             "time": t,
             "depth": pdu.get("depth"),
         }
-         
-        node = pydot.Node(name=name, label=label, color=color_map[pdu.get("origin")])
+
+        node = pydot.Node(
+            name=name,
+            label=label,
+            color=color_map[pdu.get("origin")]
+        )
         node_map[name] = node
         graph.add_node(node)
-
 
     for pdu in pdus:
         start_name = make_name(pdu.get("pdu_id"), pdu.get("origin"))
@@ -79,17 +84,20 @@ def make_graph(pdus, room, filename_prefix):
             edge = pydot.Edge(node_map[start_name], node_map[end_name])
             graph.add_edge(edge)
 
-
     graph.write('%s.dot' % filename_prefix, format='raw', prog='dot')
     graph.write_png("%s.png" % filename_prefix, prog='dot')
     graph.write_svg("%s.svg" % filename_prefix, prog='dot')
 
-   
 
 def get_pdus(host, room):
-    transaction = json.loads(urllib2.urlopen("http://%s/context/%s/" % (host, room)).read())
+    transaction = json.loads(
+        urllib2.urlopen(
+            "http://%s/context/%s/" % (host, room)
+        ).read()
+    )
 
     return transaction["pdus"]
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -97,7 +105,10 @@ if __name__ == "__main__":
                     "to the given homeserver to get the list of PDUs. \n"
                     "Requires pydot."
     )
-    parser.add_argument("-p", "--prefix", dest="prefix", help="String to prefix output files with")
+    parser.add_argument(
+        "-p", "--prefix", dest="prefix",
+        help="String to prefix output files with"
+    )
     parser.add_argument('host')
     parser.add_argument('room')
 
@@ -108,6 +119,5 @@ if __name__ == "__main__":
     prefix = args.prefix if args.prefix else "%s_graph" % (room)
 
     pdus = get_pdus(host, room)
-    
-    make_graph(pdus, room, prefix)
 
+    make_graph(pdus, room, prefix)
