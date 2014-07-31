@@ -158,6 +158,17 @@ class PresenceHandler(BaseHandler):
         self.start_polling_presence(observer_user, target_user=observed_user)
 
     @defer.inlineCallbacks
+    def get_presence_list(self, observer_user, accepted=None):
+        if not observer_user.is_mine:
+            raise SynapseError(400, "User is not hosted on this Home Server")
+
+        presence = yield self.store.get_presence_list(observer_user.localpart,
+                accepted=accepted)
+
+        defer.returnValue([self.hs.parse_userid(x["observed_user_id"])
+            for x in presence])
+
+    @defer.inlineCallbacks
     def start_polling_presence(self, user, target_user=None, state=None):
         logger.debug("Start polling for presence from %s", user)
 
