@@ -164,7 +164,8 @@ class PresenceHandler(BaseHandler):
         if target_user:
             target_users = [target_user]
         else:
-            presence = yield self.store.get_presence_list(user.localpart)
+            presence = yield self.store.get_presence_list(
+                    user.localpart, accepted=True)
             target_users = [self.hs.parse_userid(x["observed_user_id"])
                     for x in presence]
 

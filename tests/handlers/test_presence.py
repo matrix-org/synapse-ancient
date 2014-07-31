@@ -360,7 +360,7 @@ class PresencePollingTestCase(unittest.TestCase):
             return defer.succeed(was)
         self.datastore.set_presence_state = set_presence_state
 
-        def get_presence_list(user_localpart):
+        def get_presence_list(user_localpart, accepted):
             return defer.succeed([
                 {"observed_user_id": u} for u in
                 self.PRESENCE_LIST[user_localpart]])
