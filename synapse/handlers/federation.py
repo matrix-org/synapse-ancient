@@ -23,6 +23,10 @@ class FederationHandler(BaseHandler):
     @log_function
     @defer.inlineCallbacks
     def on_receive(self, event, is_new_state):
+        if hasattr(event, "state_key") and not is_new_state:
+            logger.debug("Ignoring old state.")
+            return
+
         target_is_mine = False
         target_user = None
         if hasattr(event, "target_user_id"):
