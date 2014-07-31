@@ -19,7 +19,7 @@ angular.module('RoomController', [])
             "params": {
                 "access_token": synapseClient.getConfig().access_token,
                 "from": $scope.state.events_from,
-                "timeout": 25
+                "timeout": 25000
             }})
             .then(function(response) {
                 $scope.feedback = "Success";
