@@ -7,8 +7,22 @@
         <div class="body">{{msg.content.body}}</div>
     </div>
 
-    {{ state.user_id }} <input id="textInput" size="132" ng-model="textInput" ng-enter="send()" />
-    <button ng-click="send()">Send</button>
-    <br/>
-    {{ feedback }}
-</div>
+    <div>
+        {{ state.user_id }} <input id="textInput" size="132" ng-model="textInput" ng-enter="send()" />
+        <button ng-click="send()">Send</button>
+
+        <div class="feeback">{{ feedback }}</div>  
+    </div>
+
+    <div>
+        <div>
+            <button ng-click="leaveRoom()">Leave</button>
+        </div>
+        <div>
+           Invite a user: 
+                @<input ng-model="newUser.user_name" size="20" type="text" placeholder="User name"/>
+                :<input ng-model="newUser.homeserver_name" size="40" type="text"  placeholder="Home server name (ex: localhost)"/>        
+                <button ng-click="inviteUser(newUser.user_name, newUser.homeserver_name)">Invite</button>
+        </div>
+    </div>
+ </div>

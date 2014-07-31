@@ -80,4 +80,26 @@ angular.module('RoomController', [])
                 return $q.reject(response.data);
             });
     }; 
+    
+    $scope.inviteUser = function(user_name, homeserver_name) {
+
+        var user_id = synapseClient.computeUserId(user_name, homeserver_name);
+        $http.put(synapseClient.getConfig().homeserver_url + "/rooms/" + $scope.room_id  + "/members/" + user_id + "/state", {
+                "membership": "invite"
+            }, {
+                "params" : {
+                    "access_token" : synapseClient.getConfig().access_token
+                }
+            })
+            .success(function(data, status, headers, config) {
+                $scope.feedback = "Request for invitation succeeds";
+            })
+            .error(function(data, status, headers, config) {
+                var reason = data.error;
+                if (!data.error) {
+                    reason = JSON.stringify(data);
+                }
+                $scope.feedback = "Failure: " + reason;
+            });
+    };
 }]);

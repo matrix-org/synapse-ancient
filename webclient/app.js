@@ -86,3 +86,8 @@ synapseClient.setConfig = function(config) {
     config.version = synapseClient.configVersion;
     localStorage.setItem("config", JSON.stringify(config));
 };
+
+// @TODO: We need a class utility
+synapseClient.computeUserId = function(user_name, homeserver_name) {
+    return "@" + user_name + ":" + homeserver_name;
+};
