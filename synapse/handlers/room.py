@@ -430,6 +430,9 @@ class RoomMemberHandler(BaseHandler):
                 prev_state = yield self.store.get_room_member(
                     event.target_user_id, event.room_id
                 )
+                if prev_state and prev_state.membership == Membership.JOIN:
+                    # double join, treat this event as a NOOP.
+                    defer.returnValue(None)
 
                 # Only do an invite join dance if a) we were invited,
                 # b) the person inviting was from a differnt HS and c) we are
@@ -485,6 +488,13 @@ class RoomMemberHandler(BaseHandler):
             with (yield self.room_lock.lock(event.room_id)):
                 if do_auth:
                     yield self.auth.check(event, raises=True)
+
+                prev_state = yield self.store.get_room_member(
+                    event.target_user_id, event.room_id
+                )
+                if prev_state and prev_state.membership == event.membership:
+                    # double same action, treat this event as a NOOP.
+                    defer.returnValue(None)
 
                 yield self.state_handler.handle_new_event(event)
                 store_id = yield _do_membership_update()

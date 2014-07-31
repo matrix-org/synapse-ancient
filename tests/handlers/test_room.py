@@ -101,7 +101,6 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         )
         self.notifier.on_new_event.assert_called_once_with(event, store_id)
 
-        self.assertFalse(self.datastore.get_room_member.called)
         self.assertFalse(self.datastore.get_room.called)
         self.assertFalse(self.datastore.store_room.called)
         self.assertFalse(self.federation.get_state_for_room.called)
