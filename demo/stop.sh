@@ -11,7 +11,11 @@ if [ ! -f $PID_FILE ]; then
     exit 1
 fi
 
-kill `cat "$PID_FILE"`
+pids=`cat "$PID_FILE" | tr "\n" " "`
+
+echo "Killing: $pids"
+
+kill $pids
 
 rm "$PID_FILE"
 
