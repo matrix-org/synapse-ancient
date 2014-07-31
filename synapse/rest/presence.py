@@ -71,11 +71,13 @@ class PresenceListRestServlet(RestServlet):
         presence = yield self.handlers.presence_handler.get_presence_list(
                 observer_user=user, accepted=True)
 
-        # TODO(paul): Should include current known state and displayname /
-        #   avatar URLs if we have them
-        response = [{"user_id": x.to_string()} for x in presence]
+        # TODO(paul): Should include current known displayname / avatar URLs
+        #   if we have them
+        for p in presence:
+            observed_user = p.pop("observed_user")
+            p["user_id"] = observed_user.to_string()
 
-        defer.returnValue((200, response))
+        defer.returnValue((200, presence))
 
     @defer.inlineCallbacks
     def on_POST(self, request, user_id):

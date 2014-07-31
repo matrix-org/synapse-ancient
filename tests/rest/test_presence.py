@@ -111,7 +111,7 @@ class PresenceListTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_get_my_list(self):
         self.mock_handler.get_presence_list.return_value = defer.succeed(
-                [self.u_banana]
+                [{"observed_user": self.u_banana}]
         )
 
         (code, response) = yield self.mock_server.trigger("GET",

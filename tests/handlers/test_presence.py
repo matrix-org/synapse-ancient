@@ -279,7 +279,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
         presence = yield self.handlers.presence_handler.get_presence_list(
                 observer_user=self.u_apple)
 
-        self.assertEquals([self.u_banana], presence)
+        self.assertEquals([{"observed_user": self.u_banana}], presence)
 
         self.datastore.get_presence_list.assert_called_with("apple",
                 accepted=None)
@@ -292,7 +292,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
         presence = yield self.handlers.presence_handler.get_presence_list(
                 observer_user=self.u_apple, accepted=True)
 
-        self.assertEquals([self.u_banana], presence)
+        self.assertEquals([{"observed_user": self.u_banana}], presence)
 
         self.datastore.get_presence_list.assert_called_with("apple",
                 accepted=True)

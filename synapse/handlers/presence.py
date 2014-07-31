@@ -228,8 +228,14 @@ class PresenceHandler(BaseHandler):
         presence = yield self.store.get_presence_list(observer_user.localpart,
                 accepted=accepted)
 
-        defer.returnValue([self.hs.parse_userid(x["observed_user_id"])
-            for x in presence])
+        for p in presence:
+            observed_user = self.hs.parse_userid(p.pop("observed_user_id"))
+            p["observed_user"] = observed_user
+
+            if observed_user in self._user_cachemap:
+                p.update(self._user_cachemap[observed_user].get_state())
+
+        defer.returnValue(presence)
 
     @defer.inlineCallbacks
     def start_polling_presence(self, user, target_user=None, state=None):
