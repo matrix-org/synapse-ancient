@@ -46,6 +46,14 @@ class RoomStore(SQLBaseStore):
             raise StoreError(500, "Problem creating room.")
 
     @defer.inlineCallbacks
+    def store_room_config(self, room_id, visibility):
+        yield self._simple_update_one(
+            table=RoomsTable.table_name,
+            keyvalues={"room_id": room_id},
+            updatevalues={"is_public": visibility}
+        )
+
+    @defer.inlineCallbacks
     def get_room(self, room_id):
         """Retrieve a room.
 

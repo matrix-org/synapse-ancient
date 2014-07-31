@@ -2,7 +2,8 @@
 
 from synapse.api.errors import StoreError
 from synapse.api.events.room import (
-    RoomMemberEvent, MessageEvent, RoomTopicEvent, FeedbackEvent
+    RoomMemberEvent, MessageEvent, RoomTopicEvent, FeedbackEvent,
+    RoomConfigEvent
 )
 from synapse.persistence.tables import (
     RoomMemberTable, MessagesTable, FeedbackTable
@@ -116,6 +117,14 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
                 state_key=event.state_key,
                 content=json.dumps(event.content)
             )
+        elif event.type == RoomConfigEvent.TYPE:
+            if "visibility" in event.content:
+                visibility = event.content["visibility"]
+                return self.store_room_config(
+                    room_id=event.room_id,
+                    visibility=visibility
+                )
+
         else:
             raise NotImplementedError(
                 "Don't know how to persist type=%s" % event.type
