@@ -8,9 +8,14 @@ angular.module('RoomController', [])
         events_from: "START"
     };
     $scope.messages = [];
+    
+    $scope.newUser = {
+        user_name: "",
+        homeserver_name: synapseClient.getConfig().homeserver_name
+    };
 
     var shortPoll = function() {
-        $http.get(synapseClient.getConfig().server + "/events", {
+        $http.get(synapseClient.getConfig().homeserver_url + "/events", {
             "params": {
                 "access_token": synapseClient.getConfig().access_token,
                 "from": $scope.state.events_from,
@@ -40,7 +45,7 @@ angular.module('RoomController', [])
             return;
         }
         var msg_id = "m" + new Date().getTime();
-        $http.put(synapseClient.getConfig().server + "/rooms/" + $scope.room_id + "/messages/" + synapseClient.getConfig().user_id + "/" + msg_id, {
+        $http.put(synapseClient.getConfig().homeserver_url + "/rooms/" + $scope.room_id + "/messages/" + synapseClient.getConfig().user_id + "/" + msg_id, {
                 "body": $scope.textInput,
                 "msgtype": "sy.text",
             }, {
@@ -60,7 +65,7 @@ angular.module('RoomController', [])
     $scope.onInit = function() {
         $timeout(function() { document.getElementById('textInput').focus() }, 0);
 
-        $http.put(synapseClient.getConfig().server + "/rooms/" + $scope.room_id + "/members/" + synapseClient.getConfig().user_id + "/state", {
+        $http.put(synapseClient.getConfig().homeserver_url + "/rooms/" + $scope.room_id + "/members/" + synapseClient.getConfig().user_id + "/state", {
                 "membership": "join"
             }, {
                 "params" : {

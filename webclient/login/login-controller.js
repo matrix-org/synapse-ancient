@@ -4,14 +4,14 @@ angular.module('LoginController', [])
     'use strict';
     
     $scope.account = {
-        server: "", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
+        homeserver_url: "", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
         user_name: "",
         homeserver_name: "",
         access_token: ""
     };
 
 
-    $scope.account.server = "http://localhost:8080";
+    $scope.account.homeserver_url = "http://localhost:8080";
     $scope.account.user_name = "Manu10";
     $scope.account.homeserver_name = "localhost";
     $scope.account.access_token = "QE1hbnUxMDpsb2NhbGhvc3Q..KbqazxGnAJlibDApAP";
@@ -25,12 +25,13 @@ angular.module('LoginController', [])
         var data = {
           "user_id" : $scope.account.user_name
         };
-        $http.post($scope.account.server + "/register", data).
+        $http.post($scope.account.homeserver_url + "/register", data).
             success(function(data, status, headers, config) {
                 $scope.feedback = "Success";
                 
                 synapseClient.setConfig({
-                    server: $scope.account.server,
+                    homeserver_name: $scope.account.homeserver_name,
+                    homeserver_url: $scope.account.homeserver_url,
                     access_token: data.access_token,
                     user_name: $scope.account.user_name ,
                     user_id: data.user_id  
@@ -51,7 +52,7 @@ angular.module('LoginController', [])
     $scope.login = function() {
 
         // Validate the token by making a request to the HS
-        $http.get($scope.account.server + "/users/" + computeUserId() + "/rooms/list", {
+        $http.get($scope.account.homeserver_url + "/users/" + computeUserId() + "/rooms/list", {
             "params": {
                 "access_token" : $scope.account.access_token
             }}).
@@ -61,7 +62,8 @@ angular.module('LoginController', [])
                 $scope.feedback = "Success";
                 
                 synapseClient.setConfig({
-                    server: $scope.account.server,
+                    homeserver_name: $scope.account.homeserver_name,
+                    homeserver_url: $scope.account.homeserver_url,
                     access_token: $scope.account.access_token,
                     user_name: $scope.account.user_name ,
                     user_id: computeUserId()  

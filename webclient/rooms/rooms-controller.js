@@ -9,7 +9,7 @@ angular.module('RoomsController', [])
 
     $scope.refresh = function() {
         // List all rooms joined or been invited to
-        $http.get(synapseClient.getConfig().server + "/users/" + synapseClient.getConfig().user_id + "/rooms/list", {
+        $http.get(synapseClient.getConfig().homeserver_url + "/users/" + synapseClient.getConfig().user_id + "/rooms/list", {
             "params": {
                 "access_token" : synapseClient.getConfig().access_token
             }}).
@@ -28,7 +28,7 @@ angular.module('RoomsController', [])
     };
     
     $scope.createNewRoom = function(roomid) {
-        $http.put(synapseClient.getConfig().server + "/rooms/" + roomid, {
+        $http.put(synapseClient.getConfig().homeserver_url + "/rooms/" + roomid, {
                 "membership": "join"
             }, {
                 "params" : {

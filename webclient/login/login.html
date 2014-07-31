@@ -2,10 +2,10 @@
     <h3>Login:</h3>
     <form novalidate>
         @<input id="user_id" size="20" type="text" auto-focus ng-model="account.user_name" placeholder="User name"/>
-        :<input id="server" size="40" type="text" ng-model="account.homeserver_name"  placeholder="Home server name (ex: localhost)"/><br />
+        :<input id="homeserver_name" size="40" type="text" ng-model="account.homeserver_name"  placeholder="Home server name (ex: localhost)"/><br/>
         <br/>
         
-        <input id="server" size="70" type="text" ng-model="account.server" placeholder="Server URL (ex: http://localhost:8080)"/><br />
+        <input id="homeserver_url" size="70" type="text" ng-model="account.homeserver_url" placeholder="Server URL (ex: http://localhost:8080)"/><br />
         
         <br/>
         <input id="accessToken" size="70" type="text" ng-model="account.access_token" placeholder="Enter an access token to log in with an already registered user"/><br />
