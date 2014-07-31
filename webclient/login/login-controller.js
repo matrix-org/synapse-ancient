@@ -10,12 +10,12 @@ angular.module('LoginController', [])
         access_token: ""
     };
 
-
+/*
     $scope.account.homeserver_url = "http://localhost:8080";
     $scope.account.user_name = "Manu10";
     $scope.account.homeserver_name = "localhost";
     $scope.account.access_token = "QE1hbnUxMDpsb2NhbGhvc3Q..KbqazxGnAJlibDApAP";
-
+*/
     
     var computeUserId = function() {
         return "@" + $scope.account.user_name + ":" + $scope.account.homeserver_name;
