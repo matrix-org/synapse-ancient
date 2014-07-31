@@ -126,7 +126,7 @@ class MessageHandler(BaseHandler):
             yield self.state_handler.handle_new_event(event)
 
             # store in db
-            yield self.store.store_room_data(
+            store_id = yield self.store.store_room_data(
                 room_id=event.room_id,
                 etype=event.type,
                 state_key=event.state_key,
@@ -136,6 +136,7 @@ class MessageHandler(BaseHandler):
             event.destinations = yield self.store.get_joined_hosts_for_room(
                 event.room_id
             )
+            self.notifier.on_new_event(event, store_id)
 
         yield self.hs.get_federation().handle_new_event(event)
 

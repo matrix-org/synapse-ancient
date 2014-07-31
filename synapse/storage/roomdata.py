@@ -6,6 +6,10 @@ from synapse.persistence.tables import RoomDataTable
 from ._base import SQLBaseStore
 
 
+def last_row_id(cursor):
+    return cursor.lastrowid
+
+
 class RoomDataStore(SQLBaseStore):
 
     """Provides various CRUD operations for Room Events. """
@@ -43,10 +47,12 @@ class RoomDataStore(SQLBaseStore):
             etype (str)
             state_key (str)
             data (str)- The data to store for this path in JSON.
+        Returns:
+            The store ID for this data.
         """
         query = ("INSERT INTO " + RoomDataTable.table_name +
                 "(type, state_key, room_id, content) VALUES (?,?,?,?)")
         yield self._db_pool.runInteraction(
-            self.exec_single, query,
+            self.exec_single_with_result, query, last_row_id,
             etype, state_key, room_id, content
         )
