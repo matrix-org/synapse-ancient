@@ -4,10 +4,10 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.api.events.room import (
-    InviteJoinEvent, MessageEvent, RoomMemberEvent
+    InviteJoinEvent, RoomMemberEvent, RoomConfigEvent
 )
 from synapse.api.constants import Membership
-from synapse.handlers.room import RoomMemberHandler
+from synapse.handlers.room import RoomMemberHandler, RoomCreationHandler
 from synapse.server import HomeServer
 
 from mock import NonCallableMock
@@ -223,3 +223,73 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         self.datastore.store_room.assert_called_once_with(
             room_id, prev_state.sender, is_public=False
         )
+
+
+class RoomCreationTest(unittest.TestCase):
+
+    def setUp(self):
+        self.hostname = "red"
+        hs = HomeServer(
+            self.hostname,
+            db_pool=None,
+            datastore=NonCallableMock(spec_set=[
+                "store_room",
+            ]),
+            http_server=NonCallableMock(),
+            http_client=NonCallableMock(spec_set=[]),
+            notifier=NonCallableMock(spec_set=["on_new_event"]),
+            handlers=NonCallableMock(spec_set=[
+                "room_creation_handler",
+                "room_member_handler",
+            ]),
+            auth=NonCallableMock(spec_set=["check"]),
+            federation=NonCallableMock(spec_set=[
+                "handle_new_event",
+            ]),
+            state_handler=NonCallableMock(spec_set=["handle_new_event"]),
+        )
+
+        self.datastore = hs.get_datastore()
+        self.handlers = hs.get_handlers()
+        self.notifier = hs.get_notifier()
+        self.federation = hs.get_federation()
+        self.state_handler = hs.get_state_handler()
+        self.hs = hs
+
+        self.handlers.room_creation_handler = RoomCreationHandler(self.hs)
+        self.room_creation_handler = self.handlers.room_creation_handler
+
+        self.handlers.room_member_handler = NonCallableMock(spec_set=[
+            "change_membership"
+        ])
+        self.room_member_handler = self.handlers.room_member_handler
+
+    @defer.inlineCallbacks
+    def test_room_creation(self):
+        user_id = "@foo:red"
+        room_id = "bobs_room"
+        config = {"visibility": "private"}
+
+        yield self.room_creation_handler.create_room(
+            user_id=user_id,
+            room_id=room_id,
+            config=config,
+        )
+
+        self.assertTrue(self.room_member_handler.change_membership.called)
+        join_event = self.room_member_handler.change_membership.call_args[0][0]
+
+        self.assertEquals(RoomMemberEvent.TYPE, join_event.type)
+        self.assertEquals(room_id, join_event.room_id)
+        self.assertEquals(user_id, join_event.user_id)
+        self.assertEquals(user_id, join_event.target_user_id)
+
+        self.assertTrue(self.state_handler.handle_new_event.called)
+
+        self.assertTrue(self.federation.handle_new_event.called)
+        config_event = self.federation.handle_new_event.call_args[0][0]
+
+        self.assertEquals(RoomConfigEvent.TYPE, config_event.type)
+        self.assertEquals(room_id, config_event.room_id)
+        self.assertEquals(user_id, config_event.user_id)
+        self.assertEquals(config, config_event.content)
