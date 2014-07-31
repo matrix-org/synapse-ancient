@@ -559,6 +559,7 @@ class RoomMemberHandler(BaseHandler):
 
 class RoomListHandler(BaseHandler):
 
+    @defer.inlineCallbacks
     def get_public_room_list(self):
-        chunk = []
-        return defer.succeed({"start": "START", "end": "END", "chunk": chunk})
+        chunk = yield self.store.get_rooms(is_public=True)
+        defer.returnValue({"start": "START", "end": "END", "chunk": chunk})

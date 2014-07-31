@@ -70,10 +70,17 @@ class RoomStore(SQLBaseStore):
         defer.returnValue(None)
 
     @defer.inlineCallbacks
-    def get_public_rooms(self):
+    def get_rooms(self, is_public):
         """Retrieve a list of all public rooms.
 
+        Args:
+            is_public (bool): True if the rooms returned should be public.
         Returns:
             A list of room dicts containing at least a "room_id" key.
         """
-        pass
+        public = 1 if is_public else 0
+        query = "SELECT * FROM %s WHERE is_public=?" % RoomsTable.table_name
+
+        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
+                query, self.cursor_to_dict, public)
+        defer.returnValue(res)
