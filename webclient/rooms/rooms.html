@@ -1,0 +1,20 @@
+<div ng-controller="RoomsController" class="rooms">
+    
+    <h3>My rooms</h3>
+    
+    <div class="rooms" ng-repeat="room in rooms">
+        <div>
+            <a href="#/room/{{ room.room_id }}" >{{ room.room_id }}</a>
+        </div>
+    </div>
+    <br/>
+    
+    <div>
+        <input size="40" ng-model="newRoomId" ng-enter="createNewRoom(newRoomId)" />
+        <button ng-disabled="!newRoomId" ng-click="createNewRoom(newRoomId)">Create new room</button>
+    </div>
+    <br/>
+    
+    {{ feedback }}
+    
+</div>

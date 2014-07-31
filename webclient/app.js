@@ -1,7 +1,8 @@
 var synapseClient = angular.module('synapseClient', [
     'ngRoute',
     'LoginController',
-    'RoomController'
+    'RoomController',
+    'RoomsController'
 ]);
 
 synapseClient.config(['$routeProvider',
@@ -14,6 +15,10 @@ synapseClient.config(['$routeProvider',
             when('/room/:room_id', {
                 templateUrl: 'room/room.html',
                 controller: 'RoomController'
+            }).
+            when('/rooms', {
+                templateUrl: 'rooms/rooms.html',
+                controller: 'RoomsController'
             }).
             otherwise({
                 redirectTo: '/login'
@@ -51,5 +56,5 @@ synapseClient
             link: function(scope, element, attr) {
                 $timeout(function() { element[0].focus() }, 0);
             }
-        }
+        };
     }]);
