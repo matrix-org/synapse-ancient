@@ -73,6 +73,9 @@ class PresenceHandler(BaseHandler):
         # map remote users to sets of local users who're interested in them
         self._remote_recvmap = {}
 
+        # map any user to a UserPresenceCache
+        self._user_cachemap = {}
+
     def registered_user(self, user):
         self.store.create_presence(user.localpart)
 
@@ -85,8 +88,12 @@ class PresenceHandler(BaseHandler):
 
             defer.returnValue(state)
         else:
-            # TODO(paul): Look up in local cache(?) or ask server-server API?
-            defer.returnValue({"state": 0, "status_msg": ""})
+            # TODO(paul): Have remote server send us permissions set
+            if target_user in self._user_cachemap:
+                defer.returnValue(
+                        self._user_cachemap[target_user].get_state())
+            else:
+                defer.returnValue({"state": 0, "status_msg": ""})
 
     @defer.inlineCallbacks
     def set_state(self, target_user, auth_user, state):
@@ -115,6 +122,12 @@ class PresenceHandler(BaseHandler):
         now_online = state["state"] != PresenceState.OFFLINE
         was_online = oldstate != PresenceState.OFFLINE
 
+        if target_user not in self._user_cachemap:
+            self._user_cachemap[target_user] = UserPresenceCache()
+
+        statusobj = self._user_cachemap[target_user]
+        statusobj.update(state)
+
         if now_online and not was_online:
             self.start_polling_presence(target_user, state=state)
         elif not now_online and was_online:
@@ -123,6 +136,9 @@ class PresenceHandler(BaseHandler):
         # TODO(paul): perform a presence push as part of start/stop poll so
         #   we don't have to do this all the time
         self.push_presence(target_user, state=state)
+
+        if not now_online:
+            del self._user_cachemap[target_user]
 
     @defer.inlineCallbacks
     def send_invite(self, observer_user, observed_user):
@@ -385,12 +401,21 @@ class PresenceHandler(BaseHandler):
             state = dict(push)
             del state["user_id"]
 
+            if user not in self._user_cachemap:
+                self._user_cachemap[user] = UserPresenceCache()
+
+            statusobj = self._user_cachemap[user]
+            statusobj.update(state)
+
             for observer_user in observers:
                 deferreds.append(self.push_update_to_clients(
                         observer_user=observer_user,
                         observed_user=user,
                         state=state
                 ))
+
+            if state["state"] == PresenceState.OFFLINE:
+                del self._user_cachemap[user]
 
         for poll in content.get("poll", []):
             user = self.hs.parse_userid(poll)
@@ -424,3 +449,29 @@ class PresenceHandler(BaseHandler):
     def push_update_to_clients(self, observer_user, observed_user, state):
         # TODO(paul)
         pass
+
+
+class UserPresenceCache(object):
+    """Store an observed user's state and status message.
+
+    Includes the update timestamp.
+    """
+    def __init__(self):
+        self.state = None
+        self.status_msg = None
+
+    def update(self, state):
+        self.state = state["state"]
+
+        if "status_msg" in state:
+            self.status_msg = state["status_msg"]
+        else:
+            self.status_msg = None
+
+    def get_state(self):
+        ret = {"state": self.state}
+
+        if self.status_msg is not None:
+            ret["status_msg"] = self.status_msg
+
+        return ret

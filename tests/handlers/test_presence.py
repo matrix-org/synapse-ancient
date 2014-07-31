@@ -399,6 +399,10 @@ class PresencePushTestCase(unittest.TestCase):
                     state={"state": ONLINE}),
         ])
 
+        state = yield self.handler.get_state(self.u_potato, self.u_apple)
+
+        self.assertEquals({"state": ONLINE}, state)
+
 
 class PresencePollingTestCase(unittest.TestCase):
     """ Tests presence status polling. """
