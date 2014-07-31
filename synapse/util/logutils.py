@@ -13,32 +13,39 @@ def log_function(f):
     pathname = f.func_code.co_filename
 
     def wrapped(*args, **kwargs):
-        bound_args = getcallargs(f, *args, **kwargs)
+        name = f.__module__
+        logger = logging.getLogger(name)
+        level = logging.DEBUG
 
-        def format(value):
-            r = str(value)
-            if len(r) > 50:
-                r = r[:50] + "..."
-            return r
+        if logger.isEnabledFor(level):
+            bound_args = getcallargs(f, *args, **kwargs)
 
-        func_args = ["%s=%s" % (k, format(v)) for k, v in bound_args.items()]
+            def format(value):
+                r = str(value)
+                if len(r) > 50:
+                    r = r[:50] + "..."
+                return r
 
-        msg_args = {
-            "func_name": func_name,
-            "args": ", ".join(func_args)
-        }
+            func_args = [
+                "%s=%s" % (k, format(v)) for k, v in bound_args.items()
+            ]
 
-        record = logging.LogRecord(
-            name=f.__module__,
-            level=logging.DEBUG,
-            pathname=pathname,
-            lineno=lineno,
-            msg="Invoked '%(func_name)s' with args: %(args)s",
-            args=msg_args,
-            exc_info=None
-        )
+            msg_args = {
+                "func_name": func_name,
+                "args": ", ".join(func_args)
+            }
 
-        logging.getLogger(record.name).handle(record)
+            record = logging.LogRecord(
+                name=name,
+                level=level,
+                pathname=pathname,
+                lineno=lineno,
+                msg="Invoked '%(func_name)s' with args: %(args)s",
+                args=msg_args,
+                exc_info=None
+            )
+
+            logger.handle(record)
 
         return f(*args, **kwargs)
 
