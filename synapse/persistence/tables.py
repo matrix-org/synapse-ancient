@@ -237,7 +237,8 @@ class RoomDataTable(Table):
     fields = [
         "id",
         "room_id",
-        "path",
+        "type",
+        "state_key",
         "content"
     ]
 
