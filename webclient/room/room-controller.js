@@ -1,18 +1,20 @@
 angular.module('RoomController', [])
-.controller('RoomController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams', 'state',
-                               function($scope, $log, $q, $http, $timeout, $routeParams, state) {
+.controller('RoomController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams',
+                               function($scope, $log, $q, $http, $timeout, $routeParams) {
    'use strict';
     $scope.room_id = $routeParams.room_id;
-    $scope.state = state.state;
+    $scope.state = {
+        user_id: synapseClient.getConfig().user_id,
+        events_from: "START"
+    };
     $scope.messages = [];
-    $scope.state.events_from = "START";
 
     var shortPoll = function() {
-        $http.get($scope.state.server + "/events", {
+        $http.get(synapseClient.getConfig().server + "/events", {
             "params": {
-                "access_token" : $scope.state.access_token,
-                "from" : $scope.state.events_from,
-                "timeout" : 25,
+                "access_token": synapseClient.getConfig().access_token,
+                "from": $scope.state.events_from,
+                "timeout": 25
             }})
             .then(function(response) {
                 $scope.feedback = "Success";
@@ -38,12 +40,12 @@ angular.module('RoomController', [])
             return;
         }
         var msg_id = "m" + new Date().getTime();
-        $http.put($scope.state.server + "/rooms/" + $scope.room_id + "/messages/" + $scope.state.user_id + "/" + msg_id, {
+        $http.put(synapseClient.getConfig().server + "/rooms/" + $scope.room_id + "/messages/" + synapseClient.getConfig().user_id + "/" + msg_id, {
                 "body": $scope.textInput,
                 "msgtype": "sy.text",
             }, {
                 "params" : {
-                    "access_token" : $scope.state.access_token
+                    "access_token" : synapseClient.getConfig().access_token
                 }
             })
             .success(function(data, status, headers, config) {
@@ -58,11 +60,11 @@ angular.module('RoomController', [])
     $scope.onInit = function() {
         $timeout(function() { document.getElementById('textInput').focus() }, 0);
 
-        $http.put($scope.state.server + "/rooms/" + $scope.room_id + "/members/" + $scope.state.user_id + "/state", {
+        $http.put(synapseClient.getConfig().server + "/rooms/" + $scope.room_id + "/members/" + synapseClient.getConfig().user_id + "/state", {
                 "membership": "join"
             }, {
                 "params" : {
-                    "access_token" : $scope.state.access_token
+                    "access_token" : synapseClient.getConfig().access_token
                 }
             })
             .success(function(data, status, headers, config) {

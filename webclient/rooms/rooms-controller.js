@@ -1,18 +1,17 @@
 'use strict';
 angular.module('RoomsController', [])
-.controller('RoomsController', ['$scope', '$http', '$routeParams', 'state',
-                               function($scope, $http, $routeParams, state) {
-    $scope.state = state.state;
-    
+.controller('RoomsController', ['$scope', '$http',
+                               function($scope, $http) {
+                                   
     $scope.rooms = [];
     $scope.newRoomId = "";
     $scope.feedback = "";
 
     $scope.refresh = function() {
         // List all rooms joined or been invited to
-        $http.get($scope.state.server + "/users/" + $scope.state.user_id + "/rooms/list", {
+        $http.get(synapseClient.getConfig().server + "/users/" + synapseClient.getConfig().user_id + "/rooms/list", {
             "params": {
-                "access_token" : $scope.state.access_token
+                "access_token" : synapseClient.getConfig().access_token
             }}).
             success(function(data, status, headers, config) {
                 
@@ -29,11 +28,11 @@ angular.module('RoomsController', [])
     };
     
     $scope.createNewRoom = function(roomid) {
-        $http.put($scope.state.server + "/rooms/" + roomid, {
+        $http.put(synapseClient.getConfig().server + "/rooms/" + roomid, {
                 "membership": "join"
             }, {
                 "params" : {
-                    "access_token" : $scope.state.access_token
+                    "access_token" : synapseClient.getConfig().access_token
                 }
             })
             .success(function(data, status, headers, config) {

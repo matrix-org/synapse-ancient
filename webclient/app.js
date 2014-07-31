@@ -26,19 +26,14 @@ synapseClient.config(['$routeProvider',
     }]);
 
 synapseClient.run(['$location', function($location) {
-    // As user info is not yet permanent, we need to go to the login page
-    // when the app starts
-    $location.path("login");
+    // If we have no persistent login information, go to the login page
+    var config = synapseClient.getConfig();
+    if (!config || !config.access_token) {
+        $location.path("login");
+    }
 }]);
 
 synapseClient
-    .factory('state', function () {
-        'use strict';
-        var state = {};
-        return {
-            "state": state,
-        };
-    })
     .directive('ngEnter', function () {
         return function (scope, element, attrs) {
             element.bind("keydown keypress", function (event) {
@@ -58,3 +53,27 @@ synapseClient
             }
         };
     }]);
+
+
+/* 
+ * Permanent storage of user information
+ * The config contains:
+ *    - server
+ *    - access_token
+ *    - user_name
+ *    - user_id
+ *    
+ * @TODO: This is out of the Angular concepts. Need to find how to implement it
+ *  with angular objects
+ */
+synapseClient.getConfig = function() {
+    var config = localStorage.getItem("config");
+    if (config) {
+        config = JSON.parse(config);
+    }
+    return config;
+};
+
+synapseClient.setConfig = function(config) {
+    localStorage.setItem("config", JSON.stringify(config));
+};
