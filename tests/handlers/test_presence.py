@@ -80,7 +80,8 @@ class PresenceStateTestCase(unittest.TestCase):
 
         mocked_set.assert_called_with("apple",
                 {"state": 1, "status_msg": "Away"})
-        self.mock_start.assert_called_with(self.u_apple)
+        self.mock_start.assert_called_with(self.u_apple,
+                state={"state": 1, "status_msg": "Away"})
 
     @defer.inlineCallbacks
     def test_set_my_state_offline(self):
@@ -349,10 +350,10 @@ class PresencePushTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    state={"state": ONLINE}),
+                    state={"state": ONLINE, "status_msg": None}),
                 call(observer_user=self.u_clementine,
                     observed_user=self.u_apple,
-                    state={"state": ONLINE}),
+                    state={"state": ONLINE, "status_msg": None}),
         ], any_order=True)
 
     @defer.inlineCallbacks
@@ -370,7 +371,8 @@ class PresencePushTestCase(unittest.TestCase):
                 content={
                     "push": [
                         {"user_id": "@apple:test",
-                         "state": 2},
+                         "state": 2,
+                         "status_msg": None},
                     ],
                 },
         )
@@ -440,7 +442,8 @@ class PresencePollingTestCase(unittest.TestCase):
 
         def get_presence_state(user_localpart):
             return defer.succeed(
-                    {"state": self.current_user_state[user_localpart]}
+                    {"state": self.current_user_state[user_localpart],
+                     "status_msg": None}
             )
         self.datastore.get_presence_state = get_presence_state
 
@@ -475,10 +478,10 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_banana,
-                    state={"state": OFFLINE}),
+                    state={"state": OFFLINE, "status_msg": None}),
                 call(observer_user=self.u_apple,
                     observed_user=self.u_clementine,
-                    state={"state": OFFLINE}),
+                    state={"state": OFFLINE, "status_msg": None}),
         ], any_order=True)
 
         # Gut-wrenching tests
@@ -498,10 +501,10 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_banana,
-                    state={"state": ONLINE}),
+                    state={"state": ONLINE, "status_msg": None}),
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    state={"state": ONLINE}),
+                    state={"state": ONLINE, "status_msg": None}),
         ], any_order=True)
 
         self.assertTrue("apple" in self.handler._local_pushmap)
@@ -518,7 +521,7 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    state={"state": OFFLINE}),
+                    state={"state": OFFLINE, "status_msg": None}),
         ], any_order=True)
 
         self.assertFalse("banana" in self.handler._local_pushmap)
@@ -577,7 +580,9 @@ class PresencePollingTestCase(unittest.TestCase):
                 edu_type="sy.presence",
                 content={
                     "push": [
-                        {"user_id": "@banana:test", "state": 0},
+                        {"user_id": "@banana:test",
+                         "state": 0,
+                         "status_msg": None},
                     ],
                 },
         )

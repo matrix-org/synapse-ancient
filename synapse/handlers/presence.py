@@ -96,8 +96,14 @@ class PresenceHandler(BaseHandler):
         if target_user != auth_user:
             raise AuthError(400, "Cannot set another user's displayname")
 
-        # TODO(paul): Sanity-check 'state'. Needs 'status' of suitable value
-        # and optional status_msg.
+        # TODO(paul): Sanity-check 'state'
+        if "status_msg" not in state:
+            state["status_msg"] = None
+
+        for k in state.keys():
+            if k not in ("state", "status_msg"):
+                raise SynapseError(400,
+                        "Unexpected presence state key '%s'" % (k))
 
         logger.debug("Updating presence state of %s to %s",
                 target_user.localpart, state["state"])
@@ -110,7 +116,7 @@ class PresenceHandler(BaseHandler):
         was_online = oldstate != PresenceState.OFFLINE
 
         if now_online and not was_online:
-            self.start_polling_presence(target_user)
+            self.start_polling_presence(target_user, state=state)
         elif not now_online and was_online:
             self.stop_polling_presence(target_user)
 

@@ -26,11 +26,12 @@ class PresenceStore(SQLBaseStore):
             retcols=["state", "status_msg"],
         )
 
-    def set_presence_state(self, user_localpart, new_state, new_msg):
+    def set_presence_state(self, user_localpart, new_state):
         return self._simple_update_one(
             table="presence",
             keyvalues={"user_id": user_localpart},
-            updatevalues={"state": new_state, "status_msg": new_msg},
+            updatevalues={"state": new_state["state"],
+                          "status_msg": new_state["status_msg"]},
             retcols=["state"],
         )
 
