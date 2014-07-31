@@ -62,7 +62,7 @@ class Auth(object):
     @defer.inlineCallbacks
     def is_membership_change_allowed(self, event):
         # does this room even exist
-        room = self.store.get_room(event.room_id)
+        room = yield self.store.get_room(event.room_id)
         if not room:
             raise AuthError(403, "Room does not exist")
 
@@ -97,8 +97,11 @@ class Auth(object):
             # Joins are valid iff caller == target and they were:
             # invited: They are accepting the invitation
             # joined: It's a NOOP
-            if (event.user_id != event.target_user_id or not caller or
-                    caller.membership not in
+            if event.user_id != event.target_user_id:
+                raise AuthError(403, "Cannot force another user to join.")
+            elif room.is_public:
+                pass  # anyone can join public rooms.
+            elif (not caller or caller.membership not in
                     [Membership.INVITE, Membership.JOIN]):
                 raise AuthError(403, "You are not invited to this room.")
         elif Membership.LEAVE == membership:
