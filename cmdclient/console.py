@@ -390,8 +390,9 @@ class SynapseCmd(cmd.Cmd):
         for i, arg in enumerate(line_args):
             for config_key in self.config:
                 if ("$" + config_key) in arg:
-                    line_args[i] = arg.replace("$" + config_key,
-                                               self.config[config_key])
+                    arg = arg.replace("$" + config_key,
+                                      self.config[config_key])
+            line_args[i] = arg
 
         return dict(zip(keys, line_args))
 
