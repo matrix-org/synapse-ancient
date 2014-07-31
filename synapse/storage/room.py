@@ -4,10 +4,12 @@ from twisted.internet import defer
 from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
+from synapse.api.events.room import RoomTopicEvent
 from synapse.persistence.tables import RoomsTable
 
 from ._base import SQLBaseStore
 
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,17 +72,39 @@ class RoomStore(SQLBaseStore):
         defer.returnValue(None)
 
     @defer.inlineCallbacks
-    def get_rooms(self, is_public):
+    def get_rooms(self, is_public, with_topics):
         """Retrieve a list of all public rooms.
 
         Args:
             is_public (bool): True if the rooms returned should be public.
+            with_topics (bool): True to include the current topic for the room
+            in the response.
         Returns:
-            A list of room dicts containing at least a "room_id" key.
+            A list of room dicts containing at least a "room_id" key, and a
+            "topic" key if one is set and with_topic=True.
         """
+        room_data_type = RoomTopicEvent.TYPE
         public = 1 if is_public else 0
-        query = "SELECT * FROM %s WHERE is_public=?" % RoomsTable.table_name
+        query = ("SELECT rooms.*, room_data.content, max(room_data.id) as id " +
+                "FROM rooms LEFT JOIN room_data ON " +
+                "rooms.room_id = room_data.room_id WHERE " +
+                "(type = ? OR type IS NULL) and rooms.is_public = ? " +
+                "GROUP BY rooms.room_id")
 
         res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, self.cursor_to_dict, public)
+                query, self.cursor_to_dict, room_data_type, public)
+
+        # return only the keys the specification expects
+        ret_keys = ["room_id", "topic"]
+
+        # extract topic from the json (icky) FIXME
+        for i, room_row in enumerate(res):
+            try:
+                content_json = json.loads(room_row["content"])
+                room_row["topic"] = content_json["topic"]
+            except:
+                pass  # no topic set
+            # filter the dict based on ret_keys
+            res[i] = {k: v for k, v in room_row.iteritems() if k in ret_keys}
+
         defer.returnValue(res)
