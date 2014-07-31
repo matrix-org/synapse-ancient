@@ -1,5 +1,5 @@
-angular.module('ChatController', [])
-.controller('ChatController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams', 'state',
+angular.module('RoomController', [])
+.controller('RoomController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams', 'state',
                                function($scope, $log, $q, $http, $timeout, $routeParams, state) {
    'use strict';
     $scope.room_id = $routeParams.room_id;

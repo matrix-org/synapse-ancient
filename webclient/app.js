@@ -1,7 +1,7 @@
 var synapseClient = angular.module('synapseClient', [
     'ngRoute',
     'LoginController',
-    'ChatController'
+    'RoomController'
 ]);
 
 synapseClient.config(['$routeProvider',
@@ -11,9 +11,9 @@ synapseClient.config(['$routeProvider',
                 templateUrl: 'login/login.html',
                 controller: 'LoginController'
             }).
-            when('/chat/:room_id', {
-                templateUrl: 'chat/chat.html',
-                controller: 'ChatController'
+            when('/room/:room_id', {
+                templateUrl: 'room/room.html',
+                controller: 'RoomController'
             }).
             otherwise({
                 redirectTo: '/login'
