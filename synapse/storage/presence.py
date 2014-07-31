@@ -29,7 +29,7 @@ class PresenceStore(SQLBaseStore):
     def allow_presence_inbound(self, observed_localpart, observer_userid):
         return self._simple_insert(
                 table="presence_allow_inbound",
-                keyvalues={"observed_user_id": observed_localpart,
+                values={"observed_user_id": observed_localpart,
                            "observer_user": observer_userid},
         )
 
@@ -51,7 +51,7 @@ class PresenceStore(SQLBaseStore):
     def add_presence_list_pending(self, observer_localpart, observed_userid):
         return self._simple_insert(
                 table="presence_list",
-                keyvalues={"user_id": observer_localpart,
+                values={"user_id": observer_localpart,
                            "observed_user_id": observed_userid,
                            "accepted": False},
         )
