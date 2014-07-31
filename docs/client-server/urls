@@ -78,7 +78,11 @@ TODO(paul): per-device idle time, device type; similar to above
 
 My presence list
   GET  /presence_list/$myuserid
-  POST /presence_list/$myuserid?op=update
+  POST /presence_list/$myuserid
+    body is JSON-encoded dict of keys:
+      invite: list of UserID strings to invite
+      drop: list of UserID strings to remove
+      TODO(paul): define other ops: accept, group management, ordering?
 
 Presence polling start/stop
   POST /presence_list/$myuserid?op=start
