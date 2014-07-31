@@ -65,14 +65,18 @@ def setup_logging(verbosity=0, filename=None, config_path=None):
     """
 
     if config_path is None:
-        if verbosity == 0:
+        log_format = (
+            '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s'
+        )
+
+        if not verbosity or verbosity == 0:
             level = logging.WARNING
         elif verbosity == 1:
             level = logging.INFO
         else:
             level = logging.DEBUG
 
-        logging.basicConfig(level=level, filename=filename)
+        logging.basicConfig(level=level, filename=filename, format=log_format)
     else:
         logging.config.fileConfig(config_path)
 
@@ -90,14 +94,23 @@ def run():
                         help="The hostname of the server.")
     parser.add_argument('-v', '--verbose', dest="verbose", action='count',
                         help="The verbosity level.")
+    parser.add_argument('-f', '--log-file', dest="log_file", default=None,
+                        help="File to log to.")
     args = parser.parse_args()
 
-    setup_logging(args.verbose)
+    verbosity = int(args.verbose) if args.verbose else None
+
+    setup_logging(
+        verbosity=verbosity,
+        filename=args.log_file
+    )
 
     logger.info("Server hostname: %s", args.host)
 
-    hs = SynapseHomeServer(args.host,
-            db_name=args.db)
+    hs = SynapseHomeServer(
+        args.host,
+        db_name=args.db
+    )
 
     # This object doesn't need to be saved because it's set as the handler for
     # the replication layer
