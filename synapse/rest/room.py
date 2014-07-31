@@ -39,7 +39,7 @@ class RoomCreateRestServlet(RestServlet):
 
             room_config = self.get_room_config(request)
             info = yield self.make_room(room_config, auth_user, room_id)
-
+            info.update(room_config)
             defer.returnValue((200, info))
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
@@ -53,7 +53,7 @@ class RoomCreateRestServlet(RestServlet):
 
             room_config = self.get_room_config(request)
             info = yield self.make_room(room_config, auth_user, None)
-
+            info.update(room_config)
             defer.returnValue((200, info))
         except SynapseError as e:
             defer.returnValue((e.code, cs_error(e.msg)))
