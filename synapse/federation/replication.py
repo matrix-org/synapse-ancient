@@ -260,8 +260,9 @@ class ReplicationLayer(object):
         for pdu in pdu_list:
             dl.append(self._handle_new_pdu(pdu))
 
-        for edu in [Edu(**x) for x in transaction.edus]:
-            self.received_edu(edu.origin, edu.edu_type, edu.content)
+        if hasattr(transaction, "edus"):
+            for edu in [Edu(**x) for x in transaction.edus]:
+                self.received_edu(edu.origin, edu.edu_type, edu.content)
 
         results = yield defer.DeferredList(dl)
 
