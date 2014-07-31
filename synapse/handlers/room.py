@@ -299,7 +299,7 @@ class RoomCreationHandler(BaseHandler):
 
         with (yield self.room_lock.lock(room_id)):
             config_event = self.event_factory.create_event(
-                etype=RoomConfigEvent,
+                etype=RoomConfigEvent.TYPE,
                 room_id=room_id,
                 user_id=user_id,
                 content=config,
