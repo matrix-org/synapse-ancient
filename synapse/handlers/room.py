@@ -257,7 +257,7 @@ class MessageHandler(BaseHandler):
 class RoomCreationHandler(BaseHandler):
 
     @defer.inlineCallbacks
-    def create_room(self, user_id=None, room_id=None, config=None):
+    def create_room(self, user_id, room_id, config):
         """ Creates a new room.
 
         Args:
