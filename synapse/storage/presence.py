@@ -11,6 +11,14 @@ class PresenceStore(SQLBaseStore):
             values={"user_id": user_localpart},
         )
 
+    def has_presence_state(self, user_localpart):
+        return self._simple_select_one(
+            table="presence",
+            keyvalues={"user_id": user_localpart},
+            retcols=["user_id"],
+            allow_none=True,
+        )
+
     def get_presence_state(self, user_localpart):
         return self._simple_select_one(
             table="presence",

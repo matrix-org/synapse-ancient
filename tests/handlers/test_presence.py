@@ -104,6 +104,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
         hs = HomeServer("test",
                 db_pool=None,
                 datastore=Mock(spec=[
+                    "has_presence_state",
                     "allow_presence_inbound",
                     "add_presence_list_pending",
                     "set_presence_list_accepted",
@@ -116,9 +117,16 @@ class PresenceInvitesTestCase(unittest.TestCase):
             )
         self.datastore = hs.get_datastore()
 
+        def has_presence_state(user_localpart):
+            return defer.succeed(
+                user_localpart in ("apple", "banana"))
+        self.datastore.has_presence_state = has_presence_state
+
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
         self.u_banana = hs.parse_userid("@banana:test")
+        # ID of a local user that does not exist
+        self.u_durian = hs.parse_userid("@durian:test")
 
         # A remote user
         self.u_cabbage = hs.parse_userid("@cabbage:elsewhere")
@@ -148,6 +156,16 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
         self.mock_start.assert_called_with(
                 self.u_apple, target_user=self.u_banana)
+
+    @defer.inlineCallbacks
+    def test_invite_local_nonexistant(self):
+        yield self.handlers.presence_handler.send_invite(
+                observer_user=self.u_apple, observed_user=self.u_durian)
+
+        self.datastore.add_presence_list_pending.assert_called_with(
+                "apple", "@durian:test")
+        self.datastore.del_presence_list.assert_called_with(
+                "apple", "@durian:test")
 
     @defer.inlineCallbacks
     def test_invite_remote(self):
@@ -194,6 +212,26 @@ class PresenceInvitesTestCase(unittest.TestCase):
         )
 
     @defer.inlineCallbacks
+    def test_invited_remote_nonexistant(self):
+        self.replication.send_edu.return_value = defer.succeed((200, "OK"))
+
+        yield self.replication.received_edu(
+                "elsewhere", "sy.presence_invite", {
+                    "observer_user": "@cabbage:elsewhere",
+                    "observed_user": "@durian:test",
+                }
+        )
+
+        self.replication.send_edu.assert_called_with(
+                destination="elsewhere",
+                edu_type="sy.presence_deny",
+                content={
+                    "observer_user": "@cabbage:elsewhere",
+                    "observed_user": "@durian:test",
+                }
+        )
+
+    @defer.inlineCallbacks
     def test_accepted_remote(self):
         yield self.replication.received_edu(
                 "elsewhere", "sy.presence_accept", {
@@ -207,6 +245,18 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
         self.mock_start.assert_called_with(
                 self.u_apple, target_user=self.u_cabbage)
+
+    @defer.inlineCallbacks
+    def test_denied_remote(self):
+        yield self.replication.received_edu(
+                "elsewhere", "sy.presence_deny", {
+                    "observer_user": "@apple:test",
+                    "observed_user": "@eggplant:elsewhere",
+                }
+        )
+
+        self.datastore.del_presence_list.assert_called_with(
+                "apple", "@eggplant:elsewhere")
 
     @defer.inlineCallbacks
     def test_drop_local(self):

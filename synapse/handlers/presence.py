@@ -58,6 +58,11 @@ class PresenceHandler(BaseHandler):
                     observed_user=hs.parse_userid(content["observed_user"]),
                     observer_user=hs.parse_userid(content["observer_user"]),
                 ))
+        self.federation.register_edu_handler("sy.presence_deny",
+                lambda origin, content: self.deny_presence(
+                    observed_user=hs.parse_userid(content["observed_user"]),
+                    observer_user=hs.parse_userid(content["observer_user"]),
+                ))
 
         # IN-MEMORY store, mapping local userparts to sets of local users to
         # be informed of state changes.
@@ -133,18 +138,37 @@ class PresenceHandler(BaseHandler):
                     })
 
     @defer.inlineCallbacks
-    def invite_presence(self, observed_user, observer_user):
+    def _should_accept_invite(self, observed_user, observer_user):
+        if not observed_user.is_mine:
+            defer.returnValue(False)
+
+        row = yield self.store.has_presence_state(observed_user.localpart)
+        if not row:
+            defer.returnValue(False)
+
         # TODO(paul): Eventually we'll ask the user's permission for this
         # before accepting. For now just accept any invite request
-        yield self.store.allow_presence_inbound(
-                observed_user.localpart, observer_user.to_string())
+        defer.returnValue(True)
+
+    @defer.inlineCallbacks
+    def invite_presence(self, observed_user, observer_user):
+        accept = yield self._should_accept_invite(observed_user, observer_user)
+
+        if accept:
+            yield self.store.allow_presence_inbound(
+                    observed_user.localpart, observer_user.to_string())
 
         if observer_user.is_mine:
-            yield self.accept_presence(observed_user, observer_user)
+            if accept:
+                yield self.accept_presence(observed_user, observer_user)
+            else:
+                yield self.deny_presence(observed_user, observer_user)
         else:
+            edu_type = "sy.presence_accept" if accept else "sy.presence_deny"
+
             yield self.federation.send_edu(
                     destination=observer_user.domain,
-                    edu_type="sy.presence_accept",
+                    edu_type=edu_type,
                     content={
                         "observed_user": observed_user.to_string(),
                         "observer_user": observer_user.to_string(),
@@ -156,6 +180,13 @@ class PresenceHandler(BaseHandler):
                 observer_user.localpart, observed_user.to_string())
 
         self.start_polling_presence(observer_user, target_user=observed_user)
+
+    @defer.inlineCallbacks
+    def deny_presence(self, observed_user, observer_user):
+        yield self.store.del_presence_list(
+                observer_user.localpart, observed_user.to_string())
+
+        # TODO(paul): Inform the user somehow?
 
     @defer.inlineCallbacks
     def drop(self, observed_user, observer_user):
