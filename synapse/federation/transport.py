@@ -288,7 +288,7 @@ class TransportLayer(object):
 
     @defer.inlineCallbacks
     @log_function
-    def _do_request_for_transaction(self, destination, path, args=None):
+    def _do_request_for_transaction(self, destination, path, args={}):
         """
         Args:
             destination (str)

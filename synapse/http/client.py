@@ -110,7 +110,7 @@ class TwistedHttpClient(HttpClient):
         response = yield self._create_request(
             destination,
             "PUT",
-            path,
+            path.encode("ascii"),
             producer=_JsonProducer(data),
             headers_dict={"Content-Type": ["application/json"]}
         )
@@ -122,16 +122,17 @@ class TwistedHttpClient(HttpClient):
         defer.returnValue((response.code, body))
 
     @defer.inlineCallbacks
-    def get_json(self, destination, path, args=[]):
+    def get_json(self, destination, path, args={}):
         if destination in _destination_mappings:
             destination = _destination_mappings[destination]
 
+        logger.debug("get_json args: %s" % args)
         query_bytes = urllib.urlencode(args, True)
 
         response = yield self._create_request(
             destination,
             "GET",
-            path,
+            path.encode("ascii"),
             query_bytes
         )
 
@@ -140,7 +141,7 @@ class TwistedHttpClient(HttpClient):
         defer.returnValue(json.loads(body))
 
     @defer.inlineCallbacks
-    def _create_request(self, destination, method, path, param_bytes=b"",
+    def _create_request(self, destination, method, path_bytes, param_bytes=b"",
                         query_bytes=b"", producer=None, headers_dict={}):
         """ Creates and sends a request to the given url
         """
@@ -148,7 +149,16 @@ class TwistedHttpClient(HttpClient):
         headers_dict[b"Host"] = [destination]
 
         logger.debug("Sending request to %s: %s %s;%s?%s",
-                     destination, method, path, param_bytes, query_bytes)
+                     destination, method, path_bytes, param_bytes, query_bytes)
+
+        logger.debug(
+            "Types: %s",
+            [
+                type(destination), type(method), type(path_bytes),
+                type(param_bytes),
+                type(query_bytes)
+            ]
+        )
 
         retries_left = 5
 
@@ -161,7 +171,7 @@ class TwistedHttpClient(HttpClient):
                     destination,
                     endpoint,
                     method,
-                    path,
+                    path_bytes,
                     param_bytes,
                     query_bytes,
                     Headers(headers_dict),
