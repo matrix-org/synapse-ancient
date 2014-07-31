@@ -6,7 +6,8 @@ from synapse.types import UserID
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError
 from synapse.api.events.room import (
-    RoomTopicEvent, MessageEvent, InviteJoinEvent, RoomMemberEvent
+    RoomTopicEvent, MessageEvent, InviteJoinEvent, RoomMemberEvent,
+    RoomConfigEvent
 )
 from synapse.api.streams.event import EventStream, MessagesStreamData
 from synapse.util import stringutils
@@ -296,6 +297,20 @@ class RoomCreationHandler(BaseHandler):
             if not room_id:
                 raise StoreError(500, "Couldn't generate a room ID.")
 
+        with (yield self.room_lock.lock(room_id)):
+            config_event = self.event_factory.create_event(
+                etype=RoomConfigEvent,
+                room_id=room_id,
+                user_id=user_id,
+                content=config,
+            )
+
+            yield self.state_handler.handle_new_event(config_event)
+            # store_id = persist...
+
+        yield self.hs.get_federation().handle_new_event(config_event)
+        # self.notifier.on_new_event(event, store_id)
+
         content = {"membership": Membership.JOIN}
         join_event = self.event_factory.create_event(
             etype=RoomMemberEvent.TYPE,
@@ -305,6 +320,7 @@ class RoomCreationHandler(BaseHandler):
             membership=Membership.JOIN,
             content=content
         )
+
         yield self.hs.get_handlers().room_member_handler.change_membership(
             join_event,
             broadcast_msg=True,
