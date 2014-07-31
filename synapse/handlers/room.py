@@ -555,3 +555,10 @@ class RoomMemberHandler(BaseHandler):
 
         handler = self.hs.get_handlers().message_handler
         yield handler.send_message(event, suppress_auth=True)
+
+
+class RoomListHandler(BaseHandler):
+
+    def get_public_room_list(self):
+        chunk = []
+        return defer.succeed({"start": "START", "end": "END", "chunk": chunk})

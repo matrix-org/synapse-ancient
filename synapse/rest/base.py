@@ -34,6 +34,9 @@ class RestServletFactory(object):
         import profile
         profile.register_servlets(hs, http_server)
 
+        import public
+        public.register_servlets(hs, http_server)
+
         import user
         user.register_servlets(hs, http_server)
 

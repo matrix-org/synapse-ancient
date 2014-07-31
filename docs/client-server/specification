@@ -336,8 +336,7 @@ Setting the topic for a room
 
 See a list of public rooms
 --------------------------
-  Event Type: sy.room.list
-  REST Path: /rooms/list?pagination_query_parameters
+  REST Path: /public/rooms?pagination_query_parameters
   Valid methods: GET
   This API can use pagination query parameters.
   Returns:

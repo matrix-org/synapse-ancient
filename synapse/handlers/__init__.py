@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from .register import RegistrationHandler
-from .room import MessageHandler, RoomCreationHandler, RoomMemberHandler
+from .room import (
+    MessageHandler, RoomCreationHandler, RoomMemberHandler, RoomListHandler
+)
 from .events import EventStreamHandler
 from .federation import FederationHandler
 from .profile import ProfileHandler
@@ -24,3 +26,4 @@ class Handlers(object):
         self.federation_handler = FederationHandler(hs)
         self.profile_handler = ProfileHandler(hs)
         self.presence_handler = PresenceHandler(hs)
+        self.room_list_handler = RoomListHandler(hs)
