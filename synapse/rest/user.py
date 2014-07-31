@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
+from synapse.api.errors import SynapseError
 from synapse.api.streams import PaginationConfig
 from base import RestServlet
 
@@ -13,6 +14,8 @@ class UserRoomListRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_GET(self, request, sender_id):
         user = yield self.auth.get_user_by_req(request)
+        if user.to_string() != sender_id:
+            raise SynapseError(403, "Cannot see room list of other users.")
         with_feedback = "feedback" in request.args
         pagination_config = PaginationConfig.from_request(request)
         handler = self.handlers.message_handler
