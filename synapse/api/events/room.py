@@ -72,3 +72,13 @@ class InviteJoinEvent(SynapseEvent):
 
     def get_content_template(self):
         return {}
+
+
+class RoomConfigEvent(SynapseEvent):
+    TYPE = "sy.room.config"
+
+    def __init__(self, **kwargs):
+        super(RoomConfigEvent, self).__init__(**kwargs)
+
+    def get_content_template(self):
+        return {}

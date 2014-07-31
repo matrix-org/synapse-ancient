@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from synapse.api.events.room import (
     RoomTopicEvent, MessageEvent, RoomMemberEvent, FeedbackEvent,
-    InviteJoinEvent
+    InviteJoinEvent, RoomConfigEvent
 )
 
 from synapse.util.stringutils import random_string
@@ -14,7 +14,8 @@ class EventFactory(object):
         MessageEvent,
         RoomMemberEvent,
         FeedbackEvent,
-        InviteJoinEvent
+        InviteJoinEvent,
+        RoomConfigEvent
     ]
 
     def __init__(self):
