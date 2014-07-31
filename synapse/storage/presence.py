@@ -30,21 +30,21 @@ class PresenceStore(SQLBaseStore):
         return self._simple_insert(
                 table="presence_allow_inbound",
                 values={"observed_user_id": observed_localpart,
-                           "observer_user": observer_userid},
+                        "observer_user_id": observer_userid},
         )
 
     def disallow_presence_inbound(self, observed_localpart, observer_userid):
         return self._simple_delete_one(
                 table="presence_allow_inbound",
                 keyvalues={"observed_user_id": observed_localpart,
-                           "observer_user": observer_userid},
+                           "observer_user_id": observer_userid},
         )
 
     def is_presence_inbound_allowed(self, observed_localpart, observer_userid):
         return self._simple_select_one(
                 table="presence_allow_inbound",
                 keyvalues={"observed_user_id": observed_localpart,
-                           "observer_user": observer_userid},
+                           "observer_user_id": observer_userid},
                 allow_none=True,
         )
 
@@ -52,8 +52,8 @@ class PresenceStore(SQLBaseStore):
         return self._simple_insert(
                 table="presence_list",
                 values={"user_id": observer_localpart,
-                           "observed_user_id": observed_userid,
-                           "accepted": False},
+                        "observed_user_id": observed_userid,
+                        "accepted": False},
         )
 
     def set_presence_list_accepted(self, observer_localpart, observed_userid):
