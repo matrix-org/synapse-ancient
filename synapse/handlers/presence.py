@@ -158,6 +158,16 @@ class PresenceHandler(BaseHandler):
         self.start_polling_presence(observer_user, target_user=observed_user)
 
     @defer.inlineCallbacks
+    def drop(self, observed_user, observer_user):
+        if not observer_user.is_mine:
+            raise SynapseError(400, "User is not hosted on this Home Server")
+
+        yield self.store.del_presence_list(
+                observer_user.localpart, observed_user.to_string())
+
+        self.stop_polling_presence(observer_user, target_user=observed_user)
+
+    @defer.inlineCallbacks
     def get_presence_list(self, observer_user, accepted=None):
         if not observer_user.is_mine:
             raise SynapseError(400, "User is not hosted on this Home Server")

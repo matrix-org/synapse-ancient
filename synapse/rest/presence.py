@@ -7,6 +7,11 @@ from base import RestServlet
 import json
 import re
 
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 class PresenceStatusRestServlet(RestServlet):
     PATTERN = re.compile("^/presence/(?P<user_id>[^/]*)/status")
@@ -46,5 +51,66 @@ class PresenceStatusRestServlet(RestServlet):
         defer.returnValue((200, ""))
 
 
+class PresenceListRestServlet(RestServlet):
+    PATTERN = re.compile("^/presence_list/(?P<user_id>[^/]*)")
+
+    @defer.inlineCallbacks
+    def on_GET(self, request, user_id):
+        auth_user = yield self.auth.get_user_by_req(request)
+        user = self.hs.parse_userid(user_id)
+
+        if not user.is_mine:
+            defer.returnValue((400, "User not hosted on this Home Server"))
+
+        if auth_user != user:
+            defer.returnValue((400, "Cannot get another user's presence list"))
+
+        presence = yield self.handlers.presence_handler.get_presence_list(
+                observer_user=user, accepted=True)
+
+        # TODO(paul): Should include current known state and displayname /
+        #   avatar URLs if we have them
+        response = [{"user_id": x.to_string()} for x in presence]
+
+        defer.returnValue((200, response))
+
+    @defer.inlineCallbacks
+    def on_POST(self, request, user_id):
+        auth_user = yield self.auth.get_user_by_req(request)
+        user = self.hs.parse_userid(user_id)
+
+        if not user.is_mine:
+            defer.returnValue((400, "User not hosted on this Home Server"))
+
+        if auth_user != user:
+            defer.returnValue((400,
+                "Cannot modify another user's presence list"))
+
+        try:
+            content = json.loads(request.content.read())
+        except:
+            logger.exception("JSON parse error")
+            defer.returnValue((400, "Unable to parse content"))
+
+        deferreds = []
+
+        if "invite" in content:
+            for u in content["invite"]:
+                invited_user = self.hs.parse_userid(u)
+                deferreds.append(self.handlers.presence_handler.send_invite(
+                    observer_user=user, observed_user=invited_user))
+
+        if "drop" in content:
+            for u in content["drop"]:
+                dropped_user = self.hs.parse_userid(u)
+                deferreds.append(self.handlers.presence_handler.drop(
+                    observer_user=user, observed_user=dropped_user))
+
+        yield defer.DeferredList(deferreds)
+
+        defer.returnValue((200, ""))
+
+
 def register_servlets(hs, http_server):
     PresenceStatusRestServlet(hs).register(http_server)
+    PresenceListRestServlet(hs).register(http_server)

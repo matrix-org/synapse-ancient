@@ -108,6 +108,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
                     "add_presence_list_pending",
                     "set_presence_list_accepted",
                     "get_presence_list",
+                    "del_presence_list",
                 ]),
                 http_server=Mock(),
                 http_client=None,
@@ -207,6 +208,16 @@ class PresenceInvitesTestCase(unittest.TestCase):
         self.mock_start.assert_called_with(
                 self.u_apple, target_user=self.u_cabbage)
 
+    @defer.inlineCallbacks
+    def test_drop_local(self):
+        yield self.handlers.presence_handler.drop(
+                observer_user=self.u_apple, observed_user=self.u_banana)
+
+        self.datastore.del_presence_list.assert_called_with(
+                "apple", "@banana:test")
+
+        self.mock_stop.assert_called_with(
+                self.u_apple, target_user=self.u_banana)
 
     @defer.inlineCallbacks
     def test_get_presence_list(self):
