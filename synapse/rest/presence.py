@@ -50,6 +50,9 @@ class PresenceStatusRestServlet(RestServlet):
 
         defer.returnValue((200, ""))
 
+    def on_OPTIONS(self, request):
+        return (200, {})
+
 
 class PresenceListRestServlet(RestServlet):
     PATTERN = re.compile("^/presence_list/(?P<user_id>[^/]*)")
@@ -109,6 +112,9 @@ class PresenceListRestServlet(RestServlet):
         yield defer.DeferredList(deferreds)
 
         defer.returnValue((200, ""))
+
+    def on_OPTIONS(self, request):
+        return (200, {})
 
 
 def register_servlets(hs, http_server):
