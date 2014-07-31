@@ -218,7 +218,7 @@ class FederationTestCase(unittest.TestCase):
         recv_observer = Mock()
         recv_observer.return_value = defer.succeed(())
 
-        self.distributor.observe("received_edu", recv_observer)
+        self.federation.register_edu_handler("sy.test", recv_observer)
 
         yield self.mock_http_server.trigger("PUT", "/send/1001000/",
                 """{
@@ -236,6 +236,5 @@ class FederationTestCase(unittest.TestCase):
                 }""")
 
         recv_observer.assert_called_with(
-                "remote", "sy.test",
-                {"testing": "reply here"}
+                "remote", {"testing": "reply here"}
         )

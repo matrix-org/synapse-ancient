@@ -52,14 +52,12 @@ class ReplicationLayer(object):
         )
 
         self.handler = None
+        self.edu_handlers = {}
 
         self._order = 0
 
         self._db_pool = hs.get_db_pool()
         self._clock = hs.get_clock()
-
-        self.distributor = hs.get_distributor()
-        self.distributor.declare("received_edu")
 
     def set_handler(self, handler):
         """Sets the handler that the replication layer will use to communicate
@@ -67,6 +65,12 @@ class ReplicationLayer(object):
         documented on :py:class:`.ReplicationHandler`.
         """
         self.handler = handler
+
+    def register_edu_handler(self, edu_type, handler):
+        if edu_type in self.edu_handlers:
+            raise KeyError("Already have an EDU handler for %s" % (edu_type))
+
+        self.edu_handlers[edu_type] = handler
 
     @defer.inlineCallbacks
     @log_function
@@ -257,8 +261,7 @@ class ReplicationLayer(object):
             dl.append(self._handle_new_pdu(pdu))
 
         for edu in [Edu(**x) for x in transaction.edus]:
-            self.distributor.fire("received_edu",
-                    edu.origin, edu.edu_type, edu.content)
+            self.received_edu(edu.origin, edu.edu_type, edu.content)
 
         results = yield defer.DeferredList(dl)
 
@@ -277,6 +280,12 @@ class ReplicationLayer(object):
             200, response
         )
         defer.returnValue((200, response))
+
+    def received_edu(self, origin, edu_type, content):
+        if edu_type in self.edu_handlers:
+            self.edu_handlers[edu_type](origin, content)
+        else:
+            logger.warn("Received EDU of type %s with no handler", edu_type)
 
     @defer.inlineCallbacks
     @log_function

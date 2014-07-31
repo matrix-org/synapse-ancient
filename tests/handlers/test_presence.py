@@ -18,6 +18,17 @@ ONLINE = PresenceState.ONLINE
 logging.getLogger().addHandler(logging.NullHandler())
 
 
+class MockReplication(object):
+    def __init__(self):
+        self.edu_handlers = {}
+
+    def register_edu_handler(self, edu_type, handler):
+        self.edu_handlers[edu_type] = handler
+
+    def received_edu(self, origin, edu_type, content):
+        self.edu_handlers[edu_type](origin, content)
+
+
 class PresenceStateTestCase(unittest.TestCase):
     """ Tests presence management. """
 
@@ -87,6 +98,9 @@ class PresenceInvitesTestCase(unittest.TestCase):
     """ Tests presence management. """
 
     def setUp(self):
+        self.replication = MockReplication()
+        self.replication.send_edu = Mock()
+
         hs = HomeServer("test",
                 db_pool=None,
                 datastore=Mock(spec=[
@@ -96,12 +110,9 @@ class PresenceInvitesTestCase(unittest.TestCase):
                 ]),
                 http_server=Mock(),
                 http_client=None,
-                replication_layer=Mock(spec=[
-                    "send_edu",
-                ]),
+                replication_layer=self.replication
             )
         self.datastore = hs.get_datastore()
-        self.send_edu_mock = hs.get_replication_layer().send_edu
 
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
@@ -111,9 +122,6 @@ class PresenceInvitesTestCase(unittest.TestCase):
         self.u_cabbage = hs.parse_userid("@cabbage:elsewhere")
 
         self.handlers = hs.get_handlers()
-
-        self.distributor = hs.get_distributor()
-        self.distributor.declare("received_edu")
 
         self.mock_start = Mock()
         self.mock_stop = Mock()
@@ -141,7 +149,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_invite_remote(self):
-        self.send_edu_mock.return_value = defer.succeed((200, "OK"))
+        self.replication.send_edu.return_value = defer.succeed((200, "OK"))
 
         yield self.handlers.presence_handler.send_invite(
                 observer_user=self.u_apple, observed_user=self.u_cabbage)
@@ -149,7 +157,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
         self.datastore.add_presence_list_pending.assert_called_with(
                 "apple", "@cabbage:elsewhere")
 
-        self.send_edu_mock.assert_called_with(
+        self.replication.send_edu.assert_called_with(
                 destination="elsewhere",
                 edu_type="sy.presence_invite",
                 content={
@@ -162,9 +170,9 @@ class PresenceInvitesTestCase(unittest.TestCase):
     def test_accept_remote(self):
         # TODO(paul): This test will likely break if/when real auth permissions
         # are added; for now the HS will always accept any invite
-        self.send_edu_mock.return_value = defer.succeed((200, "OK"))
+        self.replication.send_edu.return_value = defer.succeed((200, "OK"))
 
-        yield self.distributor.fire("received_edu",
+        yield self.replication.received_edu(
                 "elsewhere", "sy.presence_invite", {
                     "observer_user": "@cabbage:elsewhere",
                     "observed_user": "@apple:test",
@@ -174,7 +182,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
         self.datastore.allow_presence_inbound.assert_called_with(
                 "apple", "@cabbage:elsewhere")
 
-        self.send_edu_mock.assert_called_with(
+        self.replication.send_edu.assert_called_with(
                 destination="elsewhere",
                 edu_type="sy.presence_accept",
                 content={
@@ -185,7 +193,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_accepted_remote(self):
-        yield self.distributor.fire("received_edu",
+        yield self.replication.received_edu(
                 "elsewhere", "sy.presence_accept", {
                     "observer_user": "@apple:test",
                     "observed_user": "@cabbage:elsewhere",
@@ -210,6 +218,10 @@ class PresencePushTestCase(unittest.TestCase):
     BE WARNED...
     """
     def setUp(self):
+        self.replication = MockReplication()
+        self.replication.send_edu = Mock()
+        self.replication.send_edu.return_value = defer.succeed((200, "OK"))
+
         hs = HomeServer("test",
                 db_pool=None,
                 datastore=Mock(spec=[
@@ -217,22 +229,14 @@ class PresencePushTestCase(unittest.TestCase):
                 ]),
                 http_server=Mock(),
                 http_client=None,
-                replication_layer=Mock(spec=[
-                    "send_edu",
-                ]),
+                replication_layer=self.replication,
             )
-
-        self.send_edu_mock = hs.get_replication_layer().send_edu
-        self.send_edu_mock.return_value = defer.succeed((200, "OK"))
 
         self.mock_update_client = Mock()
         self.mock_update_client.return_value = defer.succeed(None)
 
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
-
-        self.distributor = hs.get_distributor()
-        self.distributor.declare("received_edu")
 
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
@@ -270,7 +274,7 @@ class PresencePushTestCase(unittest.TestCase):
         yield self.handler.set_state(self.u_apple, self.u_apple,
                 {"state": ONLINE})
 
-        self.send_edu_mock.assert_called_with(
+        self.replication.send_edu.assert_called_with(
                 destination="remote",
                 edu_type="sy.presence",
                 content={
@@ -288,7 +292,7 @@ class PresencePushTestCase(unittest.TestCase):
                 set())
         potato_set.add(self.u_apple)
 
-        yield self.distributor.fire("received_edu",
+        yield self.replication.received_edu(
                 "remote", "sy.presence", {
                     "push": [
                         {"user_id": "@potato:remote",
@@ -318,26 +322,23 @@ class PresencePollingTestCase(unittest.TestCase):
 
 
     def setUp(self):
+        self.replication = MockReplication()
+        self.replication.send_edu = Mock()
+
         hs = HomeServer("test",
                 db_pool=None,
                 datastore=Mock(spec=[]),
                 http_server=Mock(),
                 http_client=None,
-                replication_layer=Mock(spec=[
-                    "send_edu",
-                ]),
+                replication_layer=self.replication,
             )
         self.datastore = hs.get_datastore()
-        self.send_edu_mock = hs.get_replication_layer().send_edu
 
         self.mock_update_client = Mock()
         self.mock_update_client.return_value = defer.succeed(None)
 
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
-
-        self.distributor = hs.get_distributor()
-        self.distributor.declare("received_edu")
 
         # Mocked database state
         # Local users always start offline
@@ -438,7 +439,7 @@ class PresencePollingTestCase(unittest.TestCase):
                 target_user=self.u_clementine, auth_user=self.u_clementine,
                 state={"state": ONLINE})
 
-        self.send_edu_mock.assert_called_with(
+        self.replication.send_edu.assert_called_with(
                 destination="remote",
                 edu_type="sy.presence",
                 content={
@@ -451,14 +452,14 @@ class PresencePollingTestCase(unittest.TestCase):
         self.assertTrue(self.u_clementine in
                 self.handler._remote_recvmap[self.u_potato])
 
-        self.send_edu_mock.reset_mock()
+        self.replication.send_edu.reset_mock()
 
         # clementine goes offline
         yield self.handler.set_state(
                 target_user=self.u_clementine, auth_user=self.u_clementine,
                 state={"state": OFFLINE})
 
-        self.send_edu_mock.assert_called_with(
+        self.replication.send_edu.assert_called_with(
                 destination="remote",
                 edu_type="sy.presence",
                 content={
@@ -470,7 +471,7 @@ class PresencePollingTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_remote_poll_receive(self):
-        yield self.distributor.fire("received_edu",
+        yield self.replication.received_edu(
                 "remote", "sy.presence", {
                     "poll": [ "@banana:test" ],
                 }
@@ -479,7 +480,7 @@ class PresencePollingTestCase(unittest.TestCase):
         # Gut-wrenching tests
         self.assertTrue(self.u_banana in self.handler._remote_sendmap)
 
-        self.send_edu_mock.assert_called_with(
+        self.replication.send_edu.assert_called_with(
                 destination="remote",
                 edu_type="sy.presence",
                 content={
@@ -489,7 +490,7 @@ class PresencePollingTestCase(unittest.TestCase):
                 },
         )
 
-        yield self.distributor.fire("received_edu",
+        yield self.replication.received_edu(
                 "remote", "sy.presence", {
                     "unpoll": [ "@banana:test" ],
                 }
