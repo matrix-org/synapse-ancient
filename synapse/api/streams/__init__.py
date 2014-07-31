@@ -80,3 +80,10 @@ class StreamData(object):
             A tuple containing the list of event stream data and the last pkey.
         """
         raise NotImplementedError()
+
+    def max_token(self):
+        """ Get the latest currently-valid token.
+
+        Returns:
+            The latest token."""
+        raise NotImplementedError()
