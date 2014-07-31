@@ -78,6 +78,7 @@ class RoomConfigEvent(SynapseEvent):
     TYPE = "sy.room.config"
 
     def __init__(self, **kwargs):
+        kwargs["state_key"] = ""
         super(RoomConfigEvent, self).__init__(**kwargs)
 
     def get_content_template(self):
