@@ -1,13 +1,18 @@
 <div ng-controller="LoginController" class="login">
     <h3>Login:</h3>
     <form novalidate>
-        <label for="user_id">User:</label>
-        <input id="user_id" size="50" type="text" auto-focus ng-model="account.user_id" /><br />
-        <label for="server">Server:</label>
-        <input id="server" size="50" type="text" ng-model="account.server" /><br />
-        <label for="room">Room:</label>
-        <input id="room" size="50" type="text" ng-model="room" /><br />
-        <button ng-click="login()">Login</button>
+        @<input id="user_id" size="20" type="text" auto-focus ng-model="account.user_name" placeholder="User name"/>
+        :<input id="server" size="40" type="text" ng-model="account.homeserver_name"  placeholder="Home server name (ex: localhost)"/><br />
+        <br/>
+        
+        <input id="server" size="70" type="text" ng-model="account.server" placeholder="Server URL (ex: http://localhost:8080)"/><br />
+        
+        <br/>
+        <input id="accessToken" size="70" type="text" ng-model="account.access_token" placeholder="Enter an access token to log in with an already registered user"/><br />
+        <br/>
+        
+        <button ng-click="login()" ng-hide="!account.access_token">Login</button>
+        <button ng-click="register()" ng-hide="account.access_token">Register</button>
     </form>
     <br/>
     {{ feedback }}
