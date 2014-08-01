@@ -19,6 +19,20 @@ class EventStreamHandler(BaseHandler):
         PresenceStreamData,
     ]
 
+    def __init__(self, hs):
+        super(EventStreamHandler, self).__init__(hs)
+
+        # Count of active streams per user
+        self._streams_per_user = {}
+        # Grace timers per user to delay the "stopped" signal
+        self._stop_timer_per_user = {}
+
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("started_user_eventstream")
+        self.distributor.declare("stopped_user_eventstream")
+
+        self.clock = hs.get_clock()
+
     def get_event_stream_token(self, stream_type, store_id, start_token):
         """Return the next token after this event.
 
@@ -54,7 +68,19 @@ class EventStreamHandler(BaseHandler):
         Returns:
             A pagination stream API dict
         """
+        auth_user = self.hs.parse_userid(auth_user_id)
+
         try:
+            if auth_user not in self._streams_per_user:
+                self._streams_per_user[auth_user] = 0
+                if auth_user in self._stop_timer_per_user:
+                    self.clock.cancel_call_later(
+                            self._stop_timer_per_user.pop(auth_user))
+                else:
+                    self.distributor.fire("started_user_eventstream",
+                            auth_user)
+            self._streams_per_user[auth_user] += 1
+
             # construct an event stream with the correct data ordering
             stream_data_list = []
             for stream_class in EventStreamHandler.stream_data_classes:
@@ -86,3 +112,15 @@ class EventStreamHandler(BaseHandler):
         finally:
             # cleanup
             self.notifier.purge_events_for(user_id=auth_user_id)
+
+            self._streams_per_user[auth_user] -= 1
+            if not self._streams_per_user[auth_user]:
+                del self._streams_per_user[auth_user]
+
+                # 10 seconds of grace to allow the client to reconnect again
+                #   before we think they're gone
+                def _later():
+                    self.distributor.fire("stopped_user_eventstream",
+                            auth_user)
+                self._stop_timer_per_user[auth_user] = (
+                        self.clock.call_later(5, _later))
