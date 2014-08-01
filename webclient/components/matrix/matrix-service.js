@@ -48,13 +48,21 @@ angular.module('matrixService', [])
 
         return deferred.promise;
     };
-    
 
 
     return {
-        
         /****** Home server API ******/
-        
+
+        // Register an user
+        register: function(user_name) {
+            // The REST path spec
+            var path = "/register";
+
+            return doRequest("POST", path, undefined, {
+                 user_id: user_name
+            });
+        },
+
         // Create a room
         create: function(room_id, visibility) {
             // The REST path spec

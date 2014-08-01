@@ -4,48 +4,37 @@ angular.module('LoginController', ['matrixService'])
     'use strict';
     
     $scope.account = {
-        homeserver: "", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
-        user_id: "",
+        homeserver: "http://localhost:8080", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
+        user_name_or_id: "",
         access_token: ""
     };
 
-    /*
-    $scope.account.homeserver = "http://localhost:8080";
-    $scope.account.user_id = "@Manu10:localhost";
-    $scope.account.access_token = "QE1hbnUxMDpsb2NhbGhvc3Q..KbqazxGnAJlibDApAP";
-    */
-
-
     $scope.register = function() {
-        var data = {
-          "user_id" : $scope.account.user_id
-        };
 
+        // Set the Home server URL
         matrixService.setConfig({
-            homeserver: $scope.account.homeserver,
+            homeserver: $scope.account.homeserver
         });
 
-        $http.post($scope.account.homeserver + "/register", data).
-            success(function(data, status, headers, config) {
+        matrixService.register($scope.account.user_name_or_id).then(
+            function(data) {
                 $scope.feedback = "Success";
 
                 // Update the current config 
                 var config = matrixService.config();
                 angular.extend(config, {
                     access_token: data.access_token,
-                    user_id: data.user_id                      
+                    user_id: data.user_id
                 });
                 matrixService.setConfig(config);
+
+                // And permanently save it
                 matrixService.saveConfig();
 
                  // Go to the user's rooms list page
                 $location.path("rooms");
-            }).
-            error(function(data, status, headers, config) {
-                var reason = data.error;
-                if (!data.error) {
-                    reason = JSON.stringify(data);
-                }
+            },
+            function(reason) {
                 $scope.feedback = "Failure: " + reason;
             });
     };
@@ -54,16 +43,13 @@ angular.module('LoginController', ['matrixService'])
 
         matrixService.setConfig({
             homeserver: $scope.account.homeserver,
-            access_token: $scope.account.access_token,
-            user_id: $scope.account.user_id
+            user_id: $scope.account.user_name_or_id,
+            access_token: $scope.account.access_token
         });
 
         // Validate the token by making a request to the HS
-        $http.get($scope.account.homeserver + "/users/" + $scope.account.user_id + "/rooms/list", {
-            "params": {
-                "access_token" : $scope.account.access_token
-            }}).
-            success(function(data, status, headers, config) {
+        matrixService.rooms().then(
+            function() {
 
                 // The request passes. We can consider to be logged in
                 $scope.feedback = "Success";
@@ -73,12 +59,8 @@ angular.module('LoginController', ['matrixService'])
 
                 // Go to the user's rooms list page
                 $location.path("rooms");
-            }).
-            error(function(data, status, headers, config) {
-                var reason = data.error;
-                if (!data.error) {
-                    reason = JSON.stringify(data);
-                }
+            },
+            function(reason) {
                 $scope.feedback = "Failure: " + reason;
             });
     };

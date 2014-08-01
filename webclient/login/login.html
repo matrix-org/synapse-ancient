@@ -1,17 +1,26 @@
 <div ng-controller="LoginController" class="login">
     <h3>Login:</h3>
     <form novalidate>
-        <input id="user_id" size="70" type="text" auto-focus ng-model="account.user_id" placeholder="User ID (ex:@user:homeserver)"/>
+        
+        <input id="user_name_or_id" size="70" type="text" auto-focus ng-model="account.user_name_or_id" placeholder="User name or user ID (ex:@user:homeserver)"/>
         <br/>
         
         <input id="homeserver" size="70" type="text" ng-model="account.homeserver" placeholder="Home server URL (ex: http://localhost:8080)"/><br />
-        
-        <br/>
-        <input id="accessToken" size="70" type="text" ng-model="account.access_token" placeholder="Enter an access token to log in with an already registered user"/><br />
-        <br/>
-        
-        <button ng-click="login()" ng-hide="!account.access_token">Login</button>
-        <button ng-click="register()" ng-hide="account.access_token">Register</button>
+
+        <!-- New user registration -->
+        <div ng-hide="0 === account.user_name_or_id.indexOf('@')">
+            <br/>
+            <button ng-click="register()" ng-disabled="!account.user_id || !account.homeserver">Register</button>
+        </div>
+
+        <!-- Login with an registered user -->
+        <!-- This part is automatically shown if user_name_or_id starts with an '@' -->
+        <div ng-hide="0 !== account.user_name_or_id.indexOf('@')">
+            <input id="accessToken" size="70" type="text" ng-model="account.access_token" placeholder="Enter this access token of this registered user"/><br />
+            <br/>
+            <button ng-click="login()" ng-disabled="!account.access_token || !account.homeserver">Login</button>
+        </div>
+       
     </form>
     <br/>
     {{ feedback }}
