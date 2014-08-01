@@ -23,7 +23,7 @@ class MessageHandler(BaseHandler):
 
     def __init__(self, hs):
         super(MessageHandler, self).__init__(hs)
-
+        self.hs = hs
         self.clock = hs.get_clock()
 
     @defer.inlineCallbacks
@@ -99,7 +99,7 @@ class MessageHandler(BaseHandler):
         """
         yield self.auth.check_joined_room(room_id, user_id)
 
-        data_source = [MessagesStreamData(self.store, room_id=room_id,
+        data_source = [MessagesStreamData(self.hs, room_id=room_id,
                                           feedback=feedback)]
         event_stream = EventStream(user_id, data_source)
         pagin_config = yield event_stream.fix_tokens(pagin_config)
