@@ -6,6 +6,7 @@ from synapse.api.streams.event import (
     EventStream, MessagesStreamData, RoomMemberStreamData, FeedbackStreamData,
     RoomDataStreamData
 )
+from synapse.handlers.presence import PresenceStreamData
 
 
 class EventStreamHandler(BaseHandler):
@@ -14,7 +15,8 @@ class EventStreamHandler(BaseHandler):
         MessagesStreamData,
         RoomMemberStreamData,
         FeedbackStreamData,
-        RoomDataStreamData
+        RoomDataStreamData,
+        PresenceStreamData,
     ]
 
     def get_event_stream_token(self, event, store_id, start_token):

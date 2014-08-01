@@ -149,3 +149,64 @@ class PresenceListTestCase(unittest.TestCase):
 
         self.mock_handler.drop.assert_called_with(
                 observer_user=self.u_apple, observed_user=self.u_banana)
+
+
+class PresenceEventStreamTestCase(unittest.TestCase):
+    def setUp(self):
+        self.mock_server = MockHttpServer()
+
+        # TODO: mocked data store
+
+        # HIDEOUS HACKERY
+        # TODO(paul): This should be injected in via the HomeServer DI system
+        from synapse.handlers.events import EventStreamHandler
+        from synapse.handlers.presence import PresenceStreamData
+        EventStreamHandler.stream_data_classes = [
+            PresenceStreamData
+        ]
+
+        hs = HomeServer("test",
+            db_pool=None,
+            http_client=None,
+            http_server=self.mock_server,
+            datastore=Mock(spec=[
+                "set_presence_state",
+            ]),
+        )
+
+        def _get_user_by_req(req=None):
+            return hs.parse_userid(myid)
+
+        hs.get_auth().get_user_by_req = _get_user_by_req
+
+        hs.register_servlets()
+
+        self.mock_datastore = hs.get_datastore()
+        self.presence = hs.get_handlers().presence_handler
+
+        self.u_apple = hs.parse_userid("@apple:test")
+
+    @defer.inlineCallbacks
+    def test_shortpoll(self):
+        (code, response) = yield self.mock_server.trigger("GET",
+                "/events?timeout=0", None)
+
+        self.assertEquals(200, code)
+
+        # We've forced there to be only one data stream so the tokens will
+        # all be ours
+        self.assertEquals({"start": "0", "end": "0", "chunk": []}, response)
+
+        self.mock_datastore.set_presence_state.return_value = defer.succeed(())
+
+        yield self.presence.set_state(self.u_apple, self.u_apple,
+                state={"state": ONLINE})
+
+        (code, response) = yield self.mock_server.trigger("GET",
+                "/events?timeout=0", None)
+
+        self.assertEquals(200, code)
+        self.assertEquals({"start": "0", "end": "1", "chunk": [
+            {"type": "sy.presence",
+             "content": {"user_id": "@apple:test", "state": 2}},
+        ]}, response)

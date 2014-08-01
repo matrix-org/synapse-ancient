@@ -3,6 +3,7 @@ from twisted.internet import defer
 
 from synapse.api.errors import SynapseError, AuthError
 from synapse.api.constants import PresenceState
+from synapse.api.streams import StreamData
 
 from ._base import BaseHandler
 
@@ -469,6 +470,28 @@ class PresenceHandler(BaseHandler):
         pass
 
 
+class PresenceStreamData(StreamData):
+    def __init__(self, hs):
+        super(PresenceStreamData, self).__init__(hs)
+        self.presence = hs.get_handlers().presence_handler
+
+    def get_rows(self, user_id, from_key, to_key, limit):
+        cachemap = self.presence._user_cachemap
+
+        # TODO(paul): limit, and filter by visibility
+        updates = [(k, cachemap[k]) for k in cachemap
+                if from_key < cachemap[k].serial <= to_key]
+
+        latest_serial = max([x[1].serial for x in updates])
+
+        data = [x[1].make_event(user=x[0]) for x in updates]
+
+        return ((data, latest_serial))
+
+    def max_token(self):
+        return self.presence._user_cachemap_latest_serial
+
+
 class UserPresenceCache(object):
     """Store an observed user's state and status message.
 
@@ -495,3 +518,9 @@ class UserPresenceCache(object):
             ret["status_msg"] = self.status_msg
 
         return ret
+
+    def make_event(self, user):
+        content = self.get_state()
+        content["user_id"] = user.to_string()
+
+        return {"type": "sy.presence", "content": content}
