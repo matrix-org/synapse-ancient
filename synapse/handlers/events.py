@@ -122,5 +122,7 @@ class EventStreamHandler(BaseHandler):
                 def _later():
                     self.distributor.fire("stopped_user_eventstream",
                             auth_user)
+                    del self._stop_timer_per_user[auth_user]
+
                 self._stop_timer_per_user[auth_user] = (
                         self.clock.call_later(5, _later))
