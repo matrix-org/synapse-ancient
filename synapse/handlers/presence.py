@@ -45,6 +45,11 @@ class PresenceHandler(BaseHandler):
         distributor = hs.get_distributor()
         distributor.observe("registered_user", self.registered_user)
 
+        distributor.observe("started_user_eventstream",
+                self.started_user_eventstream)
+        distributor.observe("stopped_user_eventstream",
+                self.stopped_user_eventstream)
+
         self.federation = hs.get_replication_layer()
 
         self.federation.register_edu_handler("sy.presence",
@@ -143,6 +148,14 @@ class PresenceHandler(BaseHandler):
 
         if not now_online:
             del self._user_cachemap[target_user]
+
+    def started_user_eventstream(self, user):
+        # TODO(paul): Use "last online" state
+        self.set_state(user, user, {"state": PresenceState.ONLINE})
+
+    def stopped_user_eventstream(self, user):
+        # TODO(paul): Save current state as "last online" state
+        self.set_state(user, user, {"state": PresenceState.OFFLINE})
 
     @defer.inlineCallbacks
     def send_invite(self, observer_user, observed_user):
