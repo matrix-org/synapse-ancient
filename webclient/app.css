@@ -1,4 +1,12 @@
 
+.header {
+    height: 60px;
+}
+
+.header-buttons {
+    float: right;
+}
+
 .message {
     clear: both;
 }

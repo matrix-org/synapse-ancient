@@ -1,5 +1,6 @@
 var synapseClient = angular.module('synapseClient', [
     'ngRoute',
+    'AppController',
     'LoginController',
     'RoomController',
     'RoomsController',
