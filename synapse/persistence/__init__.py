@@ -7,6 +7,11 @@ from .service import PersistenceService
 
 import os
 
+__all__ = [
+    "PersistenceService",
+    "schema_path",
+    "read_schema",
+]
 
 def schema_path(schema):
     """ Get a filesystem path for the named database schema
