@@ -26,6 +26,7 @@ class FederationTestCase(unittest.TestCase):
             db_pool=None,
             datastore=NonCallableMock(spec_set=[
                 "persist_event",
+                "store_room",
             ]),
             http_server=NonCallableMock(),
             http_client=NonCallableMock(spec_set=[]),

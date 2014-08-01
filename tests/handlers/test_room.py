@@ -222,10 +222,6 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         self.assertFalse(self.notifier.on_new_room_event.called)
         self.assertFalse(self.state_handler.handle_new_event.called)
 
-        self.assertTrue(self.datastore.store_room.called)
-        args = self.datastore.store_room.call_args[0]
-        self.assertEquals(room_id, args[0])
-
     @defer.inlineCallbacks
     def test_invite_join_public(self):
         room_id = "#foo:blue"
@@ -284,10 +280,6 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
 
         self.assertFalse(self.notifier.on_new_room_event.called)
         self.assertFalse(self.state_handler.handle_new_event.called)
-
-        self.assertTrue(self.datastore.store_room.called)
-        args = self.datastore.store_room.call_args[0]
-        self.assertEquals("foo", args[0])
 
 
 class RoomCreationTest(unittest.TestCase):

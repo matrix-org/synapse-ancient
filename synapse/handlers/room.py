@@ -447,22 +447,39 @@ class RoomMemberHandler(BaseHandler):
             defer.returnValue(None)
             return
 
+        room_id = event.room_id
+        room_host = None
+        try:
+            # TODO: This is a quick bodge to allow us to join public rooms
+            # without fully implementing directory servers and the like
+            room_name_object = RoomName.from_string(event.room_id, self.hs)
+            if room_name_object and not room_name_object.is_mine:
+                room_id = room_name_object.localpart
+                room_host = room_name_object.domain
+        except SynapseError as e:
+            if e.code != 400:
+                raise
+            room_name_object = None
+
         # If we're trying to join a room then we have to do this differently
         # if this HS is not currently in the room, i.e. we have to do the
         # invite/join dance.
         if event.membership == Membership.JOIN:
-            with (yield self.room_lock.lock(event.room_id)):
+            with (yield self.room_lock.lock(room_id)):
                 # XXX: We don't do an auth check if we are doing an invite
                 # join dance for now, since we're kinda implicitly checking
                 # that we are allowed to join when we decide whether or not we
                 # need to do the invite/join dance.
 
-                invite_tuple = yield self._should_invite_join(
-                    event, prev_state, do_auth
+                should_do_dance, room_host = yield self._should_invite_join(
+                    room_id=room_id,
+                    room_host=room_host,
+                    prev_state=prev_state,
+                    do_auth=do_auth,
                 )
 
                 # We want to do the _do_update inside the room lock.
-                if not invite_tuple:
+                if not should_do_dance:
                     logger.debug("Doing normal join")
 
                     if do_auth:
@@ -472,7 +489,7 @@ class RoomMemberHandler(BaseHandler):
                     store_id = yield _do_membership_update()
 
             # We don't want to send out the event notifs inside the room lock.
-            if not invite_tuple:
+            if not should_do_dance:
                 yield self.hs.get_federation().handle_new_event(event)
                 self.notifier.on_new_room_event(event, store_id)
 
@@ -480,16 +497,15 @@ class RoomMemberHandler(BaseHandler):
                     yield self._inject_membership_msg(
                         source=event.user_id,
                         target=event.target_user_id,
-                        room_id=event.room_id,
+                        room_id=room_id,
                         membership=event.content["membership"]
                     )
 
             else:
-                room_id, domain = invite_tuple
                 yield self._do_invite_join_dance(
                     room_id=room_id,
                     joinee=event.user_id,
-                    target_host=domain
+                    target_host=room_host
                 )
 
         else:
@@ -520,30 +536,13 @@ class RoomMemberHandler(BaseHandler):
                 )
 
     @defer.inlineCallbacks
-    def _should_invite_join(self, event, prev_state, do_auth):
-        logger.debug("_should_invite_join: room_id: %s", event.room_id)
+    def _should_invite_join(self, room_id, room_host, prev_state, do_auth):
+        logger.debug("_should_invite_join: room_id: %s", room_id)
 
-        try:
-            # TODO: This is a quick bodge to allow us to join public rooms
-            # without fully implementing directory servers and the like
-            room_name_object = RoomName.from_string(event.room_id, self.hs)
-        except SynapseError as e:
-            if e.code != 400:
-                raise
-            room_name_object = None
-
-        if room_name_object:
-            logger.debug(
-                "_should_invite_join: This is a room_name: %s",
-                room_name_object
-            )
-
-            room = yield self.store.get_room(room_name_object.localpart)
-
-            if not room_name_object.is_mine and not room:
-                defer.returnValue(
-                    (room_name_object.localpart, room_name_object.domain)
-                )
+        if room_host:
+            room = yield self.store.get_room(room_id)
+            if not room:
+                defer.returnValue((True, room_host))
                 return
 
         # XXX: We don't do an auth check if we are doing an invite
@@ -555,26 +554,21 @@ class RoomMemberHandler(BaseHandler):
         # b) the person inviting was from a differnt HS and c) we are
         # not currently in the room
         if prev_state and prev_state.membership == Membership.INVITE:
-            room = yield self.store.get_room(event.room_id)
+            room = yield self.store.get_room(room_id)
             inviter = UserID.from_string(
                 prev_state.sender, self.hs
             )
 
             is_remote_invite_join = not inviter.is_mine and not room
+            room_host = inviter.domain
         else:
             is_remote_invite_join = False
 
-        defer.returnValue(
-            (event.room_id, inviter.domain) if is_remote_invite_join else None
-        )
+        defer.returnValue((is_remote_invite_join, room_host))
 
     @defer.inlineCallbacks
     def _do_invite_join_dance(self, room_id, joinee, target_host):
         logger.debug("Doing remote join dance")
-
-        yield self.store.store_room(
-            room_id, "", is_public=False
-        )
 
         # do invite join dance
         federation = self.hs.get_federation()
@@ -587,6 +581,10 @@ class RoomMemberHandler(BaseHandler):
         )
 
         new_event.destinations = [target_host]
+
+        yield self.store.store_room(
+            room_id, "", is_public=False
+        )
 
         #yield self.state_handler.handle_new_event(event)
         yield federation.handle_new_event(new_event)
