@@ -172,7 +172,14 @@ class PresenceEventStreamTestCase(unittest.TestCase):
             datastore=Mock(spec=[
                 "set_presence_state",
             ]),
+            clock=Mock(spec=[
+                "call_later",
+                "cancel_call_later",
+                "time_msec",
+            ]),
         )
+
+        hs.get_clock().time_msec.return_value = 1000000
 
         def _get_user_by_req(req=None):
             return hs.parse_userid(myid)

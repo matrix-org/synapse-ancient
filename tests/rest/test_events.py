@@ -115,7 +115,14 @@ class EventStreamPermissionsTestCase(RestTestCase):
             replication_layer=Mock(),
             state_handler=state_handler,
             persistence_service=persistence_service,
+            clock=Mock(spec=[
+                "call_later",
+                "cancel_call_later",
+                "time_msec",
+            ]),
         )
+
+        hs.get_clock().time_msec.return_value = 1000000
 
         hs.datastore = MemoryDataStore()
         synapse.rest.register.register_servlets(hs, self.mock_server)
