@@ -1,22 +1,21 @@
 <div ng-controller="RoomController" data-ng-init="onInit()" class="room">
     <h3>{{ room_id }}</h3>
 
-    <table class="message" ng-repeat="msg in messages">
-        <tr>
-            <td class="timestamp">[{{msg.content.hsob_ts | date:'yyyy-MM-dd HH:mm:ss'}}]</td>
-            <td class="sender">&lt;{{msg.user_id}}&gt;</td>
-            <td class="body">{{msg.content.body}}</td>
-        </tr>
-    </table>
+    <div class="message_table_wrapper">
+        <table>
+            <tr class="message" ng-repeat="msg in messages">
+                <td class="timestamp">[{{msg.content.hsob_ts | date:'yyyy-MM-dd HH:mm:ss'}}]</td>
+                <td class="sender">&lt;{{msg.user_id}}&gt;</td>
+                <td class="body">{{msg.content.body}}</td>
+            </tr>
+        </table>
+    </div>
 
-    <div>
+    <div class="text_entry_section">
         {{ state.user_id }} <input id="textInput" size="132" ng-model="textInput" ng-enter="send()" />
         <button ng-click="send()">Send</button>
 
         <div class="feeback">{{ feedback }}</div>  
-    </div>
-
-    <div>
         <div>
             <button ng-click="leaveRoom()">Leave</button>
         </div>

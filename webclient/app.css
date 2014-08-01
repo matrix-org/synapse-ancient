@@ -13,3 +13,16 @@
 .message .body {
     margin-left: 22em;
 }
+
+.message_table_wrapper {
+    margin-bottom: 100px;
+}
+
+.text_entry_section {
+    position: fixed;
+    bottom: 0;
+    z-index: 100;
+    left: 0;
+    height: 100px;
+    background: #fff;
+}
