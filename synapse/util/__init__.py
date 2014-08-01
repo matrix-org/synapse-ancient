@@ -3,6 +3,8 @@
 from .async import sleep
 from .stringutils import origin_from_ucid
 
+from twisted.internet import reactor
+
 import time
 
 
@@ -20,3 +22,9 @@ class Clock(object):
     def time_msec(self):
         """Returns the current system time in miliseconds since epoch."""
         return self.time() * 1000
+
+    def call_later(self, delay, callback):
+        return reactor.callLater(delay, callback)
+
+    def cancel_call_later(self, timer):
+        timer.cancel()
