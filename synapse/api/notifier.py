@@ -33,18 +33,25 @@ class Notifier(object):
         '"""
         member_list = yield self.store.get_room_members(room_id=event.room_id,
                                                         membership="join")
-        if member_list:
-            for member in member_list:
-                if member.user_id in self.stored_event_listeners:
-                    self._notify_and_callback(member.user_id, event, store_id)
+        if not member_list:
+            member_list = []
+
+        member_list = [u.user_id for u in member_list]
 
         # invites MUST prod the person being invited, who won't be in the room.
         if (event.type == RoomMemberEvent.TYPE and
                 event.content["membership"] == Membership.INVITE):
-            if event.target_user_id in self.stored_event_listeners:
-                self._notify_and_callback(event.target_user_id, event, store_id)
+            member_list.append(event.target_user_id)
 
-    def _notify_and_callback(self, user_id, event, store_id):
+        for user_id in member_list:
+            if user_id in self.stored_event_listeners:
+                self._notify_and_callback(
+                    user_id=user_id,
+                    event_data=event.get_dict(),
+                    stream_type=event.type,
+                    store_id=store_id)
+
+    def _notify_and_callback(self, user_id, event_data, stream_type, store_id):
         logger.debug(
             "Notifying %s of a new event.",
             user_id
@@ -57,21 +64,21 @@ class Notifier(object):
 
         # work out the new end token
         token = event_listener["start"]
-        end = self._next_token(event, store_id, token)
+        end = self._next_token(stream_type, store_id, token)
         return_event_object["end"] = end
 
         # add the event to the chunk
         chunk = event_listener["chunk"]
-        chunk.append(event.get_dict())
+        chunk.append(event_data)
 
         # callback the defer. We know this can't have been resolved before as
         # we always remove the event_listener from the map before resolving.
         event_listener["defer"].callback(return_event_object)
 
-    def _next_token(self, event, store_id, current_token):
+    def _next_token(self, stream_type, store_id, current_token):
         stream_handler = self.hs.get_handlers().event_stream_handler
         return stream_handler.get_event_stream_token(
-            event,
+            stream_type,
             store_id,
             current_token
         )

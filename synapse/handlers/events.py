@@ -19,24 +19,24 @@ class EventStreamHandler(BaseHandler):
         PresenceStreamData,
     ]
 
-    def get_event_stream_token(self, event, store_id, start_token):
+    def get_event_stream_token(self, stream_type, store_id, start_token):
         """Return the next token after this event.
 
         Args:
-            event (SynapseEvent): The incoming event
+            stream_type (str): The StreamData.EVENT_TYPE
             store_id (int): The new storage ID assigned from the data store.
             start_token (str): The token the user started with.
         Returns:
             str: The end token.
         """
         for i, stream_cls in enumerate(EventStreamHandler.stream_data_classes):
-            if stream_cls.EVENT_TYPE == event.type:
+            if stream_cls.EVENT_TYPE == stream_type:
                 # this is the stream for this event, so replace this part of
                 # the token
                 store_ids = start_token.split(EventStream.SEPARATOR)
                 store_ids[i] = str(store_id)
                 return EventStream.SEPARATOR.join(store_ids)
-        raise RuntimeError("Didn't find a stream for this event %s" % event)
+        raise RuntimeError("Didn't find a stream type %s" % stream_type)
 
     @defer.inlineCallbacks
     def get_stream(self, auth_user_id, pagin_config, timeout=0):
