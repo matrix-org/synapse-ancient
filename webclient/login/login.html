@@ -10,7 +10,7 @@
         <!-- New user registration -->
         <div ng-hide="0 === account.user_name_or_id.indexOf('@')">
             <br/>
-            <button ng-click="register()" ng-disabled="!account.user_id || !account.homeserver">Register</button>
+            <button ng-click="register()" ng-disabled="!account.user_name_or_id || !account.homeserver">Register</button>
         </div>
 
         <!-- Login with an registered user -->
