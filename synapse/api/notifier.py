@@ -51,6 +51,14 @@ class Notifier(object):
                     stream_type=event.type,
                     store_id=store_id)
 
+    def on_new_user_event(self, user_id, event_data, stream_type, store_id):
+        if user_id in self.stored_event_listeners:
+            self._notify_and_callback(
+                    user_id=user_id,
+                    event_data=event_data,
+                    stream_type=stream_type,
+                    store_id=store_id)
+
     def _notify_and_callback(self, user_id, event_data, stream_type, store_id):
         logger.debug(
             "Notifying %s of a new event.",
