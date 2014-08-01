@@ -2,7 +2,8 @@ var synapseClient = angular.module('synapseClient', [
     'ngRoute',
     'LoginController',
     'RoomController',
-    'RoomsController'
+    'RoomsController',
+    'matrixService'
 ]);
 
 synapseClient.config(['$routeProvider',
@@ -25,9 +26,9 @@ synapseClient.config(['$routeProvider',
             });
     }]);
 
-synapseClient.run(['$location', function($location) {
+synapseClient.run(['$location', 'matrixService' , function($location, matrixService) {
     // If we have no persistent login information, go to the login page
-    var config = synapseClient.getConfig();
+    var config = matrixService.config();
     if (!config || !config.access_token) {
         $location.path("login");
     }
@@ -54,38 +55,6 @@ synapseClient
         };
     }]);
 
-
-/* 
- * Permanent storage of user information
- * The config contains:
- *    - homeserver_name
- *    - homeserver_url
- *    - access_token
- *    - user_name
- *    - user_id
- *    - version: the version of this cache
- *    
- * @TODO: This is out of the Angular concepts. Need to find how to implement it
- *  with angular objects
- */
-synapseClient.configVersion = 0;
-synapseClient.getConfig = function() {
-    var config = localStorage.getItem("config");
-    if (config) {
-        config = JSON.parse(config);
-
-        // Reset the cache if the version loaded is not the expected one
-        if (synapseClient.configVersion !== config.version) {
-            config = undefined;
-        }
-    }
-    return config;
-};
-
-synapseClient.setConfig = function(config) {
-    config.version = synapseClient.configVersion;
-    localStorage.setItem("config", JSON.stringify(config));
-};
 
 // @TODO: We need a class utility
 synapseClient.computeUserId = function(user_name, homeserver_name) {

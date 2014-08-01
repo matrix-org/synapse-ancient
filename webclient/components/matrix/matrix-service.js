@@ -2,6 +2,21 @@
 
 angular.module('matrixService', [])
 .factory('matrixService', ['$http', '$q', function($http, $q) {
+        
+   /* 
+    * Permanent storage of user information
+    * The config contains:
+    *    - homeserver_name
+    *    - homeserver_url
+    *    - access_token
+    *    - user_name
+    *    - user_id
+    *    - version: the version of this cache
+    */    
+    var config;
+    
+    // Current version of permanent storage
+    var configVersion = 0;
 
     var doRequest = function(method, path, params, data) {
 
@@ -9,14 +24,14 @@ angular.module('matrixService', [])
         if (!params) {
             params = {};
         }
-        params.access_token = synapseClient.getConfig().access_token;
+        params.access_token = config.access_token;
 
         // Do not directly return the $http instance but return a promise
         // with enriched or cleaned information
         var deferred = $q.defer();
         $http({
             method: method,
-            url: synapseClient.getConfig().homeserver_url + path,
+            url: config.homeserver_url + path,
             params: params,
             data: data
         })
@@ -35,8 +50,13 @@ angular.module('matrixService', [])
 
         return deferred.promise;
     };
+    
+
 
     return {
+        
+        /****** Home server API ******/
+        
         // Create a room
         create: function(room_id, visibility) {
             // The REST path spec
@@ -56,7 +76,7 @@ angular.module('matrixService', [])
             var path = "/users/$user_id/rooms/list";
 
             // Customize it
-            path = path.replace("$user_id", synapseClient.getConfig().user_id);
+            path = path.replace("$user_id", config.user_id);
 
             return doRequest("GET", path);
         },
@@ -68,7 +88,7 @@ angular.module('matrixService', [])
 
             // Customize it
             path = path.replace("$room_id", room_id);
-            path = path.replace("$user_id", synapseClient.getConfig().user_id);
+            path = path.replace("$user_id", config.user_id);
 
             return doRequest("PUT", path, undefined, {
                  membership: "join"
@@ -101,13 +121,45 @@ angular.module('matrixService', [])
 
             // Customize it
             path = path.replace("$room_id", room_id);
-            path = path.replace("$from", synapseClient.getConfig().user_id);
+            path = path.replace("$from", config.user_id);
             path = path.replace("msg_id", msg_id);
 
             return doRequest("PUT", path, undefined, {
                  msgtype: "sy.text",
                  body: body
             });
+        },
+        
+        
+        /****** Permanent storage of user information ******/
+        
+        // Returns the current config
+        config: function() {
+            if (!config) {
+                config = localStorage.getItem("config");
+                if (config) {
+                    config = JSON.parse(config);
+
+                    // Reset the cache if the version loaded is not the expected one
+                    if (configVersion !== config.version) {
+                        config = undefined;
+                        this.saveConfig();
+                    }
+                }
+            }
+            return config;
+        },
+        
+        // Set a new config (Use saveConfig to actually store it permanently)
+        setConfig: function(newConfig) {
+            config = newConfig;
+        },
+        
+        // Commits config into permanent storage
+        saveConfig: function() {
+            config.version = configVersion;
+            localStorage.setItem("config", JSON.stringify(config));
         }
+
     };
 }]);

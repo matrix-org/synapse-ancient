@@ -4,20 +4,20 @@ angular.module('RoomController', [])
    'use strict';
     $scope.room_id = $routeParams.room_id;
     $scope.state = {
-        user_id: synapseClient.getConfig().user_id,
+        user_id: matrixService.config().user_id,
         events_from: "START"
     };
     $scope.messages = [];
     
     $scope.newUser = {
         user_name: "",
-        homeserver_name: synapseClient.getConfig().homeserver_name
+        homeserver_name: matrixService.config().homeserver_name
     };
 
     var shortPoll = function() {
-        $http.get(synapseClient.getConfig().homeserver_url + "/events", {
+        $http.get(matrixService.config().homeserver_url + "/events", {
             "params": {
-                "access_token": synapseClient.getConfig().access_token,
+                "access_token": matrixService.config().access_token,
                 "from": $scope.state.events_from,
                 "timeout": 25000
             }})

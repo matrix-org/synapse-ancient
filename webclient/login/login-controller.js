@@ -1,6 +1,6 @@
-angular.module('LoginController', [])
-.controller('LoginController', ['$scope', '$http', '$timeout', '$location',
-                                    function($scope, $http, $timeout, $location) {
+angular.module('LoginController', ['matrixService'])
+.controller('LoginController', ['$scope', '$http', '$timeout', '$location', 'matrixService',
+                                    function($scope, $http, $timeout, $location, matrixService) {
     'use strict';
     
     $scope.account = {
@@ -25,18 +25,26 @@ angular.module('LoginController', [])
         var data = {
           "user_id" : $scope.account.user_name
         };
+
+        matrixService.setConfig({
+            homeserver_name: $scope.account.homeserver_name,
+            homeserver_url: $scope.account.homeserver_url,
+        });
+
         $http.post($scope.account.homeserver_url + "/register", data).
             success(function(data, status, headers, config) {
                 $scope.feedback = "Success";
-                
-                synapseClient.setConfig({
-                    homeserver_name: $scope.account.homeserver_name,
-                    homeserver_url: $scope.account.homeserver_url,
+
+                // Update the current config 
+                var config = matrixService.config();
+                angular.extend(config, {
                     access_token: data.access_token,
-                    user_name: $scope.account.user_name ,
-                    user_id: data.user_id  
+                    user_name: $scope.account.user_name,
+                    user_id: data.user_id                      
                 });
-                
+                matrixService.setConfig(config);
+                matrixService.saveConfig();
+
                  // Go to the user's rooms list page
                 $location.path("rooms");
             }).
@@ -48,8 +56,16 @@ angular.module('LoginController', [])
                 $scope.feedback = "Failure: " + reason;
             });
     };
-    
+
     $scope.login = function() {
+
+        matrixService.setConfig({
+            homeserver_name: $scope.account.homeserver_name,
+            homeserver_url: $scope.account.homeserver_url,
+            access_token: $scope.account.access_token,
+            user_name: $scope.account.user_name ,
+            user_id: computeUserId()  
+        });
 
         // Validate the token by making a request to the HS
         $http.get($scope.account.homeserver_url + "/users/" + computeUserId() + "/rooms/list", {
@@ -57,17 +73,12 @@ angular.module('LoginController', [])
                 "access_token" : $scope.account.access_token
             }}).
             success(function(data, status, headers, config) {
-                
+
                 // The request passes. We can consider to be logged in
                 $scope.feedback = "Success";
-                
-                synapseClient.setConfig({
-                    homeserver_name: $scope.account.homeserver_name,
-                    homeserver_url: $scope.account.homeserver_url,
-                    access_token: $scope.account.access_token,
-                    user_name: $scope.account.user_name ,
-                    user_id: computeUserId()  
-                });
+
+                // The config is valid. Save it
+                matrixService.saveConfig();
 
                 // Go to the user's rooms list page
                 $location.path("rooms");
