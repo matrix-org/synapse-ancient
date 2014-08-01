@@ -29,7 +29,7 @@ for colour in "${!colours[@]}"; do
         -f "$DIR/$colour.log" \
         -d "$DIR/$colour.db" \
         -vv \
-        & disown > /dev/null
+        > /dev/null 2>&1 & disown
 
     echo "$!" >> "$PID_FILE"
 
