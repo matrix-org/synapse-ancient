@@ -231,3 +231,9 @@ class MemoryDataStore(object):
             raise NotImplementedError(
                 "Don't know how to persist type=%s" % event.type
             )
+
+    def set_presence_state(self, user_localpart, state):
+        return {"state": 0}
+
+    def get_presence_list(self, user_localpart, accepted):
+        return []

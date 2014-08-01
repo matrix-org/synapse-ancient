@@ -192,9 +192,13 @@ class PresenceEventStreamTestCase(unittest.TestCase):
         self.presence = hs.get_handlers().presence_handler
 
         self.u_apple = hs.parse_userid("@apple:test")
+        self.u_banana = hs.parse_userid("@banana:test")
 
     @defer.inlineCallbacks
     def test_shortpoll(self):
+        self.mock_datastore.set_presence_state.return_value = defer.succeed(
+                {"state": ONLINE})
+
         (code, response) = yield self.mock_server.trigger("GET",
                 "/events?timeout=0", None)
 
@@ -207,14 +211,15 @@ class PresenceEventStreamTestCase(unittest.TestCase):
         self.mock_datastore.set_presence_state.return_value = defer.succeed(
                 {"state": ONLINE})
 
-        yield self.presence.set_state(self.u_apple, self.u_apple,
+        yield self.presence.set_state(self.u_banana, self.u_banana,
                 state={"state": ONLINE})
 
         (code, response) = yield self.mock_server.trigger("GET",
                 "/events?timeout=0", None)
 
+        # Two presence events happened, but I can only see one
         self.assertEquals(200, code)
-        self.assertEquals({"start": "0", "end": "1", "chunk": [
+        self.assertEquals({"start": "0", "end": "2", "chunk": [
             {"type": "sy.presence",
-             "content": {"user_id": "@apple:test", "state": 2}},
+             "content": {"user_id": "@banana:test", "state": 2}},
         ]}, response)
