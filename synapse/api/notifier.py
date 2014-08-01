@@ -45,20 +45,28 @@ class Notifier(object):
                 self._notify_and_callback(event.target_user_id, event, store_id)
 
     def _notify_and_callback(self, user_id, event, store_id):
-        logger.debug(("Notifying %s of a new event." %
-                                 user_id))
+        logger.debug(
+            "Notifying %s of a new event.",
+            user_id
+        )
+
+        event_listener = self.stored_event_listeners.pop(user_id)
+        return_event_object = {
+            k: event_listener[k] for k in ["start", "chunk", "end"]
+        }
+
         # work out the new end token
-        token = self.stored_event_listeners[user_id]["start"]
+        token = event_listener["start"]
         end = self._next_token(event, store_id, token)
-        self.stored_event_listeners[user_id]["end"] = end
+        event_listener["end"] = end
 
         # add the event to the chunk
-        chunk = self.stored_event_listeners[user_id]["chunk"]
+        chunk = event_listener["chunk"]
         chunk.append(event.get_dict())
 
-        # callback the defer
-        d = self.stored_event_listeners[user_id].pop("defer")
-        d.callback(self.stored_event_listeners[user_id])
+        # callback the defer. We know this can't have been resolved before as
+        # we always remove the event_listener from the map before resolving.
+        event_listener["defer"].callback(return_event_object)
 
     def _next_token(self, event, store_id, current_token):
         stream_handler = self.hs.get_handlers().event_stream_handler
@@ -66,7 +74,7 @@ class Notifier(object):
             event,
             store_id,
             current_token
-            )
+        )
 
     def store_events_for(self, user_id=None, from_tok=None):
         """Store all incoming events for this user. This should be paired with
@@ -77,10 +85,11 @@ class Notifier(object):
             from_tok (str): The token to monitor incoming events from.
         """
         self.stored_event_listeners[user_id] = {
-                "start": from_tok,
-                "chunk": [],
-                "end": from_tok
-            }
+            "start": from_tok,
+            "chunk": [],
+            "end": from_tok,
+            "defer": defer.Deferred(),
+        }
 
     def purge_events_for(self, user_id=None):
         """Purges any stored events for this user.
@@ -89,7 +98,7 @@ class Notifier(object):
             user_id (str): The user to purge stored events for.
         """
         try:
-            self.stored_event_listeners.pop(user_id)
+            self.stored_event_listeners.pop(user_id, None)
         except KeyError:
             pass
 
@@ -112,14 +121,15 @@ class Notifier(object):
             logger.debug("%s returning existing chunk." % user_id)
             return self.stored_event_listeners[user_id]
 
-        d = defer.Deferred()
-        self.stored_event_listeners[user_id]["defer"] = d
         reactor.callLater((timeout / 1000.0), self._timeout, user_id)
-        return d
+        return self.stored_event_listeners[user_id]["defer"]
 
     def _timeout(self, user_id):
         try:
-            self.stored_event_listeners[user_id]["defer"].callback(None)
+            # We remove the event_listener from the map so that we can't
+            # resolve the deferred twice.
+            event_listener = self.stored_event_listeners.pop(user_id)
+            event_listener["defer"].callback(None)
             logger.debug("%s event listening timed out." % user_id)
         except KeyError:
             pass
