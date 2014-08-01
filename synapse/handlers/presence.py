@@ -495,7 +495,8 @@ class PresenceStreamData(StreamData):
 
         # TODO(paul): limit, and filter by visibility
         updates = [(k, cachemap[k]) for k in cachemap
-                if from_key < cachemap[k].serial <= to_key]
+                if from_key < cachemap[k].serial <= to_key and
+                    k.to_string() != user_id]
 
         if updates:
             latest_serial = max([x[1].serial for x in updates])
