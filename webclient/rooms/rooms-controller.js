@@ -1,8 +1,8 @@
 'use strict';
 
 angular.module('RoomsController', ['matrixService'])
-.controller('RoomsController', ['$scope', 'matrixService',
-                               function($scope, matrixService) {
+.controller('RoomsController', ['$scope', '$location', 'matrixService',
+                               function($scope, $location, matrixService) {
                                    
     $scope.rooms = [];
     $scope.newRoomId = "";
@@ -11,6 +11,10 @@ angular.module('RoomsController', ['matrixService'])
     $scope.newRoom = {
         room_id: "",
         private: false
+    };
+    
+    $scope.goToRoom = {
+        room_id: "",
     };
 
     $scope.refresh = function() {
@@ -27,14 +31,14 @@ angular.module('RoomsController', ['matrixService'])
             });
     };
     
-    $scope.createNewRoom = function(roomid, isPrivate) {
+    $scope.createNewRoom = function(room_id, isPrivate) {
         
         var visibility = "public";
         if (isPrivate) {
             visibility = "private";
         }
         
-        matrixService.create(roomid, visibility).then(
+        matrixService.create(room_id, visibility).then(
             function() { 
                 // This room has been created. Refresh the rooms list
                 $scope.refresh();
@@ -44,6 +48,12 @@ angular.module('RoomsController', ['matrixService'])
             });
     };
     
+    // Go to a room
+    $scope.goToRoom = function(room_id) {
+        // Simply open the room page on this room id
+        $location.path("room/" + room_id);
+    };
+
     
     $scope.refresh();
 }]);
