@@ -125,8 +125,8 @@ class PresenceHandler(BaseHandler):
         if target_user not in self._user_cachemap:
             self._user_cachemap[target_user] = UserPresenceCache()
 
-        statusobj = self._user_cachemap[target_user]
-        statusobj.update(state)
+        statuscache = self._user_cachemap[target_user]
+        statuscache.update(state)
 
         if now_online and not was_online:
             self.start_polling_presence(target_user, state=state)
@@ -135,7 +135,7 @@ class PresenceHandler(BaseHandler):
 
         # TODO(paul): perform a presence push as part of start/stop poll so
         #   we don't have to do this all the time
-        self.push_presence(target_user, state=state)
+        self.push_presence(target_user, statuscache=statuscache)
 
         if not now_online:
             del self._user_cachemap[target_user]
@@ -281,10 +281,16 @@ class PresenceHandler(BaseHandler):
 
         target_state = yield self.store.get_presence_state(target_localpart)
 
+        if target_user not in self._user_cachemap:
+            self._user_cachemap[target_user] = UserPresenceCache()
+
+        statuscache = self._user_cachemap[target_user]
+        statuscache.update(target_state)
+
         yield self.push_update_to_clients(
                 observer_user=user,
                 observed_user=target_user,
-                state=target_state,
+                statuscache=statuscache,
         )
 
     def _start_polling_remote(self, user, domain, remoteusers):
@@ -348,7 +354,7 @@ class PresenceHandler(BaseHandler):
         )
 
     @defer.inlineCallbacks
-    def push_presence(self, user, state=None):
+    def push_presence(self, user, statuscache):
         assert(user.is_mine)
 
         logger.debug("Pushing presence update from %s", user)
@@ -359,20 +365,17 @@ class PresenceHandler(BaseHandler):
         if not localusers and not remotedomains:
             defer.returnValue(None)
 
-        if state is None:
-            state = yield self.store.get_presence_state(user.localpart)
-
         deferreds = []
         for u in localusers:
             deferreds.append(self.push_update_to_clients(
                 observer_user=u,
                 observed_user=user,
-                state=state
+                statuscache=statuscache,
             ))
 
         for domain in remotedomains:
             deferreds.append(self._push_presence_remote(user, domain,
-                state=state))
+                state=statuscache.get_state()))
 
         yield defer.DeferredList(deferreds)
 
@@ -410,14 +413,14 @@ class PresenceHandler(BaseHandler):
             if user not in self._user_cachemap:
                 self._user_cachemap[user] = UserPresenceCache()
 
-            statusobj = self._user_cachemap[user]
-            statusobj.update(state)
+            statuscache = self._user_cachemap[user]
+            statuscache.update(state)
 
             for observer_user in observers:
                 deferreds.append(self.push_update_to_clients(
                         observer_user=observer_user,
                         observed_user=user,
-                        state=state
+                        statuscache=statuscache,
                 ))
 
             if state["state"] == PresenceState.OFFLINE:
@@ -452,7 +455,8 @@ class PresenceHandler(BaseHandler):
 
         yield defer.DeferredList(deferreds)
 
-    def push_update_to_clients(self, observer_user, observed_user, state):
+    def push_update_to_clients(self, observer_user, observed_user,
+            statuscache):
         # TODO(paul)
         pass
 

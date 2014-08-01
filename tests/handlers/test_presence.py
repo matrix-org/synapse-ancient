@@ -347,13 +347,15 @@ class PresencePushTestCase(unittest.TestCase):
         yield self.handler.set_state(self.u_apple, self.u_apple,
                 {"state": ONLINE})
 
+        # More peeking inside the object to find the thing we expect it
+        # called us with
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    state={"state": ONLINE, "status_msg": None}),
+                    statuscache=self.handler._user_cachemap[self.u_apple]),
                 call(observer_user=self.u_clementine,
                     observed_user=self.u_apple,
-                    state={"state": ONLINE, "status_msg": None}),
+                    statuscache=self.handler._user_cachemap[self.u_apple]),
         ], any_order=True)
 
     @defer.inlineCallbacks
@@ -371,8 +373,7 @@ class PresencePushTestCase(unittest.TestCase):
                 content={
                     "push": [
                         {"user_id": "@apple:test",
-                         "state": 2,
-                         "status_msg": None},
+                         "state": 2},
                     ],
                 },
         )
@@ -396,7 +397,7 @@ class PresencePushTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_potato,
-                    state={"state": ONLINE}),
+                    statuscache=self.handler._user_cachemap[self.u_potato]),
         ])
 
         state = yield self.handler.get_state(self.u_potato, self.u_apple)
@@ -482,10 +483,10 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_banana,
-                    state={"state": OFFLINE, "status_msg": None}),
+                    statuscache=self.handler._user_cachemap[self.u_banana]),
                 call(observer_user=self.u_apple,
                     observed_user=self.u_clementine,
-                    state={"state": OFFLINE, "status_msg": None}),
+                    statuscache=self.handler._user_cachemap[self.u_clementine])
         ], any_order=True)
 
         # Gut-wrenching tests
@@ -505,16 +506,19 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_banana,
-                    state={"state": ONLINE, "status_msg": None}),
+                    statuscache=self.handler._user_cachemap[self.u_banana]),
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    state={"state": ONLINE, "status_msg": None}),
+                    statuscache=self.handler._user_cachemap[self.u_apple]),
         ], any_order=True)
 
         self.assertTrue("apple" in self.handler._local_pushmap)
         self.assertTrue(self.u_banana in self.handler._local_pushmap["apple"])
 
         self.mock_update_client.reset_mock()
+
+        # Hideous
+        apple_cache = self.handler._user_cachemap[self.u_apple]
 
         # apple goes offline
         yield self.handler.set_state(
@@ -525,7 +529,7 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    state={"state": OFFLINE, "status_msg": None}),
+                    statuscache=apple_cache),
         ], any_order=True)
 
         self.assertFalse("banana" in self.handler._local_pushmap)
