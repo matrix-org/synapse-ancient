@@ -1,6 +1,6 @@
 angular.module('LoginController', ['matrixService'])
-.controller('LoginController', ['$scope', '$http', '$timeout', '$location', 'matrixService',
-                                    function($scope, $http, $timeout, $location, matrixService) {
+.controller('LoginController', ['$scope', '$location', 'matrixService',
+                                    function($scope, $location, matrixService) {
     'use strict';
     
     $scope.account = {

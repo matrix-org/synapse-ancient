@@ -1,6 +1,6 @@
 angular.module('RoomController', [])
-.controller('RoomController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams', 'matrixService',
-                               function($scope, $log, $q, $http, $timeout, $routeParams, matrixService) {
+.controller('RoomController', ['$scope', '$http', '$timeout', '$routeParams', 'matrixService',
+                               function($scope, $http, $timeout, $routeParams, matrixService) {
    'use strict';
     $scope.room_id = $routeParams.room_id;
     $scope.state = {
