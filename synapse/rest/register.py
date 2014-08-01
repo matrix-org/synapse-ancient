@@ -2,7 +2,6 @@
 """This module contains REST servlets to do with registration: /register"""
 from twisted.internet import defer
 
-from synapse.api.errors import SynapseError
 from base import RestServlet, InvalidHttpRequestError
 
 import json

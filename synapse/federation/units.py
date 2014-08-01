@@ -3,13 +3,6 @@
 server protocol.
 """
 
-from twisted.internet import defer
-from synapse.persistence.transactions import (
-    TransactionQueries, PduQueries, StateQueries
-)
-
-from synapse.persistence.tables import ReceivedTransactionsTable
-
 import copy
 import logging
 import json

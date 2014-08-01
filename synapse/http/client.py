@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from twisted.internet import defer, reactor
-from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
-from twisted.names.srvconnect import SRVConnector
 from twisted.web.client import _AgentBase, _URI, readBody
 from twisted.web.http_headers import Headers
 

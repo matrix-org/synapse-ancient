@@ -5,7 +5,6 @@ from ._base import BaseHandler
 
 from synapse.api.events.room import InviteJoinEvent, RoomMemberEvent
 from synapse.api.constants import Membership
-from synapse.types import UserID
 from synapse.util.logutils import log_function
 
 from twisted.internet import defer

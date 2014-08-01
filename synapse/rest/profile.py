@@ -2,9 +2,7 @@
 """ This module contains REST servlets to do with profile: /profile/<paths> """
 from twisted.internet import defer
 
-from synapse.api.errors import SynapseError, cs_error
-
-from base import RestServlet, InvalidHttpRequestError
+from base import RestServlet
 
 import json
 import re

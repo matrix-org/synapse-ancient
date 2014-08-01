@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-
-
-from synapse.api.events import SynapseEvent
 from .units import Pdu
 
 import copy
-import time
 
 
 def decode_event_id(event_id, server_name):

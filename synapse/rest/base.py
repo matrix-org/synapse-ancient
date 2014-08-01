@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """ This module contains base REST classes for constructing REST servlets. """
-from twisted.internet import defer
-
 from synapse.api.errors import cs_error, CodeMessageException
 
 

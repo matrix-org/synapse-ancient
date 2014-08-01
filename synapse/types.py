@@ -4,14 +4,6 @@ from synapse.api.errors import SynapseError
 from collections import namedtuple
 
 
-def split_localpart_domain(s, sigil):
-    """Splits a string of the form "{SIGIL}localpart:domain" into its local
-    and domain parts and returns them. Requires that the first character of
-    the string be the given sigil."""
-
-    return parts[0], parts[1]
-
-
 class DomainSpecificString(
         namedtuple("DomainSpecificString", ("localpart", "domain", "is_mine"))
 ):
