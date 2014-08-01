@@ -33,7 +33,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
             ]),
             http_server=NonCallableMock(),
             http_client=NonCallableMock(spec_set=[]),
-            notifier=NonCallableMock(spec_set=["on_new_event"]),
+            notifier=NonCallableMock(spec_set=["on_new_room_event"]),
             handlers=NonCallableMock(spec_set=[
                 "room_member_handler",
             ]),
@@ -99,7 +99,8 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
             content=content,
             membership=Membership.INVITE,
         )
-        self.notifier.on_new_event.assert_called_once_with(event, store_id)
+        self.notifier.on_new_room_event.assert_called_once_with(
+                event, store_id)
 
         self.assertFalse(self.datastore.get_room.called)
         self.assertFalse(self.datastore.store_room.called)
@@ -155,7 +156,8 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
             content=content,
             membership=Membership.JOIN,
         )
-        self.notifier.on_new_event.assert_called_once_with(event, store_id)
+        self.notifier.on_new_room_event.assert_called_once_with(
+                event, store_id)
 
     @defer.inlineCallbacks
     def test_invite_join(self):
@@ -217,7 +219,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
 
         self.assertFalse(self.datastore.store_room_member.called)
 
-        self.assertFalse(self.notifier.on_new_event.called)
+        self.assertFalse(self.notifier.on_new_room_event.called)
         self.assertFalse(self.state_handler.handle_new_event.called)
 
         self.datastore.store_room.assert_called_once_with(
@@ -237,7 +239,7 @@ class RoomCreationTest(unittest.TestCase):
             ]),
             http_server=NonCallableMock(),
             http_client=NonCallableMock(spec_set=[]),
-            notifier=NonCallableMock(spec_set=["on_new_event"]),
+            notifier=NonCallableMock(spec_set=["on_new_room_event"]),
             handlers=NonCallableMock(spec_set=[
                 "room_creation_handler",
                 "room_member_handler",

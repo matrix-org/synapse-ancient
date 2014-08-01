@@ -81,7 +81,7 @@ class MessageHandler(BaseHandler):
 
             yield self.hs.get_federation().handle_new_event(event)
 
-            self.notifier.on_new_event(event, store_id)
+            self.notifier.on_new_room_event(event, store_id)
 
     @defer.inlineCallbacks
     def get_messages(self, user_id=None, room_id=None, pagin_config=None,
@@ -136,7 +136,7 @@ class MessageHandler(BaseHandler):
             event.destinations = yield self.store.get_joined_hosts_for_room(
                 event.room_id
             )
-            self.notifier.on_new_event(event, store_id)
+            self.notifier.on_new_room_event(event, store_id)
 
         yield self.hs.get_federation().handle_new_event(event)
 
@@ -219,7 +219,7 @@ class MessageHandler(BaseHandler):
             )
         yield self.hs.get_federation().handle_new_event(event)
 
-        self.notifier.on_new_event(event, store_id)
+        self.notifier.on_new_room_event(event, store_id)
 
     @defer.inlineCallbacks
     def snapshot_all_rooms(self, user_id=None, pagin_config=None,
@@ -310,7 +310,7 @@ class RoomCreationHandler(BaseHandler):
             # store_id = persist...
 
         yield self.hs.get_federation().handle_new_event(config_event)
-        # self.notifier.on_new_event(event, store_id)
+        # self.notifier.on_new_room_event(event, store_id)
 
         content = {"membership": Membership.JOIN}
         join_event = self.event_factory.create_event(
@@ -481,7 +481,7 @@ class RoomMemberHandler(BaseHandler):
             # We don't want to send out the event notifs inside the room lock.
             if not is_remote_invite_join:
                 yield self.hs.get_federation().handle_new_event(event)
-                self.notifier.on_new_event(event, store_id)
+                self.notifier.on_new_room_event(event, store_id)
 
             else:
                 logger.debug("Doing remote join dance")
@@ -525,7 +525,7 @@ class RoomMemberHandler(BaseHandler):
                 store_id = yield _do_membership_update()
 
             yield self.hs.get_federation().handle_new_event(event)
-            self.notifier.on_new_event(event, store_id)
+            self.notifier.on_new_room_event(event, store_id)
 
         if broadcast_msg:
             yield self._inject_membership_msg(

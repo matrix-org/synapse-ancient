@@ -61,4 +61,4 @@ class FederationHandler(BaseHandler):
             with (yield self.room_lock.lock(event.room_id)):
                 store_id = yield self.store.persist_event(event)
 
-            yield self.notifier.on_new_event(event, store_id)
+            yield self.notifier.on_new_room_event(event, store_id)

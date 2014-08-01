@@ -29,7 +29,7 @@ class FederationTestCase(unittest.TestCase):
             ]),
             http_server=NonCallableMock(),
             http_client=NonCallableMock(spec_set=[]),
-            notifier=NonCallableMock(spec_set=["on_new_event"]),
+            notifier=NonCallableMock(spec_set=["on_new_room_event"]),
             handlers=NonCallableMock(spec_set=[
                 "room_member_handler",
                 "federation_handler",
@@ -58,7 +58,8 @@ class FederationTestCase(unittest.TestCase):
         yield self.handlers.federation_handler.on_receive(event, False)
 
         self.datastore.persist_event.assert_called_once_with(event)
-        self.notifier.on_new_event.assert_called_once_with(event, store_id)
+        self.notifier.on_new_room_event.assert_called_once_with(
+                event, store_id)
 
     @defer.inlineCallbacks
     def test_invite_join_target_this(self):
