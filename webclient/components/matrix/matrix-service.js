@@ -142,6 +142,12 @@ angular.module('matrixService', [])
             path = path.replace("$room_id", room_id);
             return doRequest("GET", path);
         },
+
+        // get a list of public rooms on your home server
+        publicRooms: function() {
+            var path = "/public/rooms"
+            return doRequest("GET", path);
+        },
         
         
         /****** Permanent storage of user information ******/

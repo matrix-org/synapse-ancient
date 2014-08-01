@@ -5,6 +5,7 @@ angular.module('RoomsController', ['matrixService'])
                                function($scope, $location, matrixService) {
                                    
     $scope.rooms = [];
+    $scope.public_rooms = [];
     $scope.newRoomId = "";
     $scope.feedback = "";
     
@@ -20,7 +21,6 @@ angular.module('RoomsController', ['matrixService'])
     $scope.refresh = function() {
         // List all rooms joined or been invited to
         $scope.rooms = matrixService.rooms();
-        
         matrixService.rooms().then(
             function(data) { 
                 $scope.feedback = "Success";
@@ -29,6 +29,12 @@ angular.module('RoomsController', ['matrixService'])
             function(reason) {
                 $scope.feedback = "Failure: " + reason;
             });
+        
+        matrixService.publicRooms().then(
+            function(data) {
+                $scope.public_rooms = data.chunk;
+            }
+        );
     };
     
     $scope.createNewRoom = function(room_id, isPrivate) {
