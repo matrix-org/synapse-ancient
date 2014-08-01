@@ -106,7 +106,7 @@ class TwistedHttpClient(HttpClient):
             destination = _destination_mappings[destination]
 
         response = yield self._create_request(
-            destination,
+            destination.encode("ascii"),
             "PUT",
             path.encode("ascii"),
             producer=_JsonProducer(data),
@@ -128,7 +128,7 @@ class TwistedHttpClient(HttpClient):
         query_bytes = urllib.urlencode(args, True)
 
         response = yield self._create_request(
-            destination,
+            destination.encode("ascii"),
             "GET",
             path.encode("ascii"),
             query_bytes
