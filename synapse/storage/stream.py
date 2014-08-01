@@ -2,7 +2,7 @@
 from twisted.internet import defer
 
 from synapse.persistence.tables import (RoomMemberTable, MessagesTable,
-                                       FeedbackTable)
+                                       FeedbackTable, RoomDataTable)
 
 from ._base import SQLBaseStore
 
@@ -180,6 +180,38 @@ class StreamStore(SQLBaseStore):
         logger.debug("[SQL] %s : %s" % (query, query_args))
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, FeedbackTable, from_pkey)
+
+    @defer.inlineCallbacks
+    def get_room_data_stream(self, user_id=None, from_key=None, to_key=None,
+                            room_id=None, limit=0):
+        (rows, pkey) = yield self._db_pool.runInteraction(
+                self._get_room_data_rows, user_id, from_key, to_key, room_id,
+                limit)
+        defer.returnValue((rows, pkey))
+
+    def _get_room_data_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
+                           limit):
+        # work out which rooms this user is joined in on and join them with
+        # the room id on the feedback table, bounded by the specified pkeys
+
+        # get all messages where the *current* membership state is 'join' for
+        # this user in that room.
+        query = ("SELECT room_data.* FROM room_data WHERE ? IN " +
+            "(SELECT membership from room_memberships WHERE user_id=? AND " +
+            "room_id = room_data.room_id ORDER BY id DESC LIMIT 1)")
+        query_args = ["join", user_id]
+
+        if room_id:
+            query += " AND room_data.room_id=?"
+            query_args.append(room_id)
+
+        (query, query_args) = self._append_stream_operations("room_data",
+                                query, query_args, from_pkey, to_pkey,
+                                limit=limit)
+
+        logger.debug("[SQL] %s : %s" % (query, query_args))
+        cursor = txn.execute(query, query_args)
+        return self._as_events(cursor, RoomDataTable, from_pkey)
 
     def _append_stream_operations(self, table_name, query, query_args,
                                   from_pkey, to_pkey, limit=None,

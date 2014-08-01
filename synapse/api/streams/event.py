@@ -3,7 +3,9 @@
 from twisted.internet import defer
 
 from synapse.api.errors import EventStreamError
-from synapse.api.events.room import RoomMemberEvent, MessageEvent, FeedbackEvent
+from synapse.api.events.room import (
+    RoomMemberEvent, MessageEvent, FeedbackEvent, RoomTopicEvent
+)
 from synapse.api.streams import PaginationStream, StreamData
 
 import logging
@@ -77,6 +79,30 @@ class FeedbackStreamData(StreamData):
     @defer.inlineCallbacks
     def max_token(self):
         val = yield self.store.get_max_feedback_id()
+        defer.returnValue(val)
+
+
+class RoomDataStreamData(StreamData):
+    EVENT_TYPE = RoomTopicEvent.TYPE  # TODO need multiple event types
+
+    def __init__(self, hs, room_id=None):
+        super(RoomDataStreamData, self).__init__(hs)
+        self.room_id = room_id
+
+    @defer.inlineCallbacks
+    def get_rows(self, user_id, from_key, to_key, limit):
+        (data, latest_ver) = yield self.store.get_room_data_stream(
+                                user_id=user_id,
+                                from_key=from_key,
+                                to_key=to_key,
+                                limit=limit,
+                                room_id=self.room_id
+                                )
+        defer.returnValue((data, latest_ver))
+
+    @defer.inlineCallbacks
+    def max_token(self):
+        val = yield self.store.get_max_room_data_id()
         defer.returnValue(val)
 
 

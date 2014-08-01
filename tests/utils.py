@@ -190,6 +190,10 @@ class MemoryDataStore(object):
                             room_id=None, limit=0):
         return ([], from_key)  # TODO
 
+    def get_room_data_stream(self, user_id=None, from_key=None, to_key=None,
+                            room_id=None, limit=0):
+        return ([], from_key)  # TODO
+
     def to_events(self, data_store_list):
         return data_store_list  # TODO
 
@@ -200,6 +204,9 @@ class MemoryDataStore(object):
         return 0  # TODO
 
     def get_max_room_member_id(self):
+        return 0  # TODO
+
+    def get_max_room_data_id(self):
         return 0  # TODO
 
     def get_joined_hosts_for_room(self, room_id):

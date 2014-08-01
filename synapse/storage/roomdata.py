@@ -52,7 +52,13 @@ class RoomDataStore(SQLBaseStore):
         """
         query = ("INSERT INTO " + RoomDataTable.table_name +
                 "(type, state_key, room_id, content) VALUES (?,?,?,?)")
-        yield self._db_pool.runInteraction(
+        store_id = yield self._db_pool.runInteraction(
             self.exec_single_with_result, query, last_row_id,
             etype, state_key, room_id, content
         )
+        defer.returnValue(store_id)
+
+    @defer.inlineCallbacks
+    def get_max_room_data_id(self):
+        max_id = yield self._simple_max_id(RoomDataTable.table_name)
+        defer.returnValue(max_id)

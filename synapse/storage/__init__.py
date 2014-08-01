@@ -6,7 +6,7 @@ from synapse.api.events.room import (
     RoomConfigEvent
 )
 from synapse.persistence.tables import (
-    RoomMemberTable, MessagesTable, FeedbackTable
+    RoomMemberTable, MessagesTable, FeedbackTable, RoomDataTable
 )
 
 import json
@@ -58,6 +58,12 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
                 "msg_sender_id": store_data.msg_sender_id,
                 "user_id": store_data.fb_sender_id,
                 "feedback_type": store_data.feedback_type,
+                "content": json.loads(store_data.content)
+            }
+        elif store_data.__class__ == RoomDataTable.EntryType:
+            event_type = store_data.type
+            fields = {
+                "room_id": store_data.room_id,
                 "content": json.loads(store_data.content)
             }
         else:
