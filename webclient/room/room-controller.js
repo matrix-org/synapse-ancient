@@ -1,6 +1,6 @@
 angular.module('RoomController', [])
-.controller('RoomController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams',
-                               function($scope, $log, $q, $http, $timeout, $routeParams) {
+.controller('RoomController', ['$scope', '$log', '$q', '$http', '$timeout', '$routeParams', 'matrixService',
+                               function($scope, $log, $q, $http, $timeout, $routeParams, matrixService) {
    'use strict';
     $scope.room_id = $routeParams.room_id;
     $scope.state = {
@@ -44,61 +44,41 @@ angular.module('RoomController', [])
         if ($scope.textInput == "") {
             return;
         }
-        var msg_id = "m" + new Date().getTime();
-        $http.put(synapseClient.getConfig().homeserver_url + "/rooms/" + $scope.room_id + "/messages/" + synapseClient.getConfig().user_id + "/" + msg_id, {
-                "body": $scope.textInput,
-                "msgtype": "sy.text",
-            }, {
-                "params" : {
-                    "access_token" : synapseClient.getConfig().access_token
-                }
-            })
-            .success(function(data, status, headers, config) {
+        
+        // Send the text message
+        matrixService.sendTextMessage($scope.room_id, $scope.textInput).then(
+            function() {
                 $scope.feedback = "Sent successfully";
                 $scope.textInput = "";
-            })
-            .error(function(data, status, headers, config) {
-                $scope.feedback = "Failed to send: " + response.data;
-            });                
+            },
+            function(reason) {
+                $scope.feedback = "Failed to send: " + reason;
+            });               
     };
 
     $scope.onInit = function() {
         $timeout(function() { document.getElementById('textInput').focus() }, 0);
 
-        $http.put(synapseClient.getConfig().homeserver_url + "/rooms/" + $scope.room_id + "/members/" + synapseClient.getConfig().user_id + "/state", {
-                "membership": "join"
-            }, {
-                "params" : {
-                    "access_token" : synapseClient.getConfig().access_token
-                }
-            })
-            .success(function(data, status, headers, config) {
+        // Join the room
+        matrixService.join($scope.room_id).then(
+            function() {
+                // Now start reading from the stream
                 $timeout(shortPoll, 0);
-            })
-            .error(function(data, status, headers, config) {
-                $scope.feedback = "Can't join room: " + response.data;
-                return $q.reject(response.data);
+            },
+            function(reason) {
+                $scope.feedback = "Can't join room: " + reason;
             });
     }; 
     
     $scope.inviteUser = function(user_name, homeserver_name) {
 
         var user_id = synapseClient.computeUserId(user_name, homeserver_name);
-        $http.put(synapseClient.getConfig().homeserver_url + "/rooms/" + $scope.room_id  + "/members/" + user_id + "/state", {
-                "membership": "invite"
-            }, {
-                "params" : {
-                    "access_token" : synapseClient.getConfig().access_token
-                }
-            })
-            .success(function(data, status, headers, config) {
+        
+        matrixService.invite($scope.room_id, user_id).then(
+            function() {
                 $scope.feedback = "Request for invitation succeeds";
-            })
-            .error(function(data, status, headers, config) {
-                var reason = data.error;
-                if (!data.error) {
-                    reason = JSON.stringify(data);
-                }
+            },
+            function(reason) {
                 $scope.feedback = "Failure: " + reason;
             });
     };

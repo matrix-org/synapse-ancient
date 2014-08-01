@@ -4,13 +4,13 @@ angular.module('matrixService', [])
 .factory('matrixService', ['$http', '$q', function($http, $q) {
 
     var doRequest = function(method, path, params, data) {
-        
+
         // Inject the access token
         if (!params) {
             params = {};
         }
         params.access_token = synapseClient.getConfig().access_token;
-        
+
         // Do not directly return the $http instance but return a promise
         // with enriched or cleaned information
         var deferred = $q.defer();
@@ -32,33 +32,82 @@ angular.module('matrixService', [])
             }
             deferred.reject(reason, data, status, headers, config);
         });
-                
+
         return deferred.promise;
     };
-    
+
     return {
         // Create a room
         create: function(room_id, visibility) {
             // The REST path spec
             var path = "/rooms/$room_id";
-            
+
             // Customize it
             path = path.replace("$room_id", room_id);
 
             return doRequest("PUT", path, undefined, {
                 visibility: visibility
-            });            
+            });
         },
-        
+
         // List all rooms joined or been invited to
         rooms: function(from, to, limit) {
             // The REST path spec
             var path = "/users/$user_id/rooms/list";
-            
+
             // Customize it
             path = path.replace("$user_id", synapseClient.getConfig().user_id);
 
             return doRequest("GET", path);
+        },
+
+        // Joins a room
+        join: function(room_id) {
+            // The REST path spec
+            var path = "/rooms/$room_id/members/$user_id/state";
+
+            // Customize it
+            path = path.replace("$room_id", room_id);
+            path = path.replace("$user_id", synapseClient.getConfig().user_id);
+
+            return doRequest("PUT", path, undefined, {
+                 membership: "join"
+            });
+        },
+
+        // Invite a user to a room
+        invite: function(room_id, user_id) {
+            // The REST path spec
+            var path = "/rooms/$room_id/members/$user_id/state";
+
+            // Customize it
+            path = path.replace("$room_id", room_id);
+            path = path.replace("$user_id", user_id);
+
+            return doRequest("PUT", path, undefined, {
+                 membership: "invite"
+            });
+        },
+
+        // Send a text message
+        // @TODO: a generic send method which handle all types of message
+        sendTextMessage: function(room_id, body, msg_id) {
+            // The REST path spec
+            var path = "/rooms/$room_id/messages/$from/$msg_id";
+
+            if (!msg_id) {
+                msg_id = "m" + new Date().getTime();
+            }
+
+            // Customize it
+            path = path.replace("$room_id", room_id);
+            path = path.replace("$from", synapseClient.getConfig().user_id);
+            path = path.replace("msg_id", msg_id);
+
+            return doRequest("PUT", path, undefined, {
+                 msgtype: "sy.text",
+                 body: body
+            });
         }
     };
 }]);
