@@ -1,7 +1,8 @@
 from twisted.internet.endpoints import SSL4ClientEndpoint, TCP4ClientEndpoint
 from twisted.internet import defer
+from twisted.internet.error import ConnectError
 from twisted.names import client, dns
-from twisted.names.error import DNSNameError, ConnectError
+from twisted.names.error import DNSNameError
 
 import collections
 import logging
