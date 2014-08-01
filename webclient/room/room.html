@@ -13,15 +13,9 @@
 
     <div class="member_list">
         <table>
-            <tr><td>@saaaaaa1:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa2:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa3:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa4:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa5:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa6:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa7:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa8:dummyhost.com</td></tr>
-            <tr><td>@saaaaaa9:dummyhost.com</td></tr>
+            <tr class="member_entry" ng-repeat="member in members">
+                <td>{{member.target_user_id}} ({{member.content.membership}})</td>
+            </tr>
         </table>
     </div>
 

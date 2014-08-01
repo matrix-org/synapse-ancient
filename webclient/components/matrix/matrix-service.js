@@ -135,6 +135,13 @@ angular.module('matrixService', [])
                  body: body
             });
         },
+
+        // get a snapshot of the members in a room.
+        getMemberList: function(room_id) {
+            var path = "/rooms/$room_id/members/list";
+            path = path.replace("$room_id", room_id);
+            return doRequest("GET", path);
+        },
         
         
         /****** Permanent storage of user information ******/

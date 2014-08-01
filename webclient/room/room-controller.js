@@ -8,6 +8,7 @@ angular.module('RoomController', [])
         events_from: "START"
     };
     $scope.messages = [];
+    $scope.members = [];
     
     $scope.userIDToInvite = "";
 
@@ -61,6 +62,19 @@ angular.module('RoomController', [])
             function() {
                 // Now start reading from the stream
                 $timeout(shortPoll, 0);
+
+                // Get the current member list
+                matrixService.getMemberList($scope.room_id).then(
+                    function(response) {
+                        for (var i = 0; i < response.chunk.length; i++) {
+                            var chunk = response.chunk[i];
+                            $scope.members.push(chunk);
+                        }
+                    },
+                    function(reason) {
+                        $scope.feedback = "Failed get member list: " + reason;
+                    }
+                );
             },
             function(reason) {
                 $scope.feedback = "Can't join room: " + reason;
