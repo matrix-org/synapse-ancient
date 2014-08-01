@@ -84,6 +84,7 @@ class Signal(object):
             def eb(failure):
                 logger.warning("%s signal observer %s failed: %r" % (
                     self.name, observer, failure))
+                failure.printTraceback()
             deferreds.append(d.addErrback(eb))
 
         return defer.DeferredList(deferreds)
