@@ -58,7 +58,7 @@ class Notifier(object):
         # work out the new end token
         token = event_listener["start"]
         end = self._next_token(event, store_id, token)
-        event_listener["end"] = end
+        return_event_object["end"] = end
 
         # add the event to the chunk
         chunk = event_listener["chunk"]
