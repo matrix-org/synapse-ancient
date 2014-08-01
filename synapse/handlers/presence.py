@@ -122,7 +122,7 @@ class PresenceHandler(BaseHandler):
         )
 
         now_online = state["state"] != PresenceState.OFFLINE
-        was_online = oldstate != PresenceState.OFFLINE
+        was_online = oldstate["state"] != PresenceState.OFFLINE
 
         if target_user not in self._user_cachemap:
             self._user_cachemap[target_user] = UserPresenceCache()
@@ -294,7 +294,7 @@ class PresenceHandler(BaseHandler):
         statuscache.update(target_state,
                 serial=self._user_cachemap_latest_serial)
 
-        yield self.push_update_to_clients(
+        self.push_update_to_clients(
                 observer_user=user,
                 observed_user=target_user,
                 statuscache=statuscache,
@@ -372,14 +372,14 @@ class PresenceHandler(BaseHandler):
         if not localusers and not remotedomains:
             defer.returnValue(None)
 
-        deferreds = []
         for u in localusers:
-            deferreds.append(self.push_update_to_clients(
+            self.push_update_to_clients(
                 observer_user=u,
                 observed_user=user,
                 statuscache=statuscache,
-            ))
+            )
 
+        deferreds = []
         for domain in remotedomains:
             deferreds.append(self._push_presence_remote(user, domain,
                 state=statuscache.get_state()))
@@ -426,11 +426,11 @@ class PresenceHandler(BaseHandler):
             statuscache.update(state, serial=self._user_cachemap_latest_serial)
 
             for observer_user in observers:
-                deferreds.append(self.push_update_to_clients(
+                self.push_update_to_clients(
                         observer_user=observer_user,
                         observed_user=user,
                         statuscache=statuscache,
-                ))
+                )
 
             if state["state"] == PresenceState.OFFLINE:
                 del self._user_cachemap[user]
@@ -466,8 +466,10 @@ class PresenceHandler(BaseHandler):
 
     def push_update_to_clients(self, observer_user, observed_user,
             statuscache):
-        # TODO(paul)
-        pass
+        self.notifier.on_new_user_event(observer_user.to_string(),
+                event_data=statuscache.make_event(user=observed_user),
+                stream_type=PresenceStreamData,
+                store_id=statuscache.serial)
 
 
 class PresenceStreamData(StreamData):
@@ -490,6 +492,8 @@ class PresenceStreamData(StreamData):
 
     def max_token(self):
         return self.presence._user_cachemap_latest_serial
+
+PresenceStreamData.EVENT_TYPE = PresenceStreamData
 
 
 class UserPresenceCache(object):

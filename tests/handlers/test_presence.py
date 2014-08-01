@@ -72,7 +72,7 @@ class PresenceStateTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_set_my_state_online(self):
         mocked_set = self.datastore.set_presence_state
-        mocked_set.return_value = defer.succeed((OFFLINE))
+        mocked_set.return_value = defer.succeed({"state": OFFLINE})
 
         yield self.handlers.presence_handler.set_state(
                 target_user=self.u_apple, auth_user=self.u_apple,
@@ -86,7 +86,7 @@ class PresenceStateTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_set_my_state_offline(self):
         mocked_set = self.datastore.set_presence_state
-        mocked_set.return_value = defer.succeed((ONLINE))
+        mocked_set.return_value = defer.succeed({"state": ONLINE})
 
         yield self.handlers.presence_handler.set_state(
                 target_user=self.u_apple, auth_user=self.u_apple,
@@ -326,6 +326,7 @@ class PresencePushTestCase(unittest.TestCase):
         self.mock_update_client = Mock()
         self.mock_update_client.return_value = defer.succeed(None)
 
+        self.datastore = hs.get_datastore()
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
 
@@ -339,6 +340,9 @@ class PresencePushTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_push_local(self):
+        self.datastore.set_presence_state.return_value = defer.succeed(
+                {"state": ONLINE})
+
         # TODO(paul): Gut-wrenching
         apple_set = self.handler._local_pushmap.setdefault("apple", set())
         apple_set.add(self.u_banana)
@@ -360,6 +364,9 @@ class PresencePushTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_push_remote(self):
+        self.datastore.set_presence_state.return_value = defer.succeed(
+                {"state": ONLINE})
+
         # TODO(paul): Gut-wrenching
         apple_set = self.handler._remote_sendmap.setdefault("apple", set())
         apple_set.add(self.u_potato.domain)
@@ -455,7 +462,7 @@ class PresencePollingTestCase(unittest.TestCase):
         def set_presence_state(user_localpart, new_state):
             was = self.current_user_state[user_localpart]
             self.current_user_state[user_localpart] = new_state["state"]
-            return defer.succeed(was)
+            return defer.succeed({"state": was})
         self.datastore.set_presence_state = set_presence_state
 
         def get_presence_list(user_localpart, accepted):

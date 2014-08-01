@@ -197,7 +197,8 @@ class PresenceEventStreamTestCase(unittest.TestCase):
         # all be ours
         self.assertEquals({"start": "0", "end": "0", "chunk": []}, response)
 
-        self.mock_datastore.set_presence_state.return_value = defer.succeed(())
+        self.mock_datastore.set_presence_state.return_value = defer.succeed(
+                {"state": ONLINE})
 
         yield self.presence.set_state(self.u_apple, self.u_apple,
                 state={"state": ONLINE})
