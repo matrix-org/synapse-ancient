@@ -476,6 +476,14 @@ class RoomMemberHandler(BaseHandler):
                 yield self.hs.get_federation().handle_new_event(event)
                 self.notifier.on_new_room_event(event, store_id)
 
+                if broadcast_msg:
+                    yield self._inject_membership_msg(
+                        source=event.user_id,
+                        target=event.target_user_id,
+                        room_id=event.room_id,
+                        membership=event.content["membership"]
+                    )
+
             else:
                 room_id, domain = invite_tuple
                 yield self._do_invite_join_dance(
@@ -503,12 +511,13 @@ class RoomMemberHandler(BaseHandler):
             yield self.hs.get_federation().handle_new_event(event)
             self.notifier.on_new_room_event(event, store_id)
 
-        if broadcast_msg:
-            yield self._inject_membership_msg(
-                source=event.user_id,
-                target=event.target_user_id,
-                room_id=event.room_id,
-                membership=event.content["membership"])
+            if broadcast_msg:
+                yield self._inject_membership_msg(
+                    source=event.user_id,
+                    target=event.target_user_id,
+                    room_id=event.room_id,
+                    membership=event.content["membership"]
+                )
 
     @defer.inlineCallbacks
     def _should_invite_join(self, event, prev_state, do_auth):
