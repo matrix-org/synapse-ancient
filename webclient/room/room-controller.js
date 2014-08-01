@@ -8,7 +8,7 @@ angular.module('RoomController', [])
         events_from: "START"
     };
     $scope.messages = [];
-    $scope.members = [];
+    $scope.members = {};
     
     $scope.userIDToInvite = "";
 
@@ -28,6 +28,9 @@ angular.module('RoomController', [])
                     var chunk = response.data.chunk[i];
                     if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
                         $scope.messages.push(chunk);
+                    }
+                    else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
+                        $scope.members[chunk.target_user_id] = chunk;
                     }
                 }
 
@@ -68,7 +71,7 @@ angular.module('RoomController', [])
                     function(response) {
                         for (var i = 0; i < response.chunk.length; i++) {
                             var chunk = response.chunk[i];
-                            $scope.members.push(chunk);
+                            $scope.members[chunk.target_user_id] = chunk;
                         }
                     },
                     function(reason) {

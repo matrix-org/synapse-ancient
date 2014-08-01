@@ -13,8 +13,8 @@
 
     <div class="member_list">
         <table>
-            <tr class="member_entry" ng-repeat="member in members">
-                <td>{{member.target_user_id}} ({{member.content.membership}})</td>
+            <tr class="member_entry" ng-repeat="(name, info) in members">
+                <td>{{name}} ({{info.content.membership}})</td>
             </tr>
         </table>
     </div>
