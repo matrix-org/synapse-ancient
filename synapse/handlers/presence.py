@@ -75,6 +75,7 @@ class PresenceHandler(BaseHandler):
 
         # map any user to a UserPresenceCache
         self._user_cachemap = {}
+        self._user_cachemap_latest_serial = 0
 
     def registered_user(self, user):
         self.store.create_presence(user.localpart)
@@ -126,7 +127,9 @@ class PresenceHandler(BaseHandler):
             self._user_cachemap[target_user] = UserPresenceCache()
 
         statuscache = self._user_cachemap[target_user]
-        statuscache.update(state)
+
+        self._user_cachemap_latest_serial += 1
+        statuscache.update(state, serial=self._user_cachemap_latest_serial)
 
         if now_online and not was_online:
             self.start_polling_presence(target_user, state=state)
@@ -285,7 +288,10 @@ class PresenceHandler(BaseHandler):
             self._user_cachemap[target_user] = UserPresenceCache()
 
         statuscache = self._user_cachemap[target_user]
-        statuscache.update(target_state)
+
+        self._user_cachemap_latest_serial += 1
+        statuscache.update(target_state,
+                serial=self._user_cachemap_latest_serial)
 
         yield self.push_update_to_clients(
                 observer_user=user,
@@ -414,7 +420,9 @@ class PresenceHandler(BaseHandler):
                 self._user_cachemap[user] = UserPresenceCache()
 
             statuscache = self._user_cachemap[user]
-            statuscache.update(state)
+
+            self._user_cachemap_latest_serial += 1
+            statuscache.update(state, serial=self._user_cachemap_latest_serial)
 
             for observer_user in observers:
                 deferreds.append(self.push_update_to_clients(
@@ -469,9 +477,11 @@ class UserPresenceCache(object):
     def __init__(self):
         self.state = None
         self.status_msg = None
+        self.serial = None
 
-    def update(self, state):
+    def update(self, state, serial):
         self.state = state["state"]
+        self.serial = serial
 
         if "status_msg" in state:
             self.status_msg = state["status_msg"]
