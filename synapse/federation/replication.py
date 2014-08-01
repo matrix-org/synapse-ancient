@@ -108,11 +108,11 @@ class ReplicationLayer(object):
         logger.debug("[%s] Persisted PDU", pdu.pdu_id)
         logger.debug("[%s] transaction_layer.enqueue_pdu... ", pdu.pdu_id)
 
-        yield self._transaction_queue.enqueue_pdu(pdu, order)
+        # TODO, add errback, etc.
+        self._transaction_queue.enqueue_pdu(pdu, order)
 
         logger.debug("[%s] transaction_layer.enqueue_pdu... done", pdu.pdu_id)
 
-    @defer.inlineCallbacks
     @log_function
     def send_edu(self, destination, edu_type, content):
         edu = Edu(
@@ -122,7 +122,8 @@ class ReplicationLayer(object):
                 content=content,
         )
 
-        yield self._transaction_queue.enqueue_edu(edu)
+        # TODO, add errback, etc.
+        self._transaction_queue.enqueue_edu(edu)
 
     @defer.inlineCallbacks
     @log_function
