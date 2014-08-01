@@ -436,6 +436,17 @@ class RoomMemberHandler(BaseHandler):
 
             defer.returnValue(store_id)
 
+        prev_state = yield self.store.get_room_member(
+            event.target_user_id, event.room_id
+        )
+
+        if prev_state and prev_state.membership == event.membership:
+            # treat this event as a NOOP.
+            if do_auth:  # This is mainly to fix a unit test.
+                yield self.auth.check(event, raises=True)
+            defer.returnValue(None)
+            return
+
         # If we're trying to join a room then we have to do this differently
         # if this HS is not currently in the room, i.e. we have to do the
         # invite/join dance.
@@ -447,7 +458,7 @@ class RoomMemberHandler(BaseHandler):
                 # need to do the invite/join dance.
 
                 invite_tuple = yield self._should_invite_join(
-                    event, do_auth
+                    event, prev_state, do_auth
                 )
 
                 # We want to do the _do_update inside the room lock.
@@ -500,7 +511,7 @@ class RoomMemberHandler(BaseHandler):
                 membership=event.content["membership"])
 
     @defer.inlineCallbacks
-    def _should_invite_join(self, event, do_auth):
+    def _should_invite_join(self, event, prev_state, do_auth):
         logger.debug("_should_invite_join: room_id: %s", event.room_id)
 
         try:
@@ -530,15 +541,6 @@ class RoomMemberHandler(BaseHandler):
         # join dance for now, since we're kinda implicitly checking
         # that we are allowed to join when we decide whether or not we
         # need to do the invite/join dance.
-
-        prev_state = yield self.store.get_room_member(
-            event.target_user_id, event.room_id
-        )
-        if prev_state and prev_state.membership == Membership.JOIN:
-            # double join, treat this event as a NOOP.
-            if do_auth:  # This is mainly to fix a unit test.
-                yield self.auth.check(event, raises=True)
-            defer.returnValue(None)
 
         # Only do an invite join dance if a) we were invited,
         # b) the person inviting was from a differnt HS and c) we are
