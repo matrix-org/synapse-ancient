@@ -10,8 +10,11 @@
     <br/>
     
     <div>
-        <input size="40" ng-model="newRoomId" ng-enter="createNewRoom(newRoomId)" />
-        <button ng-disabled="!newRoomId" ng-click="createNewRoom(newRoomId)">Create new room</button>
+        <form>
+            <input size="40" ng-model="newRoom.room_id" ng-enter="createNewRoom(newRoom.room_id, newRoom.private)" />
+            <input type="checkbox" ng-model="newRoom.private">private
+            <button ng-disabled="!newRoom.room_id" ng-click="createNewRoom(newRoom.room_id, newRoom.private)">Create room</button>    
+        </form>
     </div>
     <br/>
     
