@@ -14,7 +14,9 @@
     <div class="member_list">
         <table>
             <tr class="member_entry" ng-repeat="(name, info) in members">
-                <td>{{name}} ({{info.content.membership}})</td>
+                <td ng-class='{
+                    member_invited: info.content.membership === "invite",
+                    member_left: info.content.membership === "leave"}'>{{name}} ({{info.content.membership}})</td>
             </tr>
         </table>
     </div>

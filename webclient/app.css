@@ -47,3 +47,15 @@
     width: 100%;
     background: #e0e0e0;
 }
+
+.member_invited {
+    color: blue;
+}
+
+.member_joined {
+
+}
+
+.member_left {
+    color: gray;
+}
