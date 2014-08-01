@@ -4,34 +4,28 @@ angular.module('LoginController', ['matrixService'])
     'use strict';
     
     $scope.account = {
-        homeserver_url: "", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
-        user_name: "",
-        homeserver_name: "",
+        homeserver: "", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
+        user_id: "",
         access_token: ""
     };
 
-/*
-    $scope.account.homeserver_url = "http://localhost:8080";
-    $scope.account.user_name = "Manu10";
-    $scope.account.homeserver_name = "localhost";
+    /*
+    $scope.account.homeserver = "http://localhost:8080";
+    $scope.account.user_id = "@Manu10:localhost";
     $scope.account.access_token = "QE1hbnUxMDpsb2NhbGhvc3Q..KbqazxGnAJlibDApAP";
-*/
-    
-    var computeUserId = function() {
-        return "@" + $scope.account.user_name + ":" + $scope.account.homeserver_name;
-    };
+    */
+
 
     $scope.register = function() {
         var data = {
-          "user_id" : $scope.account.user_name
+          "user_id" : $scope.account.user_id
         };
 
         matrixService.setConfig({
-            homeserver_name: $scope.account.homeserver_name,
-            homeserver_url: $scope.account.homeserver_url,
+            homeserver: $scope.account.homeserver,
         });
 
-        $http.post($scope.account.homeserver_url + "/register", data).
+        $http.post($scope.account.homeserver + "/register", data).
             success(function(data, status, headers, config) {
                 $scope.feedback = "Success";
 
@@ -39,7 +33,6 @@ angular.module('LoginController', ['matrixService'])
                 var config = matrixService.config();
                 angular.extend(config, {
                     access_token: data.access_token,
-                    user_name: $scope.account.user_name,
                     user_id: data.user_id                      
                 });
                 matrixService.setConfig(config);
@@ -60,15 +53,13 @@ angular.module('LoginController', ['matrixService'])
     $scope.login = function() {
 
         matrixService.setConfig({
-            homeserver_name: $scope.account.homeserver_name,
-            homeserver_url: $scope.account.homeserver_url,
+            homeserver: $scope.account.homeserver,
             access_token: $scope.account.access_token,
-            user_name: $scope.account.user_name ,
-            user_id: computeUserId()  
+            user_id: $scope.account.user_id
         });
 
         // Validate the token by making a request to the HS
-        $http.get($scope.account.homeserver_url + "/users/" + computeUserId() + "/rooms/list", {
+        $http.get($scope.account.homeserver + "/users/" + $scope.account.user_id + "/rooms/list", {
             "params": {
                 "access_token" : $scope.account.access_token
             }}).

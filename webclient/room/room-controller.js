@@ -9,13 +9,10 @@ angular.module('RoomController', [])
     };
     $scope.messages = [];
     
-    $scope.newUser = {
-        user_name: "",
-        homeserver_name: matrixService.config().homeserver_name
-    };
+    $scope.userIDToInvite = "";
 
     var shortPoll = function() {
-        $http.get(matrixService.config().homeserver_url + "/events", {
+        $http.get(matrixService.config().homeserver + "/events", {
             "params": {
                 "access_token": matrixService.config().access_token,
                 "from": $scope.state.events_from,
@@ -70,9 +67,7 @@ angular.module('RoomController', [])
             });
     }; 
     
-    $scope.inviteUser = function(user_name, homeserver_name) {
-
-        var user_id = synapseClient.computeUserId(user_name, homeserver_name);
+    $scope.inviteUser = function(user_id) {
         
         matrixService.invite($scope.room_id, user_id).then(
             function() {

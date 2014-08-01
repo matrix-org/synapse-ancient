@@ -6,11 +6,9 @@ angular.module('matrixService', [])
    /* 
     * Permanent storage of user information
     * The config contains:
-    *    - homeserver_name
-    *    - homeserver_url
-    *    - access_token
-    *    - user_name
+    *    - homeserver
     *    - user_id
+    *    - access_token
     *    - version: the version of this cache
     */    
     var config;
@@ -31,7 +29,7 @@ angular.module('matrixService', [])
         var deferred = $q.defer();
         $http({
             method: method,
-            url: config.homeserver_url + path,
+            url: config.homeserver + path,
             params: params,
             data: data
         })
