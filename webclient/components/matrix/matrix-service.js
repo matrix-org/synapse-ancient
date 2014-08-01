@@ -92,6 +92,9 @@ angular.module('matrixService', [])
             // The REST path spec
             var path = "/rooms/$room_id/members/$user_id/state";
 
+            // Like the cmd client, escape room ids
+            room_id = encodeURIComponent(room_id);
+
             // Customize it
             path = path.replace("$room_id", room_id);
             path = path.replace("$user_id", config.user_id);
@@ -105,6 +108,9 @@ angular.module('matrixService', [])
         invite: function(room_id, user_id) {
             // The REST path spec
             var path = "/rooms/$room_id/members/$user_id/state";
+
+            // Like the cmd client, escape room ids
+            room_id = encodeURIComponent(room_id);
 
             // Customize it
             path = path.replace("$room_id", room_id);
@@ -125,6 +131,9 @@ angular.module('matrixService', [])
                 msg_id = "m" + new Date().getTime();
             }
 
+            // Like the cmd client, escape room ids
+            room_id = encodeURIComponent(room_id);            
+
             // Customize it
             path = path.replace("$room_id", room_id);
             path = path.replace("$from", config.user_id);
@@ -138,6 +147,9 @@ angular.module('matrixService', [])
 
         // get a snapshot of the members in a room.
         getMemberList: function(room_id) {
+            // Like the cmd client, escape room ids
+            room_id = encodeURIComponent(room_id);
+
             var path = "/rooms/$room_id/members/list";
             path = path.replace("$room_id", room_id);
             return doRequest("GET", path);
