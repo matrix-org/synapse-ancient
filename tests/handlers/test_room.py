@@ -203,7 +203,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         invite_join_event = args[0]
 
         self.assertTrue(InviteJoinEvent.TYPE, invite_join_event.TYPE)
-        self.assertTrue(prev_state.sender, invite_join_event.target_user_id)
+        self.assertTrue("blue", invite_join_event.target_host)
         self.assertTrue(room_id, invite_join_event.room_id)
         self.assertTrue(user_id, invite_join_event.user_id)
         self.assertFalse(hasattr(invite_join_event, "state_key"))
@@ -222,9 +222,72 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         self.assertFalse(self.notifier.on_new_room_event.called)
         self.assertFalse(self.state_handler.handle_new_event.called)
 
-        self.datastore.store_room.assert_called_once_with(
-            room_id, prev_state.sender, is_public=False
+        self.assertTrue(self.datastore.store_room.called)
+        args = self.datastore.store_room.call_args[0]
+        self.assertEquals(room_id, args[0])
+
+    @defer.inlineCallbacks
+    def test_invite_join_public(self):
+        room_id = "#foo:blue"
+        user_id = "@bob:red"
+        target_user_id = "@bob:red"
+        content = {"membership": Membership.JOIN}
+
+        event = self.hs.get_event_factory().create_event(
+            etype=RoomMemberEvent.TYPE,
+            user_id=user_id,
+            target_user_id=target_user_id,
+            room_id=room_id,
+            membership=Membership.JOIN,
+            content=content,
         )
+
+        joined = ["red", "blue", "green"]
+
+        self.state_handler.handle_new_event.return_value = defer.succeed(True)
+        self.datastore.get_joined_hosts_for_room.return_value = (
+            defer.succeed(joined)
+        )
+
+        store_id = "store_id_fooo"
+        self.datastore.store_room_member.return_value = defer.succeed(store_id)
+        self.datastore.get_room.return_value = defer.succeed(None)
+
+        prev_state = NonCallableMock(name="prev_state")
+        prev_state.membership = Membership.INVITE
+        prev_state.sender = "@foo:blue"
+        self.datastore.get_room_member.return_value = defer.succeed(prev_state)
+
+        # Actual invocation
+        yield self.room_member_handler.change_membership(event)
+
+        self.assertTrue(self.federation.handle_new_event.called)
+        args = self.federation.handle_new_event.call_args[0]
+        invite_join_event = args[0]
+
+        self.assertTrue(InviteJoinEvent.TYPE, invite_join_event.TYPE)
+        self.assertTrue("blue", invite_join_event.target_host)
+        self.assertTrue("foo", invite_join_event.room_id)
+        self.assertTrue(user_id, invite_join_event.user_id)
+        self.assertFalse(hasattr(invite_join_event, "state_key"))
+
+        self.assertEquals(
+            set(["blue"]),
+            set(invite_join_event.destinations)
+        )
+
+        self.federation.get_state_for_room.assert_called_once_with(
+            "blue", "foo"
+        )
+
+        self.assertFalse(self.datastore.store_room_member.called)
+
+        self.assertFalse(self.notifier.on_new_room_event.called)
+        self.assertFalse(self.state_handler.handle_new_event.called)
+
+        self.assertTrue(self.datastore.store_room.called)
+        args = self.datastore.store_room.call_args[0]
+        self.assertEquals("foo", args[0])
 
 
 class RoomCreationTest(unittest.TestCase):

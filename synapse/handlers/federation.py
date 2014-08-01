@@ -28,15 +28,12 @@ class FederationHandler(BaseHandler):
             return
 
         target_is_mine = False
-        target_user = None
-        if hasattr(event, "target_user_id"):
-            target_user = UserID.from_string(event.target_user_id, self.hs)
-            target_is_mine = target_user.is_mine
+        if hasattr(event, "target_host"):
+            target_is_mine = event.target_host == self.hs.hostname
 
         if event.type == InviteJoinEvent.TYPE:
             if not target_is_mine:
-                logger.debug("Ignoring invite/join event %s", target_user)
-                logger.debug("Event: %s", event)
+                logger.debug("Ignoring invite/join event %s", event)
                 return
 
             # If we receive an invite/join event then we need to join the

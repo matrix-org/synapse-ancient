@@ -11,6 +11,7 @@ from synapse.api.streams import PaginationConfig
 
 import json
 import re
+import urllib
 
 
 class RoomCreateRestServlet(RestServlet):
@@ -153,7 +154,7 @@ class RoomMemberRestServlet(RestServlet):
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
             target_user_id=target_user_id,
-            room_id=roomid,
+            room_id=urllib.unquote(roomid),
             user_id=user.to_string(),
             membership=Membership.LEAVE,
             content={"membership": Membership.LEAVE}
@@ -180,7 +181,7 @@ class RoomMemberRestServlet(RestServlet):
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
             target_user_id=target_user_id,
-            room_id=roomid,
+            room_id=urllib.unquote(roomid),
             user_id=user.to_string(),
             membership=content["membership"],
             content=content

@@ -2,9 +2,9 @@
 """Contains functions for performing events on rooms."""
 from twisted.internet import defer
 
-from synapse.types import UserID
+from synapse.types import UserID, RoomName
 from synapse.api.constants import Membership
-from synapse.api.errors import RoomError, StoreError
+from synapse.api.errors import RoomError, StoreError, SynapseError
 from synapse.api.events.room import (
     RoomTopicEvent, MessageEvent, InviteJoinEvent, RoomMemberEvent,
     RoomConfigEvent
@@ -446,30 +446,12 @@ class RoomMemberHandler(BaseHandler):
                 # that we are allowed to join when we decide whether or not we
                 # need to do the invite/join dance.
 
-                prev_state = yield self.store.get_room_member(
-                    event.target_user_id, event.room_id
+                invite_tuple = yield self._should_invite_join(
+                    event, do_auth
                 )
-                if prev_state and prev_state.membership == Membership.JOIN:
-                    # double join, treat this event as a NOOP.
-                    if do_auth:  # This is mainly to fix a unit test.
-                        yield self.auth.check(event, raises=True)
-                    defer.returnValue(None)
-
-                # Only do an invite join dance if a) we were invited,
-                # b) the person inviting was from a differnt HS and c) we are
-                # not currently in the room
-                if prev_state and prev_state.membership == Membership.INVITE:
-                    room = yield self.store.get_room(event.room_id)
-                    inviter = UserID.from_string(
-                        prev_state.sender, self.hs
-                    )
-
-                    is_remote_invite_join = not inviter.is_mine and not room
-                else:
-                    is_remote_invite_join = False
 
                 # We want to do the _do_update inside the room lock.
-                if not is_remote_invite_join:
+                if not invite_tuple:
                     logger.debug("Doing normal join")
 
                     if do_auth:
@@ -479,33 +461,16 @@ class RoomMemberHandler(BaseHandler):
                     store_id = yield _do_membership_update()
 
             # We don't want to send out the event notifs inside the room lock.
-            if not is_remote_invite_join:
+            if not invite_tuple:
                 yield self.hs.get_federation().handle_new_event(event)
                 self.notifier.on_new_room_event(event, store_id)
 
             else:
-                logger.debug("Doing remote join dance")
-
-                yield self.store.store_room(
-                    event.room_id, inviter.to_string(), is_public=False
-                )
-
-                # do invite join dance
-                federation = self.hs.get_federation()
-                new_event = self.event_factory.create_event(
-                    etype=InviteJoinEvent.TYPE,
-                    target_user_id=inviter.to_string(),
-                    room_id=event.room_id,
-                    user_id=event.user_id,
-                    content={}
-                )
-
-                new_event.destinations = [inviter.domain]
-
-                #yield self.state_handler.handle_new_event(event)
-                yield federation.handle_new_event(new_event)
-                yield federation.get_state_for_room(
-                    inviter.domain, event.room_id
+                room_id, domain = invite_tuple
+                yield self._do_invite_join_dance(
+                    room_id=room_id,
+                    joinee=event.user_id,
+                    target_host=domain
                 )
 
         else:
@@ -533,6 +498,90 @@ class RoomMemberHandler(BaseHandler):
                 target=event.target_user_id,
                 room_id=event.room_id,
                 membership=event.content["membership"])
+
+    @defer.inlineCallbacks
+    def _should_invite_join(self, event, do_auth):
+        logger.debug("_should_invite_join: room_id: %s", event.room_id)
+
+        try:
+            # TODO: This is a quick bodge to allow us to join public rooms
+            # without fully implementing directory servers and the like
+            room_name_object = RoomName.from_string(event.room_id, self.hs)
+        except SynapseError as e:
+            if e.code != 400:
+                raise
+            room_name_object = None
+
+        if room_name_object:
+            logger.debug(
+                "_should_invite_join: This is a room_name: %s",
+                room_name_object
+            )
+
+            room = yield self.store.get_room(room_name_object.localpart)
+
+            if not room_name_object.is_mine and not room:
+                defer.returnValue(
+                    (room_name_object.localpart, room_name_object.domain)
+                )
+                return
+
+        # XXX: We don't do an auth check if we are doing an invite
+        # join dance for now, since we're kinda implicitly checking
+        # that we are allowed to join when we decide whether or not we
+        # need to do the invite/join dance.
+
+        prev_state = yield self.store.get_room_member(
+            event.target_user_id, event.room_id
+        )
+        if prev_state and prev_state.membership == Membership.JOIN:
+            # double join, treat this event as a NOOP.
+            if do_auth:  # This is mainly to fix a unit test.
+                yield self.auth.check(event, raises=True)
+            defer.returnValue(None)
+
+        # Only do an invite join dance if a) we were invited,
+        # b) the person inviting was from a differnt HS and c) we are
+        # not currently in the room
+        if prev_state and prev_state.membership == Membership.INVITE:
+            room = yield self.store.get_room(event.room_id)
+            inviter = UserID.from_string(
+                prev_state.sender, self.hs
+            )
+
+            is_remote_invite_join = not inviter.is_mine and not room
+        else:
+            is_remote_invite_join = False
+
+        defer.returnValue(
+            (event.room_id, inviter.domain) if is_remote_invite_join else None
+        )
+
+    @defer.inlineCallbacks
+    def _do_invite_join_dance(self, room_id, joinee, target_host):
+        logger.debug("Doing remote join dance")
+
+        yield self.store.store_room(
+            room_id, "", is_public=False
+        )
+
+        # do invite join dance
+        federation = self.hs.get_federation()
+        new_event = self.event_factory.create_event(
+            etype=InviteJoinEvent.TYPE,
+            target_host=target_host,
+            room_id=room_id,
+            user_id=joinee,
+            content={}
+        )
+
+        new_event.destinations = [target_host]
+
+        #yield self.state_handler.handle_new_event(event)
+        yield federation.handle_new_event(new_event)
+        yield federation.get_state_for_room(
+            target_host, room_id
+        )
 
     @defer.inlineCallbacks
     def _inject_membership_msg(self, room_id=None, source=None, target=None,

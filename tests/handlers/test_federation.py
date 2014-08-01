@@ -69,7 +69,7 @@ class FederationTestCase(unittest.TestCase):
         event = self.hs.get_event_factory().create_event(
             etype=InviteJoinEvent.TYPE,
             user_id=user_id,
-            target_user_id="@red:%s" % self.hostname,
+            target_host=self.hostname,
             room_id=room_id,
             content={},
         )

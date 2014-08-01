@@ -64,7 +64,8 @@ class InviteJoinEvent(SynapseEvent):
     TYPE = "sy.room.invite_join"
 
     valid_keys = SynapseEvent.valid_keys + [
-        "target_user_id"
+        "target_user_id",
+        "target_host",
     ]
 
     def __init__(self, **kwargs):
