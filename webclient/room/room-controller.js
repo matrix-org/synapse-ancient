@@ -46,25 +46,30 @@ angular.module('RoomController', [])
         $scope.members[chunk.target_user_id] = chunk;
         if (isNewMember) {
             // get their display name and profile picture and set it to their
-            // member entry in $scope.members
-            matrixService.getDisplayName(chunk.target_user_id).then(
-                function(response) {
-                    var member = $scope.members[chunk.target_user_id];
-                    if (member !== undefined) {
-                        member.displayname = response.displayname;
+            // member entry in $scope.members. We HAVE to use $timeout with 0 delay 
+            // to make this function run AFTER the current digest cycle, else the 
+            // response may update a STALE VERSION of the member list (manifesting
+            // as no member names appearing, or appearing sporadically).
+            $timeout(function() {
+                matrixService.getDisplayName(chunk.target_user_id).then(
+                    function(response) {
+                        var member = $scope.members[chunk.target_user_id];
+                        if (member !== undefined) {
+                            member.displayname = response.displayname;
+                        }
                     }
-                }
-            );
-            matrixService.getProfilePictureUrl(chunk.target_user_id).then(
-                function(response) {
-                    var member = $scope.members[chunk.target_user_id];
-                    if (member !== undefined) {
-                        member.avatar_url = response.avatar_url;
+                ); 
+                matrixService.getProfilePictureUrl(chunk.target_user_id).then(
+                    function(response) {
+                         var member = $scope.members[chunk.target_user_id];
+                         if (member !== undefined) {
+                            member.avatar_url = response.avatar_url;
+                         }
                     }
-                }
-            );
+                );
+            }, 0);
         }
-    };
+    }
 
     $scope.send = function() {
         if ($scope.textInput == "") {

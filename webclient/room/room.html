@@ -16,7 +16,9 @@
             <tr class="member_entry" ng-repeat="(name, info) in members">
                 <td ng-class='{
                     member_invited: info.content.membership === "invite",
-                    member_left: info.content.membership === "leave"}'>{{name}} ({{info.content.membership}})</td>
+                    member_left: info.content.membership === "leave"}'>{{info.displayname}} ({{name}})
+                    <img src="{{info.avatar_url}}" width="50" height="50" />
+                </td>
             </tr>
         </table>
     </div>
