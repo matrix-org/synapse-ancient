@@ -57,7 +57,22 @@ angular.module('RoomsController', ['matrixService'])
     // Go to a room
     $scope.goToRoom = function(room_id) {
         // Simply open the room page on this room id
-        $location.path("room/" + room_id);
+        //$location.path("room/" + room_id);
+        matrixService.join(room_id).then(
+            function(response) {
+                if (response.hasOwnProperty("room_id")) {
+                    if (response.room_id != room_id) {
+                        $location.path("room/" + response.room_id);
+                        return;
+                     }
+                }
+
+                $location.path("room/" + room_id);
+            },
+            function(reason) {
+                $scope.feedback = "Can't join room: " + reason;
+            }
+        );
     };
 
     
