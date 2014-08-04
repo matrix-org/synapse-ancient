@@ -251,8 +251,8 @@ class RoomMemberTable(Table):
     fields = [
         "id",
         "user_id",
-        "room_id",
         "sender",
+        "room_id",
         "membership",
         "content"
     ]
