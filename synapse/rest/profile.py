@@ -51,7 +51,7 @@ class ProfileAvatarURLRestServlet(RestServlet):
         print request.args
 
         avatar_url = yield self.handlers.profile_handler.get_avatar_url(
-            target_user=user,
+            user,
             local_only="local_only" in request.args
         )
 
