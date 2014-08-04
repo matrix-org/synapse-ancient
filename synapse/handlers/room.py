@@ -444,7 +444,7 @@ class RoomMemberHandler(BaseHandler):
             # treat this event as a NOOP.
             if do_auth:  # This is mainly to fix a unit test.
                 yield self.auth.check(event, raises=True)
-            defer.returnValue(None)
+            defer.returnValue({})
             return
 
         room_id = event.room_id
@@ -519,7 +519,8 @@ class RoomMemberHandler(BaseHandler):
                 )
                 if prev_state and prev_state.membership == event.membership:
                     # double same action, treat this event as a NOOP.
-                    defer.returnValue(None)
+                    defer.returnValue({})
+                    return
 
                 yield self.state_handler.handle_new_event(event)
                 store_id = yield _do_membership_update()
@@ -534,6 +535,8 @@ class RoomMemberHandler(BaseHandler):
                     room_id=event.room_id,
                     membership=event.content["membership"]
                 )
+
+        defer.returnValue({"room_id": room_id})
 
     @defer.inlineCallbacks
     def _should_invite_join(self, room_id, room_host, prev_state, do_auth):

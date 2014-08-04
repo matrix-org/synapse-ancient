@@ -188,8 +188,8 @@ class RoomMemberRestServlet(RestServlet):
             )
 
         handler = self.handlers.room_member_handler
-        yield handler.change_membership(event, broadcast_msg=True)
-        defer.returnValue((200, ""))
+        result = yield handler.change_membership(event, broadcast_msg=True)
+        defer.returnValue((200, result))
 
 
 class MessageRestServlet(RestServlet):
