@@ -73,8 +73,8 @@ class TransactionQueries(object):
 
         results = ReceivedTransactionsTable.decode_results(txn.fetchall())
 
-        if results and results.response_code:
-            return (result.response_code, result.response_json)
+        if results and results[0].response_code:
+            return (results[0].response_code, results[0].response_json)
         else:
             return None
 
@@ -419,7 +419,6 @@ class PduQueries(object):
 
         front = pdu_list
 
-        pdu_fields = ", ".join(["p.%s" % f for f in PdusTable.fields])
         query = (
             "SELECT prev_pdu_id, prev_origin FROM %(edges_table)s "
             "WHERE context = ? AND pdu_id = ? AND origin = ? "
