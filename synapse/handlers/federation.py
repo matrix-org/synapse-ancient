@@ -38,7 +38,8 @@ class FederationHandler(BaseHandler):
             # If we receive an invite/join event then we need to join the
             # sender to the given room.
             # TODO: We should probably auth this or some such
-            content = {"membership": Membership.JOIN}
+            content = event.content
+            content.update({"membership": Membership.JOIN})
             new_event = self.event_factory.create_event(
                 etype=RoomMemberEvent.TYPE,
                 target_user_id=event.user_id,

@@ -465,6 +465,31 @@ class RoomMemberHandler(BaseHandler):
         # if this HS is not currently in the room, i.e. we have to do the
         # invite/join dance.
         if event.membership == Membership.JOIN:
+
+            # If event doesn't include a display name, add one.
+            profile_handler = self.hs.get_handlers().profile_handler
+            if "displayname" not in event.content:
+                try:
+                    display_name = yield profile_handler.get_displayname(
+                        self.hs.parse_userid(event.target_user_id)
+                    )
+
+                    if display_name:
+                        event.content["displayname"] = display_name
+                except:
+                    logger.exception("Failed to set display_name")
+
+            if "avatar_url" not in event.content:
+                try:
+                    avatar_url = yield profile_handler.get_avatar_url(
+                        self.hs.parse_userid(event.target_user_id)
+                    )
+
+                    if avatar_url:
+                        event.content["avatar_url"] = avatar_url
+                except:
+                    logger.exception("Failed to set display_name")
+
             with (yield self.room_lock.lock(room_id)):
                 # XXX: We don't do an auth check if we are doing an invite
                 # join dance for now, since we're kinda implicitly checking
@@ -505,7 +530,8 @@ class RoomMemberHandler(BaseHandler):
                 yield self._do_invite_join_dance(
                     room_id=room_id,
                     joinee=event.user_id,
-                    target_host=room_host
+                    target_host=room_host,
+                    content=event.content,
                 )
 
         else:
@@ -570,7 +596,7 @@ class RoomMemberHandler(BaseHandler):
         defer.returnValue((is_remote_invite_join, room_host))
 
     @defer.inlineCallbacks
-    def _do_invite_join_dance(self, room_id, joinee, target_host):
+    def _do_invite_join_dance(self, room_id, joinee, target_host, content):
         logger.debug("Doing remote join dance")
 
         # do invite join dance
@@ -580,7 +606,7 @@ class RoomMemberHandler(BaseHandler):
             target_host=target_host,
             room_id=room_id,
             user_id=joinee,
-            content={}
+            content=content
         )
 
         new_event.destinations = [target_host]

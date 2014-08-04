@@ -8,6 +8,7 @@ from synapse.api.events.room import (
 )
 from synapse.api.constants import Membership
 from synapse.handlers.room import RoomMemberHandler, RoomCreationHandler
+from synapse.handlers.profile import ProfileHandler
 from synapse.server import HomeServer
 
 from mock import NonCallableMock
@@ -36,6 +37,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
             notifier=NonCallableMock(spec_set=["on_new_room_event"]),
             handlers=NonCallableMock(spec_set=[
                 "room_member_handler",
+                "profile_handler",
             ]),
             auth=NonCallableMock(spec_set=["check"]),
             federation=NonCallableMock(spec_set=[
@@ -53,6 +55,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         self.hs = hs
 
         self.handlers.room_member_handler = RoomMemberHandler(self.hs)
+        self.handlers.profile_handler = ProfileHandler(self.hs)
         self.room_member_handler = self.handlers.room_member_handler
 
     @defer.inlineCallbacks
