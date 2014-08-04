@@ -19,7 +19,7 @@ angular.module('RoomsController', ['matrixService'])
     };
 
     $scope.newDisplayName = {
-        name: "",
+        name: matrixService.config().displayName,
     };
 
     $scope.refresh = function() {
@@ -83,6 +83,10 @@ angular.module('RoomsController', ['matrixService'])
         matrixService.setDisplayName(newName).then(
             function(response) {
                 $scope.feedback = "Updated display name.";
+                var config = matrixService.config();
+                config.displayName = newName;
+                matrixService.setConfig(config);
+                matrixService.saveConfig();
             },
             function(reason) {
                 $scope.feedback = "Can't update display name: " + reason;
