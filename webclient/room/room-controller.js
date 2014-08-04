@@ -30,7 +30,7 @@ angular.module('RoomController', [])
                         $scope.messages.push(chunk);
                     }
                     else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
-                        $scope.members[chunk.target_user_id] = chunk;
+                        updateMemberList(chunk);
                     }
                 }
 
@@ -39,6 +39,31 @@ angular.module('RoomController', [])
                 $scope.feedback = "Can't stream: " + response.data;
                 $timeout(shortPoll, 1000);
             });
+    };
+
+    var updateMemberList = function(chunk) {
+        var isNewMember = !(chunk.target_user_id in $scope.members);
+        $scope.members[chunk.target_user_id] = chunk;
+        if (isNewMember) {
+            // get their display name and profile picture and set it to their
+            // member entry in $scope.members
+            matrixService.getDisplayName(chunk.target_user_id).then(
+                function(response) {
+                    var member = $scope.members[chunk.target_user_id];
+                    if (member !== undefined) {
+                        member.displayname = response.displayname;
+                    }
+                }
+            );
+            matrixService.getProfilePictureUrl(chunk.target_user_id).then(
+                function(response) {
+                    var member = $scope.members[chunk.target_user_id];
+                    if (member !== undefined) {
+                        member.avatar_url = response.avatar_url;
+                    }
+                }
+            );
+        }
     };
 
     $scope.send = function() {
@@ -71,7 +96,7 @@ angular.module('RoomController', [])
                     function(response) {
                         for (var i = 0; i < response.chunk.length; i++) {
                             var chunk = response.chunk[i];
-                            $scope.members[chunk.target_user_id] = chunk;
+                            updateMemberList(chunk);
                         }
                     },
                     function(reason) {

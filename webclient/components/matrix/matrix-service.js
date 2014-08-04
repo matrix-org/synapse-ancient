@@ -166,6 +166,21 @@ angular.module('matrixService', [])
             return doRequest("GET", path);
         },
         
+        // get a display name for this user ID
+        getDisplayName: function(userId) {
+            return this.getProfileInfo(userId, "displayname");
+        },
+
+        // get the profile picture url for this user ID
+        getProfilePictureUrl: function(userId) {
+            return this.getProfileInfo(userId, "avatar_url");
+        },
+
+        getProfileInfo: function(userId, info_segment) {
+            var path = "/profile/$user_id/" + info_segment;
+            path = path.replace("$user_id", userId);
+            return doRequest("GET", path);
+        },
         
         /****** Permanent storage of user information ******/
         
