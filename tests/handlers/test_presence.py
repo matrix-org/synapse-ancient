@@ -3,7 +3,7 @@
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from mock import Mock, call
+from mock import Mock, call, ANY
 import logging
 
 from synapse.server import HomeServer
@@ -70,7 +70,7 @@ class PresenceStateTestCase(unittest.TestCase):
         mocked_get.assert_called_with("apple")
 
     @defer.inlineCallbacks
-    def test_set_my_state_online(self):
+    def test_set_my_state(self):
         mocked_set = self.datastore.set_presence_state
         mocked_set.return_value = defer.succeed({"state": OFFLINE})
 
@@ -82,11 +82,6 @@ class PresenceStateTestCase(unittest.TestCase):
                 {"state": 1, "status_msg": "Away"})
         self.mock_start.assert_called_with(self.u_apple,
                 state={"state": 1, "status_msg": "Away"})
-
-    @defer.inlineCallbacks
-    def test_set_my_state_offline(self):
-        mocked_set = self.datastore.set_presence_state
-        mocked_set.return_value = defer.succeed({"state": ONLINE})
 
         yield self.handlers.presence_handler.set_state(
                 target_user=self.u_apple, auth_user=self.u_apple,
@@ -346,6 +341,8 @@ class PresencePushTestCase(unittest.TestCase):
                 {"state": ONLINE})
 
         # TODO(paul): Gut-wrenching
+        from synapse.handlers.presence import UserPresenceCache
+        self.handler._user_cachemap[self.u_apple] = UserPresenceCache()
         apple_set = self.handler._local_pushmap.setdefault("apple", set())
         apple_set.add(self.u_banana)
         apple_set.add(self.u_clementine)
@@ -370,6 +367,8 @@ class PresencePushTestCase(unittest.TestCase):
                 {"state": ONLINE})
 
         # TODO(paul): Gut-wrenching
+        from synapse.handlers.presence import UserPresenceCache
+        self.handler._user_cachemap[self.u_apple] = UserPresenceCache()
         apple_set = self.handler._remote_sendmap.setdefault("apple", set())
         apple_set.add(self.u_potato.domain)
 
@@ -492,10 +491,10 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_banana,
-                    statuscache=self.handler._user_cachemap[self.u_banana]),
+                    statuscache=ANY),
                 call(observer_user=self.u_apple,
                     observed_user=self.u_clementine,
-                    statuscache=self.handler._user_cachemap[self.u_clementine])
+                    statuscache=ANY),
         ], any_order=True)
 
         # Gut-wrenching tests
@@ -515,10 +514,10 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_banana,
-                    statuscache=self.handler._user_cachemap[self.u_banana]),
+                    statuscache=ANY),
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    statuscache=self.handler._user_cachemap[self.u_apple]),
+                    statuscache=ANY),
         ], any_order=True)
 
         self.assertTrue("apple" in self.handler._local_pushmap)

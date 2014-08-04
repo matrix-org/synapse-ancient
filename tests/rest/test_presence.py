@@ -171,6 +171,7 @@ class PresenceEventStreamTestCase(unittest.TestCase):
             http_server=self.mock_server,
             datastore=Mock(spec=[
                 "set_presence_state",
+                "get_presence_list",
             ]),
             clock=Mock(spec=[
                 "call_later",
@@ -198,6 +199,8 @@ class PresenceEventStreamTestCase(unittest.TestCase):
     def test_shortpoll(self):
         self.mock_datastore.set_presence_state.return_value = defer.succeed(
                 {"state": ONLINE})
+        self.mock_datastore.get_presence_list.return_value = defer.succeed(
+                [])
 
         (code, response) = yield self.mock_server.trigger("GET",
                 "/events?timeout=0", None)
@@ -210,6 +213,8 @@ class PresenceEventStreamTestCase(unittest.TestCase):
 
         self.mock_datastore.set_presence_state.return_value = defer.succeed(
                 {"state": ONLINE})
+        self.mock_datastore.get_presence_list.return_value = defer.succeed(
+                [])
 
         yield self.presence.set_state(self.u_banana, self.u_banana,
                 state={"state": ONLINE})
