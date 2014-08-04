@@ -86,15 +86,12 @@ class ProfileHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def collect_presencelike_data(self, user, state):
-        # Don't actually do anything
-        #state["displayname"] = "Frank"
-        #state["avatar_url"] = "http://foo"
-        #defer.returnValue(None)
-
+        if not user.is_mine:
+            defer.returnValue(None)
 
         (displayname, avatar_url) = yield defer.gatherResults(
-                [self.store.get_profile_displayname(user),
-                    self.store.get_profile_avatar_url(user)])
+                [self.store.get_profile_displayname(user.localpart),
+                    self.store.get_profile_avatar_url(user.localpart)])
 
         state["displayname"] = displayname
         state["avatar_url"] = avatar_url
