@@ -11,23 +11,14 @@ if [ -f $PID_FILE ]; then
     exit 1
 fi
 
-declare -A colours
-
-
-colours[red]=8080
-colours[blue]=8081
-colours[green]=8082
-
-for colour in "${!colours[@]}"; do
-    port="${colours[$colour]}"
-
-    echo -n "Starting $colour on port $port... "
+for port in "8080" "8081" "8082"; do
+    echo -n "Starting server on port $port... "
 
     synapse-homeserver \
         -p "$port" \
-        -H "$colour" \
-        -f "$DIR/$colour.log" \
-        -d "$DIR/$colour.db" \
+        -H "localhost:$port" \
+        -f "$DIR/$port.log" \
+        -d "$DIR/$port.db" \
         -vv \
         > /dev/null 2>&1 & disown
 
