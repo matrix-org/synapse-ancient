@@ -111,6 +111,7 @@ class EventStreamPermissionsTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            http_client=None,
             federation=Mock(),
             replication_layer=Mock(),
             state_handler=state_handler,

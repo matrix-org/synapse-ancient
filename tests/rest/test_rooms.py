@@ -36,6 +36,7 @@ class RoomPermissionsTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            http_client=None,
             federation=Mock(),
             datastore=MemoryDataStore(),
             replication_layer=Mock(),
@@ -384,6 +385,7 @@ class RoomsMemberListTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            http_client=None,
             federation=Mock(),
             datastore=MemoryDataStore(),
             replication_layer=Mock(),
@@ -464,6 +466,7 @@ class RoomsCreateTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            http_client=None,
             federation=Mock(),
             datastore=MemoryDataStore(),
             replication_layer=Mock(),
@@ -597,6 +600,7 @@ class RoomTopicTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            http_client=None,
             federation=Mock(),
             datastore=MemoryDataStore(),
             replication_layer=Mock(),
@@ -699,6 +703,7 @@ class RoomMemberStateTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            http_client=None,
             federation=Mock(),
             datastore=MemoryDataStore(),
             replication_layer=Mock(),
@@ -813,6 +818,7 @@ class RoomMessagesTestCase(RestTestCase):
         hs = HomeServer(
             "test",
             db_pool=None,
+            http_client=None,
             federation=Mock(),
             datastore=MemoryDataStore(),
             replication_layer=Mock(),

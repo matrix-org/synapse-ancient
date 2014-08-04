@@ -17,8 +17,13 @@ class ProfileTestCase(unittest.TestCase):
     """ Tests profile management. """
 
     def setUp(self):
+        self.mock_client = Mock(spec=[
+            "get_json",
+        ])
+
         hs = HomeServer("test",
                 db_pool=None,
+                http_client=self.mock_client,
                 datastore=Mock(spec=[
                     "get_profile_displayname",
                     "set_profile_displayname",
@@ -26,12 +31,12 @@ class ProfileTestCase(unittest.TestCase):
                     "set_profile_avatar_url",
                 ]),
                 http_server=Mock(),
-                http_client=Mock(),
             )
         self.datastore = hs.get_datastore()
 
         self.frank = hs.parse_userid("@1234ABCD:test")
         self.bob   = hs.parse_userid("@4567:test")
+        self.alice = hs.parse_userid("@alice:remote")
 
         self.handlers = hs.get_handlers()
 
@@ -62,6 +67,19 @@ class ProfileTestCase(unittest.TestCase):
                 "Frank Jr.")
 
         yield self.assertFailure(d, AuthError)
+
+    @defer.inlineCallbacks
+    def test_get_other_name(self):
+        self.mock_client.get_json.return_value = defer.succeed(
+                {"displayname": "Alice"})
+
+        displayname = yield self.handlers.profile_handler.get_displayname(
+                self.alice)
+
+        self.assertEquals(displayname, "Alice")
+        self.mock_client.get_json.assert_called_with(
+                destination="remote",
+                path="/profile/@alice:remote/displayname")
 
     @defer.inlineCallbacks
     def test_get_my_avatar(self):

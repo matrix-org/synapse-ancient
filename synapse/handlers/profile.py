@@ -11,6 +11,8 @@ class ProfileHandler(BaseHandler):
     def __init__(self, hs):
         super(ProfileHandler, self).__init__(hs)
 
+        self.client = hs.get_http_client()
+
         distributor = hs.get_distributor()
         distributor.observe("registered_user", self.registered_user)
 
@@ -26,8 +28,13 @@ class ProfileHandler(BaseHandler):
             defer.returnValue(displayname)
         else:
             # TODO(paul): This should use the server-server API to ask another
-            # HS
-            defer.returnValue("Bob")
+            # HS. For now we'll just have it use the http client to talk to the
+            # other HS's REST client API
+            result = yield self.client.get_json(
+                    destination=target_user.domain,
+                    path="/profile/%s/displayname" % target_user.to_string())
+
+            defer.returnValue(result["displayname"])
 
     @defer.inlineCallbacks
     def set_displayname(self, target_user, auth_user,
@@ -52,8 +59,13 @@ class ProfileHandler(BaseHandler):
             defer.returnValue(avatar_url)
         else:
             # TODO(paul): This should use the server-server API to ask another
-            # HS
-            defer.returnValue("http://elsewhere/")
+            # HS. For now we'll just have it use the http client to talk to the
+            # other HS's REST client API
+            result = yield self.client.get_json(
+                    destination=target_user.domain,
+                    path="/profile/%s/avatar_url" % target_user.to_string())
+
+            defer.returnValue(result["avatar_url"])
 
     @defer.inlineCallbacks
     def set_avatar_url(self, target_user, auth_user,
