@@ -14,10 +14,11 @@
     <div class="member_list">
         <table>
             <tr class="member_entry" ng-repeat="(name, info) in members">
+		<td><img src="{{info.avatar_url || '/default-profile.png'}}" width="50" height="50" /></td>
                 <td ng-class='{
                     member_invited: info.content.membership === "invite",
-                    member_left: info.content.membership === "leave"}'>{{info.displayname}} ({{name}})
-                    <img src="{{info.avatar_url}}" width="50" height="50" />
+                    member_left: info.content.membership === "leave"}'>
+		    {{info.displayname}} ({{name}})
                 </td>
             </tr>
         </table>
