@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 from synapse.persistence import read_schema
 
 from synapse.server import HomeServer

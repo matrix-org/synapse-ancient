@@ -48,7 +48,12 @@ class ProfileAvatarURLRestServlet(RestServlet):
     def on_GET(self, request, user_id):
         user = self.hs.parse_userid(user_id)
 
-        avatar_url = yield self.handlers.profile_handler.get_avatar_url(user)
+        print request.args
+
+        avatar_url = yield self.handlers.profile_handler.get_avatar_url(
+            target_user=user,
+            local_only="local_only" in request.args
+        )
 
         defer.returnValue((200, {"avatar_url": avatar_url}))
 

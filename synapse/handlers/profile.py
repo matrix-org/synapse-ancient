@@ -59,21 +59,28 @@ class ProfileHandler(BaseHandler):
                 target_user, {"displayname": new_displayname})
 
     @defer.inlineCallbacks
-    def get_avatar_url(self, target_user):
+    def get_avatar_url(self, target_user, local_only=False):
         if target_user.is_mine:
             avatar_url = yield self.store.get_profile_avatar_url(
                     target_user.localpart)
 
             defer.returnValue(avatar_url)
-        else:
+        elif not local_only:
             # TODO(paul): This should use the server-server API to ask another
             # HS. For now we'll just have it use the http client to talk to the
             # other HS's REST client API
+            destination = target_user.domain
+            path = "/profile/%s/avatar_url?local_only=1" % (
+                target_user.to_string(),
+            )
+
             result = yield self.client.get_json(
-                    destination=target_user.domain,
-                    path="/profile/%s/avatar_url" % target_user.to_string())
+                    destination=destination,
+                    path=path)
 
             defer.returnValue(result["avatar_url"])
+        else:
+            raise SynapseError(400, "User is not hosted on this Home Server")
 
     @defer.inlineCallbacks
     def set_avatar_url(self, target_user, auth_user,
