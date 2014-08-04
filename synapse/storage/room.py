@@ -85,11 +85,14 @@ class RoomStore(SQLBaseStore):
         """
         room_data_type = RoomTopicEvent.TYPE
         public = 1 if is_public else 0
-        query = ("SELECT rooms.*, room_data.content, max(room_data.id) as id " +
-                "FROM rooms LEFT JOIN room_data ON " +
-                "rooms.room_id = room_data.room_id WHERE " +
-                "(type = ? OR type IS NULL) and rooms.is_public = ? " +
-                "GROUP BY rooms.room_id")
+
+        latest_topic = ("SELECT max(room_data.id) FROM room_data WHERE " +
+        "room_data.type = ? GROUP BY room_id")
+
+        query = ("SELECT rooms.*, room_data.content FROM rooms LEFT JOIN " +
+        "room_data ON rooms.room_id = room_data.room_id WHERE " +
+        "(room_data.id IN (" + latest_topic + ") OR room_data.id IS NULL) " +
+        "AND rooms.is_public = ?")
 
         res = yield self._db_pool.runInteraction(self.exec_single_with_result,
                 query, self.cursor_to_dict, room_data_type, public)
