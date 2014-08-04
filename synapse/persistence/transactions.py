@@ -73,7 +73,7 @@ class TransactionQueries(object):
 
         results = ReceivedTransactionsTable.decode_results(txn.fetchall())
 
-        if results and result.response_code:
+        if results and results.response_code:
             return (result.response_code, result.response_json)
         else:
             return None
