@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 DIR="$( cd "$( dirname "$0" )" && pwd )"
 
 PID_FILE="$DIR/servers.pid"

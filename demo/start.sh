@@ -35,3 +35,8 @@ for colour in "${!colours[@]}"; do
 
     echo "Started."
 done
+
+echo -n "Starting webclient on port 8000..."
+(cd "$DIR" && cd "../webclient/" && python -m SimpleHTTPServer > /dev/null 2>&1 & disown)
+echo "$!" >> "$PID_FILE"
+echo "Started."
