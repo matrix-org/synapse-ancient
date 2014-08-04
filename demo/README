@@ -1,3 +1,7 @@
+Requires you to have done:
+    python setup.py develop
+
+
 The demo start.sh will start three synapse servers on ports 8080, 8081 and 8082, with host names localhost:$port. This can be easily changed to `hostname`:$port in start.sh if required. 
 It will also start a web server on port 8000 pointed at the webclient.
 
