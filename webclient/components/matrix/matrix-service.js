@@ -176,6 +176,28 @@ angular.module('matrixService', [])
             return this.getProfileInfo(userId, "avatar_url");
         },
 
+        // update your display name
+        setDisplayName: function(newName) {
+            var content = {
+                displayname: newName
+            };
+            return this.setProfileInfo(content, "displayname");
+        },
+
+        // update your profile picture url
+        setProfilePictureUrl: function(newUrl) {
+            var content = {
+                avatar_url: newUrl
+            };
+            return this.setProfileInfo(content, "avatar_url");
+        },
+
+        setProfileInfo: function(data, info_segment) {
+            var path = "/profile/$user/" + info_segment;
+            path = path.replace("$user", config.user_id);
+            return doRequest("PUT", path, undefined, data);
+        },
+
         getProfileInfo: function(userId, info_segment) {
             var path = "/profile/$user_id/" + info_segment;
             path = path.replace("$user_id", userId);

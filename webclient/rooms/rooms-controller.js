@@ -18,6 +18,10 @@ angular.module('RoomsController', ['matrixService'])
         room_id: "",
     };
 
+    $scope.newDisplayName = {
+        name: "",
+    };
+
     $scope.refresh = function() {
         // List all rooms joined or been invited to
         $scope.rooms = matrixService.rooms();
@@ -71,6 +75,17 @@ angular.module('RoomsController', ['matrixService'])
             },
             function(reason) {
                 $scope.feedback = "Can't join room: " + reason;
+            }
+        );
+    };
+
+    $scope.setDisplayName = function(newName) {
+        matrixService.setDisplayName(newName).then(
+            function(response) {
+                $scope.feedback = "Updated display name.";
+            },
+            function(reason) {
+                $scope.feedback = "Can't update display name: " + reason;
             }
         );
     };

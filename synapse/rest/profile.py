@@ -36,6 +36,9 @@ class ProfileDisplaynameRestServlet(RestServlet):
 
         defer.returnValue((200, ""))
 
+    def on_OPTIONS(self, request, user_id):
+        return (200, {})
+
 
 class ProfileAvatarURLRestServlet(RestServlet):
     # TODO(markjh): Namespace the client URI paths
@@ -64,6 +67,9 @@ class ProfileAvatarURLRestServlet(RestServlet):
                 auth_user, new_name)
 
         defer.returnValue((200, ""))
+
+    def on_OPTIONS(self, request, user_id):
+        return (200, {})
 
 
 def register_servlets(hs, http_server):
