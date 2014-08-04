@@ -140,6 +140,16 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
                 {"observed_user": self.u_clementine, "state": OFFLINE}],
             presence)
 
+        self.mock_update_client.assert_called_with(
+            observer_user=self.u_banana,
+            observed_user=self.u_apple,
+            statuscache=ANY)
+
+        statuscache = self.mock_update_client.call_args[1]["statuscache"]
+        self.assertEquals({"state": ONLINE,
+                           "displayname": "Frank",
+                           "avatar_url": "http://foo"}, statuscache.state)
+
     @defer.inlineCallbacks
     def test_push_remote(self):
         self.datastore.set_presence_state.return_value = defer.succeed(
@@ -187,11 +197,15 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
                 }
         )
 
-        self.mock_update_client.assert_has_calls([
-                call(observer_user=self.u_apple,
-                    observed_user=self.u_potato,
-                    statuscache=ANY),
-        ])
+        self.mock_update_client.assert_called_with(
+            observer_user=self.u_apple,
+            observed_user=self.u_potato,
+            statuscache=ANY)
+
+        statuscache = self.mock_update_client.call_args[1]["statuscache"]
+        self.assertEquals({"state": ONLINE,
+                           "displayname": "Frank",
+                           "avatar_url": "http://foo"}, statuscache.state)
 
         state = yield self.handlers.presence_handler.get_state(self.u_potato,
                 self.u_apple)
