@@ -11,21 +11,27 @@ if [ -f $PID_FILE ]; then
     exit 1
 fi
 
+pushd "$DIR"
+
+cd ..
+
 for port in "8080" "8081" "8082"; do
     echo -n "Starting server on port $port... "
 
-    (cd $DIR && cd .. && python -m synapse.app.homeserver \
+    python -m synapse.app.homeserver \
         -p "$port" \
         -H "localhost:$port" \
         -f "$DIR/$port.log" \
         -d "$DIR/$port.db" \
         -vv \
-        > /dev/null 2>&1 & disown)
+        > /dev/null 2>&1 & disown
 
     echo "$!" >> "$PID_FILE"
 
     echo "Started."
 done
+
+popd
 
 echo -n "Starting webclient on port 8000..."
 (cd "$DIR" && cd "../webclient/" && python -m SimpleHTTPServer > /dev/null 2>&1 & disown)
