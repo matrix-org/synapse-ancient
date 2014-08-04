@@ -345,6 +345,13 @@ class PresencePushTestCase(unittest.TestCase):
             return defer.succeed("http://foo")
         self.datastore.get_profile_avatar_url = get_profile_avatar_url
 
+        def get_presence_list(user_localpart, accepted=None):
+            return defer.succeed([
+                {"observed_user_id": "@banana:test"},
+                {"observed_user_id": "@clementine:test"},
+            ])
+        self.datastore.get_presence_list = get_presence_list
+
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
         self.u_banana = hs.parse_userid("@banana:test")
@@ -378,6 +385,26 @@ class PresencePushTestCase(unittest.TestCase):
                     observed_user=self.u_apple,
                     statuscache=self.handler._user_cachemap[self.u_apple]),
         ], any_order=True)
+
+        presence = yield self.handler.get_presence_list(
+                observer_user=self.u_apple, accepted=True)
+
+        self.assertEquals([
+                {"observed_user": self.u_banana, "state": OFFLINE},
+                {"observed_user": self.u_clementine, "state": OFFLINE}],
+            presence)
+
+        yield self.handler.set_state(self.u_banana, self.u_banana,
+                {"state": ONLINE})
+
+        presence = yield self.handler.get_presence_list(
+                observer_user=self.u_apple, accepted=True)
+
+        self.assertEquals([
+                {"observed_user": self.u_banana, "state": ONLINE,
+                    "displayname": "Frank", "avatar_url": "http://foo"},
+                {"observed_user": self.u_clementine, "state": OFFLINE}],
+            presence)
 
     @defer.inlineCallbacks
     def test_push_remote(self):
