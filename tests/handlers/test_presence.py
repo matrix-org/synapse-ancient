@@ -8,6 +8,7 @@ import logging
 
 from synapse.server import HomeServer
 from synapse.api.constants import PresenceState
+from synapse.handlers.presence import PresenceHandler
 
 
 OFFLINE = PresenceState.OFFLINE
@@ -29,6 +30,11 @@ class MockReplication(object):
         self.edu_handlers[edu_type](origin, content)
 
 
+class JustPresenceHandlers(object):
+    def __init__(self, hs):
+        self.presence_handler = PresenceHandler(hs)
+
+
 class PresenceStateTestCase(unittest.TestCase):
     """ Tests presence management. """
 
@@ -42,36 +48,31 @@ class PresenceStateTestCase(unittest.TestCase):
                     "add_presence_list_pending",
                     "set_presence_list_accepted",
                 ]),
+                handlers=None,
                 http_server=Mock(),
                 http_client=None,
             )
+        hs.handlers = JustPresenceHandlers(hs)
+
         self.datastore = hs.get_datastore()
-
-        def get_profile_displayname(user_localpart):
-            return defer.succeed("Frank")
-        self.datastore.get_profile_displayname = get_profile_displayname
-
-        def get_profile_avatar_url(user_localpart):
-            return defer.succeed("http://foo")
-        self.datastore.get_profile_avatar_url = get_profile_avatar_url
 
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
 
-        self.handlers = hs.get_handlers()
+        self.handler = hs.get_handlers().presence_handler
 
         self.mock_start = Mock()
         self.mock_stop = Mock()
 
-        self.handlers.presence_handler.start_polling_presence = self.mock_start
-        self.handlers.presence_handler.stop_polling_presence = self.mock_stop
+        self.handler.start_polling_presence = self.mock_start
+        self.handler.stop_polling_presence = self.mock_stop
 
     @defer.inlineCallbacks
     def test_get_my_state(self):
         mocked_get = self.datastore.get_presence_state
         mocked_get.return_value = defer.succeed({"state": 2, "status_msg": "Online"})
 
-        state = yield self.handlers.presence_handler.get_state(
+        state = yield self.handler.get_state(
                 target_user=self.u_apple, auth_user=self.u_apple)
 
         self.assertEquals({"state": 2, "status_msg": "Online"}, state)
@@ -82,18 +83,16 @@ class PresenceStateTestCase(unittest.TestCase):
         mocked_set = self.datastore.set_presence_state
         mocked_set.return_value = defer.succeed({"state": OFFLINE})
 
-        yield self.handlers.presence_handler.set_state(
+        yield self.handler.set_state(
                 target_user=self.u_apple, auth_user=self.u_apple,
                 state={"state": BUSY, "status_msg": "Away"})
 
         mocked_set.assert_called_with("apple",
                 {"state": 1, "status_msg": "Away"})
         self.mock_start.assert_called_with(self.u_apple,
-                state={"state": 1, "status_msg": "Away",
-                       "displayname": "Frank",
-                       "avatar_url": "http://foo"})
+                state={"state": 1, "status_msg": "Away"})
 
-        yield self.handlers.presence_handler.set_state(
+        yield self.handler.set_state(
                 target_user=self.u_apple, auth_user=self.u_apple,
                 state={"state": OFFLINE})
 
@@ -117,10 +116,13 @@ class PresenceInvitesTestCase(unittest.TestCase):
                     "get_presence_list",
                     "del_presence_list",
                 ]),
+                handlers=None,
                 http_server=Mock(),
                 http_client=None,
                 replication_layer=self.replication
             )
+        hs.handlers = JustPresenceHandlers(hs)
+
         self.datastore = hs.get_datastore()
 
         def has_presence_state(user_localpart):
@@ -137,20 +139,20 @@ class PresenceInvitesTestCase(unittest.TestCase):
         # A remote user
         self.u_cabbage = hs.parse_userid("@cabbage:elsewhere")
 
-        self.handlers = hs.get_handlers()
+        self.handler = hs.get_handlers().presence_handler
 
         self.mock_start = Mock()
         self.mock_stop = Mock()
 
-        self.handlers.presence_handler.start_polling_presence = self.mock_start
-        self.handlers.presence_handler.stop_polling_presence = self.mock_stop
+        self.handler.start_polling_presence = self.mock_start
+        self.handler.stop_polling_presence = self.mock_stop
 
     @defer.inlineCallbacks
     def test_invite_local(self):
         # TODO(paul): This test will likely break if/when real auth permissions
         # are added; for now the HS will always accept any invite
 
-        yield self.handlers.presence_handler.send_invite(
+        yield self.handler.send_invite(
                 observer_user=self.u_apple, observed_user=self.u_banana)
 
         self.datastore.add_presence_list_pending.assert_called_with(
@@ -165,7 +167,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_invite_local_nonexistant(self):
-        yield self.handlers.presence_handler.send_invite(
+        yield self.handler.send_invite(
                 observer_user=self.u_apple, observed_user=self.u_durian)
 
         self.datastore.add_presence_list_pending.assert_called_with(
@@ -177,7 +179,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
     def test_invite_remote(self):
         self.replication.send_edu.return_value = defer.succeed((200, "OK"))
 
-        yield self.handlers.presence_handler.send_invite(
+        yield self.handler.send_invite(
                 observer_user=self.u_apple, observed_user=self.u_cabbage)
 
         self.datastore.add_presence_list_pending.assert_called_with(
@@ -266,7 +268,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_drop_local(self):
-        yield self.handlers.presence_handler.drop(
+        yield self.handler.drop(
                 observer_user=self.u_apple, observed_user=self.u_banana)
 
         self.datastore.del_presence_list.assert_called_with(
@@ -281,7 +283,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
                 [{"observed_user_id": "@banana:test"}]
         )
 
-        presence = yield self.handlers.presence_handler.get_presence_list(
+        presence = yield self.handler.get_presence_list(
                 observer_user=self.u_apple)
 
         self.assertEquals([{"observed_user": self.u_banana,
@@ -295,7 +297,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
                 [{"observed_user_id": "@banana:test"}]
         )
 
-        presence = yield self.handlers.presence_handler.get_presence_list(
+        presence = yield self.handler.get_presence_list(
                 observer_user=self.u_apple, accepted=True)
 
         self.assertEquals([{"observed_user": self.u_banana,
@@ -325,10 +327,12 @@ class PresencePushTestCase(unittest.TestCase):
                 datastore=Mock(spec=[
                     "set_presence_state",
                 ]),
+                handlers=None,
                 http_server=Mock(),
                 http_client=None,
                 replication_layer=self.replication,
             )
+        hs.handlers = JustPresenceHandlers(hs)
 
         self.mock_update_client = Mock()
         self.mock_update_client.return_value = defer.succeed(None)
@@ -336,14 +340,6 @@ class PresencePushTestCase(unittest.TestCase):
         self.datastore = hs.get_datastore()
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
-
-        def get_profile_displayname(user_localpart):
-            return defer.succeed("Frank")
-        self.datastore.get_profile_displayname = get_profile_displayname
-
-        def get_profile_avatar_url(user_localpart):
-            return defer.succeed("http://foo")
-        self.datastore.get_profile_avatar_url = get_profile_avatar_url
 
         def get_presence_list(user_localpart, accepted=None):
             return defer.succeed([
@@ -401,8 +397,7 @@ class PresencePushTestCase(unittest.TestCase):
                 observer_user=self.u_apple, accepted=True)
 
         self.assertEquals([
-                {"observed_user": self.u_banana, "state": ONLINE,
-                    "displayname": "Frank", "avatar_url": "http://foo"},
+                {"observed_user": self.u_banana, "state": ONLINE},
                 {"observed_user": self.u_clementine, "state": OFFLINE}],
             presence)
 
@@ -426,9 +421,7 @@ class PresencePushTestCase(unittest.TestCase):
                 content={
                     "push": [
                         {"user_id": "@apple:test",
-                         "state": 2,
-                         "displayname": "Frank",
-                         "avatar_url": "http://foo"},
+                         "state": 2},
                     ],
                 },
         )
@@ -444,9 +437,7 @@ class PresencePushTestCase(unittest.TestCase):
                 "remote", "sy.presence", {
                     "push": [
                         {"user_id": "@potato:remote",
-                         "state": 2,
-                         "displayname": "Frank",
-                         "avatar_url": "http://foo"},
+                         "state": 2},
                     ],
                 }
         )
@@ -459,10 +450,7 @@ class PresencePushTestCase(unittest.TestCase):
 
         state = yield self.handler.get_state(self.u_potato, self.u_apple)
 
-        self.assertEquals({"state": ONLINE,
-                           "displayname": "Frank",
-                           "avatar_url": "http://foo"},
-                state)
+        self.assertEquals({"state": ONLINE}, state)
 
 
 class PresencePollingTestCase(unittest.TestCase):
@@ -523,14 +511,6 @@ class PresencePollingTestCase(unittest.TestCase):
                 {"observed_user_id": u} for u in
                 self.PRESENCE_LIST[user_localpart]])
         self.datastore.get_presence_list = get_presence_list
-
-        def get_profile_displayname(user_localpart):
-            return defer.succeed("Frank")
-        self.datastore.get_profile_displayname = get_profile_displayname
-
-        def get_profile_avatar_url(user_localpart):
-            return defer.succeed("http://foo")
-        self.datastore.get_profile_avatar_url = get_profile_avatar_url
 
         # Local users
         self.u_apple = hs.parse_userid("@apple:test")
@@ -658,9 +638,7 @@ class PresencePollingTestCase(unittest.TestCase):
                     "push": [
                         {"user_id": "@banana:test",
                          "state": 0,
-                         "status_msg": None,
-                         "displayname": "Frank",
-                         "avatar_url": "http://foo"},
+                         "status_msg": None},
                     ],
                 },
         )
