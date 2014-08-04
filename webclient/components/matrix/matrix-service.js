@@ -121,9 +121,7 @@ angular.module('matrixService', [])
             });
         },
 
-        // Send a text message
-        // @TODO: a generic send method which handle all types of message
-        sendTextMessage: function(room_id, body, msg_id) {
+        sendMessage: function(room_id, msg_id, content) {
             // The REST path spec
             var path = "/rooms/$room_id/messages/$from/$msg_id";
 
@@ -137,12 +135,19 @@ angular.module('matrixService', [])
             // Customize it
             path = path.replace("$room_id", room_id);
             path = path.replace("$from", config.user_id);
-            path = path.replace("msg_id", msg_id);
+            path = path.replace("$msg_id", msg_id);
 
-            return doRequest("PUT", path, undefined, {
+            return doRequest("PUT", path, undefined, content);
+        },
+
+        // Send a text message
+        sendTextMessage: function(room_id, body, msg_id) {
+            var content = {
                  msgtype: "sy.text",
                  body: body
-            });
+            };
+
+            return this.sendMessage(room_id, msg_id, content);
         },
 
         // get a snapshot of the members in a room.
