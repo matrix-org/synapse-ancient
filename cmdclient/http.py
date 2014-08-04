@@ -104,14 +104,20 @@ class TwistedHttpClient(HttpClient):
         )
 
     @defer.inlineCallbacks
-    def do_request(self, method, url, data=None, qparams=None):
+    def do_request(self, method, url, data=None, qparams=None, jsonreq=True, headers={}):
         if qparams:
             url = "%s?%s" % (url, urllib.urlencode(qparams, True))
 
+        if jsonreq:
+            prod = _JsonProducer(data)
+            headers['Content-Type'] = ["application/json"];
+        else:
+            prod = _RawProducer(data)
+
         if method in ["POST", "PUT"]:
             response = yield self._create_request(method, url,
-                    producer=_JsonProducer(data),
-                    headers_dict={"Content-Type": ["application/json"]})
+                    producer=prod,
+                    headers_dict=headers)
         else:
             response = yield self._create_request(method, url)
 
@@ -156,6 +162,21 @@ class TwistedHttpClient(HttpClient):
         reactor.callLater(seconds, d.callback, seconds)
         return d
 
+class _RawProducer(object):
+    def __init__(self, data):
+        self.data = data
+        self.body = data
+        self.length = len(self.body)
+
+    def startProducing(self, consumer):
+        consumer.write(self.body)
+        return defer.succeed(None)
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
 
 class _JsonProducer(object):
     """ Used by the twisted http client to create the HTTP body from json

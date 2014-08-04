@@ -23,12 +23,13 @@ class SynapseCmd(cmd.Cmd):
     This processes commands from the user and calls the relevant HTTP methods.
     """
 
-    def __init__(self, http_client, server_url, username, token):
+    def __init__(self, http_client, server_url, identity_server_url, username, token):
         cmd.Cmd.__init__(self)
         self.http_client = http_client
         self.http_client.verbose = True
         self.config = {
             "url": server_url,
+            "identityServerUrl": identity_server_url,
             "user": username,
             "token": token,
             "verbose": "on",
@@ -52,6 +53,9 @@ class SynapseCmd(cmd.Cmd):
 
     def _url(self):
         return self.config["url"]
+
+    def _identityServerUrl(self):
+        return self.config["identityServerUrl"]
 
     def _is_on(self, config_name):
         if config_name in self.config:
@@ -131,6 +135,56 @@ class SynapseCmd(cmd.Cmd):
             self.config["user"] = json_res["user_id"]
             self.config["token"] = json_res["access_token"]
             save_config(self.config)
+
+    def do_3pidrequest(self, line):
+        """Requests the association of a third party identifier
+        <medium> The medium of the identifer (currently only 'email')
+        <address> The address of the identifer (ie. the email address)
+        """
+        args = self._parse(line, ['medium', 'address'])
+
+        if not args['medium'] == 'email':
+            print "Only email is supported currently"
+            return
+
+        postArgs = {'email': args['address'], 'clientSecret': '____'}
+
+        reactor.callFromThread(self._do_3pidrequest, postArgs)
+
+    @defer.inlineCallbacks
+    def _do_3pidrequest(self, args):
+        url = self._identityServerUrl()+"/matrix/identity/api/v1/validate/email/requestToken"
+
+        json_res = yield self.http_client.do_request("POST", url, data=urllib.urlencode(args), jsonreq=False,
+                                                     headers={'Content-Type': ['application/x-www-form-urlencoded']})
+        print json_res
+        if 'tokenId' in json_res:
+            print "Token ID %s sent" % (json_res['tokenId'])
+
+    def do_3pidvalidate(self, line):
+        """Validate and associate a third party ID
+        <medium> The medium of the identifer (currently only 'email')
+        <tokenId> The identifier iof the token given in 3pidrequest
+        <token> The token sent to your third party identifier address
+        """
+        args = self._parse(line, ['medium', 'tokenId', 'token'])
+
+        if not args['medium'] == 'email':
+            print "Only email is supported currently"
+            return
+
+        postArgs = { 'tokenId' : args['tokenId'], 'token' : args['token'] }
+        postArgs['mxId'] = self.config["user"]
+
+        reactor.callFromThread(self._do_3pidvalidate, postArgs)
+
+    @defer.inlineCallbacks
+    def _do_3pidvalidate(self, args):
+        url = self._identityServerUrl()+"/matrix/identity/api/v1/validate/email/submitToken"
+
+        json_res = yield self.http_client.do_request("POST", url, data=urllib.urlencode(args), jsonreq=False,
+                                                     headers={'Content-Type': ['application/x-www-form-urlencoded']})
+        print json_res
 
     def do_join(self, line):
         """Joins a room: "join <roomid>" """
@@ -425,7 +479,7 @@ def save_config(config):
         json.dump(config, out)
 
 
-def main(server_url, username, token, config_path):
+def main(server_url, identity_server_url, username, token, config_path):
     print "Synapse command line client"
     print "==========================="
     print "Server: %s" % server_url
@@ -439,7 +493,7 @@ def main(server_url, username, token, config_path):
     http_client = TwistedHttpClient()
 
     # the command line client
-    syn_cmd = SynapseCmd(http_client, server_url, username, token)
+    syn_cmd = SynapseCmd(http_client, server_url, identity_server_url, username, token)
 
     # load synapse.json config from a previous session
     global CONFIG_JSON
@@ -466,7 +520,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Starts a synapse client.")
     parser.add_argument(
         "-s", "--server", dest="server", default="http://localhost:8080",
-        help="The URL of the server to talk to.")
+        help="The URL of the home server to talk to.")
+    parser.add_argument(
+        "-i", "--identity-server", dest="identityserver", default="http://localhost:8001",
+        help="The URL of the identity server to talk to.")
     parser.add_argument(
         "-u", "--username", dest="username",
         help="Your username on the server.")
@@ -487,4 +544,4 @@ if __name__ == '__main__':
     if not server.startswith("http://"):
         server = "http://" + args.server
 
-    main(server, args.username, args.token, args.config)
+    main(server, args.identityserver, args.username, args.token, args.config)
