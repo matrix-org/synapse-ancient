@@ -251,6 +251,8 @@ class PresenceHandler(BaseHandler):
 
             if observed_user in self._user_cachemap:
                 p.update(self._user_cachemap[observed_user].get_state())
+            else:
+                p.update({"state": PresenceState.OFFLINE})
 
         defer.returnValue(presence)
 
