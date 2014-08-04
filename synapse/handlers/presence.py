@@ -526,12 +526,16 @@ class UserPresenceCache(object):
     Includes the update timestamp.
     """
     def __init__(self):
-        self.state = None
-        self.status_msg = None
+        self.state = {}
         self.serial = None
 
     def update(self, state, serial):
-        self.state = state["state"]
+        self.state.update(state)
+        # Delete keys that are now 'None'
+        for k in self.state.keys():
+            if self.state[k] is None:
+                del self.state[k]
+
         self.serial = serial
 
         if "status_msg" in state:
@@ -540,12 +544,8 @@ class UserPresenceCache(object):
             self.status_msg = None
 
     def get_state(self):
-        ret = {"state": self.state}
-
-        if self.status_msg is not None:
-            ret["status_msg"] = self.status_msg
-
-        return ret
+        # clone it so caller can't break our cache
+        return dict(self.state);
 
     def make_event(self, user):
         content = self.get_state()

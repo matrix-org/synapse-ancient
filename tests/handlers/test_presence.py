@@ -399,7 +399,9 @@ class PresencePushTestCase(unittest.TestCase):
                 content={
                     "push": [
                         {"user_id": "@apple:test",
-                         "state": 2},
+                         "state": 2,
+                         "displayname": "Frank",
+                         "avatar_url": "http://foo"},
                     ],
                 },
         )
@@ -415,7 +417,9 @@ class PresencePushTestCase(unittest.TestCase):
                 "remote", "sy.presence", {
                     "push": [
                         {"user_id": "@potato:remote",
-                         "state": 2},
+                         "state": 2,
+                         "displayname": "Frank",
+                         "avatar_url": "http://foo"},
                     ],
                 }
         )
@@ -428,7 +432,10 @@ class PresencePushTestCase(unittest.TestCase):
 
         state = yield self.handler.get_state(self.u_potato, self.u_apple)
 
-        self.assertEquals({"state": ONLINE}, state)
+        self.assertEquals({"state": ONLINE,
+                           "displayname": "Frank",
+                           "avatar_url": "http://foo"},
+                state)
 
 
 class PresencePollingTestCase(unittest.TestCase):
