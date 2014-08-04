@@ -229,13 +229,27 @@ class SynapseCmd(cmd.Cmd):
             args = self._parse(line, ["userid", "roomid"], force_keys=True)
 
             user_id = args["userid"]
-            if (not args["userid"].startswith('@') and
-                    self._is_on("complete_usernames")):
-                user_id = "@" + args["userid"] + ":" + self._domain()
 
-            self._do_membership_change(args["roomid"], "invite", user_id)
+            reactor.callFromThread(self._do_invite, args["roomid"], user_id)
         except Exception as e:
             print e
+
+    @defer.inlineCallbacks
+    def _do_invite(self, roomid, userid):
+        if (not userid.startswith('@') and
+                    self._is_on("complete_usernames")):
+            url = self._identityServerUrl()+"/matrix/identity/api/v1/lookup"
+
+            json_res = yield self.http_client.do_request("GET", url, qparams={'medium':'email','address':userid})
+
+            if 'mxid' in json_res:
+                # XXX: Check the sig!
+                print "Resolved 3pid %s to %s" % (userid, json_res['mxid'])
+                user_id = json_res['mxid']
+            else:
+                user_id = "@" + args["userid"] + ":" + self._domain()
+
+            self._do_membership_change(roomid, "invite", user_id)
 
     def do_leave(self, line):
         """Leaves a room: "leave <roomid>" """
