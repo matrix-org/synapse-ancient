@@ -18,6 +18,7 @@ class RoomCreateRestServlet(RestServlet):
     # No PATTERN; we have custom dispatch rules here
 
     def register(self, http_server):
+        # TODO(markjh): Namespace the client URI paths
         # /rooms OR /rooms/<roomid>
         http_server.register_path("POST",
                                   re.compile("^/rooms$"),
@@ -88,6 +89,7 @@ class RoomCreateRestServlet(RestServlet):
 
 
 class RoomTopicRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/topic$")
 
     def get_event_type(self):
@@ -130,6 +132,7 @@ class RoomTopicRestServlet(RestServlet):
 
 
 class RoomMemberRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/" +
                       "(?P<target_user_id>[^/]*)/state$")
 
@@ -193,6 +196,7 @@ class RoomMemberRestServlet(RestServlet):
 
 
 class MessageRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/" +
                       "(?P<sender_id>[^/]*)/(?P<msg_id>[^/]*)$")
 
@@ -239,6 +243,7 @@ class MessageRestServlet(RestServlet):
 
 
 class FeedbackRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/" +
                       "(?P<msg_sender_id>[^/]*)/(?P<msg_id>[^/]*)/feedback/" +
                       "(?P<sender_id>[^/]*)/(?P<feedback_type>[^/]*)$")
@@ -298,6 +303,7 @@ class FeedbackRestServlet(RestServlet):
 
 
 class RoomMemberListRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/list$")
 
     @defer.inlineCallbacks
@@ -313,6 +319,7 @@ class RoomMemberListRestServlet(RestServlet):
 
 
 class RoomMessageListRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/list$")
 
     @defer.inlineCallbacks

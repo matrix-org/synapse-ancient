@@ -10,6 +10,7 @@ import re
 
 
 class EventStreamRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/events$")
 
     DEFAULT_LONGPOLL_TIME_MS = 5000

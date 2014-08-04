@@ -10,6 +10,7 @@ import urllib
 
 
 class RegisterRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/register$")
 
     @defer.inlineCallbacks

@@ -9,6 +9,7 @@ import re
 
 
 class ProfileDisplaynameRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/profile/(?P<user_id>[^/]*)/displayname")
 
     @defer.inlineCallbacks
@@ -37,6 +38,7 @@ class ProfileDisplaynameRestServlet(RestServlet):
 
 
 class ProfileAvatarURLRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/profile/(?P<user_id>[^/]*)/avatar_url")
 
     @defer.inlineCallbacks

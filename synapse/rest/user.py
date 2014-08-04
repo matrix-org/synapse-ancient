@@ -9,6 +9,7 @@ import re
 
 
 class UserRoomListRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/users/(?P<sender_id>[^/]*)/rooms/list$")
 
     @defer.inlineCallbacks

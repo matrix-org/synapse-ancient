@@ -191,6 +191,8 @@ class TransportLayer(object):
         """
         self.request_handler = handler
 
+        # TODO(markjh): Namespace the federation URI paths
+
         # This is for when someone asks us for everything since version X
         self.server.register_path(
             "GET",

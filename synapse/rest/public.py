@@ -8,6 +8,7 @@ import re
 
 
 class PublicRoomListRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/public/rooms$")
 
     @defer.inlineCallbacks

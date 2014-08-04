@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class PresenceStatusRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/presence/(?P<user_id>[^/]*)/status")
 
     @defer.inlineCallbacks
@@ -55,6 +56,7 @@ class PresenceStatusRestServlet(RestServlet):
 
 
 class PresenceListRestServlet(RestServlet):
+    # TODO(markjh): Namespace the client URI paths
     PATTERN = re.compile("^/presence_list/(?P<user_id>[^/]*)")
 
     @defer.inlineCallbacks
