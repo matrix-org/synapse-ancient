@@ -16,6 +16,9 @@ class ProfileHandler(BaseHandler):
         distributor = hs.get_distributor()
         distributor.observe("registered_user", self.registered_user)
 
+        distributor.observe("collect_presencelike_data",
+                self.collect_presencelike_data)
+
     def registered_user(self, user):
         self.store.create_profile(user.localpart)
 
@@ -80,3 +83,20 @@ class ProfileHandler(BaseHandler):
 
         yield self.store.set_profile_avatar_url(target_user.localpart,
                 new_avatar_url)
+
+    @defer.inlineCallbacks
+    def collect_presencelike_data(self, user, state):
+        # Don't actually do anything
+        #state["displayname"] = "Frank"
+        #state["avatar_url"] = "http://foo"
+        #defer.returnValue(None)
+
+
+        (displayname, avatar_url) = yield defer.gatherResults(
+                [self.store.get_profile_displayname(user),
+                    self.store.get_profile_avatar_url(user)])
+
+        state["displayname"] = displayname
+        state["avatar_url"] = avatar_url
+
+        defer.returnValue(None)

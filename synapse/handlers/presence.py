@@ -50,6 +50,10 @@ class PresenceHandler(BaseHandler):
         distributor.observe("stopped_user_eventstream",
                 self.stopped_user_eventstream)
 
+        distributor.declare("collect_presencelike_data")
+
+        self.distributor = distributor
+
         self.federation = hs.get_replication_layer()
 
         self.federation.register_edu_handler("sy.presence",
@@ -122,9 +126,14 @@ class PresenceHandler(BaseHandler):
         logger.debug("Updating presence state of %s to %s",
                 target_user.localpart, state["state"])
 
-        yield self.store.set_presence_state(target_user.localpart,
-                state
-        )
+        state_to_store = dict(state)
+
+        yield defer.DeferredList([
+            self.store.set_presence_state(target_user.localpart,
+                state_to_store),
+            self.distributor.fire("collect_presencelike_data",
+                target_user, state),
+        ])
 
         now_online = state["state"] != PresenceState.OFFLINE
         was_polling = target_user in self._user_cachemap
@@ -401,6 +410,8 @@ class PresenceHandler(BaseHandler):
     def _push_presence_remote(self, user, destination, state=None):
         if state is None:
             state = yield self.store.get_presence_state(user.localpart)
+            yield self.distributor.fire("collect_presencelike_data",
+                    user, state)
 
         yield self.federation.send_edu(
             destination=destination,

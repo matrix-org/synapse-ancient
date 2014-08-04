@@ -47,6 +47,14 @@ class PresenceStateTestCase(unittest.TestCase):
             )
         self.datastore = hs.get_datastore()
 
+        def get_profile_displayname(user_localpart):
+            return defer.succeed("Frank")
+        self.datastore.get_profile_displayname = get_profile_displayname
+
+        def get_profile_avatar_url(user_localpart):
+            return defer.succeed("http://foo")
+        self.datastore.get_profile_avatar_url = get_profile_avatar_url
+
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
 
@@ -81,7 +89,9 @@ class PresenceStateTestCase(unittest.TestCase):
         mocked_set.assert_called_with("apple",
                 {"state": 1, "status_msg": "Away"})
         self.mock_start.assert_called_with(self.u_apple,
-                state={"state": 1, "status_msg": "Away"})
+                state={"state": 1, "status_msg": "Away",
+                       "displayname": "Frank",
+                       "avatar_url": "http://foo"})
 
         yield self.handlers.presence_handler.set_state(
                 target_user=self.u_apple, auth_user=self.u_apple,
@@ -327,6 +337,14 @@ class PresencePushTestCase(unittest.TestCase):
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
 
+        def get_profile_displayname(user_localpart):
+            return defer.succeed("Frank")
+        self.datastore.get_profile_displayname = get_profile_displayname
+
+        def get_profile_avatar_url(user_localpart):
+            return defer.succeed("http://foo")
+        self.datastore.get_profile_avatar_url = get_profile_avatar_url
+
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
         self.u_banana = hs.parse_userid("@banana:test")
@@ -472,6 +490,14 @@ class PresencePollingTestCase(unittest.TestCase):
                 self.PRESENCE_LIST[user_localpart]])
         self.datastore.get_presence_list = get_presence_list
 
+        def get_profile_displayname(user_localpart):
+            return defer.succeed("Frank")
+        self.datastore.get_profile_displayname = get_profile_displayname
+
+        def get_profile_avatar_url(user_localpart):
+            return defer.succeed("http://foo")
+        self.datastore.get_profile_avatar_url = get_profile_avatar_url
+
         # Local users
         self.u_apple = hs.parse_userid("@apple:test")
         self.u_banana = hs.parse_userid("@banana:test")
@@ -598,7 +624,9 @@ class PresencePollingTestCase(unittest.TestCase):
                     "push": [
                         {"user_id": "@banana:test",
                          "state": 0,
-                         "status_msg": None},
+                         "status_msg": None,
+                         "displayname": "Frank",
+                         "avatar_url": "http://foo"},
                     ],
                 },
         )
