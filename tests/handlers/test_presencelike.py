@@ -46,6 +46,8 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
                 db_pool=None,
                 datastore=Mock(spec=[
                     "set_presence_state",
+
+                    "set_profile_displayname",
                 ]),
                 handlers=None,
                 http_server=Mock(),
@@ -148,6 +150,24 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
         statuscache = self.mock_update_client.call_args[1]["statuscache"]
         self.assertEquals({"state": ONLINE,
                            "displayname": "Frank",
+                           "avatar_url": "http://foo"}, statuscache.state)
+
+        self.mock_update_client.reset_mock()
+
+        self.datastore.set_profile_displayname.return_value = defer.succeed(
+                None)
+
+        yield self.handlers.profile_handler.set_displayname(self.u_apple,
+                self.u_apple, "I am an Apple")
+
+        self.mock_update_client.assert_called_with(
+            observer_user=self.u_banana,
+            observed_user=self.u_apple,
+            statuscache=ANY)
+
+        statuscache = self.mock_update_client.call_args[1]["statuscache"]
+        self.assertEquals({"state": ONLINE,
+                           "displayname": "I am an Apple",
                            "avatar_url": "http://foo"}, statuscache.state)
 
     @defer.inlineCallbacks

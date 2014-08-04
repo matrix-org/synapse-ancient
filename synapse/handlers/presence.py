@@ -52,6 +52,10 @@ class PresenceHandler(BaseHandler):
 
         distributor.declare("collect_presencelike_data")
 
+        distributor.declare("changed_presencelike_data")
+        distributor.observe("changed_presencelike_data",
+                self.changed_presencelike_data)
+
         self.distributor = distributor
 
         self.federation = hs.get_replication_layer()
@@ -141,11 +145,6 @@ class PresenceHandler(BaseHandler):
         if target_user not in self._user_cachemap:
             self._user_cachemap[target_user] = UserPresenceCache()
 
-        statuscache = self._user_cachemap[target_user]
-
-        self._user_cachemap_latest_serial += 1
-        statuscache.update(state, serial=self._user_cachemap_latest_serial)
-
         if now_online and not was_polling:
             self.start_polling_presence(target_user, state=state)
         elif not now_online and was_polling:
@@ -153,10 +152,18 @@ class PresenceHandler(BaseHandler):
 
         # TODO(paul): perform a presence push as part of start/stop poll so
         #   we don't have to do this all the time
-        self.push_presence(target_user, statuscache=statuscache)
+        self.changed_presencelike_data(target_user, state)
 
         if not now_online:
             del self._user_cachemap[target_user]
+
+    def changed_presencelike_data(self, user, state):
+        statuscache = self._user_cachemap[user]
+
+        self._user_cachemap_latest_serial += 1
+        statuscache.update(state, serial=self._user_cachemap_latest_serial)
+
+        self.push_presence(user, statuscache=statuscache)
 
     def started_user_eventstream(self, user):
         # TODO(paul): Use "last online" state

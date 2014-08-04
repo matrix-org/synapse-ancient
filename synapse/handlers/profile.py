@@ -14,6 +14,8 @@ class ProfileHandler(BaseHandler):
         self.client = hs.get_http_client()
 
         distributor = hs.get_distributor()
+        self.distributor = distributor
+
         distributor.observe("registered_user", self.registered_user)
 
         distributor.observe("collect_presencelike_data",
@@ -53,6 +55,9 @@ class ProfileHandler(BaseHandler):
         yield self.store.set_profile_displayname(target_user.localpart,
                 new_displayname)
 
+        yield self.distributor.fire("changed_presencelike_data",
+                target_user, {"displayname": new_displayname})
+
     @defer.inlineCallbacks
     def get_avatar_url(self, target_user):
         if target_user.is_mine:
@@ -83,6 +88,9 @@ class ProfileHandler(BaseHandler):
 
         yield self.store.set_profile_avatar_url(target_user.localpart,
                 new_avatar_url)
+
+        yield self.distributor.fire("changed_presencelike_data",
+                target_user, {"avatar_url": new_avatar_url})
 
     @defer.inlineCallbacks
     def collect_presencelike_data(self, user, state):
