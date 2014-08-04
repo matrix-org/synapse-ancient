@@ -146,7 +146,9 @@ class EventStream(PaginationStream):
         token_segments = self._split_token(token)
         for i, tok in enumerate(token_segments):
             if tok == -1:
-                token_segments[i] = yield self.stream_data[i].max_token()
+                # add 1 to the max token because results are EXCLUSIVE from the
+                # latest version.
+                token_segments[i] = 1 + (yield self.stream_data[i].max_token())
         defer.returnValue(EventStream.SEPARATOR.join(
                             [str(x) for x in token_segments]))
 
