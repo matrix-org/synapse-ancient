@@ -61,14 +61,14 @@
     
     <div>
         <form>
-            <input size="40" ng-model="newRoom.room_id" ng-enter="createNewRoom(newRoom.room_id, newRoom.private)" />
+            <input size="40" ng-model="newRoom.room_id" ng-enter="createNewRoom(newRoom.room_id, newRoom.private)" placeholder="(e.g. foo_channel)"/>
             <input type="checkbox" ng-model="newRoom.private">private
             <button ng-disabled="!newRoom.room_id" ng-click="createNewRoom(newRoom.room_id, newRoom.private)">Create room</button>    
         </form>
     </div>
     <div>
         <form>
-            <input size="40" ng-model="goToRoom.room_id" ng-enter="goToRoom(goToRoom.room_id)" />
+            <input size="40" ng-model="goToRoom.room_id" ng-enter="goToRoom(goToRoom.room_id)" placeholder="(e.g. #foo_channe:example.org)"/>
             <button ng-disabled="!goToRoom.room_id" ng-click="goToRoom(goToRoom.room_id)">Go to room</button>    
         </form>
     </div>
