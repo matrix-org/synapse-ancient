@@ -24,7 +24,8 @@ angular.module('RoomsController', ['matrixService'])
 
     $scope.linkedEmails = {
         linkNewEmail: "",
-        emailList: matrixService.config().emailList
+        pendingLinkInfo: {},
+        linkedEmailList: matrixService.config().emailList
     };
 
     $scope.refresh = function() {
@@ -102,12 +103,28 @@ angular.module('RoomsController', ['matrixService'])
     $scope.linkEmail = function(email) {
         matrixService.linkEmail(email).then(
             function(response) {
-                $scope.feedback = "ACK: " + response;
+                if (response.success === true) {
+                    $scope.linkedEmails.pendingLinkInfo[email] = response.tokenId;
+                    $scope.emailFeedback = "You have been sent an email.";
+                }
+                else {
+                    $scope.emailFeedback = "Failed to send email.";
+                }
             },
             function(reason) {
-                $scope.feedback = "Can't link email: " + reason;
+                $scope.emailFeedback = "Can't send email: " + reason;
             }
         );
+    };
+
+    $scope.submitEmailCode = function(code) {
+        var emailToBeAuthed = $scope.linkedEmails.linkNewEmail;
+        var tokenId = $scope.linkedEmails.pendingLinkInfo[emailToBeAuthed];
+        if (tokenId === undefined) {
+            $scope.emailFeedback = "You have not requested a code with this email.";
+            return;
+        }
+        $scope.emailFeedback = "Doing stuff.";
     };
     
     $scope.refresh();

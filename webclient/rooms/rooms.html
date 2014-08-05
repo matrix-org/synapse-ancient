@@ -13,11 +13,18 @@
             <input size="40" ng-model="linkedEmails.linkNewEmail" ng-enter="linkEmail(linkedEmails.linkNewEmail)" />
             <button ng-disabled="!linkedEmails.linkNewEmail" ng-click="linkEmail(linkedEmails.linkNewEmail)">
                 Link Email
-            </button>    
+            </button>
+            {{ emailFeedback }}    
+        </form>
+        <form>
+            <input size="20" ng-model="linkedEmails.emailCode" ng-enter="submitEmailCode(linkedEmails.emailCode)" />
+            <button ng-disabled="!linkedEmails.emailCode || !linkedEmails.linkNewEmail" ng-click="submitEmailCode(linkedEmails.emailCode)">
+                Submit Code
+            </button>   
         </form>
         Linked emails:
         <table>
-            <tr ng-repeat="email in linkedEmails.list">
+            <tr ng-repeat="email in linkedEmails.linkedEmailList">
                 <td>{{email}}</td>
             </tr>
         </table>
