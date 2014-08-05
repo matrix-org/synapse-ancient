@@ -54,6 +54,8 @@ class SynapseHomeServer(HomeServer):
                 c.executescript(sql_script)
                 c.close()
                 db_conn.commit()
+        
+        logging.info("Database prepared in %s.", self.db_name)
 
         return pool
 
