@@ -454,8 +454,6 @@ class PresenceHandler(BaseHandler):
 
             logger.debug("Incoming presence update from %s", user)
 
-            # TODO(paul): Check also for other rooms the user is a member of
-
             observers = self._remote_recvmap.get(user, set())
 
             rm_handler = self.homeserver.get_handlers().room_member_handler
