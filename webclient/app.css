@@ -109,6 +109,7 @@ h1 {
 .messageTable {
     border-collapse: collapse;
     width: 85%;
+    margin-bottom: 100px;
 }
         
 .messageTable td {
