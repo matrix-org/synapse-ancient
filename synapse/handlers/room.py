@@ -362,6 +362,29 @@ class RoomMemberHandler(BaseHandler):
         defer.returnValue([hs.parse_userid(m.user_id) for m in memberships])
 
     @defer.inlineCallbacks
+    def fetch_room_distributions_into(self, room_id,
+            localusers=None, remotedomains=None, ignore_user=None):
+        """Fetch the distribution of a room, adding elements to either
+        'localusers' or 'remotedomains', which should be a set() if supplied.
+        If ignore_user is set, ignore that user.
+
+        This function returns nothing; its result is performed by the
+        side-effect on the two passed sets. This allows easy accumulation of
+        member lists of multiple rooms at once if required.
+        """
+        members = yield self.get_room_members(room_id)
+        for member in members:
+            if ignore_user is not None and member == ignore_user:
+                continue
+
+            if member.is_mine:
+                if localusers is not None:
+                    localusers.add(member)
+            else:
+                if remotedomains is not None:
+                    remotedomains.add(member.domain)
+
+    @defer.inlineCallbacks
     def get_room_members_as_pagination_chunk(self, room_id=None, user_id=None,
                                              limit=0, start_tok=None,
                                              end_tok=None):

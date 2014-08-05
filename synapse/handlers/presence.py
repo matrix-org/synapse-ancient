@@ -429,16 +429,9 @@ class PresenceHandler(BaseHandler):
         room_ids = yield rm_handler.get_rooms_for_user(user)
 
         for room_id in room_ids:
-            members = yield rm_handler.get_room_members(room_id)
-
-            for member in members:
-                if member == user:
-                    continue
-
-                if member.is_mine:
-                    localusers.add(member)
-                else:
-                    remotedomains.add(member.domain)
+            yield rm_handler.fetch_room_distributions_into(room_id,
+                    localusers=localusers, remotedomains=remotedomains,
+                    ignore_user=user)
 
         if not localusers and not remotedomains:
             defer.returnValue(None)
@@ -493,14 +486,9 @@ class PresenceHandler(BaseHandler):
             room_ids = yield rm_handler.get_rooms_for_user(user)
 
             for room_id in room_ids:
-                members = yield rm_handler.get_room_members(room_id)
-
-                for member in members:
-                    if member == user:
-                        continue
-
-                    if member.is_mine:
-                        observers.add(member)
+                yield rm_handler.fetch_room_distributions_into(room_id,
+                        localusers=observers,
+                        ignore_user=user)
 
             if not observers:
                 break
