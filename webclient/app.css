@@ -64,7 +64,6 @@ h1 {
 }
 
 .userAvatar {
-    line-height: 0;
     width: 80px;
     height: 80px;
     position: relative;
@@ -84,8 +83,10 @@ h1 {
     position: absolute;
     color: #fff;
     margin: 2px;
-    bottom: 6px;
+    bottom: 0px;
     font-size: 8pt;
+    word-wrap: break-word;
+    word-break: break-all;
 }
 
 .userPresence {
