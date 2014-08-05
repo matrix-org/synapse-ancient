@@ -53,7 +53,7 @@ class ProfileHandler(BaseHandler):
                 )
             except CodeMessageException as e:
                 if e.code == 404:
-                    defer.return_value(None)
+                    defer.returnValue(None)
                 else:
                     logger.exception("Failed to get displayname")
             except:
@@ -104,7 +104,7 @@ class ProfileHandler(BaseHandler):
                 )
             except CodeMessageException as e:
                 if e.code == 404:
-                    defer.return_value(None)
+                    defer.returnValue(None)
                 else:
                     logger.exception("Failed to get avatar_url")
             except:
