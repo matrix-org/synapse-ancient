@@ -9,6 +9,7 @@ angular.module('RoomController', [])
     };
     $scope.messages = [];
     $scope.members = {};
+    $scope.stopPoll = false;
     
     $scope.userIDToInvite = "";
 
@@ -17,7 +18,7 @@ angular.module('RoomController', [])
             "params": {
                 "access_token": matrixService.config().access_token,
                 "from": $scope.state.events_from,
-                "timeout": 25000
+                "timeout": 5000
             }})
             .then(function(response) {
                 console.log("Got response from "+$scope.state.events_from+" to "+response.data.end);
@@ -35,11 +36,20 @@ angular.module('RoomController', [])
                         updatePresence(chunk);
                     }
                 }
-
-                $timeout(shortPoll, 0);
+                if ($scope.stopPoll) {
+                    console.log("Stopping polling.");
+                }
+                else {
+                    $timeout(shortPoll, 0);
+                }
             }, function(response) {
                 $scope.feedback = "Can't stream: " + response.data;
-                $timeout(shortPoll, 25000);
+                if ($scope.stopPoll) {
+                    console.log("Stopping polling.");
+                }
+                else {
+                    $timeout(shortPoll, 2000);
+                }
             });
     };
 
@@ -168,4 +178,9 @@ angular.module('RoomController', [])
                 $scope.feedback = "Failed to leave room: " + reason;
             });
     };
+
+    $scope.$on('$destroy', function(e) {
+        console.log("onDestroyed: Stopping poll.");
+        $scope.stopPoll = true;
+    });
 }]);
