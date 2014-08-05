@@ -155,6 +155,10 @@ class MemoryDataStore(object):
         except:
             return None
 
+    def get_rooms_for_user_where_membership_is(self, user_id, membership_list):
+        return [r for r in self.room_members
+                if user_id in self.room_members[r]]
+
     def store_room_member(self, user_id=None, sender=None, room_id=None,
                           membership=None, content=None):
         member = MemoryDataStore.RoomMember(room_id=room_id, user_id=user_id,

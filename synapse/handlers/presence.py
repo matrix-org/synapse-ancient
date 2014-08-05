@@ -2,7 +2,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import SynapseError, AuthError
-from synapse.api.constants import PresenceState
+from synapse.api.constants import PresenceState, Membership
 from synapse.api.streams import StreamData
 
 from ._base import BaseHandler
@@ -391,8 +391,23 @@ class PresenceHandler(BaseHandler):
 
         logger.debug("Pushing presence update from %s", user)
 
-        localusers = self._local_pushmap.get(user.localpart, [])
-        remotedomains = self._remote_sendmap.get(user.localpart, [])
+        localusers = self._local_pushmap.get(user.localpart, set())
+        remotedomains = self._remote_sendmap.get(user.localpart, set())
+
+        rm_handler = self.homeserver.get_handlers().room_member_handler
+        room_ids = yield rm_handler.get_rooms_for_user(user)
+
+        for room_id in room_ids:
+            members = yield rm_handler.get_room_members(room_id)
+
+            for member in members:
+                if member == user:
+                    continue
+
+                if member.is_mine:
+                    localusers.add(member)
+                else:
+                    remotedomains.add(member.domain)
 
         if not localusers and not remotedomains:
             defer.returnValue(None)
@@ -438,6 +453,8 @@ class PresenceHandler(BaseHandler):
             user = self.hs.parse_userid(push["user_id"])
 
             logger.debug("Incoming presence update from %s", user)
+
+            # TODO(paul): Check also for other rooms the user is a member of
 
             if user not in self._remote_recvmap:
                 break

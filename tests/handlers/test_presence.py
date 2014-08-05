@@ -61,6 +61,12 @@ class PresenceStateTestCase(unittest.TestCase):
 
         self.handler = hs.get_handlers().presence_handler
 
+        hs.handlers.room_member_handler = Mock(spec=[
+            "get_rooms_for_user",
+        ])
+        hs.handlers.room_member_handler.get_rooms_for_user = (
+                lambda u: defer.succeed([]))
+
         self.mock_start = Mock()
         self.mock_stop = Mock()
 
@@ -341,6 +347,29 @@ class PresencePushTestCase(unittest.TestCase):
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
 
+        # Mock the RoomMemberHandler
+        hs.handlers.room_member_handler = Mock(spec=[
+            "get_rooms_for_user",
+            "get_room_members",
+        ])
+        self.room_member_handler = hs.handlers.room_member_handler
+
+        self.room_members = []
+
+        def get_rooms_for_user(user):
+            if user in self.room_members:
+                return defer.succeed(["a-room"])
+            else:
+                return defer.succeed([])
+        self.room_member_handler.get_rooms_for_user = get_rooms_for_user
+
+        def get_room_members(room_id):
+            if room_id == "a-room":
+                return defer.succeed(self.room_members)
+            else:
+                return defer.succeed([])
+        self.room_member_handler.get_room_members = get_room_members
+
         def get_presence_list(user_localpart, accepted=None):
             return defer.succeed([
                 {"observed_user_id": "@banana:test"},
@@ -352,12 +381,16 @@ class PresencePushTestCase(unittest.TestCase):
         self.u_apple = hs.parse_userid("@apple:test")
         self.u_banana = hs.parse_userid("@banana:test")
         self.u_clementine = hs.parse_userid("@clementine:test")
+        self.u_elderberry = hs.parse_userid("@elderberry:test")
 
         # Remote user
+        self.u_onion = hs.parse_userid("@onion:farm")
         self.u_potato = hs.parse_userid("@potato:remote")
 
     @defer.inlineCallbacks
     def test_push_local(self):
+        self.room_members = [self.u_apple, self.u_elderberry]
+
         self.datastore.set_presence_state.return_value = defer.succeed(
                 {"state": ONLINE})
 
@@ -371,15 +404,16 @@ class PresencePushTestCase(unittest.TestCase):
         yield self.handler.set_state(self.u_apple, self.u_apple,
                 {"state": ONLINE})
 
-        # More peeking inside the object to find the thing we expect it
-        # called us with
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    statuscache=self.handler._user_cachemap[self.u_apple]),
+                    statuscache=ANY),
                 call(observer_user=self.u_clementine,
                     observed_user=self.u_apple,
-                    statuscache=self.handler._user_cachemap[self.u_apple]),
+                    statuscache=ANY),
+                call(observer_user=self.u_elderberry,
+                    observed_user=self.u_apple,
+                    statuscache=ANY),
         ], any_order=True)
 
         presence = yield self.handler.get_presence_list(
@@ -403,6 +437,8 @@ class PresencePushTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_push_remote(self):
+        self.room_members = [self.u_apple, self.u_onion]
+
         self.datastore.set_presence_state.return_value = defer.succeed(
                 {"state": ONLINE})
 
@@ -415,16 +451,26 @@ class PresencePushTestCase(unittest.TestCase):
         yield self.handler.set_state(self.u_apple, self.u_apple,
                 {"state": ONLINE})
 
-        self.replication.send_edu.assert_called_with(
-                destination="remote",
-                edu_type="sy.presence",
-                content={
-                    "push": [
-                        {"user_id": "@apple:test",
-                         "state": 2},
-                    ],
-                },
-        )
+        self.replication.send_edu.assert_has_calls([
+                call(
+                    destination="remote",
+                    edu_type="sy.presence",
+                    content={
+                        "push": [
+                            {"user_id": "@apple:test",
+                            "state": 2},
+                        ],
+                    }),
+                call(
+                    destination="farm",
+                    edu_type="sy.presence",
+                    content={
+                        "push": [
+                            {"user_id": "@apple:test",
+                             "state": 2},
+                        ],
+                    })
+        ], any_order=True)
 
     @defer.inlineCallbacks
     def test_recv_remote(self):
@@ -473,10 +519,13 @@ class PresencePollingTestCase(unittest.TestCase):
         hs = HomeServer("test",
                 db_pool=None,
                 datastore=Mock(spec=[]),
+                handlers=None,
                 http_server=Mock(),
                 http_client=None,
                 replication_layer=self.replication,
             )
+        hs.handlers = JustPresenceHandlers(hs)
+
         self.datastore = hs.get_datastore()
 
         self.mock_update_client = Mock()
@@ -484,6 +533,14 @@ class PresencePollingTestCase(unittest.TestCase):
 
         self.handler = hs.get_handlers().presence_handler
         self.handler.push_update_to_clients = self.mock_update_client
+
+        hs.handlers.room_member_handler = Mock(spec=[
+            "get_rooms_for_user",
+        ])
+        # For this test no users are ever in rooms
+        def get_rooms_for_user(user):
+            return defer.succeed([])
+        hs.handlers.room_member_handler.get_rooms_for_user = get_rooms_for_user
 
         # Mocked database state
         # Local users always start offline

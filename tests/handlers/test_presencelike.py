@@ -90,6 +90,12 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
         self.handlers.presence_handler.push_update_to_clients = (
                 self.mock_update_client)
 
+        hs.handlers.room_member_handler = Mock(spec=[
+            "get_rooms_for_user",
+        ])
+        hs.handlers.room_member_handler.get_rooms_for_user = (
+                lambda u: defer.succeed([]))
+
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
         self.u_banana = hs.parse_userid("@banana:test")

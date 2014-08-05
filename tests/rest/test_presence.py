@@ -189,6 +189,12 @@ class PresenceEventStreamTestCase(unittest.TestCase):
 
         hs.register_servlets()
 
+        hs.handlers.room_member_handler = Mock(spec=[
+            "get_rooms_for_user",
+        ])
+        hs.handlers.room_member_handler.get_rooms_for_user = (
+                lambda u: defer.succeed([]))
+
         self.mock_datastore = hs.get_datastore()
         self.presence = hs.get_handlers().presence_handler
 
