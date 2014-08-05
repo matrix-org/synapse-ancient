@@ -536,7 +536,7 @@ if __name__ == '__main__':
         "-s", "--server", dest="server", default="http://localhost:8080",
         help="The URL of the home server to talk to.")
     parser.add_argument(
-        "-i", "--identity-server", dest="identityserver", default="http://localhost:8001",
+        "-i", "--identity-server", dest="identityserver", default="http://localhost:8090",
         help="The URL of the identity server to talk to.")
     parser.add_argument(
         "-u", "--username", dest="username",
