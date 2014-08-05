@@ -20,6 +20,7 @@ angular.module('RoomController', [])
                 "timeout": 25000
             }})
             .then(function(response) {
+                console.log("Got response from "+$scope.state.events_from+" to "+response.data.end);
                 $scope.state.events_from = response.data.end;
 
                 for (var i = 0; i < response.data.chunk.length; i++) {
@@ -56,6 +57,7 @@ angular.module('RoomController', [])
                     function(response) {
                         var member = $scope.members[chunk.target_user_id];
                         if (member !== undefined) {
+                            console.log("Updated displayname "+chunk.target_user_id+" to " + response.displayname);
                             member.displayname = response.displayname;
                         }
                     }
@@ -64,6 +66,7 @@ angular.module('RoomController', [])
                     function(response) {
                          var member = $scope.members[chunk.target_user_id];
                          if (member !== undefined) {
+                            console.log("Updated image for "+chunk.target_user_id+" to " + response.avatar_url);
                             member.avatar_url = response.avatar_url;
                          }
                     }
@@ -100,6 +103,7 @@ angular.module('RoomController', [])
         // Send the text message
         matrixService.sendTextMessage($scope.room_id, $scope.textInput).then(
             function() {
+                console.log("Sent message");
                 $scope.textInput = "";
             },
             function(reason) {
@@ -108,11 +112,13 @@ angular.module('RoomController', [])
     };
 
     $scope.onInit = function() {
-        $timeout(function() { document.getElementById('textInput').focus() }, 0);
+        // $timeout(function() { document.getElementById('textInput').focus() }, 0);
+        console.log("onInit");
 
         // Join the room
         matrixService.join($scope.room_id).then(
             function() {
+                console.log("Joined room");
                 // Now start reading from the stream
                 $timeout(shortPoll, 0);
 
