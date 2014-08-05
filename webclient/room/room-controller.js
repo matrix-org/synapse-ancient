@@ -32,6 +32,9 @@ angular.module('RoomController', [])
                     else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
                         updateMemberList(chunk);
                     }
+                    else if (chunk.type === "sy.presence") {
+                        updatePresence(chunk);
+                    }
                 }
 
                 $timeout(shortPoll, 0);
@@ -68,6 +71,22 @@ angular.module('RoomController', [])
                     }
                 );
             }, 0);
+        }
+    }
+
+    var updatePresence = function(chunk) {
+        if (!(chunk.content.user_id in $scope.members)) {
+            console.log("updatePresence: Unknown member for chunk " + JSON.stringify(chunk));
+            return;
+        }
+        var ONLINE = 2;
+        var OFFLINE = 0;
+        var member = $scope.members[chunk.content.user_id];
+        if (chunk.content.state === ONLINE) {
+            member.presenceState = "online";
+        }
+        else if (chunk.content.state === OFFLINE) {
+            member.presenceState = "offline";
         }
     }
 
