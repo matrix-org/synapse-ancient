@@ -215,7 +215,7 @@ class PresenceEventStreamTestCase(unittest.TestCase):
 
         # We've forced there to be only one data stream so the tokens will
         # all be ours
-        self.assertEquals({"start": "0", "end": "0", "chunk": []}, response)
+        self.assertEquals({"start": "0", "end": "1", "chunk": []}, response)
 
         self.mock_datastore.set_presence_state.return_value = defer.succeed(
                 {"state": ONLINE})
