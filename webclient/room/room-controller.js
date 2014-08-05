@@ -9,6 +9,7 @@ angular.module('RoomController', [])
     };
     $scope.messages = [];
     $scope.members = {};
+    $scope.stopPoll = false;
     
     $scope.userIDToInvite = "";
 
@@ -17,7 +18,7 @@ angular.module('RoomController', [])
             "params": {
                 "access_token": matrixService.config().access_token,
                 "from": $scope.state.events_from,
-                "timeout": 25000
+                "timeout": 5000
             }})
             .then(function(response) {
                 console.log("Got response from "+$scope.state.events_from+" to "+response.data.end);
@@ -26,6 +27,10 @@ angular.module('RoomController', [])
                 for (var i = 0; i < response.data.chunk.length; i++) {
                     var chunk = response.data.chunk[i];
                     if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
+                        if (chunk.user_id in $scope.members) {
+                            chunk.avatar_url = $scope.members[chunk.user_id].avatar_url;
+                            chunk.displayname = $scope.members[chunk.user_id].displayname;
+                        }
                         $scope.messages.push(chunk);
                     }
                     else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
@@ -35,11 +40,20 @@ angular.module('RoomController', [])
                         updatePresence(chunk);
                     }
                 }
-
-                $timeout(shortPoll, 0);
+                if ($scope.stopPoll) {
+                    console.log("Stopping polling.");
+                }
+                else {
+                    $timeout(shortPoll, 0);
+                }
             }, function(response) {
                 $scope.feedback = "Can't stream: " + response.data;
-                $timeout(shortPoll, 25000);
+                if ($scope.stopPoll) {
+                    console.log("Stopping polling.");
+                }
+                else {
+                    $timeout(shortPoll, 2000);
+                }
             });
     };
 
@@ -85,18 +99,30 @@ angular.module('RoomController', [])
             console.log("updatePresence: Unknown member for chunk " + JSON.stringify(chunk));
             return;
         }
-        var ONLINE = 2;
-        var AWAY = 1;
-        var OFFLINE = 0;
         var member = $scope.members[chunk.content.user_id];
-        if (chunk.content.state === ONLINE) {
-            member.presenceState = "online";
+
+        if ("state" in chunk.content) {
+            var ONLINE = 2;
+            var AWAY = 1;
+            var OFFLINE = 0;
+            if (chunk.content.state === ONLINE) {
+                member.presenceState = "online";
+            }
+            else if (chunk.content.state === OFFLINE) {
+                member.presenceState = "offline";
+            }
+            else if (chunk.content.state === AWAY) {
+                member.presenceState = "away";
+            }
         }
-        else if (chunk.content.state === OFFLINE) {
-            member.presenceState = "offline";
+
+        // this may also contain a new display name or avatar url, so check.
+        if ("displayname" in chunk.content) {
+            member.displayname = chunk.content.displayname;
         }
-        else if (chunk.content.state === AWAY) {
-            member.presenceState = "away";
+
+        if ("avatar_url" in chunk.content) {
+            member.avatar_url = chunk.content.avatar_url;
         }
     }
 
@@ -168,4 +194,9 @@ angular.module('RoomController', [])
                 $scope.feedback = "Failed to leave room: " + reason;
             });
     };
+
+    $scope.$on('$destroy', function(e) {
+        console.log("onDestroyed: Stopping poll.");
+        $scope.stopPoll = true;
+    });
 }]);

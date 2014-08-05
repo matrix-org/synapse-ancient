@@ -405,6 +405,9 @@ class PresencePushTestCase(unittest.TestCase):
                 {"state": ONLINE})
 
         self.mock_update_client.assert_has_calls([
+                call(observer_user=self.u_apple,
+                    observed_user=self.u_apple,
+                    statuscache=ANY), # self-reflection
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
                     statuscache=ANY),
