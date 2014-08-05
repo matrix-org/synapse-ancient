@@ -27,6 +27,9 @@ angular.module('RoomController', [])
                 for (var i = 0; i < response.data.chunk.length; i++) {
                     var chunk = response.data.chunk[i];
                     if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
+                        if ("membership_target" in chunk.content) {
+                            chunk.user_id = chunk.content.membership_target;
+                        }
                         $scope.messages.push(chunk);
                         $timeout(function() {
                             window.scrollTo(0, document.body.scrollHeight);
@@ -46,7 +49,7 @@ angular.module('RoomController', [])
                     $timeout(shortPoll, 0);
                 }
             }, function(response) {
-                $scope.feedback = "Can't stream: " + response.data;
+                $scope.feedback = "Can't stream: " + JSON.stringify(response);
                 if ($scope.stopPoll) {
                     console.log("Stopping polling.");
                 }
