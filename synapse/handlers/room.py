@@ -244,14 +244,16 @@ class MessageHandler(BaseHandler):
                         user_id=user_id,
                         membership_list=[Membership.INVITE, Membership.JOIN])
         for room_info in room_list:
-            if room_info["membership"] == Membership.INVITE:
+            if room_info["membership"] != Membership.JOIN:
                 continue
-
-            event_chunk = yield self.get_messages(user_id=user_id,
-                                                  pagin_config=pagin_config,
-                                                  feedback=feedback,
-                                                  room_id=room_info["room_id"])
-            room_info["messages"] = event_chunk
+            try:
+                event_chunk = yield self.get_messages(user_id=user_id,
+                                                      pagin_config=pagin_config,
+                                                      feedback=feedback,
+                                                      room_id=room_info["room_id"])
+                room_info["messages"] = event_chunk
+            except:
+                pass
         defer.returnValue(room_list)
 
 
