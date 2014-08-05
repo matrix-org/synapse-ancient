@@ -4,6 +4,10 @@ body {
     margin: 0px;
 }
 
+h1 {
+    font-family: Helvetica, Arial, sans-serif;
+}
+
 /*** Overall page layout ***/
 
 .page {
