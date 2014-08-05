@@ -208,7 +208,7 @@ class SynapseCmd(cmd.Cmd):
                 print "Must specify set|get, not %s" % args["action"]
                 return
 
-            path = "/rooms/%s/topic" % args["roomid"]
+            path = "/rooms/%s/topic" % urllib.quote(args["roomid"])
 
             if args["action"].lower() == "set":
                 if "topic" not in args:

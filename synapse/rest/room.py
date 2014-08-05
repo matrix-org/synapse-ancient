@@ -34,6 +34,7 @@ class RoomCreateRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_PUT(self, request, room_id):
         try:
+            room_id = urllib.unquote(room_id)
             auth_user = yield self.auth.get_user_by_req(request)
 
             if not room_id:
@@ -102,7 +103,7 @@ class RoomTopicRestServlet(RestServlet):
         msg_handler = self.handlers.message_handler
         data = yield msg_handler.get_room_data(
                 user_id=user.to_string(),
-                room_id=room_id,
+                room_id=urllib.unquote(room_id),
                 event_type=RoomTopicEvent.TYPE,
                 state_key="",
             )
@@ -120,7 +121,7 @@ class RoomTopicRestServlet(RestServlet):
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
             content=content,
-            room_id=room_id,
+            room_id=urllib.unquote(room_id),
             user_id=user.to_string(),
             )
 
@@ -141,6 +142,7 @@ class RoomMemberRestServlet(RestServlet):
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id, target_user_id):
+        room_id = urllib.unquote(room_id)
         user = yield self.auth.get_user_by_req(request)
 
         handler = self.handlers.room_member_handler
@@ -208,7 +210,7 @@ class MessageRestServlet(RestServlet):
         user = yield self.auth.get_user_by_req(request)
 
         msg_handler = self.handlers.message_handler
-        msg = yield msg_handler.get_message(room_id=room_id,
+        msg = yield msg_handler.get_message(room_id=urllib.unquote(room_id),
                                             sender_id=sender_id,
                                             msg_id=msg_id,
                                             user_id=user.to_string(),
@@ -230,7 +232,7 @@ class MessageRestServlet(RestServlet):
 
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
-            room_id=room_id,
+            room_id=urllib.unquote(room_id),
             user_id=user.to_string(),
             msg_id=msg_id,
             content=content
@@ -260,7 +262,7 @@ class FeedbackRestServlet(RestServlet):
             raise SynapseError(400, "Bad feedback type.")
 
         msg_handler = self.handlers.message_handler
-        feedback = yield msg_handler.get_feedback(room_id=room_id,
+        feedback = yield msg_handler.get_feedback(room_id=urllib.unquote(room_id),
                                             msg_sender_id=msg_sender_id,
                                             msg_id=msg_id,
                                             user_id=user.to_string(),
@@ -288,7 +290,7 @@ class FeedbackRestServlet(RestServlet):
 
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
-            room_id=room_id,
+            room_id=urllib.unquote(room_id),
             msg_sender_id=sender_id,
             msg_id=msg_id,
             user_id=user.to_string(),  # user sending the feedback
@@ -312,7 +314,7 @@ class RoomMemberListRestServlet(RestServlet):
         user = yield self.auth.get_user_by_req(request)
         handler = self.handlers.room_member_handler
         members = yield handler.get_room_members_as_pagination_chunk(
-            room_id=room_id,
+            room_id=urllib.unquote(room_id),
             user_id=user.to_string())
 
         defer.returnValue((200, members))
@@ -329,7 +331,7 @@ class RoomMessageListRestServlet(RestServlet):
         with_feedback = "feedback" in request.args
         handler = self.handlers.message_handler
         msgs = yield handler.get_messages(
-            room_id=room_id,
+            room_id=urllib.unquote(room_id),
             user_id=user.to_string(),
             pagin_config=pagination_config,
             feedback=with_feedback)
