@@ -3,7 +3,14 @@ from twisted.internet import defer
 
 from synapse.api.errors import SynapseError, AuthError
 
+from synapse.api.errors import CodeMessageException
+
 from ._base import BaseHandler
+
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileHandler(BaseHandler):
@@ -39,10 +46,18 @@ class ProfileHandler(BaseHandler):
                 target_user.to_string()
             )
 
-            result = yield self.client.get_json(
-                destination=target_user.domain,
-                path=path
-            )
+            try:
+                result = yield self.client.get_json(
+                    destination=target_user.domain,
+                    path=path
+                )
+            except CodeMessageException as e:
+                if e.code == 404:
+                    defer.return_value(None)
+                else:
+                    logger.exception("Failed to get displayname")
+            except:
+                logger.exception("Failed to get displayname")
 
             defer.returnValue(result["displayname"])
         else:
@@ -82,10 +97,18 @@ class ProfileHandler(BaseHandler):
                 target_user.to_string(),
             )
 
-            result = yield self.client.get_json(
-                destination=destination,
-                path=path
-            )
+            try:
+                result = yield self.client.get_json(
+                    destination=destination,
+                    path=path
+                )
+            except CodeMessageException as e:
+                if e.code == 404:
+                    defer.return_value(None)
+                else:
+                    logger.exception("Failed to get avatar_url")
+            except:
+                logger.exception("Failed to get avatar_url")
 
             defer.returnValue(result["avatar_url"])
         else:

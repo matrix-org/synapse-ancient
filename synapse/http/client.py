@@ -8,6 +8,8 @@ from synapse.http.endpoint import matrix_endpoint
 from synapse.util.async import sleep
 from synapse.util.jsonutil import encode_canonical_json
 
+from synapse.api.errors import CodeMessageException
+
 import json
 import logging
 import urllib
@@ -197,9 +199,8 @@ class TwistedHttpClient(HttpClient):
             logger.error(
                 "Got response %d %s", response.code, response.phrase
             )
-            raise RuntimeError(
-                "Got response %d %s"
-                % (response.code, response.phrase)
+            raise CodeMessageException(
+                response.code, response.phrase
             )
 
         defer.returnValue(response)
