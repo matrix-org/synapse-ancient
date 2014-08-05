@@ -479,6 +479,8 @@ class PresencePushTestCase(unittest.TestCase):
                 set())
         potato_set.add(self.u_apple)
 
+        self.room_members = [self.u_banana, self.u_potato]
+
         yield self.replication.received_edu(
                 "remote", "sy.presence", {
                     "push": [
@@ -491,8 +493,11 @@ class PresencePushTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_apple,
                     observed_user=self.u_potato,
-                    statuscache=self.handler._user_cachemap[self.u_potato]),
-        ])
+                    statuscache=ANY),
+                call(observer_user=self.u_banana,
+                    observed_user=self.u_potato,
+                    statuscache=ANY),
+        ], any_order=True)
 
         state = yield self.handler.get_state(self.u_potato, self.u_apple)
 

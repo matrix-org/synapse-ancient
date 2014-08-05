@@ -456,10 +456,24 @@ class PresenceHandler(BaseHandler):
 
             # TODO(paul): Check also for other rooms the user is a member of
 
-            if user not in self._remote_recvmap:
+            observers = self._remote_recvmap.get(user, set())
+
+            rm_handler = self.homeserver.get_handlers().room_member_handler
+            room_ids = yield rm_handler.get_rooms_for_user(user)
+
+            for room_id in room_ids:
+                members = yield rm_handler.get_room_members(room_id)
+
+                for member in members:
+                    if member == user:
+                        continue
+
+                    if member.is_mine:
+                        observers.add(member)
+
+            if not observers:
                 break
 
-            observers = self._remote_recvmap[user]
             state = dict(push)
             del state["user_id"]
 
