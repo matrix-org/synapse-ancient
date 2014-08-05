@@ -64,7 +64,7 @@ angular.module('LoginController', ['matrixService'])
                 $location.path("rooms");
             },
             function(reason) {
-                $scope.feedback = "Failure: " + reason;
+                $scope.feedback = "Failure: " + reason + " Are you sure your username is correct?";
             });
     };
 }]);
