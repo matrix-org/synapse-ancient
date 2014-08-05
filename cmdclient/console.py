@@ -416,7 +416,7 @@ class SynapseCmd(cmd.Cmd):
 
     def _send_receipt(self, event, feedback_type):
         path = ("/rooms/%s/messages/%s/%s/feedback/%s/%s" %
-               (event["room_id"], event["user_id"], event["msg_id"],
+               (urllib.quote(event["room_id"]), event["user_id"], event["msg_id"],
                 self._usr(), feedback_type))
         data = {}
         reactor.callFromThread(self._run_and_pprint, "PUT", path, data=data,
