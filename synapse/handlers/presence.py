@@ -394,6 +394,10 @@ class PresenceHandler(BaseHandler):
         localusers = set(self._local_pushmap.get(user.localpart, set()))
         remotedomains = set(self._remote_sendmap.get(user.localpart, set()))
 
+        # Reflect users' status changes back to themselves, so UIs look nice
+        # and also user is informed of server-forced pushes
+        localusers.add(user)
+
         rm_handler = self.homeserver.get_handlers().room_member_handler
         room_ids = yield rm_handler.get_rooms_for_user(user)
 

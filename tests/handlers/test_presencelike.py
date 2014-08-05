@@ -148,10 +148,14 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
                 {"observed_user": self.u_clementine, "state": OFFLINE}],
             presence)
 
-        self.mock_update_client.assert_called_with(
-            observer_user=self.u_banana,
-            observed_user=self.u_apple,
-            statuscache=ANY)
+        self.mock_update_client.assert_has_calls([
+            call(observer_user=self.u_apple,
+                observed_user=self.u_apple,
+                statuscache=ANY), # self-reflection
+            call(observer_user=self.u_banana,
+                observed_user=self.u_apple,
+                statuscache=ANY),
+        ], any_order=True)
 
         statuscache = self.mock_update_client.call_args[1]["statuscache"]
         self.assertEquals({"state": ONLINE,
@@ -166,10 +170,14 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
         yield self.handlers.profile_handler.set_displayname(self.u_apple,
                 self.u_apple, "I am an Apple")
 
-        self.mock_update_client.assert_called_with(
-            observer_user=self.u_banana,
-            observed_user=self.u_apple,
-            statuscache=ANY)
+        self.mock_update_client.assert_has_calls([
+            call(observer_user=self.u_apple,
+                observed_user=self.u_apple,
+                statuscache=ANY), # self-reflection
+            call(observer_user=self.u_banana,
+                observed_user=self.u_apple,
+                statuscache=ANY),
+        ], any_order=True)
 
         statuscache = self.mock_update_client.call_args[1]["statuscache"]
         self.assertEquals({"state": ONLINE,
