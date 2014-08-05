@@ -11,7 +11,7 @@ from synapse.handlers.room import RoomMemberHandler, RoomCreationHandler
 from synapse.handlers.profile import ProfileHandler
 from synapse.server import HomeServer
 
-from mock import NonCallableMock
+from mock import Mock, NonCallableMock
 
 import logging
 
@@ -52,6 +52,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         self.notifier = hs.get_notifier()
         self.federation = hs.get_federation()
         self.state_handler = hs.get_state_handler()
+        self.distributor = hs.get_distributor()
         self.hs = hs
 
         self.handlers.room_member_handler = RoomMemberHandler(self.hs)
@@ -113,6 +114,7 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
     def test_simple_join(self):
         room_id = "foo"
         user_id = "@bob:red"
+        user = self.hs.parse_userid(user_id)
         target_user_id = "@bob:red"
         content = {"membership": Membership.JOIN}
 
@@ -141,6 +143,9 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         prev_state.sender = "@foo:red"
         self.datastore.get_room_member.return_value = defer.succeed(prev_state)
 
+        join_signal_observer = Mock()
+        self.distributor.observe("user_joined_room", join_signal_observer)
+
         # Actual invocation
         yield self.room_member_handler.change_membership(event)
 
@@ -161,6 +166,9 @@ class RoomMemberHandlerTestCase(unittest.TestCase):
         )
         self.notifier.on_new_room_event.assert_called_once_with(
                 event, store_id)
+
+        join_signal_observer.assert_called_with(
+                user=user, room_id=room_id)
 
     @defer.inlineCallbacks
     def test_invite_join(self):

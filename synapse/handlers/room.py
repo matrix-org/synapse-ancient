@@ -348,6 +348,9 @@ class RoomMemberHandler(BaseHandler):
 
         self.clock = hs.get_clock()
 
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("user_joined_room")
+
     @defer.inlineCallbacks
     def get_room_members(self, room_id, membership=Membership.JOIN):
         hs = self.hs
@@ -554,6 +557,10 @@ class RoomMemberHandler(BaseHandler):
                     target_host=room_host,
                     content=event.content,
                 )
+
+            user = self.hs.parse_userid(event.user_id)
+            self.distributor.fire("user_joined_room",
+                    user=user, room_id=room_id)
 
         else:
             # This is not a JOIN, so we can handle it normally.
