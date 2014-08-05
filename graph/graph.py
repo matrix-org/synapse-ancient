@@ -90,11 +90,13 @@ def make_graph(pdus, room, filename_prefix):
             prev_state_name = make_name(
                 pdu.get("prev_state_id"), pdu.get("prev_state_origin")
             )
-            state_edge = pydot.Edge(
-                node_map[start_name], node_map[prev_state_name],
-                style='dotted'
-            )
-            graph.add_edge(state_edge)
+
+            if prev_state_name in node_map:
+                state_edge = pydot.Edge(
+                    node_map[start_name], node_map[prev_state_name],
+                    style='dotted'
+                )
+                graph.add_edge(state_edge)
 
     graph.write('%s.dot' % filename_prefix, format='raw', prog='dot')
     graph.write_png("%s.png" % filename_prefix, prog='dot')
