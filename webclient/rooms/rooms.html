@@ -7,6 +7,22 @@
         </form>
     </div>
     <br/>
+
+    <div>
+        <form>
+            <input size="40" ng-model="linkedEmails.linkNewEmail" ng-enter="linkEmail(linkedEmails.linkNewEmail)" />
+            <button ng-disabled="!linkedEmails.linkNewEmail" ng-click="linkEmail(linkedEmails.linkNewEmail)">
+                Link Email
+            </button>    
+        </form>
+        Linked emails:
+        <table>
+            <tr ng-repeat="email in linkedEmails.list">
+                <td>{{email}}</td>
+            </tr>
+        </table>
+    </div>
+    <br/>
     
     <h3>My rooms</h3>
     

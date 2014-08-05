@@ -22,6 +22,11 @@ angular.module('RoomsController', ['matrixService'])
         name: matrixService.config().displayName,
     };
 
+    $scope.linkedEmails = {
+        linkNewEmail: "",
+        emailList: matrixService.config().emailList
+    };
+
     $scope.refresh = function() {
         // List all rooms joined or been invited to
         $scope.rooms = matrixService.rooms();
@@ -94,6 +99,16 @@ angular.module('RoomsController', ['matrixService'])
         );
     };
 
+    $scope.linkEmail = function(email) {
+        matrixService.linkEmail(email).then(
+            function(response) {
+                $scope.feedback = "ACK: " + response;
+            },
+            function(reason) {
+                $scope.feedback = "Can't link email: " + reason;
+            }
+        );
+    };
     
     $scope.refresh();
 }]);

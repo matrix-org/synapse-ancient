@@ -17,6 +17,10 @@ angular.module('matrixService', [])
     var configVersion = 0;
 
     var doRequest = function(method, path, params, data) {
+        return doBaseRequest(config.homeserver, method, path, params, data);
+    };
+
+    var doBaseRequest = function(baseUrl, method, path, params, data) {
 
         // Inject the access token
         if (!params) {
@@ -29,7 +33,7 @@ angular.module('matrixService', [])
         var deferred = $q.defer();
         $http({
             method: method,
-            url: config.homeserver + path,
+            url: baseUrl + path,
             params: params,
             data: data
         })
@@ -202,6 +206,11 @@ angular.module('matrixService', [])
             var path = "/profile/$user_id/" + info_segment;
             path = path.replace("$user_id", userId);
             return doRequest("GET", path);
+        },
+
+        // hit the Identity Server for a 3PID request.
+        linkEmail: function(email) {
+            
         },
         
         /****** Permanent storage of user information ******/
