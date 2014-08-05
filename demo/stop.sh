@@ -1,6 +1,8 @@
 #!/bin/bash
 
-FILES=$(find $DIR -name "*.pid" -type f);
+DIR="$( cd "$( dirname "$0" )" && pwd )"
+
+FILES=$(find "$DIR" -name "*.pid" -type f);
 
 for pid_file in $FILES; do
     pid=$(cat "$pid_file")
