@@ -332,6 +332,10 @@ class RoomCreationHandler(BaseHandler):
 
 
 class RoomMemberHandler(BaseHandler):
+    # TODO(paul): This handler currently contains a messy conflation of
+    #   low-level API that works on UserID objects and so on, and REST-level
+    #   API that takes ID strings and returns pagination chunks. These concerns
+    #   ought to be separated out a lot better.
 
     def __init__(self, hs):
         super(RoomMemberHandler, self).__init__(hs)
@@ -594,6 +598,15 @@ class RoomMemberHandler(BaseHandler):
             is_remote_invite_join = False
 
         defer.returnValue((is_remote_invite_join, room_host))
+
+    @defer.inlineCallbacks
+    def get_rooms_for_user(self, user, membership_list=[Membership.JOIN]):
+        """Returns a list of roomids that the user has any of the given
+        membership states in."""
+        rooms = yield self.store.get_rooms_for_user_where_membership_is(
+                user_id=user.to_string(), membership_list=membership_list)
+
+        defer.returnValue([r["room_id"] for r in rooms])
 
     @defer.inlineCallbacks
     def _do_invite_join_dance(self, room_id, joinee, target_host, content):
