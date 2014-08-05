@@ -16,7 +16,10 @@ class ProfileDisplaynameRestServlet(RestServlet):
     def on_GET(self, request, user_id):
         user = self.hs.parse_userid(user_id)
 
-        displayname = yield self.handlers.profile_handler.get_displayname(user)
+        displayname = yield self.handlers.profile_handler.get_displayname(
+            user,
+            local_only="local_only" in request.args
+        )
 
         defer.returnValue((200, {"displayname": displayname}))
 

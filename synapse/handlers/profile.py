@@ -25,21 +25,29 @@ class ProfileHandler(BaseHandler):
         self.store.create_profile(user.localpart)
 
     @defer.inlineCallbacks
-    def get_displayname(self, target_user):
+    def get_displayname(self, target_user, local_only=False):
         if target_user.is_mine:
             displayname = yield self.store.get_profile_displayname(
                     target_user.localpart)
 
             defer.returnValue(displayname)
-        else:
+        elif not local_ony:
             # TODO(paul): This should use the server-server API to ask another
             # HS. For now we'll just have it use the http client to talk to the
             # other HS's REST client API
+            path = "/profile/%s/displayname&local_only=1" % (
+                target_user.to_string()
+            )
+
             result = yield self.client.get_json(
-                    destination=target_user.domain,
-                    path="/profile/%s/displayname" % target_user.to_string())
+                destination=target_user.domain,
+                path=path
+            )
 
             defer.returnValue(result["displayname"])
+        else:
+             raise SynapseError(400, "User is not hosted on this Home Server")
+
 
     @defer.inlineCallbacks
     def set_displayname(self, target_user, auth_user,
@@ -75,8 +83,9 @@ class ProfileHandler(BaseHandler):
             )
 
             result = yield self.client.get_json(
-                    destination=destination,
-                    path=path)
+                destination=destination,
+                path=path
+            )
 
             defer.returnValue(result["avatar_url"])
         else:
