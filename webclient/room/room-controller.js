@@ -27,6 +27,9 @@ angular.module('RoomController', [])
                 for (var i = 0; i < response.data.chunk.length; i++) {
                     var chunk = response.data.chunk[i];
                     if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
+                        if (chunk.user_id in $scope.members) {
+                            chunk.avatar_url = $scope.members[chunk.user_id].avatar_url;
+                        }
                         $scope.messages.push(chunk);
                     }
                     else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
