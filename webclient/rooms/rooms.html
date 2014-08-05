@@ -4,8 +4,14 @@
         
     <div>
         <form>
-            <input size="40" ng-model="newDisplayName.name" ng-enter="setDisplayName(newDisplayName.name)" />
-            <button ng-disabled="!newDisplayName.name" ng-click="setDisplayName(newDisplayName.name)">Update Name</button>    
+            <input size="40" ng-model="newProfileInfo.name" ng-enter="setDisplayName(newProfileInfo.name)" />
+            <button ng-disabled="!newProfileInfo.name" ng-click="setDisplayName(newProfileInfo.name)">Update Name</button>    
+        </form>
+    </div>
+    <div>
+        <form>
+            <input size="40" ng-model="newProfileInfo.avatar" ng-enter="setAvatar(newProfileInfo.avatar)" />
+            <button ng-disabled="!newProfileInfo.avatar" ng-click="setAvatar(newProfileInfo.avatar)">Update Avatar</button>    
         </form>
     </div>
     <br/>

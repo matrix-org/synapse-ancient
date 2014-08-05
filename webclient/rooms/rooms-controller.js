@@ -18,8 +18,9 @@ angular.module('RoomsController', ['matrixService'])
         room_id: "",
     };
 
-    $scope.newDisplayName = {
+    $scope.newProfileInfo = {
         name: matrixService.config().displayName,
+        avatar: matrixService.config().avatarUrl
     };
 
     $scope.linkedEmails = {
@@ -98,6 +99,23 @@ angular.module('RoomsController', ['matrixService'])
             },
             function(reason) {
                 $scope.feedback = "Can't update display name: " + reason;
+            }
+        );
+    };
+
+    $scope.setAvatar = function(newUrl) {
+        console.log("Updating avatar to "+newUrl);
+        matrixService.setProfilePictureUrl(newUrl).then(
+            function(response) {
+                console.log("Updated avatar");
+                $scope.feedback = "Updated avatar.";
+                var config = matrixService.config();
+                config.avatarUrl = newUrl;
+                matrixService.setConfig(config);
+                matrixService.saveConfig();
+            },
+            function(reason) {
+                $scope.feedback = "Can't update avatar: " + reason;
             }
         );
     };
