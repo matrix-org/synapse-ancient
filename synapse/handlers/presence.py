@@ -550,7 +550,7 @@ class PresenceStreamData(StreamData):
             data = [x[1].make_event(user=x[0]) for x in updates]
             return ((data, latest_serial))
         else:
-            return (([], 0))  # TODO(paul): is 0 correct?
+            return (([], self.presence._user_cachemap_latest_serial))
 
     def max_token(self):
         return self.presence._user_cachemap_latest_serial
