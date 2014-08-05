@@ -17,16 +17,16 @@ angular.module('matrixService', [])
     var configVersion = 0;
 
     var doRequest = function(method, path, params, data) {
-        return doBaseRequest(config.homeserver, method, path, params, data);
-    };
-
-    var doBaseRequest = function(baseUrl, method, path, params, data) {
-
         // Inject the access token
         if (!params) {
             params = {};
         }
         params.access_token = config.access_token;
+
+        return doBaseRequest(config.homeserver, method, path, params, data, undefined);
+    };
+
+    var doBaseRequest = function(baseUrl, method, path, params, data, headers) {
 
         // Do not directly return the $http instance but return a promise
         // with enriched or cleaned information
@@ -35,7 +35,8 @@ angular.module('matrixService', [])
             method: method,
             url: baseUrl + path,
             params: params,
-            data: data
+            data: data,
+            headers: headers
         })
         .success(function(data, status, headers, config) {
             // @TODO: We could detect a bad access token here and make an automatic logout
@@ -212,7 +213,9 @@ angular.module('matrixService', [])
         linkEmail: function(email) {
             var path = "/matrix/identity/api/v1/validate/email/requestToken"
             var data = "clientSecret=abc123&email=" + encodeURIComponent(email);
-            return doBaseRequest(config.identityServer, "POST", path, undefined, data); 
+            var headers = {};
+            headers["Content-Type"] = "application/x-www-form-urlencoded";
+            return doBaseRequest(config.identityServer, "POST", path, {}, data, headers); 
         },
         
         /****** Permanent storage of user information ******/
