@@ -1,41 +1,181 @@
+body {
+    font-family: "Myriad Pro", "Myriad", Helvetica, Arial, sans-serif;
+    font-size: 12pt;
+    margin: 0px;
+}
+
+/*** Overall page layout ***/
+
+.page {
+    max-width: 1280px;
+    margin: auto;
+    margin-bottom: 80px ! important;
+}
+
+.roomName {
+    text-align: right;
+    font-size: 16pt;
+    margin-right: 20px;
+    margin-bottom: 10px;
+}
+
+.controlPanel {
+    position: fixed;
+    bottom: 0px;
+    width: 100%;
+    background-color: #f8f8f8;
+    border-top: #aaa 1px solid;
+}
+
+.controls {
+    max-width: 1280px;
+    padding: 12px;
+    margin: auto;
+}
+
+.inputBarTable {
+    width: 100%;
+}
+
+.inputBarTable tr td {
+    padding: 4px;
+}
+
+.mainInput {
+    width: 100%;
+}
+
+/*** Participant list ***/
+
+.usersTable {
+    float: right;
+    width: 120px;
+    margin-right: 20px;
+    border-collapse: collapse;
+}
+
+.usersTable td {
+    padding: 0px;
+}
+
+.userAvatar {
+    line-height: 0;
+    width: 80px;
+    height: 80px;
+    position: relative;
+}
+
+.userAvatar .userAvatarImage {
+    position: absolute;
+    top: 0px;
+}
+
+.userAvatar .userAvatarGradient {
+    position: absolute;
+    bottom: 0px;
+}
+
+.userAvatar .userName {
+    position: absolute;
+    color: #fff;
+    margin: 2px;
+    bottom: 6px;
+    font-size: 8pt;
+}
+
+.userPresence {
+    text-align: center;
+    font-size: 8pt;
+    color: #fff;
+    background-color: #aaa;
+    border-bottom: 1px #ddd solid;
+}
+
+.online {
+    background-color: #38AF00 ! important;
+}
+
+
+/*** Message table ***/
+
+.messageTable {
+    border-collapse: collapse;
+    width: 85%;
+}
+        
+.messageTable td {
+    padding: 0px;
+}
+
+.leftBlock {
+    width: 1px;
+    vertical-align: top;
+    background-color: #fff;
+    color: #888;
+    font-weight: medium;
+    font-size: 8pt;
+    text-align: right;
+    border-top: 1px #ddd solid;
+}
+
+.rightBlock {
+    width: 32px;
+    background-color: #fff;
+    color: #888;
+    line-height: 0;
+    vertical-align: top;
+}        
+
+.sender, .timestamp {
+    padding-right: 1em;
+    padding-left: 1em;
+    padding-top: 3px;
+}
+
+.sender {
+    margin-bottom: -3px;
+}
+
+.avatar {
+    width: 48px;
+    text-align: right;
+    vertical-align: top;
+    line-height: 0;
+}
+        
+.text {
+    background-color: #eee;
+    border: 1px solid #d8d8d8;
+    height: 32px;
+    display: inline-table;
+    max-width: 90%;
+}
+
+.bubble {
+    padding: 6px;
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+.mine {
+    text-align: right;
+}
+
+.mine .text .bubble {
+    background-color: #ccc ! important;
+}
+
+/******************************/
 
 .header {
+    margin-top: 12px ! important;
+    max-width: 1280px;
+    margin: auto;
     height: 60px;
 }
 
 .header-buttons {
     float: right;
-}
-
-.message {
-    clear: both;
-}
-
-.message .sender {
-    float: left;
-    width: 22em;
-    text-align: right;
-    margin-right: 1em;
-}
-
-.message .body {
-    margin-left: 22em;
-}
-
-.message_table_wrapper {
-    margin-bottom: 100px;
-    float: left;
-}
-
-.member_list {
-    float: right;
-    top: 0;
-    right: 0;
-    bottom: 100px;
-    position: fixed;
-    width: 15em;
-    overflow: scroll;
-    background: #e0e0e0;
 }
 
 .text_entry_section {
