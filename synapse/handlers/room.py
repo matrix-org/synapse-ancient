@@ -657,7 +657,10 @@ class RoomMemberHandler(BaseHandler):
 
         membership_json = {
             "msgtype": u"sy.text",
-            "body": body
+            "body": body,
+            "membership_source": source,
+            "membership_target": target,
+            "membership": membership,
         }
 
         msg_id = "m%s" % int(self.clock.time_msec())
