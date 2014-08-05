@@ -142,9 +142,6 @@ class PresenceHandler(BaseHandler):
         now_online = state["state"] != PresenceState.OFFLINE
         was_polling = target_user in self._user_cachemap
 
-        if target_user not in self._user_cachemap:
-            self._user_cachemap[target_user] = UserPresenceCache()
-
         if now_online and not was_polling:
             self.start_polling_presence(target_user, state=state)
         elif not now_online and was_polling:
@@ -158,6 +155,9 @@ class PresenceHandler(BaseHandler):
             del self._user_cachemap[target_user]
 
     def changed_presencelike_data(self, user, state):
+        if user not in self._user_cachemap:
+            self._user_cachemap[user] = UserPresenceCache()
+
         statuscache = self._user_cachemap[user]
 
         self._user_cachemap_latest_serial += 1
