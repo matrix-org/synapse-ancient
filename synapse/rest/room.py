@@ -311,7 +311,7 @@ class RoomMemberListRestServlet(RestServlet):
         # TODO support Pagination stream API (limit/tokens)
         user = yield self.auth.get_user_by_req(request)
         handler = self.handlers.room_member_handler
-        members = yield handler.get_room_members(
+        members = yield handler.get_room_members_as_pagination_chunk(
             room_id=room_id,
             user_id=user.to_string())
 

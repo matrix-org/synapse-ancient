@@ -343,8 +343,8 @@ class RoomMemberHandler(BaseHandler):
         self.clock = hs.get_clock()
 
     @defer.inlineCallbacks
-    def get_room_members(self, room_id=None, user_id=None, limit=0,
-                         start_tok=None, end_tok=None):
+    def get_room_members_as_pagination_chunk(self, room_id=None, user_id=None,
+            limit=0, start_tok=None, end_tok=None):
         """Retrieve a list of room members in the room.
 
         Args:
