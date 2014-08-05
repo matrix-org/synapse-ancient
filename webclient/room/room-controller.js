@@ -28,6 +28,9 @@ angular.module('RoomController', [])
                     var chunk = response.data.chunk[i];
                     if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
                         $scope.messages.push(chunk);
+                        $timeout(function() {
+                            window.scrollTo(0, document.body.scrollHeight);
+                        },0);
                     }
                     else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
                         updateMemberList(chunk);
