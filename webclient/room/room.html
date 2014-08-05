@@ -13,7 +13,7 @@
                 <img class="userAvatarGradient" src="img/gradient.png" width="80" height="24"/>
                 <div class="userName">{{ info.displayname || name }}</div>
             </td>
-            <td class="userPresence" ng-class="info.presenceState === 'online' ? 'online' : ''" />
+            <td class="userPresence" ng-class="info.presenceState === 'online' ? 'online' : (info.presenceState === 'away' ? 'away' : '')" />
     </table>
     
     <table class="messageTable">

@@ -80,6 +80,7 @@ angular.module('RoomController', [])
             return;
         }
         var ONLINE = 2;
+        var AWAY = 1;
         var OFFLINE = 0;
         var member = $scope.members[chunk.content.user_id];
         if (chunk.content.state === ONLINE) {
@@ -87,6 +88,9 @@ angular.module('RoomController', [])
         }
         else if (chunk.content.state === OFFLINE) {
             member.presenceState = "offline";
+        }
+        else if (chunk.content.state === AWAY) {
+            member.presenceState = "away";
         }
     }
 
