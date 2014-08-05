@@ -1,6 +1,6 @@
 angular.module('RoomController', [])
-.controller('RoomController', ['$scope', '$http', '$timeout', '$routeParams', 'matrixService',
-                               function($scope, $http, $timeout, $routeParams, matrixService) {
+.controller('RoomController', ['$scope', '$http', '$timeout', '$routeParams', '$location', 'matrixService',
+                               function($scope, $http, $timeout, $routeParams, $location, matrixService) {
    'use strict';
     $scope.room_id = $routeParams.room_id;
     $scope.state = {
@@ -20,8 +20,6 @@ angular.module('RoomController', [])
                 "timeout": 25000
             }})
             .then(function(response) {
-                $scope.feedback = "Success";
-
                 $scope.state.events_from = response.data.end;
 
                 for (var i = 0; i < response.data.chunk.length; i++) {
@@ -40,7 +38,7 @@ angular.module('RoomController', [])
                 $timeout(shortPoll, 0);
             }, function(response) {
                 $scope.feedback = "Can't stream: " + response.data;
-                $timeout(shortPoll, 1000);
+                $timeout(shortPoll, 25000);
             });
     };
 
@@ -102,7 +100,6 @@ angular.module('RoomController', [])
         // Send the text message
         matrixService.sendTextMessage($scope.room_id, $scope.textInput).then(
             function() {
-                $scope.feedback = "Sent successfully";
                 $scope.textInput = "";
             },
             function(reason) {
@@ -141,10 +138,23 @@ angular.module('RoomController', [])
         
         matrixService.invite($scope.room_id, user_id).then(
             function() {
+                console.log("Invited.");
                 $scope.feedback = "Request for invitation succeeds";
             },
             function(reason) {
                 $scope.feedback = "Failure: " + reason;
+            });
+    };
+
+    $scope.leaveRoom = function() {
+        
+        matrixService.leave($scope.room_id).then(
+            function(response) {
+                console.log("Left room ");
+                $location.path("rooms");
+            },
+            function(reason) {
+                $scope.feedback = "Failed to leave room: " + reason;
             });
     };
 }]);

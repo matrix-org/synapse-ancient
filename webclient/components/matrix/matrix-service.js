@@ -126,6 +126,21 @@ angular.module('matrixService', [])
             });
         },
 
+        // Leaves a room
+        leave: function(room_id) {
+            // The REST path spec
+            var path = "/rooms/$room_id/members/$user_id/state";
+
+            // Like the cmd client, escape room ids
+            room_id = encodeURIComponent(room_id);
+
+            // Customize it
+            path = path.replace("$room_id", room_id);
+            path = path.replace("$user_id", config.user_id);
+
+            return doRequest("DELETE", path, undefined, undefined);
+        },
+
         sendMessage: function(room_id, msg_id, content) {
             // The REST path spec
             var path = "/rooms/$room_id/messages/$from/$msg_id";
