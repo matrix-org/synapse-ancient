@@ -23,9 +23,11 @@ angular.module('RoomsController', ['matrixService'])
     };
 
     $scope.linkedEmails = {
-        linkNewEmail: "",
-        pendingLinkInfo: {},
-        linkedEmailList: matrixService.config().emailList
+        linkNewEmail: "", // the email entry box
+        emailBeingAuthed: undefined, // to populate verification text
+        authTokenId: undefined, // the token id from the IS
+        emailCode: "", // the code entry box
+        linkedEmailList: matrixService.config().emailList // linked email list
     };
 
     $scope.refresh = function() {
@@ -104,8 +106,9 @@ angular.module('RoomsController', ['matrixService'])
         matrixService.linkEmail(email).then(
             function(response) {
                 if (response.success === true) {
-                    $scope.linkedEmails.pendingLinkInfo[email] = response.tokenId;
+                    $scope.linkedEmails.authTokenId = response.tokenId;
                     $scope.emailFeedback = "You have been sent an email.";
+                    $scope.linkedEmails.emailBeingAuthed = email;
                 }
                 else {
                     $scope.emailFeedback = "Failed to send email.";
@@ -118,15 +121,33 @@ angular.module('RoomsController', ['matrixService'])
     };
 
     $scope.submitEmailCode = function(code) {
-        var emailToBeAuthed = $scope.linkedEmails.linkNewEmail;
-        var tokenId = $scope.linkedEmails.pendingLinkInfo[emailToBeAuthed];
+        var tokenId = $scope.linkedEmails.authTokenId;
         if (tokenId === undefined) {
             $scope.emailFeedback = "You have not requested a code with this email.";
             return;
         }
-        matrixService.authEmail(emailToBeAuthed, tokenId, code).then(
+        matrixService.authEmail(matrixService.config().user_id, tokenId, code).then(
             function(response) {
-                $scope.emailFeedback = "Got: " + JSON.stringify(response);
+                if ("success" in response && response.success === false) {
+                    $scope.emailFeedback = "Failed to authenticate email.";
+                    return;
+                }
+                var config = matrixService.config();
+                var emailList = {};
+                if ("emailList" in config) {
+                    emailList = config.emailList;
+                }
+                emailList[response.address] = response;
+                // save the new email list
+                config.emailList = emailList;
+                matrixService.setConfig(config);
+                matrixService.saveConfig();
+                // invalidate the email being authed and update UI.
+                $scope.linkedEmails.emailBeingAuthed = undefined;
+                $scope.emailFeedback = "";
+                $scope.linkedEmails.linkedEmailList = emailList;
+                $scope.linkedEmails.linkNewEmail = "";
+                $scope.linkedEmails.emailCode = "";
             },
             function(reason) {
                 $scope.emailFeedback = "Failed to auth email: " + reason;

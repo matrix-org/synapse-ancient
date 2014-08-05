@@ -16,7 +16,9 @@
             </button>
             {{ emailFeedback }}    
         </form>
-        <form>
+        <form ng-hide="!linkedEmails.emailBeingAuthed">
+            Enter validation token for {{ linkedEmails.emailBeingAuthed }}:
+            <br />
             <input size="20" ng-model="linkedEmails.emailCode" ng-enter="submitEmailCode(linkedEmails.emailCode)" />
             <button ng-disabled="!linkedEmails.emailCode || !linkedEmails.linkNewEmail" ng-click="submitEmailCode(linkedEmails.emailCode)">
                 Submit Code
@@ -24,8 +26,8 @@
         </form>
         Linked emails:
         <table>
-            <tr ng-repeat="email in linkedEmails.linkedEmailList">
-                <td>{{email}}</td>
+            <tr ng-repeat="(address, info) in linkedEmails.linkedEmailList">
+                <td>{{address}}</td>
             </tr>
         </table>
     </div>
