@@ -381,12 +381,16 @@ class ReplicationLayer(object):
                     if not exists:
                         logger.debug("Requesting pdu %s %s", pdu_id, origin)
 
-                        yield self.get_pdu(
-                            pdu.origin,
-                            pdu_id=pdu_id,
-                            pdu_origin=origin
-                        )
-                        logger.debug("Processed pdu %s %s", pdu_id, origin)
+                        try:
+                            yield self.get_pdu(
+                                pdu.origin,
+                                pdu_id=pdu_id,
+                                pdu_origin=origin
+                            )
+                            logger.debug("Processed pdu %s %s", pdu_id, origin)
+                        except:
+                            # TODO(erikj): Do some more intelligent retries.
+                            logger.exception("Failed to get PDU")
 
         # Persist the Pdu, but don't mark it as processed yet.
         yield self.pdu_actions.persist_received(pdu)
