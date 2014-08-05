@@ -343,10 +343,11 @@ class RoomMemberHandler(BaseHandler):
         self.clock = hs.get_clock()
 
     @defer.inlineCallbacks
-    def get_room_members(self, room_id):
+    def get_room_members(self, room_id, membership=Membership.JOIN):
         hs = self.hs
 
-        memberships = yield self.store.get_room_members(room_id=room_id)
+        memberships = yield self.store.get_room_members(room_id=room_id,
+                membership=membership)
 
         defer.returnValue([hs.parse_userid(m.user_id) for m in memberships])
 
