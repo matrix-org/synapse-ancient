@@ -31,11 +31,11 @@ class ProfileHandler(BaseHandler):
                     target_user.localpart)
 
             defer.returnValue(displayname)
-        elif not local_ony:
+        elif not local_only:
             # TODO(paul): This should use the server-server API to ask another
             # HS. For now we'll just have it use the http client to talk to the
             # other HS's REST client API
-            path = "/profile/%s/displayname&local_only=1" % (
+            path = "/profile/%s/displayname?local_only=1" % (
                 target_user.to_string()
             )
 

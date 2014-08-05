@@ -87,7 +87,7 @@ class ProfileTestCase(unittest.TestCase):
         self.assertEquals(displayname, "Alice")
         self.mock_client.get_json.assert_called_with(
                 destination="remote",
-                path="/profile/@alice:remote/displayname")
+                path="/profile/@alice:remote/displayname?local_only=1")
 
     @defer.inlineCallbacks
     def test_get_my_avatar(self):
