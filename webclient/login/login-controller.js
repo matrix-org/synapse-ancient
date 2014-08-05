@@ -6,14 +6,16 @@ angular.module('LoginController', ['matrixService'])
     $scope.account = {
         homeserver: "http://localhost:8080", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
         user_name_or_id: "",
-        access_token: ""
+        access_token: "",
+        identityServer: "http://localhost:8090"
     };
 
     $scope.register = function() {
 
-        // Set the Home server URL
+        // Set the urls
         matrixService.setConfig({
-            homeserver: $scope.account.homeserver
+            homeserver: $scope.account.homeserver,
+            identityServer: $scope.account.identityServer
         });
 
         matrixService.register($scope.account.user_name_or_id).then(

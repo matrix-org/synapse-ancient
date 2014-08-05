@@ -210,7 +210,9 @@ angular.module('matrixService', [])
 
         // hit the Identity Server for a 3PID request.
         linkEmail: function(email) {
-            
+            var path = "/matrix/identity/api/v1/validate/email/requestToken"
+            var data = "clientSecret=abc123&email=" + encodeURIComponent(email);
+            return doBaseRequest(config.identityServer, "POST", path, undefined, data); 
         },
         
         /****** Permanent storage of user information ******/

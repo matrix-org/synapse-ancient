@@ -7,6 +7,8 @@
         
         <input id="homeserver" size="70" type="text" ng-model="account.homeserver" placeholder="Home server URL (ex: http://localhost:8080)"/><br />
 
+        <input id="identityServer" size="70" type="text" ng-model="account.identityServer" placeholder="Identity server URL (ex: http://localhost:8090)"/><br />
+
         <!-- New user registration -->
         <div ng-hide="0 === account.user_name_or_id.indexOf('@')">
             <br/>
@@ -18,7 +20,7 @@
         <div ng-hide="0 !== account.user_name_or_id.indexOf('@')">
             <input id="accessToken" size="70" type="text" ng-model="account.access_token" placeholder="Enter this access token of this registered user"/><br />
             <br/>
-            <button ng-click="login()" ng-disabled="!account.access_token || !account.homeserver">Login</button>
+            <button ng-click="login()" ng-disabled="!account.access_token || !account.homeserver || !account.identityServer">Login</button>
         </div>
        
     </form>
