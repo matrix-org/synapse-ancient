@@ -45,14 +45,14 @@ angular.module('RoomController', [])
 
     var updateMemberList = function(chunk) {
         var isNewMember = !(chunk.target_user_id in $scope.members);
-        $scope.members[chunk.target_user_id] = chunk;
         if (isNewMember) {
+            $scope.members[chunk.target_user_id] = chunk;
             // get their display name and profile picture and set it to their
             // member entry in $scope.members. We HAVE to use $timeout with 0 delay 
             // to make this function run AFTER the current digest cycle, else the 
             // response may update a STALE VERSION of the member list (manifesting
             // as no member names appearing, or appearing sporadically).
-            $timeout(function() {
+            $scope.$evalAsync(function() {
                 matrixService.getDisplayName(chunk.target_user_id).then(
                     function(response) {
                         var member = $scope.members[chunk.target_user_id];
@@ -71,7 +71,12 @@ angular.module('RoomController', [])
                          }
                     }
                 );
-            }, 0);
+            });
+        }
+        else {
+            // selectively update membership else it will nuke the picture and displayname too :/
+            var member = $scope.members[chunk.target_user_id];
+            member.content.membership = chunk.content.membership;
         }
     }
 
