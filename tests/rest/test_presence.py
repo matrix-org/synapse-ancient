@@ -215,7 +215,12 @@ class PresenceEventStreamTestCase(unittest.TestCase):
 
         # We've forced there to be only one data stream so the tokens will
         # all be ours
-        self.assertEquals({"start": "0", "end": "1", "chunk": []}, response)
+
+        # I'll already get my own presence state change
+        self.assertEquals({"start": "0", "end": "1", "chunk": [
+            {"type": "sy.presence",
+             "content": {"user_id": "@apple:test", "state": 2}},
+        ]}, response)
 
         self.mock_datastore.set_presence_state.return_value = defer.succeed(
                 {"state": ONLINE})
@@ -226,11 +231,10 @@ class PresenceEventStreamTestCase(unittest.TestCase):
                 state={"state": ONLINE})
 
         (code, response) = yield self.mock_server.trigger("GET",
-                "/events?timeout=0", None)
+                "/events?from=1&timeout=0", None)
 
-        # Two presence events happened, but I can only see one
         self.assertEquals(200, code)
-        self.assertEquals({"start": "0", "end": "2", "chunk": [
+        self.assertEquals({"start": "1", "end": "2", "chunk": [
             {"type": "sy.presence",
              "content": {"user_id": "@banana:test", "state": 2}},
         ]}, response)
