@@ -124,7 +124,14 @@ angular.module('RoomsController', ['matrixService'])
             $scope.emailFeedback = "You have not requested a code with this email.";
             return;
         }
-        $scope.emailFeedback = "Doing stuff.";
+        matrixService.authEmail(emailToBeAuthed, tokenId, code).then(
+            function(response) {
+                $scope.emailFeedback = "Got: " + JSON.stringify(response);
+            },
+            function(reason) {
+                $scope.emailFeedback = "Failed to auth email: " + reason;
+            }
+        );
     };
     
     $scope.refresh();

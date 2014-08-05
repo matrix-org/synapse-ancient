@@ -217,6 +217,14 @@ angular.module('matrixService', [])
             headers["Content-Type"] = "application/x-www-form-urlencoded";
             return doBaseRequest(config.identityServer, "POST", path, {}, data, headers); 
         },
+
+        authEmail: function(email, tokenId, code) {
+            var path = "/matrix/identity/api/v1/validate/email/submitToken";
+            var data = "token="+code+"&mxId="+encodeURIComponent(email)+"&tokenId="+tokenId;
+            var headers = {};
+            headers["Content-Type"] = "application/x-www-form-urlencoded";
+            return doBaseRequest(config.identityServer, "POST", path, {}, data, headers); 
+        },
         
         /****** Permanent storage of user information ******/
         
