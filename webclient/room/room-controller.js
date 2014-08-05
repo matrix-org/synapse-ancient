@@ -99,18 +99,30 @@ angular.module('RoomController', [])
             console.log("updatePresence: Unknown member for chunk " + JSON.stringify(chunk));
             return;
         }
-        var ONLINE = 2;
-        var AWAY = 1;
-        var OFFLINE = 0;
         var member = $scope.members[chunk.content.user_id];
-        if (chunk.content.state === ONLINE) {
-            member.presenceState = "online";
+
+        if ("state" in chunk.content) {
+            var ONLINE = 2;
+            var AWAY = 1;
+            var OFFLINE = 0;
+            if (chunk.content.state === ONLINE) {
+                member.presenceState = "online";
+            }
+            else if (chunk.content.state === OFFLINE) {
+                member.presenceState = "offline";
+            }
+            else if (chunk.content.state === AWAY) {
+                member.presenceState = "away";
+            }
         }
-        else if (chunk.content.state === OFFLINE) {
-            member.presenceState = "offline";
+
+        // this may also contain a new display name or avatar url, so check.
+        if ("displayname" in chunk.content) {
+            member.displayname = chunk.content.displayname;
         }
-        else if (chunk.content.state === AWAY) {
-            member.presenceState = "away";
+
+        if ("avatar_url" in chunk.content) {
+            member.avatar_url = chunk.content.avatar_url;
         }
     }
 
