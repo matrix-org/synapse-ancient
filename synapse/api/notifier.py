@@ -65,7 +65,18 @@ class Notifier(object):
             user_id
         )
 
-        event_listener = self.stored_event_listeners.pop(user_id)
+        stream_ids = list(self.stored_event_listeners[user_id])
+        for stream_id in stream_ids:
+            self._notify_and_callback_stream(user_id, stream_id, event_data,
+                                    stream_type, store_id)
+
+        if not self.stored_event_listeners[user_id]:
+            del self.stored_event_listeners[user_id]
+
+    def _notify_and_callback_stream(self, user_id, stream_id, event_data, 
+                                    stream_type, store_id):
+
+        event_listener = self.stored_event_listeners[user_id].pop(stream_id)
         return_event_object = {
             k: event_listener[k] for k in ["start", "chunk", "end"]
         }
@@ -91,33 +102,41 @@ class Notifier(object):
             current_token
         )
 
-    def store_events_for(self, user_id=None, from_tok=None):
+    def store_events_for(self, user_id=None, stream_id=None, from_tok=None):
         """Store all incoming events for this user. This should be paired with
         get_events_for to return chunked data.
 
         Args:
             user_id (str): The user to monitor incoming events for.
+            stream (object): The stream that is receiving events
             from_tok (str): The token to monitor incoming events from.
         """
-        self.stored_event_listeners[user_id] = {
+        event_listener = {
             "start": from_tok,
             "chunk": [],
             "end": from_tok,
             "defer": defer.Deferred(),
         }
 
-    def purge_events_for(self, user_id=None):
+        if user_id not in self.stored_event_listeners:
+            self.stored_event_listeners[user_id] = {stream_id: event_listener}
+        else:
+            self.stored_event_listeners[user_id][stream_id] = event_listener
+
+    def purge_events_for(self, user_id=None, stream_id=None):
         """Purges any stored events for this user.
 
         Args:
             user_id (str): The user to purge stored events for.
         """
         try:
-            self.stored_event_listeners.pop(user_id, None)
+            del self.stored_event_listeners[user_id][stream_id]
+            if not self.stored_event_listeners[user_id]:
+                del self.stored_event_listeners[user_id]
         except KeyError:
             pass
 
-    def get_events_for(self, user_id=None, timeout=0):
+    def get_events_for(self, user_id=None, stream_id=None, timeout=0):
         """Retrieve stored events for this user, waiting if necessary.
 
         It is advisable to wrap this call in a maybeDeferred.
@@ -132,18 +151,18 @@ class Notifier(object):
         """
         logger.debug("%s is listening for events." % user_id)
 
-        if len(self.stored_event_listeners[user_id]["chunk"]) > 0:
+        if len(self.stored_event_listeners[user_id][stream_id]["chunk"]) > 0:
             logger.debug("%s returning existing chunk." % user_id)
-            return self.stored_event_listeners[user_id]
+            return self.stored_event_listeners[user_id][stream_id]
 
-        reactor.callLater((timeout / 1000.0), self._timeout, user_id)
-        return self.stored_event_listeners[user_id]["defer"]
+        reactor.callLater((timeout / 1000.0), self._timeout, user_id, stream_id)
+        return self.stored_event_listeners[user_id][stream_id]["defer"]
 
-    def _timeout(self, user_id):
+    def _timeout(self, user_id, stream_id):
         try:
             # We remove the event_listener from the map so that we can't
             # resolve the deferred twice.
-            event_listener = self.stored_event_listeners.pop(user_id)
+            event_listener = self.stored_event_listeners[user_id].pop(stream_id)
             event_listener["defer"].callback(None)
             logger.debug("%s event listening timed out." % user_id)
         except KeyError:

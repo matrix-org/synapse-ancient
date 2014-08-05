@@ -90,8 +90,11 @@ class EventStreamHandler(BaseHandler):
             # fix unknown tokens to known tokens
             pagin_config = yield event_stream.fix_tokens(pagin_config)
 
+            stream_id = object()
+
             # register interest in receiving new events
             self.notifier.store_events_for(user_id=auth_user_id,
+                                           stream_id=stream_id,
                                            from_tok=pagin_config.from_tok)
 
             # see if we can grab a chunk now
@@ -103,6 +106,7 @@ class EventStreamHandler(BaseHandler):
                 results = yield defer.maybeDeferred(
                                     self.notifier.get_events_for,
                                     user_id=auth_user_id,
+                                    stream_id=stream_id,
                                     timeout=timeout
                                 )
                 if results:
@@ -111,7 +115,8 @@ class EventStreamHandler(BaseHandler):
             defer.returnValue(data_chunk)
         finally:
             # cleanup
-            self.notifier.purge_events_for(user_id=auth_user_id)
+            self.notifier.purge_events_for(user_id=auth_user_id, 
+                                           stream_id=stream_id)
 
             self._streams_per_user[auth_user] -= 1
             if not self._streams_per_user[auth_user]:
