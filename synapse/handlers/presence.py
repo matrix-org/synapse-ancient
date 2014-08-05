@@ -391,8 +391,8 @@ class PresenceHandler(BaseHandler):
 
         logger.debug("Pushing presence update from %s", user)
 
-        localusers = self._local_pushmap.get(user.localpart, set())
-        remotedomains = self._remote_sendmap.get(user.localpart, set())
+        localusers = set(self._local_pushmap.get(user.localpart, set()))
+        remotedomains = set(self._remote_sendmap.get(user.localpart, set()))
 
         rm_handler = self.homeserver.get_handlers().room_member_handler
         room_ids = yield rm_handler.get_rooms_for_user(user)
@@ -454,7 +454,7 @@ class PresenceHandler(BaseHandler):
 
             logger.debug("Incoming presence update from %s", user)
 
-            observers = self._remote_recvmap.get(user, set())
+            observers = set(self._remote_recvmap.get(user, set()))
 
             rm_handler = self.homeserver.get_handlers().room_member_handler
             room_ids = yield rm_handler.get_rooms_for_user(user)
