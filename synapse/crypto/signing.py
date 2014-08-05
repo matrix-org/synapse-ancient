@@ -2,6 +2,8 @@
 from synapse.util.jsonutil import encode_canonical_json
 from synapse.util.base64util import encode_base64, decode_base64
 
+from nacl.exceptions import BadSignatureError
+
 
 def sign_json(json_object, signature_name, signing_key):
     """Sign the JSON object. Stores the signature in json_object["signatures"].
@@ -68,6 +70,6 @@ def verify_signed_json(json_object, signature_name, verify_key):
 
     try:
         verify_key.verify(message, signature)
-    except:
+    except BadSignatureError:
         raise InvalidSignature(
             "Forged or corrupt signature for %s " % signature_name)

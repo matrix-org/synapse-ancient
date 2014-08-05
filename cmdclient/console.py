@@ -12,9 +12,22 @@ import sys
 import time
 import urllib
 import urlparse
+import os
+
+import nacl.signing
+import nacl.encoding
+
+# XXX: Need to split out synapse utils
+sydir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, sydir)
+
+import synapse.crypto.signing
 
 CONFIG_JSON = "cmdclient_config.json"
 
+TRUSTED_ID_SERVERS = [
+    'localhost:8001'
+]
 
 class SynapseCmd(cmd.Cmd):
 
@@ -235,21 +248,51 @@ class SynapseCmd(cmd.Cmd):
             print e
 
     @defer.inlineCallbacks
-    def _do_invite(self, roomid, userid):
-        if (not userid.startswith('@') and
+    def _do_invite(self, roomid, userstring):
+        if (not userstring.startswith('@') and
                     self._is_on("complete_usernames")):
             url = self._identityServerUrl()+"/matrix/identity/api/v1/lookup"
 
-            json_res = yield self.http_client.do_request("GET", url, qparams={'medium':'email','address':userid})
+            json_res = yield self.http_client.do_request("GET", url, qparams={'medium':'email','address':userstring})
 
-            if 'mxid' in json_res:
-                # XXX: Check the sig!
-                print "Resolved 3pid %s to %s" % (userid, json_res['mxid'])
-                user_id = json_res['mxid']
-            else:
-                user_id = "@" + args["userid"] + ":" + self._domain()
+            mxid = None
 
-            self._do_membership_change(roomid, "invite", user_id)
+            if 'mxid' in json_res and 'signatures' in json_res:
+                url = self._identityServerUrl()+"/matrix/identity/api/v1/pubkey/ed25519"
+
+                pubKey = None
+                pubKeyObj = yield self.http_client.do_request("GET", url)
+                if 'public_key' in pubKeyObj:
+                    pubKey = nacl.signing.VerifyKey(pubKeyObj['public_key'], encoder=nacl.encoding.HexEncoder)
+                else:
+                    print "No public key found in pubkey response!"
+
+                sigValid = False
+
+                if pubKey:
+                    for signame in json_res['signatures']:
+                        if signame not in TRUSTED_ID_SERVERS:
+                            print "Ignoring signature from untrusted server %s" % (signame)
+                        else:
+                            try:
+                                synapse.crypto.signing.verify_signed_json(json_res, signame, pubKey)
+                                sigValid = True
+                                print "Mapping %s -> %s correctly signed by %s" % (userstring, json_res['mxid'], signame)
+                                break
+                            except synapse.crypto.signing.InvalidSignature as e:
+                                print "Invalid signature from %s" % (signame)
+                                print e
+
+                if sigValid:
+                    print "Resolved 3pid %s to %s" % (userstring, json_res['mxid'])
+                    mxid = json_res['mxid']
+                else:
+                    print "Got association for %s but couldn't verify signature" % (userstring)
+
+            if not mxid:
+                mxid = "@" + userstring + ":" + self._domain()
+
+            self._do_membership_change(roomid, "invite", mxid)
 
     def do_leave(self, line):
         """Leaves a room: "leave <roomid>" """
