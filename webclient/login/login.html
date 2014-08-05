@@ -1,33 +1,48 @@
 <div ng-controller="LoginController" class="login">
     <div class="page">
+
+    {{ feedback }}
         
-    <h3>Login:</h3>
+    <h3>Register for an account:</h3>
     <form novalidate>
-        
-        <input id="user_name_or_id" size="70" type="text" auto-focus ng-model="account.user_name_or_id" placeholder="User name or user ID (ex:@user:homeserver)"/>
+        <input id="user_name_or_id" size="70" type="text" auto-focus ng-model="account.user_name_or_id" placeholder="User name (ex:bob)"/>
         <br/>
-        
-        <input id="homeserver" size="70" type="text" ng-model="account.homeserver" placeholder="Home server URL (ex: http://localhost:8080)"/><br />
-
-        <input id="identityServer" size="70" type="text" ng-model="account.identityServer" placeholder="Identity server URL (ex: http://localhost:8090)"/><br />
-
         <!-- New user registration -->
-        <div ng-hide="0 === account.user_name_or_id.indexOf('@')">
+        <div>
             <br/>
-            <button ng-click="register()" ng-disabled="!account.user_name_or_id || !account.homeserver">Register</button>
+            <button ng-click="register()" ng-disabled="!account.user_name_or_id || !account.homeserver || !account.identityServer">Register</button>
         </div>
+    </form>
 
+    <h3>Got an account?</h3>
+    <form novalidate>
         <!-- Login with an registered user -->
         <!-- This part is automatically shown if user_name_or_id starts with an '@' -->
-        <div ng-hide="0 !== account.user_name_or_id.indexOf('@')">
+        <div>
+            <input id="user_id" size="70" type="text" auto-focus ng-model="account.user_id" placeholder="User ID (ex:@bob:localhost)"/>
+            <br />
             <input id="accessToken" size="70" type="text" ng-model="account.access_token" placeholder="Enter this access token of this registered user"/><br />
             <br/>
-            <button ng-click="login()" ng-disabled="!account.access_token || !account.homeserver || !account.identityServer">Login</button>
+            <button ng-click="login()" ng-disabled="!account.user_id || !account.access_token || !account.homeserver || !account.identityServer">Login</button>
         </div>
        
     </form>
+
+    <h3>Servers</h3>
+    <form novalidate>
+        <div>
+        Home Server: 
+        <input id="homeserver" size="57" type="text" ng-model="account.homeserver" placeholder="Home server URL (ex: http://localhost:8080)"/>
+        </div>
+        <br />
+        <div>
+        Identity Server: 
+        <input id="identityServer" size="56" type="text" ng-model="account.identityServer" placeholder="Identity server URL (ex: http://localhost:8090)"/>
+        </div>
+        <br />
+    </form>
     <br/>
-    {{ feedback }}
+    
 
     </div>
 </div>
