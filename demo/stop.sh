@@ -1,19 +1,12 @@
 #!/bin/bash
 
-DIR="$( cd "$( dirname "$0" )" && pwd )"
+FILES=$(find $DIR -name "*.pid" -type f);
 
-PID_FILE="$DIR/servers.pid"
-
-if [ ! -f $PID_FILE ]; then
-    echo "servers.pid does not exist!"
-    exit 1
-fi
-
-pids=`cat "$PID_FILE" | tr "\n" " "`
-
-echo "Killing: $pids"
-
-kill $pids
-
-rm "$PID_FILE"
+for pid_file in $FILES; do
+    pid=$(cat "$pid_file")
+    if [[ $pid ]]; then
+        echo "Killing $pid_file with $pid"
+        kill $pid
+    fi
+done
 

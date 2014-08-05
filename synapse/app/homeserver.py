@@ -11,6 +11,8 @@ from twisted.python.log import PythonLoggingObserver
 from synapse.http.server import TwistedHttpServer
 from synapse.http.client import TwistedHttpClient
 
+from daemonize import Daemonize
+
 import argparse
 import logging
 import sqlite3
@@ -86,6 +88,10 @@ def setup_logging(verbosity=0, filename=None, config_path=None):
 
 
 def run():
+    reactor.run()
+
+
+def setup():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--port", dest="port", type=int, default=8080,
                         help="The port to listen on.")
@@ -97,6 +103,11 @@ def run():
                         help="The verbosity level.")
     parser.add_argument('-f', '--log-file', dest="log_file", default=None,
                         help="File to log to.")
+    parser.add_argument('-D', '--daemonize', action='store_true', default=False,
+                        help="Daemonize the home server")
+    parser.add_argument('--pid-file', dest="pid", help="When running as a "
+                        "daemon, the file to store the pid in",
+                        default="hs.pid")
     args = parser.parse_args()
 
     verbosity = int(args.verbose) if args.verbose else None
@@ -121,8 +132,22 @@ def run():
 
     hs.get_http_server().start_listening(args.port)
 
-    reactor.run()
+    hs.build_db_pool()
+
+    if args.daemonize:
+        daemon = Daemonize(
+            app="synapse-homeserver",
+            pid=args.pid,
+            action=run,
+            auto_close_fds=False,
+            verbose=True,
+            logger=logger,
+        )
+
+        daemon.start()
+    else:
+        run()
 
 
 if __name__ == '__main__':
-    run()
+    setup()

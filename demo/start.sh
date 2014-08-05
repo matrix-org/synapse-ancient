@@ -1,22 +1,13 @@
 #!/bin/bash
 
-set -e
-
 DIR="$( cd "$( dirname "$0" )" && pwd )"
 
-PID_FILE="$DIR/servers.pid"
+CWD=$(pwd)
 
-if [ -f $PID_FILE ]; then
-    echo "servers.pid already exists!"
-    exit 1
-fi
-
-pushd "$DIR"
-
-cd ..
+cd "$DIR/.."
 
 for port in "8080" "8081" "8082"; do
-    echo -n "Starting server on port $port... "
+    echo "Starting server on port $port... "
 
     python -m synapse.app.homeserver \
         -p "$port" \
@@ -24,16 +15,10 @@ for port in "8080" "8081" "8082"; do
         -f "$DIR/$port.log" \
         -d "$DIR/$port.db" \
         -vv \
-        > /dev/null 2>&1 & disown
-
-    echo "$!" >> "$PID_FILE"
-
-    echo "Started."
+        -D --pid-file "$DIR/$port.pid"
 done
 
-popd
+echo "Starting webclient on port 8000..."
+python "demo/webserver.py" -p 8000 -P "$DIR/webserver.pid" "webclient"
 
-echo -n "Starting webclient on port 8000..."
-(cd "$DIR" && cd "../webclient/" && python -m SimpleHTTPServer > /dev/null 2>&1 & disown)
-echo "$!" >> "$PID_FILE"
-echo "Started."
+cd "$CWD"

@@ -18,7 +18,8 @@ setup(
         "Twisted>=14.0.0",
         "service_identity>=1.0.0",
         "pyasn1",
-        "pynacl"
+        "pynacl",
+        "daemonize",
     ],
     setup_requires=[
         "setuptools_trial",
