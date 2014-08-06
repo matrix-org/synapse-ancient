@@ -33,8 +33,10 @@ class RoomMemberStore(SQLBaseStore):
         """
         query = RoomMemberTable.select_statement(
             "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, RoomMemberTable.decode_results, room_id, user_id)
+        res = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query, RoomMemberTable.decode_results, room_id, user_id
+        )
         if res:
             defer.returnValue(res[0])
         defer.returnValue(None)
@@ -53,9 +55,9 @@ class RoomMemberStore(SQLBaseStore):
         """
 
         content_json = json.dumps(content)
-        query = ("INSERT INTO " + RoomMemberTable.table_name +
-                "(user_id, sender, room_id, membership, content) "
-                "VALUES(?,?,?,?,?)")
+        query = ("INSERT INTO " + RoomMemberTable.table_name
+                 + " (user_id, sender, room_id, membership, content)"
+                 + " VALUES(?,?,?,?,?)")
         row = yield self._db_pool.runInteraction(
             self.exec_single_with_result,
             query,
@@ -75,10 +77,12 @@ class RoomMemberStore(SQLBaseStore):
         Returns:
             list of namedtuples representing the members in this room.
         """
-        query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
-            " WHERE room_id = ? GROUP BY user_id")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, self._room_member_decode, room_id)
+        query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name
+                 + " WHERE room_id = ? GROUP BY user_id")
+        res = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query, self._room_member_decode, room_id
+        )
         # strip memberships which don't match
         if membership:
             res = [entry for entry in res if entry.membership == membership]
@@ -106,11 +110,13 @@ class RoomMemberStore(SQLBaseStore):
         for membership in membership_list:
             args.append(membership)
 
-        query = ("SELECT room_id, membership FROM room_memberships " +
-                 "WHERE user_id=? AND " + where_membership +
-                 " GROUP BY room_id ORDER BY id DESC")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, self.cursor_to_dict, *args)
+        query = ("SELECT room_id, membership FROM room_memberships"
+                 + " WHERE user_id=? AND " + where_membership
+                 + " GROUP BY room_id ORDER BY id DESC")
+        res = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query, self.cursor_to_dict, *args
+        )
         defer.returnValue(res)
 
     def _room_member_decode(self, cursor):

@@ -53,7 +53,7 @@ class RegistrationStore(SQLBaseStore):
             StoreError if no user was found.
         """
         user_id = yield self._db_pool.runInteraction(self._query_for_auth,
-                    token)
+                                                     token)
         defer.returnValue(user_id)
 
     def _query_for_auth(self, txn, token):

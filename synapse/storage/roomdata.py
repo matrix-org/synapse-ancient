@@ -50,8 +50,8 @@ class RoomDataStore(SQLBaseStore):
         Returns:
             The store ID for this data.
         """
-        query = ("INSERT INTO " + RoomDataTable.table_name +
-                "(type, state_key, room_id, content) VALUES (?,?,?,?)")
+        query = ("INSERT INTO " + RoomDataTable.table_name
+                 + "(type, state_key, room_id, content) VALUES (?,?,?,?)")
         store_id = yield self._db_pool.runInteraction(
             self.exec_single_with_result, query, last_row_id,
             etype, state_key, room_id, content

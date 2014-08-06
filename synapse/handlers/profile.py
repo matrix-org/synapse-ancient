@@ -25,8 +25,9 @@ class ProfileHandler(BaseHandler):
 
         distributor.observe("registered_user", self.registered_user)
 
-        distributor.observe("collect_presencelike_data",
-                self.collect_presencelike_data)
+        distributor.observe(
+            "collect_presencelike_data", self.collect_presencelike_data
+        )
 
     def registered_user(self, user):
         self.store.create_profile(user.localpart)
@@ -35,7 +36,8 @@ class ProfileHandler(BaseHandler):
     def get_displayname(self, target_user, local_only=False):
         if target_user.is_mine:
             displayname = yield self.store.get_profile_displayname(
-                    target_user.localpart)
+                target_user.localpart
+            )
 
             defer.returnValue(displayname)
         elif not local_only:
@@ -61,12 +63,10 @@ class ProfileHandler(BaseHandler):
 
             defer.returnValue(result["displayname"])
         else:
-             raise SynapseError(400, "User is not hosted on this Home Server")
-
+            raise SynapseError(400, "User is not hosted on this Home Server")
 
     @defer.inlineCallbacks
-    def set_displayname(self, target_user, auth_user,
-            new_displayname):
+    def set_displayname(self, target_user, auth_user, new_displayname):
         """target_user is the user whose displayname is to be changed;
         auth_user is the user attempting to make this change."""
         if not target_user.is_mine:
@@ -75,17 +75,22 @@ class ProfileHandler(BaseHandler):
         if target_user != auth_user:
             raise AuthError(400, "Cannot set another user's displayname")
 
-        yield self.store.set_profile_displayname(target_user.localpart,
-                new_displayname)
+        yield self.store.set_profile_displayname(
+            target_user.localpart, new_displayname
+        )
 
-        yield self.distributor.fire("changed_presencelike_data",
-                target_user, {"displayname": new_displayname})
+        yield self.distributor.fire(
+            "changed_presencelike_data", target_user, {
+                "displayname": new_displayname,
+            }
+        )
 
     @defer.inlineCallbacks
     def get_avatar_url(self, target_user, local_only=False):
         if target_user.is_mine:
             avatar_url = yield self.store.get_profile_avatar_url(
-                    target_user.localpart)
+                target_user.localpart
+            )
 
             defer.returnValue(avatar_url)
         elif not local_only:
@@ -114,8 +119,7 @@ class ProfileHandler(BaseHandler):
             raise SynapseError(400, "User is not hosted on this Home Server")
 
     @defer.inlineCallbacks
-    def set_avatar_url(self, target_user, auth_user,
-            new_avatar_url):
+    def set_avatar_url(self, target_user, auth_user, new_avatar_url):
         """target_user is the user whose avatar_url is to be changed;
         auth_user is the user attempting to make this change."""
         if not target_user.is_mine:
@@ -124,20 +128,25 @@ class ProfileHandler(BaseHandler):
         if target_user != auth_user:
             raise AuthError(400, "Cannot set another user's avatar_url")
 
-        yield self.store.set_profile_avatar_url(target_user.localpart,
-                new_avatar_url)
+        yield self.store.set_profile_avatar_url(
+            target_user.localpart, new_avatar_url
+        )
 
-        yield self.distributor.fire("changed_presencelike_data",
-                target_user, {"avatar_url": new_avatar_url})
+        yield self.distributor.fire(
+            "changed_presencelike_data", target_user, {
+                "avatar_url": new_avatar_url,
+            }
+        )
 
     @defer.inlineCallbacks
     def collect_presencelike_data(self, user, state):
         if not user.is_mine:
             defer.returnValue(None)
 
-        (displayname, avatar_url) = yield defer.gatherResults(
-                [self.store.get_profile_displayname(user.localpart),
-                    self.store.get_profile_avatar_url(user.localpart)])
+        (displayname, avatar_url) = yield defer.gatherResults([
+            self.store.get_profile_displayname(user.localpart),
+            self.store.get_profile_avatar_url(user.localpart),
+        ])
 
         state["displayname"] = displayname
         state["avatar_url"] = avatar_url

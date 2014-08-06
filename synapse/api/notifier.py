@@ -54,10 +54,11 @@ class Notifier(object):
     def on_new_user_event(self, user_id, event_data, stream_type, store_id):
         if user_id in self.stored_event_listeners:
             self._notify_and_callback(
-                    user_id=user_id,
-                    event_data=event_data,
-                    stream_type=stream_type,
-                    store_id=store_id)
+                user_id=user_id,
+                event_data=event_data,
+                stream_type=stream_type,
+                store_id=store_id
+            )
 
     def _notify_and_callback(self, user_id, event_data, stream_type, store_id):
         logger.debug(
@@ -68,12 +69,12 @@ class Notifier(object):
         stream_ids = list(self.stored_event_listeners[user_id])
         for stream_id in stream_ids:
             self._notify_and_callback_stream(user_id, stream_id, event_data,
-                                    stream_type, store_id)
+                                             stream_type, store_id)
 
         if not self.stored_event_listeners[user_id]:
             del self.stored_event_listeners[user_id]
 
-    def _notify_and_callback_stream(self, user_id, stream_id, event_data, 
+    def _notify_and_callback_stream(self, user_id, stream_id, event_data,
                                     stream_type, store_id):
 
         event_listener = self.stored_event_listeners[user_id].pop(stream_id)
@@ -149,21 +150,24 @@ class Notifier(object):
             there was data to return yet. The Deferred callback may be None if
             there were no events before the timeout expired.
         """
-        logger.debug("%s is listening for events." % user_id)
+        logger.debug("%s is listening for events.", user_id)
 
         if len(self.stored_event_listeners[user_id][stream_id]["chunk"]) > 0:
-            logger.debug("%s returning existing chunk." % user_id)
+            logger.debug("%s returning existing chunk.", user_id)
             return self.stored_event_listeners[user_id][stream_id]
 
-        reactor.callLater((timeout / 1000.0), self._timeout, user_id, stream_id)
+        reactor.callLater(
+            (timeout / 1000.0), self._timeout, user_id, stream_id
+        )
         return self.stored_event_listeners[user_id][stream_id]["defer"]
 
     def _timeout(self, user_id, stream_id):
         try:
             # We remove the event_listener from the map so that we can't
             # resolve the deferred twice.
-            event_listener = self.stored_event_listeners[user_id].pop(stream_id)
+            event_listeners = self.stored_event_listeners[user_id]
+            event_listener = event_listeners.pop(stream_id)
             event_listener["defer"].callback(None)
-            logger.debug("%s event listening timed out." % user_id)
+            logger.debug("%s event listening timed out.", user_id)
         except KeyError:
             pass

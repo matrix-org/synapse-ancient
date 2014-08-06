@@ -22,14 +22,17 @@ class DomainSpecificString(
     def from_string(cls, s, hs):
         """Parse the string given by 's' into a structure object."""
         if s[0] != cls.SIGIL:
-            raise SynapseError(400, "Expected %s string to start with '%s'" %
-                    (cls.__name__, cls.SIGIL))
+            raise SynapseError(400, "Expected %s string to start with '%s'" % (
+                cls.__name__, cls.SIGIL,
+            ))
 
         parts = s[1:].split(':', 1)
         if len(parts) != 2:
-            raise SynapseError(400,
-                    "Expected %s of the form '%slocalname:domain'" %
-                    (cls.__name__, cls.SIGIL))
+            raise SynapseError(
+                400, "Expected %s of the form '%slocalname:domain'" % (
+                    cls.__name__, cls.SIGIL,
+                )
+            )
 
         domain = parts[1]
 

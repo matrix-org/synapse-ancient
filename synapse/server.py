@@ -41,23 +41,23 @@ class BaseHomeServer(object):
     """
 
     DEPENDENCIES = [
-            'clock',
-            'http_server',
-            'http_client',
-            'db_pool',
-            'persistence_service',
-            'federation',
-            'replication_layer',
-            'datastore',
-            'event_factory',
-            'handlers',
-            'auth',
-            'rest_servlet_factory',
-            'state_handler',
-            'room_lock_manager',
-            'notifier',
-            'distributor',
-            ]
+        'clock',
+        'http_server',
+        'http_client',
+        'db_pool',
+        'persistence_service',
+        'federation',
+        'replication_layer',
+        'datastore',
+        'event_factory',
+        'handlers',
+        'auth',
+        'rest_servlet_factory',
+        'state_handler',
+        'room_lock_manager',
+        'notifier',
+        'distributor',
+    ]
 
     def __init__(self, hostname, **kwargs):
         """
@@ -80,8 +80,9 @@ class BaseHomeServer(object):
             if hasattr(self, "build_%s" % (depname)):
                 # Prevent cyclic dependencies from deadlocking
                 if depname in self._building:
-                    raise ValueError("Cyclic dependency while building %s" %
-                            (depname))
+                    raise ValueError("Cyclic dependency while building %s" % (
+                        depname,
+                    ))
                 self._building[depname] = 1
 
                 builder = getattr(self, "build_%s" % (depname))
@@ -93,9 +94,9 @@ class BaseHomeServer(object):
                 return dep
 
             raise NotImplementedError(
-                    "%s has no %s nor a builder for it" % (
-                        type(self).__name__, depname
-                    )
+                "%s has no %s nor a builder for it" % (
+                    type(self).__name__, depname,
+                )
             )
 
         setattr(BaseHomeServer, "get_%s" % (depname), _get)

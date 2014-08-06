@@ -2,7 +2,7 @@
 from twisted.internet import defer
 
 from synapse.persistence.tables import (RoomMemberTable, MessagesTable,
-                                       FeedbackTable, RoomDataTable)
+                                        FeedbackTable, RoomDataTable)
 
 from ._base import SQLBaseStore
 
@@ -16,7 +16,7 @@ class StreamStore(SQLBaseStore):
 
     @defer.inlineCallbacks
     def get_message_stream(self, user_id=None, from_key=None, to_key=None,
-                            room_id=None, limit=0, with_feedback=False):
+                           room_id=None, limit=0, with_feedback=False):
         """Get all messages for this user between the given keys.
 
         Args:
@@ -30,12 +30,12 @@ class StreamStore(SQLBaseStore):
         """
         if with_feedback and room_id:  # with fb MUST specify a room ID
             (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_message_rows_with_feedback, user_id, from_key, to_key,
-                room_id, limit)
+                self._get_message_rows_with_feedback,
+                user_id, from_key, to_key, room_id, limit)
         else:
             (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_message_rows, user_id, from_key, to_key, room_id,
-                limit)
+                self._get_message_rows,
+                user_id, from_key, to_key, room_id, limit)
         defer.returnValue((rows, pkey))
 
     def _get_message_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
@@ -45,52 +45,58 @@ class StreamStore(SQLBaseStore):
 
         # get all messages where the *current* membership state is 'join' for
         # this user in that room.
-        query = ("SELECT messages.* FROM messages WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE user_id=? AND " +
-            "room_id = messages.room_id ORDER BY id DESC LIMIT 1)")
+        query = ("SELECT messages.* FROM messages WHERE ? IN"
+                 + " (SELECT membership from room_memberships WHERE user_id=?"
+                 + " AND room_id = messages.room_id ORDER BY id DESC LIMIT 1)")
         query_args = ["join", user_id]
 
         if room_id:
             query += " AND messages.room_id=?"
             query_args.append(room_id)
 
-        (query, query_args) = self._append_stream_operations("messages",
-                                query, query_args, from_pkey, to_pkey,
-                                limit=limit)
+        (query, query_args) = self._append_stream_operations(
+            "messages", query, query_args, from_pkey, to_pkey, limit=limit
+        )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, MessagesTable, from_pkey)
 
     def _get_message_rows_with_feedback(self, txn, user_id, from_pkey, to_pkey,
                                         room_id, limit):
         # this col represents the compressed feedback JSON as per spec
-        compressed_feedback_col = ("'[' || group_concat('{\"sender_id\":\"' ||"
-        " f.fb_sender_id || '\",\"feedback_type\":\"' || f.feedback_type ||"
-        " '\",\"content\":' || f.content || '}') || ']'")
+        compressed_feedback_col = (
+            "'[' || group_concat('{\"sender_id\":\"' || f.fb_sender_id"
+            + " || '\",\"feedback_type\":\"' || f.feedback_type"
+            + " || '\",\"content\":' || f.content || '}') || ']'"
+        )
 
-        global_msg_id_join = ("f.room_id = messages.room_id and " +
-        "f.msg_id = messages.msg_id and messages.user_id = f.msg_sender_id")
+        global_msg_id_join = ("f.room_id = messages.room_id"
+                              + " and f.msg_id = messages.msg_id"
+                              + " and messages.user_id = f.msg_sender_id")
 
-        select_query = ("SELECT messages.*, f.content AS fb_content, " +
-        "f.fb_sender_id, " + compressed_feedback_col + " AS compressed_fb " +
-        "FROM messages LEFT JOIN feedback f ON " + global_msg_id_join)
+        select_query = (
+            "SELECT messages.*, f.content AS fb_content, f.fb_sender_id"
+            + ", " + compressed_feedback_col + " AS compressed_fb"
+            + " FROM messages LEFT JOIN feedback f ON " + global_msg_id_join)
 
-        current_membership_sub_query = ("(SELECT membership from " +
-        "room_memberships rm WHERE user_id=? AND room_id = rm.room_id " +
-        "ORDER BY id DESC LIMIT 1)")
+        current_membership_sub_query = (
+            "(SELECT membership from room_memberships rm"
+            + " WHERE user_id=? AND room_id = rm.room_id"
+            + " ORDER BY id DESC LIMIT 1)")
 
-        where = (" WHERE ? IN " + current_membership_sub_query + " AND " +
-        "messages.room_id=?")
+        where = (" WHERE ? IN " + current_membership_sub_query
+                 + " AND messages.room_id=?")
 
         query = select_query + where
         query_args = ["join", user_id, room_id]
 
-        (query, query_args) = self._append_stream_operations("messages",
-                                query, query_args, from_pkey, to_pkey,
-                                limit=limit, group_by=" GROUP BY messages.id ")
+        (query, query_args) = self._append_stream_operations(
+            "messages", query, query_args, from_pkey, to_pkey,
+            limit=limit, group_by=" GROUP BY messages.id "
+        )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
 
         # convert the result set into events
@@ -123,23 +129,23 @@ class StreamStore(SQLBaseStore):
             A tuple of rows (list of namedtuples), new_id(int)
         """
         (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_room_member_rows, user_id, from_key, to_key)
+            self._get_room_member_rows, user_id, from_key, to_key)
         defer.returnValue((rows, pkey))
 
     def _get_room_member_rows(self, txn, user_id, from_pkey, to_pkey):
-        # get all room membership events for rooms which the user is *currently*
-        # joined in on, or all invite events for this user.
-        current_membership_sub_query = ("(SELECT membership from " +
-                     "room_memberships WHERE user_id=? AND " +
-                     "room_id = rm.room_id ORDER BY id DESC " +
-                     "LIMIT 1)")
+        # get all room membership events for rooms which the user is
+        # *currently* joined in on, or all invite events for this user.
+        current_membership_sub_query = (
+            "(SELECT membership FROM room_memberships"
+            + " WHERE user_id=? AND room_id = rm.room_id"
+            + " ORDER BY id DESC LIMIT 1)")
 
-        query = ("SELECT rm.* FROM room_memberships rm WHERE " +
-                # all membership events for rooms you're currently joined in on.
-                "(? IN " + current_membership_sub_query + " OR " +
-                # all invite membership events for this user
-                "rm.membership=? AND user_id=?)"
-                " AND rm.id > ?")
+        query = ("SELECT rm.* FROM room_memberships rm "
+                 # all membership events for rooms you've currently joined.
+                 + " WHERE (? IN " + current_membership_sub_query
+                 # all invite membership events for this user
+                 + " OR rm.membership=? AND user_id=?)"
+                 + " AND rm.id > ?")
         query_args = ["join", user_id, "invite", user_id, from_pkey]
 
         if to_pkey != -1:
@@ -153,8 +159,9 @@ class StreamStore(SQLBaseStore):
     def get_feedback_stream(self, user_id=None, from_key=None, to_key=None,
                             room_id=None, limit=0):
         (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_feedback_rows, user_id, from_key, to_key, room_id,
-                limit)
+            self._get_feedback_rows,
+            user_id, from_key, to_key, room_id, limit
+        )
         defer.returnValue((rows, pkey))
 
     def _get_feedback_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
@@ -164,52 +171,55 @@ class StreamStore(SQLBaseStore):
 
         # get all messages where the *current* membership state is 'join' for
         # this user in that room.
-        query = ("SELECT feedback.* FROM feedback WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE user_id=? AND " +
-            "room_id = feedback.room_id ORDER BY id DESC LIMIT 1)")
+        query = (
+            "SELECT feedback.* FROM feedback WHERE ? IN "
+            + "(SELECT membership from room_memberships WHERE user_id=?"
+            + " AND room_id = feedback.room_id ORDER BY id DESC LIMIT 1)")
         query_args = ["join", user_id]
 
         if room_id:
             query += " AND feedback.room_id=?"
             query_args.append(room_id)
 
-        (query, query_args) = self._append_stream_operations("feedback",
-                                query, query_args, from_pkey, to_pkey,
-                                limit=limit)
+        (query, query_args) = self._append_stream_operations(
+            "feedback", query, query_args, from_pkey, to_pkey, limit=limit
+        )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, FeedbackTable, from_pkey)
 
     @defer.inlineCallbacks
     def get_room_data_stream(self, user_id=None, from_key=None, to_key=None,
-                            room_id=None, limit=0):
+                             room_id=None, limit=0):
         (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_room_data_rows, user_id, from_key, to_key, room_id,
-                limit)
+            self._get_room_data_rows,
+            user_id, from_key, to_key, room_id, limit
+        )
         defer.returnValue((rows, pkey))
 
     def _get_room_data_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
-                           limit):
+                            limit):
         # work out which rooms this user is joined in on and join them with
         # the room id on the feedback table, bounded by the specified pkeys
 
         # get all messages where the *current* membership state is 'join' for
         # this user in that room.
-        query = ("SELECT room_data.* FROM room_data WHERE ? IN " +
-            "(SELECT membership from room_memberships WHERE user_id=? AND " +
-            "room_id = room_data.room_id ORDER BY id DESC LIMIT 1)")
+        query = (
+            "SELECT room_data.* FROM room_data WHERE ? IN "
+            + "(SELECT membership from room_memberships WHERE user_id=?"
+            + " AND room_id = room_data.room_id ORDER BY id DESC LIMIT 1)")
         query_args = ["join", user_id]
 
         if room_id:
             query += " AND room_data.room_id=?"
             query_args.append(room_id)
 
-        (query, query_args) = self._append_stream_operations("room_data",
-                                query, query_args, from_pkey, to_pkey,
-                                limit=limit)
+        (query, query_args) = self._append_stream_operations(
+            "room_data", query, query_args, from_pkey, to_pkey, limit=limit
+        )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, RoomDataTable, from_pkey)
 

@@ -22,7 +22,9 @@ class SQLBaseStore(object):
             A list of dicts where the key is the column header.
         """
         col_headers = list(column[0] for column in cursor.description)
-        results = list(dict(zip(col_headers, row)) for row in cursor.fetchall())
+        results = list(
+            dict(zip(col_headers, row)) for row in cursor.fetchall()
+        )
         return results
 
     def exec_single_with_result(self, txn, query, func, *args):
@@ -44,7 +46,7 @@ class SQLBaseStore(object):
 
     def exec_single(self, txn, query, *args):
         """Runs a single query, returning nothing."""
-        logger.debug("[SQL] %s  Args=%s" % (query, args))
+        logger.debug("[SQL] %s  Args=%s", query, args)
         txn.execute(query, args)
 
     # "Simple" SQL API methods that operate on a single table with no JOINs,

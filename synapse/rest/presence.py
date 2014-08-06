@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-""" This module contains REST servlets to do with presence: /presence/<paths> """
+""" This module contains REST servlets to do with presence: /presence/<paths>
+"""
 from twisted.internet import defer
 
 from base import RestServlet
@@ -23,7 +24,7 @@ class PresenceStatusRestServlet(RestServlet):
         user = self.hs.parse_userid(user_id)
 
         state = yield self.handlers.presence_handler.get_state(
-                target_user=user, auth_user=auth_user)
+            target_user=user, auth_user=auth_user)
 
         defer.returnValue((200, state))
 
@@ -47,7 +48,7 @@ class PresenceStatusRestServlet(RestServlet):
             defer.returnValue((400, "Unable to parse state"))
 
         yield self.handlers.presence_handler.set_state(
-                target_user=user, auth_user=auth_user, state=state)
+            target_user=user, auth_user=auth_user, state=state)
 
         defer.returnValue((200, ""))
 
@@ -71,7 +72,7 @@ class PresenceListRestServlet(RestServlet):
             defer.returnValue((400, "Cannot get another user's presence list"))
 
         presence = yield self.handlers.presence_handler.get_presence_list(
-                observer_user=user, accepted=True)
+            observer_user=user, accepted=True)
 
         # TODO(paul): Should include current known displayname / avatar URLs
         #   if we have them
@@ -90,8 +91,8 @@ class PresenceListRestServlet(RestServlet):
             defer.returnValue((400, "User not hosted on this Home Server"))
 
         if auth_user != user:
-            defer.returnValue((400,
-                "Cannot modify another user's presence list"))
+            defer.returnValue((
+                400, "Cannot modify another user's presence list"))
 
         try:
             content = json.loads(request.content.read())

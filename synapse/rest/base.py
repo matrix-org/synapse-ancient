@@ -8,8 +8,8 @@ class RestServletFactory(object):
     """ A factory for creating REST servlets.
 
     These REST servlets represent the entire client-server REST API. Generally
-    speaking, they serve as wrappers around events and the handlers that process
-    them.
+    speaking, they serve as wrappers around events and the handlers that
+    process them.
 
     See synapse.api.events for information on synapse events.
     """

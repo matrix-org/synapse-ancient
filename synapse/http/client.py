@@ -127,7 +127,7 @@ class TwistedHttpClient(HttpClient):
         if destination in _destination_mappings:
             destination = _destination_mappings[destination]
 
-        logger.debug("get_json args: %s" % args)
+        logger.debug("get_json args: %s", args)
         query_bytes = urllib.urlencode(args, True)
 
         response = yield self._create_request(
@@ -179,7 +179,7 @@ class TwistedHttpClient(HttpClient):
                     producer
                 )
 
-                logger.debug("Got response to %s" % method)
+                logger.debug("Got response to %s", method)
                 break
             except Exception as e:
                 logger.exception("Got error in _create_request")

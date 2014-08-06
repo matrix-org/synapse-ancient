@@ -205,16 +205,16 @@ class Edu(JsonEncodedObject):
     """
 
     valid_keys = [
-            "origin",
-            "destination",
-            "edu_type",
-            "content",
+        "origin",
+        "destination",
+        "edu_type",
+        "content",
     ]
 
     required_keys = [
-            "origin",
-            "destination",
-            "edu_type",
+        "origin",
+        "destination",
+        "edu_type",
     ]
 
 
@@ -257,7 +257,6 @@ class Transaction(JsonEncodedObject):
         "pdus",
     ]
 
-
     def __init__(self, transaction_id=None, pdus=[], **kwargs):
         """ If we include a list of pdus then we decode then as PDU's
         automatically.
@@ -281,7 +280,9 @@ class Transaction(JsonEncodedObject):
         if "ts" not in kwargs:
             raise KeyError("Require 'ts' to construct a Transaction")
         if "transaction_id" not in kwargs:
-            raise KeyError("Require 'transaction_id' to construct a Transaction")
+            raise KeyError(
+                "Require 'transaction_id' to construct a Transaction"
+            )
 
         for p in pdus:
             p.transaction_id = kwargs["transaction_id"]

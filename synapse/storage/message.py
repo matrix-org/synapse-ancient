@@ -22,10 +22,12 @@ class MessageStore(SQLBaseStore):
             msg_id (str): The unique ID for this user/room combo.
         """
         query = MessagesTable.select_statement(
-                "user_id = ? AND room_id = ? AND msg_id = ? " +
-                "ORDER BY id DESC LIMIT 1")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, MessagesTable.decode_results, user_id, room_id, msg_id)
+            "user_id = ? AND room_id = ? AND msg_id = ? " +
+            "ORDER BY id DESC LIMIT 1")
+        res = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query, MessagesTable.decode_results, user_id, room_id, msg_id
+        )
         if res:
             defer.returnValue(res[0])
         defer.returnValue(None)
@@ -44,9 +46,10 @@ class MessageStore(SQLBaseStore):
         query = ("INSERT INTO " + MessagesTable.table_name +
                  "(user_id, room_id, msg_id, content) VALUES(?,?,?,?)")
         last_id = yield self._db_pool.runInteraction(
-                        self.exec_single_with_result,
-                        query, last_row_id, user_id, room_id,
-                        msg_id, content)
+            self.exec_single_with_result,
+            query, last_row_id, user_id, room_id,
+            msg_id, content
+        )
         defer.returnValue(last_id)
 
     @defer.inlineCallbacks

@@ -23,8 +23,8 @@ from .stream import StreamStore
 
 
 class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
-                 RegistrationStore, StreamStore, ProfileStore, FeedbackStore,
-                 PresenceStore):
+                RegistrationStore, StreamStore, ProfileStore, FeedbackStore,
+                PresenceStore):
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
