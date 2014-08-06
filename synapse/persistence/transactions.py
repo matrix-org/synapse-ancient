@@ -334,7 +334,7 @@ class PduQueries(object):
             "forward": PduForwardExtremitiesTable.table_name,
         }
 
-        logger.debug("get_prev query: %s" % query)
+        logger.debug("get_prev query: %s", query)
 
         txn.execute(
             query,

@@ -254,7 +254,7 @@ class TransportLayer(object):
             data = request.content.read()
 
             l = data[:20].encode("string_escape")
-            logger.debug("Got data: \"%s\"" % l)
+            logger.debug("Got data: \"%s\"", l)
 
             transaction_data = json.loads(data)
 

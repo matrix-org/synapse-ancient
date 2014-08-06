@@ -21,7 +21,7 @@ class RoomStore(SQLBaseStore):
         # create room
         query = ("INSERT INTO " + RoomsTable.table_name
                  + "(room_id, creator, is_public) VALUES(?,?,?)")
-        logger.debug("insert_room_and_member %s  room=%s" % (query, room_id))
+        logger.debug("insert_room_and_member %s  room=%s", query, room_id)
         txn.execute(query, [room_id, room_creator, is_public])
 
     @defer.inlineCallbacks

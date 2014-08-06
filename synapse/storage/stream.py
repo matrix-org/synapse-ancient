@@ -58,7 +58,7 @@ class StreamStore(SQLBaseStore):
             "messages", query, query_args, from_pkey, to_pkey, limit=limit
         )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, MessagesTable, from_pkey)
 
@@ -96,7 +96,7 @@ class StreamStore(SQLBaseStore):
             limit=limit, group_by=" GROUP BY messages.id "
         )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
 
         # convert the result set into events
@@ -185,7 +185,7 @@ class StreamStore(SQLBaseStore):
             "feedback", query, query_args, from_pkey, to_pkey, limit=limit
         )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, FeedbackTable, from_pkey)
 
@@ -219,7 +219,7 @@ class StreamStore(SQLBaseStore):
             "room_data", query, query_args, from_pkey, to_pkey, limit=limit
         )
 
-        logger.debug("[SQL] %s : %s" % (query, query_args))
+        logger.debug("[SQL] %s : %s", query, query_args)
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, RoomDataTable, from_pkey)
 

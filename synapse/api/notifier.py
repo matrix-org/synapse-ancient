@@ -150,10 +150,10 @@ class Notifier(object):
             there was data to return yet. The Deferred callback may be None if
             there were no events before the timeout expired.
         """
-        logger.debug("%s is listening for events." % user_id)
+        logger.debug("%s is listening for events.", user_id)
 
         if len(self.stored_event_listeners[user_id][stream_id]["chunk"]) > 0:
-            logger.debug("%s returning existing chunk." % user_id)
+            logger.debug("%s returning existing chunk.", user_id)
             return self.stored_event_listeners[user_id][stream_id]
 
         reactor.callLater(
@@ -168,6 +168,6 @@ class Notifier(object):
             event_listeners = self.stored_event_listeners[user_id]
             event_listener = event_listeners.pop(stream_id)
             event_listener["defer"].callback(None)
-            logger.debug("%s event listening timed out." % user_id)
+            logger.debug("%s event listening timed out.", user_id)
         except KeyError:
             pass

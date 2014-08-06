@@ -83,8 +83,9 @@ class Signal(object):
             d = defer.maybeDeferred(observer, *args, **kwargs)
 
             def eb(failure):
-                logger.warning("%s signal observer %s failed: %r" % (
-                    self.name, observer, failure),
+                logger.warning(
+                    "%s signal observer %s failed: %r",
+                    self.name, observer, failure,
                     exc_info=(
                         failure.type,
                         failure.value,

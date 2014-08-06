@@ -46,7 +46,7 @@ class SQLBaseStore(object):
 
     def exec_single(self, txn, query, *args):
         """Runs a single query, returning nothing."""
-        logger.debug("[SQL] %s  Args=%s" % (query, args))
+        logger.debug("[SQL] %s  Args=%s", query, args)
         txn.execute(query, args)
 
     # "Simple" SQL API methods that operate on a single table with no JOINs,

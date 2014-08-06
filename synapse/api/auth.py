@@ -39,8 +39,8 @@ class Auth(object):
             else:
                 raise AuthError(500, "Unknown event type %s" % event.type)
         except AuthError as e:
-            logger.info("Event auth check failed on event %s with msg: %s" %
-                        (event, e.msg))
+            logger.info("Event auth check failed on event %s with msg: %s",
+                        event, e.msg)
             if raises:
                 raise e
         defer.returnValue(False)
