@@ -176,10 +176,7 @@ class TransportLayer(object):
         self.server.register_path(
             "PUT",
             re.compile("^/send/([^/]*)/$"),
-            lambda request, transaction_id:
-                # We intercept this and decode the json a bit before
-                # handing off to to the callbacks.
-                self._on_send_request(request, transaction_id)
+            self._on_send_request
         )
 
     @log_function
@@ -197,11 +194,10 @@ class TransportLayer(object):
         self.server.register_path(
             "GET",
             re.compile("^/pull/$"),
-            lambda request:
-                handler.on_pull_request(
-                    request.args["origin"][0],
-                    request.args["v"]
-                )
+            lambda request: handler.on_pull_request(
+                request.args["origin"][0],
+                request.args["v"]
+            )
         )
 
         # This is when someone asks for a data item for a given server
@@ -209,33 +205,33 @@ class TransportLayer(object):
         self.server.register_path(
             "GET",
             re.compile("^/pdu/([^/]*)/([^/]*)/$"),
-            lambda request, pdu_origin, pdu_id:
-                handler.on_pdu_request(pdu_origin, pdu_id)
+            lambda request, pdu_origin, pdu_id: handler.on_pdu_request(
+                pdu_origin, pdu_id
+            )
         )
 
         # This is when someone asks for all data for a given context.
         self.server.register_path(
             "GET",
             re.compile("^/state/([^/]*)/$"),
-            lambda request, context:
-                handler.on_context_state_request(context)
+            lambda request, context: handler.on_context_state_request(
+                context
+            )
         )
 
         self.server.register_path(
             "GET",
             re.compile("^/paginate/([^/]*)/$"),
-            lambda request, context:
-                self._on_paginate_request(
-                    context, request.args["v"],
-                    request.args["limit"]
-                )
+            lambda request, context: self._on_paginate_request(
+                context, request.args["v"],
+                request.args["limit"]
+            )
         )
 
         self.server.register_path(
             "GET",
             re.compile("^/context/([^/]*)/$"),
-            lambda request, context:
-                handler.on_context_pdus_request(context)
+            lambda request, context: handler.on_context_pdus_request(context)
         )
 
     @defer.inlineCallbacks

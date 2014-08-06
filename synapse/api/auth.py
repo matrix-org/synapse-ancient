@@ -49,8 +49,9 @@ class Auth(object):
     def check_joined_room(self, room_id, user_id):
         try:
             member = yield self.store.get_room_member(
-                        room_id=room_id,
-                        user_id=user_id)
+                room_id=room_id,
+                user_id=user_id
+            )
             if not member or member.membership != Membership.JOIN:
                 raise AuthError(403, "User %s not in room %s" %
                                 (user_id, room_id))
@@ -148,6 +149,3 @@ class Auth(object):
             defer.returnValue(self.hs.parse_userid(user_id))
         except StoreError:
             raise AuthError(403, "Unrecognised access token.")
-
-
-

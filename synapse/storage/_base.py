@@ -22,7 +22,9 @@ class SQLBaseStore(object):
             A list of dicts where the key is the column header.
         """
         col_headers = list(column[0] for column in cursor.description)
-        results = list(dict(zip(col_headers, row)) for row in cursor.fetchall())
+        results = list(
+            dict(zip(col_headers, row)) for row in cursor.fetchall()
+        )
         return results
 
     def exec_single_with_result(self, txn, query, func, *args):

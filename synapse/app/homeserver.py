@@ -38,12 +38,12 @@ class SynapseHomeServer(HomeServer):
             cp_min=1, cp_max=1)
 
         schemas = [
-                "transactions",
-                "pdu",
-                "users",
-                "profiles",
-                "presence",
-                "im"
+            "transactions",
+            "pdu",
+            "users",
+            "profiles",
+            "presence",
+            "im"
         ]
 
         for sql_loc in schemas:
@@ -54,7 +54,7 @@ class SynapseHomeServer(HomeServer):
                 c.executescript(sql_script)
                 c.close()
                 db_conn.commit()
-        
+
         logging.info("Database prepared in %s.", self.db_name)
 
         return pool
@@ -105,8 +105,8 @@ def setup():
                         help="The verbosity level.")
     parser.add_argument('-f', '--log-file', dest="log_file", default=None,
                         help="File to log to.")
-    parser.add_argument('-D', '--daemonize', action='store_true', default=False,
-                        help="Daemonize the home server")
+    parser.add_argument('-D', '--daemonize', action='store_true',
+                        default=False, help="Daemonize the home server")
     parser.add_argument('--pid-file', dest="pid", help="When running as a "
                         "daemon, the file to store the pid in",
                         default="hs.pid")

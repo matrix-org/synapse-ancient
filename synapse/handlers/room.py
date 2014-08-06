@@ -45,8 +45,8 @@ class MessageHandler(BaseHandler):
 
         # Pull out the message from the db
         msg = yield self.store.get_message(room_id=room_id,
-                                               msg_id=msg_id,
-                                               user_id=sender_id)
+                                           msg_id=msg_id,
+                                           user_id=sender_id)
 
         if msg:
             defer.returnValue(msg)
@@ -93,7 +93,7 @@ class MessageHandler(BaseHandler):
             room_id (str): The room they want messages from.
             pagin_config (synapse.api.streams.PaginationConfig): The pagination
             config rules to apply, if any.
-            feedback (bool): True to get compressed feedback with these messages
+            feedback (bool): True to get compressed feedback with the messages
         Returns:
             dict: Pagination API results
         """
@@ -142,9 +142,9 @@ class MessageHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def get_room_data(self, user_id=None, room_id=None,
-                           event_type=None, state_key="",
-                           public_room_rules=[],
-                           private_room_rules=["join"]):
+                      event_type=None, state_key="",
+                      public_room_rules=[],
+                      private_room_rules=["join"]):
         """ Get data from a room.
 
         Args:
@@ -152,9 +152,9 @@ class MessageHandler(BaseHandler):
             public_room_rules : A list of membership states the user can be in,
             in order to read this data IN A PUBLIC ROOM. An empty list means
             'any state'.
-            private_room_rules : A list of membership states the user can be in,
-            in order to read this data IN A PRIVATE ROOM. An empty list means
-            'any state'.
+            private_room_rules : A list of membership states the user can be
+            in, in order to read this data IN A PRIVATE ROOM. An empty list
+            means 'any state'.
         Returns:
             The path data content.
         Raises:
@@ -196,8 +196,9 @@ class MessageHandler(BaseHandler):
 
         # Pull out the feedback from the db
         fb = yield self.store.get_feedback(
-                room_id=room_id, msg_id=msg_id, msg_sender_id=msg_sender_id,
-                fb_sender_id=fb_sender_id, fb_type=fb_type)
+            room_id=room_id, msg_id=msg_id, msg_sender_id=msg_sender_id,
+            fb_sender_id=fb_sender_id, fb_type=fb_type
+        )
 
         if fb:
             defer.returnValue(fb)
@@ -223,8 +224,8 @@ class MessageHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def snapshot_all_rooms(self, user_id=None, pagin_config=None,
-                                   feedback=False):
-        """Retrieve a snapshot of all rooms the user is invited or joined in on.
+                           feedback=False):
+        """Retrieve a snapshot of all rooms the user is invited or has joined.
 
         This snapshot may include messages for all rooms where the user is
         joined, depending on the pagination config.
@@ -241,16 +242,19 @@ class MessageHandler(BaseHandler):
             on the specified PaginationConfig.
         """
         room_list = yield self.store.get_rooms_for_user_where_membership_is(
-                        user_id=user_id,
-                        membership_list=[Membership.INVITE, Membership.JOIN])
+            user_id=user_id,
+            membership_list=[Membership.INVITE, Membership.JOIN]
+        )
         for room_info in room_list:
             if room_info["membership"] != Membership.JOIN:
                 continue
             try:
-                event_chunk = yield self.get_messages(user_id=user_id,
-                                                      pagin_config=pagin_config,
-                                                      feedback=feedback,
-                                                      room_id=room_info["room_id"])
+                event_chunk = yield self.get_messages(
+                    user_id=user_id,
+                    pagin_config=pagin_config,
+                    feedback=feedback,
+                    room_id=room_info["room_id"]
+                )
                 room_info["messages"] = event_chunk
             except:
                 pass
@@ -348,14 +352,16 @@ class RoomMemberHandler(BaseHandler):
     def get_room_members(self, room_id, membership=Membership.JOIN):
         hs = self.hs
 
-        memberships = yield self.store.get_room_members(room_id=room_id,
-                membership=membership)
+        memberships = yield self.store.get_room_members(
+            room_id=room_id, membership=membership
+        )
 
         defer.returnValue([hs.parse_userid(m.user_id) for m in memberships])
 
     @defer.inlineCallbacks
     def get_room_members_as_pagination_chunk(self, room_id=None, user_id=None,
-            limit=0, start_tok=None, end_tok=None):
+                                             limit=0, start_tok=None,
+                                             end_tok=None):
         """Retrieve a list of room members in the room.
 
         Args:
@@ -615,7 +621,8 @@ class RoomMemberHandler(BaseHandler):
         """Returns a list of roomids that the user has any of the given
         membership states in."""
         rooms = yield self.store.get_rooms_for_user_where_membership_is(
-                user_id=user.to_string(), membership_list=membership_list)
+            user_id=user.to_string(), membership_list=membership_list
+        )
 
         defer.returnValue([r["room_id"] for r in rooms])
 
@@ -669,12 +676,12 @@ class RoomMemberHandler(BaseHandler):
         msg_id = "m%s" % int(self.clock.time_msec())
 
         event = self.event_factory.create_event(
-                etype=MessageEvent.TYPE,
-                room_id=room_id,
-                user_id="_homeserver_",
-                msg_id=msg_id,
-                content=membership_json
-                )
+            etype=MessageEvent.TYPE,
+            room_id=room_id,
+            user_id="_homeserver_",
+            msg_id=msg_id,
+            content=membership_json
+        )
 
         handler = self.hs.get_handlers().message_handler
         yield handler.send_message(event, suppress_auth=True)

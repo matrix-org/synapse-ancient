@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""This module contains classes for streaming from the event stream: /events."""
+"""This module contains classes for streaming from the event stream: /events.
+"""
 from twisted.internet import defer
 
 from synapse.api.errors import EventStreamError
@@ -24,13 +25,13 @@ class MessagesStreamData(StreamData):
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key, limit):
         (data, latest_ver) = yield self.store.get_message_stream(
-                                user_id=user_id,
-                                from_key=from_key,
-                                to_key=to_key,
-                                limit=limit,
-                                room_id=self.room_id,
-                                with_feedback=self.with_feedback
-                                )
+            user_id=user_id,
+            from_key=from_key,
+            to_key=to_key,
+            limit=limit,
+            room_id=self.room_id,
+            with_feedback=self.with_feedback
+        )
         defer.returnValue((data, latest_ver))
 
     @defer.inlineCallbacks
@@ -45,10 +46,10 @@ class RoomMemberStreamData(StreamData):
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key, limit):
         (data, latest_ver) = yield self.store.get_room_member_stream(
-                                user_id=user_id,
-                                from_key=from_key,
-                                to_key=to_key
-                                )
+            user_id=user_id,
+            from_key=from_key,
+            to_key=to_key
+        )
 
         defer.returnValue((data, latest_ver))
 
@@ -68,12 +69,12 @@ class FeedbackStreamData(StreamData):
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key, limit):
         (data, latest_ver) = yield self.store.get_feedback_stream(
-                                user_id=user_id,
-                                from_key=from_key,
-                                to_key=to_key,
-                                limit=limit,
-                                room_id=self.room_id
-                                )
+            user_id=user_id,
+            from_key=from_key,
+            to_key=to_key,
+            limit=limit,
+            room_id=self.room_id
+        )
         defer.returnValue((data, latest_ver))
 
     @defer.inlineCallbacks
@@ -92,12 +93,12 @@ class RoomDataStreamData(StreamData):
     @defer.inlineCallbacks
     def get_rows(self, user_id, from_key, to_key, limit):
         (data, latest_ver) = yield self.store.get_room_data_stream(
-                                user_id=user_id,
-                                from_key=from_key,
-                                to_key=to_key,
-                                limit=limit,
-                                room_id=self.room_id
-                                )
+            user_id=user_id,
+            from_key=from_key,
+            to_key=to_key,
+            limit=limit,
+            room_id=self.room_id
+        )
         defer.returnValue((data, latest_ver))
 
     @defer.inlineCallbacks
@@ -118,9 +119,9 @@ class EventStream(PaginationStream):
     @defer.inlineCallbacks
     def fix_tokens(self, pagination_config):
         pagination_config.from_tok = yield self.fix_token(
-                                        pagination_config.from_tok)
+            pagination_config.from_tok)
         pagination_config.to_tok = yield self.fix_token(
-                                        pagination_config.to_tok)
+            pagination_config.to_tok)
         defer.returnValue(pagination_config)
 
     @defer.inlineCallbacks
@@ -140,7 +141,8 @@ class EventStream(PaginationStream):
         for magic_token, key in replacements:
             if magic_token == token:
                 token = EventStream.SEPARATOR.join(
-                            [key] * len(self.stream_data))
+                    [key] * len(self.stream_data)
+                )
 
         # replace -1 values with an actual pkey
         token_segments = self._split_token(token)
@@ -150,14 +152,16 @@ class EventStream(PaginationStream):
                 # latest version.
                 token_segments[i] = 1 + (yield self.stream_data[i].max_token())
         defer.returnValue(EventStream.SEPARATOR.join(
-                            [str(x) for x in token_segments]))
+            str(x) for x in token_segments
+        ))
 
     @defer.inlineCallbacks
     def get_chunk(self, config=None):
         # no support for limit on >1 streams, makes no sense.
         if config.limit and len(self.stream_data) > 1:
-            raise EventStreamError(400,
-                                  "Limit not supported on multiplexed streams.")
+            raise EventStreamError(
+                400, "Limit not supported on multiplexed streams."
+            )
 
         (chunk_data, next_tok) = yield self._get_chunk_data(config.from_tok,
                                                             config.to_tok,
@@ -197,15 +201,17 @@ class EventStream(PaginationStream):
         chunk = []
         next_ver = []
         for i, (from_pkey, to_pkey) in enumerate(zip(
-                                        self._split_token(from_tok),
-                                        self._split_token(to_tok))):
+            self._split_token(from_tok),
+            self._split_token(to_tok)
+        )):
             if from_pkey == to_pkey:
                 # tokens are the same, we have nothing to do.
                 next_ver.append(str(to_pkey))
                 continue
 
             (event_chunk, max_pkey) = yield self.stream_data[i].get_rows(
-                                        self.user_id, from_pkey, to_pkey, limit)
+                self.user_id, from_pkey, to_pkey, limit
+            )
 
             chunk += event_chunk
             next_ver.append(str(max_pkey))

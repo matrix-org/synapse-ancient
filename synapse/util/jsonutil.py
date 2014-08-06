@@ -25,8 +25,8 @@ def encode_pretty_printed_json(json_object):
     """Encodes the JSON object dict as human readable ascii bytes."""
 
     return json.dumps(
-         json_object,
-         ensure_ascii=True,
-         indent=4,
-         sort_keys=True,
+        json_object,
+        ensure_ascii=True,
+        indent=4,
+        sort_keys=True,
     ).encode("ascii")

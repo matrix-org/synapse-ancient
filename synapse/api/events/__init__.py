@@ -5,8 +5,8 @@ from synapse.federation.units import JsonEncodedObject
 
 class SynapseEvent(JsonEncodedObject):
 
-    """Base class for Synapse events. These are JSON objects which must abide by
-    a certain well-defined structure.
+    """Base class for Synapse events. These are JSON objects which must abide
+    by a certain well-defined structure.
     """
 
     # Attributes that are currently assumed by the federation side:

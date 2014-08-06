@@ -19,8 +19,8 @@ class RoomStore(SQLBaseStore):
 
     def _insert_room(self, txn, room_id, room_creator, is_public):
         # create room
-        query = ("INSERT INTO " + RoomsTable.table_name +
-                    "(room_id, creator, is_public) VALUES(?,?,?)")
+        query = ("INSERT INTO " + RoomsTable.table_name
+                 + "(room_id, creator, is_public) VALUES(?,?,?)")
         logger.debug("insert_room_and_member %s  room=%s" % (query, room_id))
         txn.execute(query, [room_id, room_creator, is_public])
 
@@ -39,12 +39,13 @@ class RoomStore(SQLBaseStore):
         """
         try:
             yield self._db_pool.runInteraction(
-                    self._insert_room, room_id,
-                    room_creator_user_id, is_public)
+                self._insert_room, room_id,
+                room_creator_user_id, is_public
+            )
         except IntegrityError:
             raise StoreError(409, "Room ID in use.")
         except Exception as e:
-            logger.error("store_room with room_id=%s failed: %s" % (room_id, e))
+            logger.error("store_room with room_id=%s failed: %s", room_id, e)
             raise StoreError(500, "Problem creating room.")
 
     @defer.inlineCallbacks
@@ -65,8 +66,10 @@ class RoomStore(SQLBaseStore):
             A namedtuple containing the room information, or an empty list.
         """
         query = RoomsTable.select_statement("room_id=?")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, RoomsTable.decode_results, room_id)
+        res = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query, RoomsTable.decode_results, room_id
+        )
         if res:
             defer.returnValue(res[0])
         defer.returnValue(None)
@@ -86,16 +89,18 @@ class RoomStore(SQLBaseStore):
         room_data_type = RoomTopicEvent.TYPE
         public = 1 if is_public else 0
 
-        latest_topic = ("SELECT max(room_data.id) FROM room_data WHERE " +
-        "room_data.type = ? GROUP BY room_id")
+        latest_topic = ("SELECT max(room_data.id) FROM room_data WHERE "
+                        + "room_data.type = ? GROUP BY room_id")
 
-        query = ("SELECT rooms.*, room_data.content FROM rooms LEFT JOIN " +
-        "room_data ON rooms.room_id = room_data.room_id WHERE " +
-        "(room_data.id IN (" + latest_topic + ") OR room_data.id IS NULL) " +
-        "AND rooms.is_public = ?")
+        query = ("SELECT rooms.*, room_data.content FROM rooms LEFT JOIN "
+                 + "room_data ON rooms.room_id = room_data.room_id WHERE "
+                 + "(room_data.id IN (" + latest_topic + ") "
+                 + "OR room_data.id IS NULL) AND rooms.is_public = ?")
 
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, self.cursor_to_dict, room_data_type, public)
+        res = yield self._db_pool.runInteraction(
+            self.exec_single_with_result,
+            query, self.cursor_to_dict, room_data_type, public
+        )
 
         # return only the keys the specification expects
         ret_keys = ["room_id", "topic"]
