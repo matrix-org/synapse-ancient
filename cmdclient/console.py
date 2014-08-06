@@ -17,11 +17,7 @@ import os
 import nacl.signing
 import nacl.encoding
 
-# XXX: Need to split out synapse utils
-sydir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, sydir)
-
-import synapse.crypto.signing
+from syutil.crypto.jsonsign import verify_signed_json
 
 CONFIG_JSON = "cmdclient_config.json"
 
@@ -275,7 +271,7 @@ class SynapseCmd(cmd.Cmd):
                             print "Ignoring signature from untrusted server %s" % (signame)
                         else:
                             try:
-                                synapse.crypto.signing.verify_signed_json(json_res, signame, pubKey)
+                                verify_signed_json(json_res, signame, pubKey)
                                 sigValid = True
                                 print "Mapping %s -> %s correctly signed by %s" % (userstring, json_res['mxid'], signame)
                                 break
