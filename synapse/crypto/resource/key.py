@@ -5,7 +5,7 @@ from twisted.web.server import NOT_DONE_YET
 from twisted.internet import defer
 from synapse.http.server import respond_with_json_bytes
 from synapse.crypto.keyclient import fetch_server_key
-from synapse.crypto.signing import sign_json, verify_signed_json
+from syutil.crypto.jsonsign import sign_json, verify_signed_json
 from syutil.base64util import encode_base64, decode_base64
 from syutil.jsonutil import encode_canonical_json
 from OpenSSL import crypto
