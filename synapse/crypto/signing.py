@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from synapse.util.jsonutil import encode_canonical_json
-from synapse.util.base64util import encode_base64, decode_base64
+from syutil.jsonutil import encode_canonical_json
+from syutil.base64util import encode_base64, decode_base64
 
 from nacl.exceptions import BadSignatureError
 

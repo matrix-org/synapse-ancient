@@ -5,9 +5,10 @@ from twisted.web import server
 from twisted.web.resource import Resource
 from twisted.python.log import PythonLoggingObserver
 
-from synapse.util.base64util import decode_base64
 from synapse.crypto.resource.key import LocalKey
 from synapse.crypto.config import load_config
+
+from syutil.base64util import decode_base64
 
 from OpenSSL import crypto, SSL
 

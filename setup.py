@@ -15,14 +15,19 @@ setup(
     packages=find_packages(exclude=["tests"]),
     description="Reference Synapse Home Server",
     install_requires=[
+        "syutil==0.0.1",
         "Twisted>=14.0.0",
         "service_identity>=1.0.0",
         "pyasn1",
         "pynacl",
         "daemonize",
     ],
+    dependency_links=[
+        "git+ssh://git@git.openmarket.com/tng/syutil.git#egg=syutil-0.0.1",
+    ],
     setup_requires=[
         "setuptools_trial",
+        "setuptools>=1.0.0", # Needs setuptools that supports git+ssh. It's not obvious when support for this was introduced.
         "mock"
     ],
     include_package_data=True,

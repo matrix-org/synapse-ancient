@@ -6,7 +6,8 @@ from twisted.web.http_headers import Headers
 
 from synapse.http.endpoint import matrix_endpoint
 from synapse.util.async import sleep
-from synapse.util.jsonutil import encode_canonical_json
+
+from syutil.jsonutil import encode_canonical_json
 
 from synapse.api.errors import CodeMessageException
 

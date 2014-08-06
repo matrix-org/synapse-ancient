@@ -7,7 +7,7 @@ import sys
 import os
 from OpenSSL import crypto
 import nacl.signing
-from synapse.util.base64util import encode_base64
+from syutil.base64util import encode_base64
 import subprocess
 
 

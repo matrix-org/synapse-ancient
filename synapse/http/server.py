@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from synapse.util.jsonutil import (
+from syutil.jsonutil import (
     encode_canonical_json, encode_pretty_printed_json
 )
 from synapse.api.errors import cs_error, CodeMessageException
