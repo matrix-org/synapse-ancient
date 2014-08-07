@@ -3,17 +3,16 @@ from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseTransaction
 
 
-class RegistrationStore(SQLBaseStore):
+class RegistrationTransaction(SQLBaseTransaction):
 
-    def __init__(self, hs):
-        super(RegistrationStore, self).__init__(hs)
-
+    def __init__(self, hs, transaction):
+        super(RegistrationTransaction, self).__init__(hs, transaction)
         self.clock = hs.get_clock()
 
-    def register(self, txn, user_id, token):
+    def register(self, user_id, token):
         """Attempts to register an account.
 
         Args:
@@ -23,7 +22,7 @@ class RegistrationStore(SQLBaseStore):
             StoreError if the user_id could not be registered.
         """
         now = int(self.clock.time())
-
+        txn = self.txn
         try:
             txn.execute("INSERT INTO users(name, creation_ts) VALUES (?,?)",
                         [user_id, now])
@@ -35,7 +34,7 @@ class RegistrationStore(SQLBaseStore):
         txn.execute("INSERT INTO access_tokens(user_id, token) " +
                     "VALUES (?,?)", [txn.lastrowid, token])
 
-    def get_user(self, txn, token):
+    def get_user(self, token):
         """Get a user from the given access token.
 
         Args:
@@ -45,6 +44,7 @@ class RegistrationStore(SQLBaseStore):
         Raises:
             StoreError if no user was found.
         """
+        txn = self.txn
         txn.execute("SELECT users.name FROM access_tokens LEFT JOIN users" +
                     " ON users.id = access_tokens.user_id WHERE token = ?",
                     [token])

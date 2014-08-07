@@ -2,7 +2,7 @@
 from synapse.persistence.tables import (RoomMemberTable, MessagesTable,
                                         FeedbackTable, RoomDataTable)
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseTransaction
 
 import json
 import logging
@@ -10,9 +10,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class StreamStore(SQLBaseStore):
+class StreamTransaction(SQLBaseTransaction):
 
-    def get_message_stream(self, txn, user_id, from_key, to_key, room_id,
+    def get_message_stream(self, user_id, from_key, to_key, room_id,
                            limit=0, with_feedback=False):
         """Get all messages for this user between the given keys.
 
@@ -27,15 +27,15 @@ class StreamStore(SQLBaseStore):
         """
         if with_feedback and room_id:  # with fb MUST specify a room ID
             (rows, pkey) = self._get_message_rows_with_feedback(
-                txn, user_id, from_key, to_key, room_id, limit
+                user_id, from_key, to_key, room_id, limit
             )
         else:
             (rows, pkey) = self._get_message_rows(
-                txn, user_id, from_key, to_key, room_id, limit
+                user_id, from_key, to_key, room_id, limit
             )
         return (rows, pkey)
 
-    def _get_message_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
+    def _get_message_rows(self, user_id, from_pkey, to_pkey, room_id,
                           limit):
         # work out which rooms this user is joined in on and join them with
         # the room id on the messages table, bounded by the specified pkeys
@@ -56,10 +56,10 @@ class StreamStore(SQLBaseStore):
         )
 
         logger.debug("[SQL] %s : %s", query, query_args)
-        cursor = txn.execute(query, query_args)
+        cursor = self.txn.execute(query, query_args)
         return self._as_events(cursor, MessagesTable, from_pkey)
 
-    def _get_message_rows_with_feedback(self, txn, user_id, from_pkey, to_pkey,
+    def _get_message_rows_with_feedback(self, user_id, from_pkey, to_pkey,
                                         room_id, limit):
         # this col represents the compressed feedback JSON as per spec
         compressed_feedback_col = (
@@ -94,7 +94,7 @@ class StreamStore(SQLBaseStore):
         )
 
         logger.debug("[SQL] %s : %s", query, query_args)
-        cursor = txn.execute(query, query_args)
+        cursor = self.txn.execute(query, query_args)
 
         # convert the result set into events
         entries = self.cursor_to_dict(cursor)
@@ -114,7 +114,7 @@ class StreamStore(SQLBaseStore):
 
         return (events, latest_pkey)
 
-    def get_room_member_stream(self, txn, user_id, from_pkey, to_pkey):
+    def get_room_member_stream(self, user_id, from_pkey, to_pkey):
         """Get all room membership events for this user between the given keys.
 
         Args:
@@ -143,10 +143,10 @@ class StreamStore(SQLBaseStore):
             query += " AND rm.id < ?"
             query_args.append(to_pkey)
 
-        cursor = txn.execute(query, query_args)
+        cursor = self.txn.execute(query, query_args)
         return self._as_events(cursor, RoomMemberTable, from_pkey)
 
-    def get_feedback_stream(self, txn, user_id, from_pkey, to_pkey, room_id,
+    def get_feedback_stream(self, user_id, from_pkey, to_pkey, room_id,
                             limit=0):
         # work out which rooms this user is joined in on and join them with
         # the room id on the feedback table, bounded by the specified pkeys
@@ -168,10 +168,10 @@ class StreamStore(SQLBaseStore):
         )
 
         logger.debug("[SQL] %s : %s", query, query_args)
-        cursor = txn.execute(query, query_args)
+        cursor = self.txn.execute(query, query_args)
         return self._as_events(cursor, FeedbackTable, from_pkey)
 
-    def get_room_data_stream(self, txn, user_id, from_pkey, to_pkey,
+    def get_room_data_stream(self, user_id, from_pkey, to_pkey,
                              room_id, limit=0):
         # work out which rooms this user is joined in on and join them with
         # the room id on the feedback table, bounded by the specified pkeys
@@ -193,7 +193,7 @@ class StreamStore(SQLBaseStore):
         )
 
         logger.debug("[SQL] %s : %s", query, query_args)
-        cursor = txn.execute(query, query_args)
+        cursor = self.txn.execute(query, query_args)
         return self._as_events(cursor, RoomDataTable, from_pkey)
 
     def _append_stream_operations(self, table_name, query, query_args,

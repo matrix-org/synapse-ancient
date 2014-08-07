@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 from synapse.persistence.tables import RoomDataTable
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseTransaction
 
 
 def last_row_id(cursor):
     return cursor.lastrowid
 
 
-class RoomDataStore(SQLBaseStore):
+class RoomDataTransaction(SQLBaseTransaction):
     """Provides various CRUD operations for Room Events. """
 
-    def get_room_data(self, txn, room_id, etype, state_key=""):
+    def get_room_data(self, room_id, etype, state_key=""):
         """Retrieve the data stored under this type and state_key.
 
         Args:
@@ -26,14 +26,14 @@ class RoomDataStore(SQLBaseStore):
             "ORDER BY id DESC LIMIT 1"
         )
         res = self.exec_single_with_result(
-            txn, query, RoomDataTable.decode_results, room_id, etype, state_key
+            query, RoomDataTable.decode_results, room_id, etype, state_key
         )
         if res:
             return res[0]
         return None
 
-    def store_room_data(self, txn, room_id, etype, state_key="", content=None):
-        """Stores room specific data.
+    def store_room_data(self, room_id, etype, state_key="", content=None):
+        """Transactions room specific data.
 
         Args:
             room_id (str)
@@ -46,8 +46,8 @@ class RoomDataStore(SQLBaseStore):
         query = ("INSERT INTO " + RoomDataTable.table_name
                  + "(type, state_key, room_id, content) VALUES (?,?,?,?)")
         return self.exec_single_with_result(
-            txn, query, last_row_id, etype, state_key, room_id, content
+            query, last_row_id, etype, state_key, room_id, content
         )
 
-    def get_max_room_data_id(self, txn):
-        return self._simple_max_id(txn, RoomDataTable.table_name)
+    def get_max_room_data_id(self):
+        return self._simple_max_id(RoomDataTable.table_name)

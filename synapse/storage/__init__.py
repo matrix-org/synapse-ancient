@@ -11,23 +11,25 @@ from synapse.persistence.tables import (
 
 import json
 
-from .feedback import FeedbackStore
-from .message import MessageStore
-from .presence import PresenceStore
-from .profile import ProfileStore
-from .registration import RegistrationStore
-from .room import RoomStore
-from .roommember import RoomMemberStore
-from .roomdata import RoomDataStore
-from .stream import StreamStore
+from .feedback import FeedbackTransaction
+from .message import MessageTransaction
+from .presence import PresenceTransaction
+from .profile import ProfileTransaction
+from .registration import RegistrationTransaction
+from .room import RoomTransaction
+from .roommember import RoomMemberTransaction
+from .roomdata import RoomDataTransaction
+from .stream import StreamTransaction
 
 
-class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
-                RegistrationStore, StreamStore, ProfileStore, FeedbackStore,
-                PresenceStore):
+class StoreTransaction(RoomDataTransaction, RoomMemberTransaction,
+                       MessageTransaction, RoomTransaction,
+                       RegistrationTransaction, StreamTransaction,
+                       ProfileTransaction, FeedbackTransaction,
+                       PresenceTransaction):
 
-    def __init__(self, hs):
-        super(DataStore, self).__init__(hs)
+    def __init__(self, hs, transaction):
+        super(DataTransaction, self).__init__(hs, transaction)
         self.event_factory = hs.get_event_factory()
         self.hs = hs
 
@@ -91,10 +93,9 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             events.append(self._create_event(d).get_dict())
         return events
 
-    def persist_event(self, txn, event):
+    def persist_event(self, event):
         if event.type == MessageEvent.TYPE:
             return self.store_message(
-                txn=txn,
                 user_id=event.user_id,
                 room_id=event.room_id,
                 msg_id=event.msg_id,
@@ -102,7 +103,6 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             )
         elif event.type == RoomMemberEvent.TYPE:
             return self.store_room_member(
-                txn=txn,
                 user_id=event.target_user_id,
                 sender=event.user_id,
                 room_id=event.room_id,
@@ -111,7 +111,6 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             )
         elif event.type == FeedbackEvent.TYPE:
             return self.store_feedback(
-                txn=txn,
                 room_id=event.room_id,
                 msg_id=event.msg_id,
                 msg_sender_id=event.msg_sender_id,
@@ -121,7 +120,6 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             )
         elif event.type == RoomTopicEvent.TYPE:
             return self.store_room_data(
-                txn=txn,
                 room_id=event.room_id,
                 etype=event.type,
                 state_key=event.state_key,
@@ -131,7 +129,6 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             if "visibility" in event.content:
                 visibility = event.content["visibility"]
                 return self.store_room_config(
-                    txn=txn,
                     room_id=event.room_id,
                     visibility=visibility
                 )
@@ -140,3 +137,26 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             raise NotImplementedError(
                 "Don't know how to persist type=%s" % event.type
             )
+
+
+class DataStore(object):
+
+    def __init__(self,  hs):
+        self.hs = hs
+        self._db_pool = hs.get_db_pool()
+
+    def with_transaction(self, interaction, *args, **kw):
+        """Runs a storage interaction within a database tranaction
+        Args:
+            interaction: A callable whose first argument is a
+                StoreTransaction.
+            *args: additional position arguments to pass to interaction
+            **kw: keyword arguments to pass to interaction
+        Returns:
+            A Deferred with the result of the interaction
+        """
+        hs = self.hs
+        def _interaction(txn):
+            return interaction(StoreTransaction(txn, hs), *args, **kw)
+        return self._db_pool.runInteraction(_interaction)
+

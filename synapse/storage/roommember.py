@@ -3,7 +3,7 @@ from synapse.types import UserID
 from synapse.api.constants import Membership
 from synapse.persistence.tables import RoomMemberTable
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseTransaction
 
 import json
 import logging
@@ -16,9 +16,9 @@ def last_row_id(cursor):
     return cursor.lastrowid
 
 
-class RoomMemberStore(SQLBaseStore):
+class RoomMemberTransaction(SQLBaseTransaction):
 
-    def get_room_member(self, txn, user_id, room_id):
+    def get_room_member(self, user_id, room_id):
         """Retrieve the current state of a room member.
 
         Args:
@@ -31,15 +31,14 @@ class RoomMemberStore(SQLBaseStore):
         query = RoomMemberTable.select_statement(
             "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
         res = self.exec_single_with_result(
-            txn, query, RoomMemberTable.decode_results, room_id, user_id
+            query, RoomMemberTable.decode_results, room_id, user_id
         )
         if res:
             return res[0]
         return None
 
-    def store_room_member(self, txn, user_id, sender, room_id, membership,
-                          content):
-        """Store a room member in the database.
+    def store_room_member(self, user_id, sender, room_id, membership, content):
+        """Transaction a room member in the database.
 
         Args:
             user_id (str): The member's user ID.
@@ -54,11 +53,11 @@ class RoomMemberStore(SQLBaseStore):
                  + " (user_id, sender, room_id, membership, content)"
                  + " VALUES(?,?,?,?,?)")
         return self.exec_single_with_result(
-            txn, query, last_row_id, user_id, sender, room_id, membership,
+            query, last_row_id, user_id, sender, room_id, membership,
             content_json
         )
 
-    def get_room_members(self, txn, room_id, membership):
+    def get_room_members(self, room_id, membership):
         """Retrieve the current room member list for a room.
 
         Args:
@@ -72,15 +71,14 @@ class RoomMemberStore(SQLBaseStore):
         query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name
                  + " WHERE room_id = ? GROUP BY user_id")
         res = self.exec_single_with_result(
-            txn, query, self._room_member_decode, room_id
+            query, self._room_member_decode, room_id
         )
         # strip memberships which don't match
         if membership:
             res = [entry for entry in res if entry.membership == membership]
         return res
 
-    def get_rooms_for_user_where_membership_is(self, txn, user_id,
-                                               membership_list):
+    def get_rooms_for_user_where_membership_is(self, user_id, membership_list):
         """ Get all the rooms for this user where the membership for this user
         matches one in the membership list.
 
@@ -104,7 +102,7 @@ class RoomMemberStore(SQLBaseStore):
                  + " WHERE user_id=? AND " + where_membership
                  + " GROUP BY room_id ORDER BY id DESC")
         return self.exec_single_with_result(
-            txn, query, self.cursor_to_dict, *args
+            query, self.cursor_to_dict, *args
         )
 
     def _room_member_decode(self, cursor):
@@ -115,14 +113,14 @@ class RoomMemberStore(SQLBaseStore):
         entries = [t[0:-1] for t in results]
         return RoomMemberTable.decode_results(entries)
 
-    def get_joined_hosts_for_room(self, txn, room_id):
+    def get_joined_hosts_for_room(self, room_id):
         query = (
             "SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
             " WHERE room_id = ? GROUP BY user_id"
         )
 
         res = self.exec_single_with_result(
-            txn, query, self._room_member_decode, room_id
+            query, self._room_member_decode, room_id
         )
 
         def host_from_user_id_string(user_id):
@@ -140,5 +138,5 @@ class RoomMemberStore(SQLBaseStore):
 
         return hosts
 
-    def get_max_room_member_id(self, txn):
-        return self._simple_max_id(txn, RoomMemberTable.table_name)
+    def get_max_room_member_id(self):
+        return self._simple_max_id(RoomMemberTable.table_name)

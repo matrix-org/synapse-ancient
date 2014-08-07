@@ -5,7 +5,7 @@ from synapse.api.errors import StoreError
 from synapse.api.events.room import RoomTopicEvent
 from synapse.persistence.tables import RoomsTable
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseTransaction
 
 import json
 import logging
@@ -13,17 +13,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class RoomStore(SQLBaseStore):
+class RoomTransaction(SQLBaseTransaction):
 
-    def _insert_room(self, txn, room_id, room_creator, is_public):
+    def _insert_room(self, room_id, room_creator, is_public):
         # create room
         query = ("INSERT INTO " + RoomsTable.table_name
                  + "(room_id, creator, is_public) VALUES(?,?,?)")
         logger.debug("insert_room_and_member %s  room=%s", query, room_id)
-        txn.execute(query, [room_id, room_creator, is_public])
+        self.txn.execute(query, [room_id, room_creator, is_public])
 
-    def store_room(self, txn, room_id, room_creator_user_id, is_public):
-        """Stores a room.
+    def store_room(self, room_id, room_creator_user_id, is_public):
+        """Transactions a room.
 
         Args:
             room_id (str): The desired room ID, can be None.
@@ -35,7 +35,7 @@ class RoomStore(SQLBaseStore):
         """
         try:
             return self._insert_room(
-                txn, room_id, room_creator_user_id, is_public
+                room_id, room_creator_user_id, is_public
             )
         except IntegrityError:
             raise StoreError(409, "Room ID in use.")
@@ -43,15 +43,14 @@ class RoomStore(SQLBaseStore):
             logger.error("store_room with room_id=%s failed: %s", room_id, e)
             raise StoreError(500, "Problem creating room.")
 
-    def store_room_config(self, txn, room_id, visibility):
+    def store_room_config(self, room_id, visibility):
         self._simple_update_one(
-            txn=txn,
             table=RoomsTable.table_name,
             keyvalues={"room_id": room_id},
             updatevalues={"is_public": visibility}
         )
 
-    def get_room(self, txn, room_id):
+    def get_room(self, room_id):
         """Retrieve a room.
 
         Args:
@@ -61,13 +60,13 @@ class RoomStore(SQLBaseStore):
         """
         query = RoomsTable.select_statement("room_id=?")
         res = self.exec_single_with_result(
-            txn, query, RoomsTable.decode_results, room_id
+            query, RoomsTable.decode_results, room_id
         )
         if res:
             return res[0]
         return None
 
-    def get_rooms(self, txn, is_public, with_topics):
+    def get_rooms(self, is_public, with_topics):
         """Retrieve a list of all public rooms.
 
         Args:
@@ -90,7 +89,7 @@ class RoomStore(SQLBaseStore):
                  + "OR room_data.id IS NULL) AND rooms.is_public = ?")
 
         res = self.exec_single_with_result(
-            txn, query, self.cursor_to_dict, room_data_type, public
+            query, self.cursor_to_dict, room_data_type, public
         )
 
         # return only the keys the specification expects

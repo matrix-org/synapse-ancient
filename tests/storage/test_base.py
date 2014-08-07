@@ -7,11 +7,11 @@ from mock import Mock, call
 from collections import OrderedDict
 
 from synapse.server import HomeServer
-from synapse.storage._base import SQLBaseStore
+from synapse.storage._base import SQLBaseTransaction
 
 
-class SQLBaseStoreTestCase(unittest.TestCase):
-    """ Test the "simple" SQL generating methods in SQLBaseStore. """
+class SQLBaseTransactionTestCase(unittest.TestCase):
+    """ Test the "simple" SQL generating methods in SQLBaseTransaction. """
 
     def setUp(self):
         self.db_pool = Mock(spec=["runInteraction"])
@@ -19,13 +19,12 @@ class SQLBaseStoreTestCase(unittest.TestCase):
 
         hs = HomeServer("test", db_pool=self.db_pool)
 
-        self.datastore = SQLBaseStore(hs)
+        self.transaction = SQLBaseTransaction(hs, self.mock_txn)
 
     def test_insert_1col(self):
         self.mock_txn.rowcount = 1
 
-        self.datastore._simple_insert(
-            self.mock_txn,
+        self.transaction._simple_insert(
             table="tablename",
             values={"columname": "Value"}
         )
@@ -38,8 +37,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_insert_3cols(self):
         self.mock_txn.rowcount = 1
 
-        self.datastore._simple_insert(
-            self.mock_txn,
+        self.transaction._simple_insert(
             table="tablename",
             # Use OrderedDict() so we can assert on the SQL generated
             values=OrderedDict([("colA", 1), ("colB", 2), ("colC", 3)])
@@ -54,8 +52,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.mock_txn.rowcount = 1
         self.mock_txn.fetchone.return_value = ("Value",)
 
-        value = self.datastore._simple_select_one_onecol(
-            self.mock_txn,
+        value = self.transaction._simple_select_one_onecol(
             table="tablename",
             keyvalues={"keycol": "TheKey"},
             retcol="retcol"
@@ -71,8 +68,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.mock_txn.rowcount = 1
         self.mock_txn.fetchone.return_value = (1, 2, 3)
 
-        ret = self.datastore._simple_select_one(
-            self.mock_txn,
+        ret = self.transaction._simple_select_one(
             table="tablename",
             keyvalues={"keycol": "TheKey"},
             retcols=["colA", "colB", "colC"]
@@ -88,8 +84,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
         self.mock_txn.rowcount = 0
         self.mock_txn.fetchone.return_value = None
 
-        ret = self.datastore._simple_select_one(
-            self.mock_txn,
+        ret = self.transaction._simple_select_one(
             table="tablename",
             keyvalues={"keycol": "Not here"},
             retcols=["colA"],
@@ -105,8 +100,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
             ("colA", None, None, None, None, None, None),
         )
 
-        ret = self.datastore._simple_select_list(
-            self.mock_txn,
+        ret = self.transaction._simple_select_list(
             table="tablename",
             keyvalues={"keycol": "A set"},
             retcols=["colA"],
@@ -121,8 +115,7 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_update_one_1col(self):
         self.mock_txn.rowcount = 1
 
-        self.datastore._simple_update_one(
-            self.mock_txn,
+        self.transaction._simple_update_one(
             table="tablename",
             keyvalues={"keycol": "TheKey"},
             updatevalues={"columnname": "New Value"}
@@ -136,25 +129,23 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_update_one_4cols(self):
         self.mock_txn.rowcount = 1
 
-        self.datastore._simple_update_one(
-            self.mock_txn,
+        self.transaction._simple_update_one(
             table="tablename",
             keyvalues=OrderedDict([("colA", 1), ("colB", 2)]),
             updatevalues=OrderedDict([("colC", 3), ("colD", 4)])
         )
 
         self.mock_txn.execute.assert_called_with(
-                "UPDATE tablename SET colC = ?, colD = ? WHERE " +
-                    "colA = ? AND colB = ?",
-                [3, 4, 1, 2]
+            "UPDATE tablename SET colC = ?, colD = ? WHERE " +
+                "colA = ? AND colB = ?",
+            [3, 4, 1, 2]
         )
 
     def test_update_one_with_return(self):
         self.mock_txn.rowcount = 1
         self.mock_txn.fetchone.return_value = ("Old Value",)
 
-        ret = yield self.datastore._simple_update_one(
-            self.mock_txn,
+        ret = yield self.transaction._simple_update_one(
             table="tablename",
             keyvalues={"keycol": "TheKey"},
             updatevalues={"columname": "New Value"},
@@ -176,13 +167,12 @@ class SQLBaseStoreTestCase(unittest.TestCase):
     def test_delete_one(self):
         self.mock_txn.rowcount = 1
 
-        self.datastore._simple_delete_one(
-            self.mock_txn,
-                table="tablename",
-                keyvalues={"keycol": "Go away"},
+        self.transaction._simple_delete_one(
+            table="tablename",
+            keyvalues={"keycol": "Go away"},
         )
 
         self.mock_txn.execute.assert_called_with(
-                "DELETE FROM tablename WHERE keycol = ?",
-                ["Go away"]
+            "DELETE FROM tablename WHERE keycol = ?",
+            ["Go away"]
         )
