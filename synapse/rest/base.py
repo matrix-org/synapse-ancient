@@ -5,7 +5,8 @@ import re
 
 
 def client_path_pattern(path_regex):
-    """Creates a regex compiled client path with the correct client path prefix.
+    """Creates a regex compiled client path with the correct client path
+    prefix.
 
     Args:
         path_regex (str): The regex string to match. This should NOT have a ^

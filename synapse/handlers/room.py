@@ -362,8 +362,8 @@ class RoomMemberHandler(BaseHandler):
         defer.returnValue([hs.parse_userid(m.user_id) for m in memberships])
 
     @defer.inlineCallbacks
-    def fetch_room_distributions_into(self, room_id,
-            localusers=None, remotedomains=None, ignore_user=None):
+    def fetch_room_distributions_into(self, room_id, localusers=None,
+                                      remotedomains=None, ignore_user=None):
         """Fetch the distribution of a room, adding elements to either
         'localusers' or 'remotedomains', which should be a set() if supplied.
         If ignore_user is set, ignore that user.
@@ -582,8 +582,9 @@ class RoomMemberHandler(BaseHandler):
                 )
 
             user = self.hs.parse_userid(event.user_id)
-            self.distributor.fire("user_joined_room",
-                    user=user, room_id=room_id)
+            self.distributor.fire(
+                "user_joined_room", user=user, room_id=room_id
+            )
 
         else:
             # This is not a JOIN, so we can handle it normally.

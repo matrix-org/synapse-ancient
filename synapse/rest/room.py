@@ -132,8 +132,8 @@ class RoomTopicRestServlet(RestServlet):
 
 
 class RoomMemberRestServlet(RestServlet):
-    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/members/" +
-                         "(?P<target_user_id>[^/]*)/state$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/members/"
+                                  + "(?P<target_user_id>[^/]*)/state$")
 
     def get_event_type(self):
         return RoomMemberEvent.TYPE
@@ -198,8 +198,8 @@ class RoomMemberRestServlet(RestServlet):
 
 
 class MessageRestServlet(RestServlet):
-    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/messages/" +
-                         "(?P<sender_id>[^/]*)/(?P<msg_id>[^/]*)$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/messages/"
+                                  + "(?P<sender_id>[^/]*)/(?P<msg_id>[^/]*)$")
 
     def get_event_type(self):
         return MessageEvent.TYPE

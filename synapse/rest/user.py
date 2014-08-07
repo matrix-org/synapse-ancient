@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
-from synapse.api.errors import SynapseError
 from synapse.api.streams import PaginationConfig
 from base import RestServlet, client_path_pattern
 
