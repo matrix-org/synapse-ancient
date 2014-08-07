@@ -101,6 +101,11 @@ class PresenceHandler(BaseHandler):
         self._user_cachemap = {}
         self._user_cachemap_latest_serial = 0
 
+    def _get_or_make_usercache(self, user):
+        if user not in self._user_cachemap:
+            self._user_cachemap[user] = UserPresenceCache()
+        return self._user_cachemap[user]
+
     def registered_user(self, user):
         self.store.create_presence(user.localpart)
 
@@ -168,10 +173,7 @@ class PresenceHandler(BaseHandler):
             del self._user_cachemap[target_user]
 
     def changed_presencelike_data(self, user, state):
-        if user not in self._user_cachemap:
-            self._user_cachemap[user] = UserPresenceCache()
-
-        statuscache = self._user_cachemap[user]
+        statuscache = self._get_or_make_usercache(user)
 
         self._user_cachemap_latest_serial += 1
         statuscache.update(state, serial=self._user_cachemap_latest_serial)
@@ -342,6 +344,7 @@ class PresenceHandler(BaseHandler):
         if target_user in self._user_cachemap:
             statuscache = self._user_cachemap[target_user]
         else:
+            # Do NOT store this in _user_cachemap
             statuscache = UserPresenceCache()
             statuscache.update({"state": PresenceState.OFFLINE}, target_user)
 
@@ -497,10 +500,7 @@ class PresenceHandler(BaseHandler):
             state = dict(push)
             del state["user_id"]
 
-            if user not in self._user_cachemap:
-                self._user_cachemap[user] = UserPresenceCache()
-
-            statuscache = self._user_cachemap[user]
+            statuscache = self._get_or_make_usercache(user)
 
             self._user_cachemap_latest_serial += 1
             statuscache.update(state, serial=self._user_cachemap_latest_serial)
