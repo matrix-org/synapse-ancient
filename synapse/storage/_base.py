@@ -1,7 +1,5 @@
 import logging
 
-from twisted.internet import defer
-
 from synapse.api.errors import StoreError
 
 
@@ -12,6 +10,18 @@ class SQLBaseStore(object):
 
     def __init__(self, hs):
         self._db_pool = hs.get_db_pool()
+
+    def run_interaction(self, interaction, *args, **kw):
+        """Runs a storage interaction within a database tranaction
+        Args:
+            interaction: A callable whose first argument is an
+                adbapi.Transaction
+            *args: additional position arguments to pass to interaction
+            **kw: keyword arguments to pass to interaction
+        Returns:
+            A Deferred with the result of the interaction
+        """
+        return self._db_pool.runInteraction(interaction, *args, **kw)
 
     def cursor_to_dict(self, cursor):
         """Converts a SQL cursor into an list of dicts.
@@ -52,7 +62,7 @@ class SQLBaseStore(object):
     # "Simple" SQL API methods that operate on a single table with no JOINs,
     # no complex WHERE clauses, just a dict of values for columns.
 
-    def _simple_insert(self, table, values):
+    def _simple_insert(self, txn, table, values):
         """Executes an INSERT query on the named table.
 
         Args:
@@ -65,11 +75,9 @@ class SQLBaseStore(object):
             ", ".join("?" for k in values)
         )
 
-        def func(txn):
-            txn.execute(sql, values.values())
-        self._db_pool.runInteraction(func)
+        txn.execute(sql, values.values())
 
-    def _simple_select_one(self, table, keyvalues, retcols,
+    def _simple_select_one(self, txn, table, keyvalues, retcols,
                            allow_none=False):
         """Executes a SELECT query on the named table, which is expected to
         return a single row, returning a single column from it.
@@ -83,11 +91,10 @@ class SQLBaseStore(object):
               statement returns no rows
         """
         return self._simple_selectupdate_one(
-            table, keyvalues, retcols=retcols, allow_none=allow_none
+            txn, table, keyvalues, retcols=retcols, allow_none=allow_none
         )
 
-    @defer.inlineCallbacks
-    def _simple_select_one_onecol(self, table, keyvalues, retcol,
+    def _simple_select_one_onecol(self, txn, table, keyvalues, retcol,
                                   allow_none=False):
         """Executes a SELECT query on the named table, which is expected to
         return a single row, returning a single column from it."
@@ -97,7 +104,8 @@ class SQLBaseStore(object):
             keyvalues : dict of column names and values to select the row with
             retcol : string giving the name of the column to return
         """
-        ret = yield self._simple_select_one(
+        ret = self._simple_select_one(
+            txn=txn,
             table=table,
             keyvalues=keyvalues,
             retcols=[retcol],
@@ -105,11 +113,11 @@ class SQLBaseStore(object):
         )
 
         if ret:
-            defer.returnValue(ret[retcol])
+            return ret[retcol]
         else:
-            defer.returnValue(None)
+            return None
 
-    def _simple_select_list(self, table, keyvalues, retcols):
+    def _simple_select_list(self, txn, table, keyvalues, retcols):
         """Executes a SELECT query on the named table, which may return zero or
         more rows, returning the result as a list of dicts.
 
@@ -124,18 +132,16 @@ class SQLBaseStore(object):
             " AND ".join("%s = ?" % (k) for k in keyvalues)
         )
 
-        def func(txn):
-            txn.execute(sql, keyvalues.values())
-            return self.cursor_to_dict(txn)
+        txn.execute(sql, keyvalues.values())
+        return self.cursor_to_dict(txn)
 
-        return self._db_pool.runInteraction(func)
-
-    def _simple_update_one(self, table, keyvalues, updatevalues,
+    def _simple_update_one(self, txn, table, keyvalues, updatevalues,
                            retcols=None):
         """Executes an UPDATE query on the named table, setting new values for
         columns in a row matching the key values.
 
         Args:
+            txn : transaction for accessing database
             table : string giving the table name
             keyvalues : dict of column names and values to select the row with
             updatevalues : dict giving column names and values to update
@@ -149,11 +155,13 @@ class SQLBaseStore(object):
         get-and-set.  This can be used to implement compare-and-set by putting
         the update column in the 'keyvalues' dict as well.
         """
-        return self._simple_selectupdate_one(table, keyvalues, updatevalues,
-                                             retcols=retcols)
+        return self._simple_selectupdate_one(
+            txn, table, keyvalues, updatevalues, retcols=retcols
+        )
 
-    def _simple_selectupdate_one(self, table, keyvalues, updatevalues=None,
-                                 retcols=None, allow_none=False):
+    def _simple_selectupdate_one(self, txn, table, keyvalues,
+                                 updatevalues=None, retcols=None,
+                                 allow_none=False):
         """ Combined SELECT then UPDATE."""
         if retcols:
             select_sql = "SELECT %s FROM %s WHERE %s" % (
@@ -169,37 +177,34 @@ class SQLBaseStore(object):
                 " AND ".join("%s = ?" % (k) for k in keyvalues)
             )
 
-        def func(txn):
-            ret = None
-            if retcols:
-                txn.execute(select_sql, keyvalues.values())
+        ret = None
+        if retcols:
+            txn.execute(select_sql, keyvalues.values())
 
-                row = txn.fetchone()
-                if not row:
-                    if allow_none:
-                        return None
-                    raise StoreError(404, "No row found")
-                if txn.rowcount > 1:
-                    raise StoreError(500, "More than one row matched")
+            row = txn.fetchone()
+            if not row:
+                if allow_none:
+                    return None
+                raise StoreError(404, "No row found")
+            if txn.rowcount > 1:
+                raise StoreError(500, "More than one row matched")
 
-                ret = dict(zip(retcols, row))
+            ret = dict(zip(retcols, row))
 
-            if updatevalues:
-                txn.execute(
-                    update_sql,
-                    updatevalues.values() + keyvalues.values()
-                )
+        if updatevalues:
+            txn.execute(
+                update_sql, updatevalues.values() + keyvalues.values()
+            )
 
-                if txn.rowcount == 0:
-                    raise StoreError(404, "No row found")
-                if txn.rowcount > 1:
-                    raise StoreError(500, "More than one row matched")
+            if txn.rowcount == 0:
+                raise StoreError(404, "No row found")
+            if txn.rowcount > 1:
+                raise StoreError(500, "More than one row matched")
 
-            return ret
-        return self._db_pool.runInteraction(func)
+        return ret
 
-    def _simple_delete_one(self, table, keyvalues):
-        """Executes a DELETE query on the named table, expecting to delete a
+    def _simple_delete_one(self, txn, table, keyvalues):
+        """Executes a DELETE query in the named table, expecting to delete a
         single row.
 
         Args:
@@ -211,15 +216,13 @@ class SQLBaseStore(object):
             " AND ".join("%s = ?" % (k) for k in keyvalues)
         )
 
-        def func(txn):
-            txn.execute(sql, keyvalues.values())
-            if txn.rowcount == 0:
-                raise StoreError(404, "No row found")
-            if txn.rowcount > 1:
-                raise StoreError(500, "more than one row matched")
-        return self._db_pool.runInteraction(func)
+        txn.execute(sql, keyvalues.values())
+        if txn.rowcount == 0:
+            raise StoreError(404, "No row found")
+        if txn.rowcount > 1:
+            raise StoreError(500, "more than one row matched")
 
-    def _simple_max_id(self, table):
+    def _simple_max_id(self, txn, table):
         """Executes a SELECT query on the named table, expecting to return the
         max value for the column "id".
 
@@ -228,11 +231,8 @@ class SQLBaseStore(object):
         """
         sql = "SELECT MAX(id) AS id FROM %s" % table
 
-        def func(txn):
-            txn.execute(sql)
-            max_id = self.cursor_to_dict(txn)[0]["id"]
-            if max_id is None:
-                return 0
-            return max_id
-
-        return self._db_pool.runInteraction(func)
+        txn.execute(sql)
+        max_id = self.cursor_to_dict(txn)[0]["id"]
+        if max_id is None:
+            return 0
+        return max_id

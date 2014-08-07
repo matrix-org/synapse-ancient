@@ -91,9 +91,10 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             events.append(self._create_event(d).get_dict())
         return events
 
-    def persist_event(self, event):
+    def persist_event(self, txn, event):
         if event.type == MessageEvent.TYPE:
             return self.store_message(
+                txn=txn,
                 user_id=event.user_id,
                 room_id=event.room_id,
                 msg_id=event.msg_id,
@@ -101,6 +102,7 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             )
         elif event.type == RoomMemberEvent.TYPE:
             return self.store_room_member(
+                txn=txn,
                 user_id=event.target_user_id,
                 sender=event.user_id,
                 room_id=event.room_id,
@@ -109,6 +111,7 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             )
         elif event.type == FeedbackEvent.TYPE:
             return self.store_feedback(
+                txn=txn,
                 room_id=event.room_id,
                 msg_id=event.msg_id,
                 msg_sender_id=event.msg_sender_id,
@@ -118,6 +121,7 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             )
         elif event.type == RoomTopicEvent.TYPE:
             return self.store_room_data(
+                txn=txn,
                 room_id=event.room_id,
                 etype=event.type,
                 state_key=event.state_key,
@@ -127,6 +131,7 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             if "visibility" in event.content:
                 visibility = event.content["visibility"]
                 return self.store_room_config(
+                    txn=txn,
                     room_id=event.room_id,
                     visibility=visibility
                 )

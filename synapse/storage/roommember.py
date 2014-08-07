@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from twisted.internet import defer
-
 from synapse.types import UserID
 from synapse.api.constants import Membership
 from synapse.persistence.tables import RoomMemberTable
@@ -20,8 +18,7 @@ def last_row_id(cursor):
 
 class RoomMemberStore(SQLBaseStore):
 
-    @defer.inlineCallbacks
-    def get_room_member(self, user_id=None, room_id=None):
+    def get_room_member(self, txn, user_id, room_id):
         """Retrieve the current state of a room member.
 
         Args:
@@ -33,17 +30,15 @@ class RoomMemberStore(SQLBaseStore):
         """
         query = RoomMemberTable.select_statement(
             "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, RoomMemberTable.decode_results, room_id, user_id
+        res = self.exec_single_with_result(
+            txn, query, RoomMemberTable.decode_results, room_id, user_id
         )
         if res:
-            defer.returnValue(res[0])
-        defer.returnValue(None)
+            return res[0]
+        return None
 
-    @defer.inlineCallbacks
-    def store_room_member(self, user_id=None, sender=None, room_id=None,
-                          membership=None, content=None):
+    def store_room_member(self, txn, user_id, sender, room_id, membership,
+                          content):
         """Store a room member in the database.
 
         Args:
@@ -58,15 +53,12 @@ class RoomMemberStore(SQLBaseStore):
         query = ("INSERT INTO " + RoomMemberTable.table_name
                  + " (user_id, sender, room_id, membership, content)"
                  + " VALUES(?,?,?,?,?)")
-        row = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query,
-            last_row_id, user_id, sender, room_id, membership, content_json
+        return self.exec_single_with_result(
+            txn, query, last_row_id, user_id, sender, room_id, membership,
+            content_json
         )
-        defer.returnValue(row)
 
-    @defer.inlineCallbacks
-    def get_room_members(self, room_id=None, membership=None):
+    def get_room_members(self, txn, room_id, membership):
         """Retrieve the current room member list for a room.
 
         Args:
@@ -79,18 +71,16 @@ class RoomMemberStore(SQLBaseStore):
         """
         query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name
                  + " WHERE room_id = ? GROUP BY user_id")
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, self._room_member_decode, room_id
+        res = self.exec_single_with_result(
+            txn, query, self._room_member_decode, room_id
         )
         # strip memberships which don't match
         if membership:
             res = [entry for entry in res if entry.membership == membership]
-        defer.returnValue(res)
+        return res
 
-    @defer.inlineCallbacks
-    def get_rooms_for_user_where_membership_is(self, user_id=None,
-                                               membership_list=None):
+    def get_rooms_for_user_where_membership_is(self, txn, user_id,
+                                               membership_list):
         """ Get all the rooms for this user where the membership for this user
         matches one in the membership list.
 
@@ -102,7 +92,7 @@ class RoomMemberStore(SQLBaseStore):
             A list of dicts with "room_id" and "membership" keys.
         """
         if not membership_list:
-            defer.returnValue(None)
+            return None
 
         args = [user_id]
         membership_placeholder = ["membership=?"] * len(membership_list)
@@ -113,11 +103,9 @@ class RoomMemberStore(SQLBaseStore):
         query = ("SELECT room_id, membership FROM room_memberships"
                  + " WHERE user_id=? AND " + where_membership
                  + " GROUP BY room_id ORDER BY id DESC")
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, self.cursor_to_dict, *args
+        return self.exec_single_with_result(
+            txn, query, self.cursor_to_dict, *args
         )
-        defer.returnValue(res)
 
     def _room_member_decode(self, cursor):
         results = cursor.fetchall()
@@ -127,16 +115,14 @@ class RoomMemberStore(SQLBaseStore):
         entries = [t[0:-1] for t in results]
         return RoomMemberTable.decode_results(entries)
 
-    @defer.inlineCallbacks
-    def get_joined_hosts_for_room(self, room_id):
+    def get_joined_hosts_for_room(self, txn, room_id):
         query = (
             "SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
             " WHERE room_id = ? GROUP BY user_id"
         )
 
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, self._room_member_decode, room_id
+        res = self.exec_single_with_result(
+            txn, query, self._room_member_decode, room_id
         )
 
         def host_from_user_id_string(user_id):
@@ -152,9 +138,7 @@ class RoomMemberStore(SQLBaseStore):
 
         logger.debug("Returning hosts: %s from results: %s", hosts, res)
 
-        defer.returnValue(hosts)
+        return hosts
 
-    @defer.inlineCallbacks
-    def get_max_room_member_id(self):
-        max_id = yield self._simple_max_id(RoomMemberTable.table_name)
-        defer.returnValue(max_id)
+    def get_max_room_member_id(self, txn):
+        return self._simple_max_id(txn, RoomMemberTable.table_name)

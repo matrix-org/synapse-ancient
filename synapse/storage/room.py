@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from twisted.internet import defer
-
 from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
@@ -24,9 +22,7 @@ class RoomStore(SQLBaseStore):
         logger.debug("insert_room_and_member %s  room=%s", query, room_id)
         txn.execute(query, [room_id, room_creator, is_public])
 
-    @defer.inlineCallbacks
-    def store_room(self, room_id=None, room_creator_user_id=None,
-                   is_public=None):
+    def store_room(self, txn, room_id, room_creator_user_id, is_public):
         """Stores a room.
 
         Args:
@@ -38,9 +34,8 @@ class RoomStore(SQLBaseStore):
             StoreError if the room could not be stored.
         """
         try:
-            yield self._db_pool.runInteraction(
-                self._insert_room, room_id,
-                room_creator_user_id, is_public
+            return self._insert_room(
+                txn, room_id, room_creator_user_id, is_public
             )
         except IntegrityError:
             raise StoreError(409, "Room ID in use.")
@@ -48,16 +43,15 @@ class RoomStore(SQLBaseStore):
             logger.error("store_room with room_id=%s failed: %s", room_id, e)
             raise StoreError(500, "Problem creating room.")
 
-    @defer.inlineCallbacks
-    def store_room_config(self, room_id, visibility):
-        yield self._simple_update_one(
+    def store_room_config(self, txn, room_id, visibility):
+        self._simple_update_one(
+            txn=txn,
             table=RoomsTable.table_name,
             keyvalues={"room_id": room_id},
             updatevalues={"is_public": visibility}
         )
 
-    @defer.inlineCallbacks
-    def get_room(self, room_id):
+    def get_room(self, txn, room_id):
         """Retrieve a room.
 
         Args:
@@ -66,16 +60,14 @@ class RoomStore(SQLBaseStore):
             A namedtuple containing the room information, or an empty list.
         """
         query = RoomsTable.select_statement("room_id=?")
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, RoomsTable.decode_results, room_id
+        res = self.exec_single_with_result(
+            txn, query, RoomsTable.decode_results, room_id
         )
         if res:
-            defer.returnValue(res[0])
-        defer.returnValue(None)
+            return res[0]
+        return None
 
-    @defer.inlineCallbacks
-    def get_rooms(self, is_public, with_topics):
+    def get_rooms(self, txn, is_public, with_topics):
         """Retrieve a list of all public rooms.
 
         Args:
@@ -97,9 +89,8 @@ class RoomStore(SQLBaseStore):
                  + "(room_data.id IN (" + latest_topic + ") "
                  + "OR room_data.id IS NULL) AND rooms.is_public = ?")
 
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, self.cursor_to_dict, room_data_type, public
+        res = self.exec_single_with_result(
+            txn, query, self.cursor_to_dict, room_data_type, public
         )
 
         # return only the keys the specification expects
@@ -114,5 +105,3 @@ class RoomStore(SQLBaseStore):
                 pass  # no topic set
             # filter the dict based on ret_keys
             res[i] = {k: v for k, v in room_row.iteritems() if k in ret_keys}
-
-        defer.returnValue(res)

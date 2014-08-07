@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from twisted.internet import defer
-
 from synapse.persistence.tables import (RoomMemberTable, MessagesTable,
                                         FeedbackTable, RoomDataTable)
 
@@ -14,9 +12,8 @@ logger = logging.getLogger(__name__)
 
 class StreamStore(SQLBaseStore):
 
-    @defer.inlineCallbacks
-    def get_message_stream(self, user_id=None, from_key=None, to_key=None,
-                           room_id=None, limit=0, with_feedback=False):
+    def get_message_stream(self, txn, user_id, from_key, to_key, room_id,
+                           limit=0, with_feedback=False):
         """Get all messages for this user between the given keys.
 
         Args:
@@ -29,14 +26,14 @@ class StreamStore(SQLBaseStore):
             A tuple of rows (list of namedtuples), new_id(int)
         """
         if with_feedback and room_id:  # with fb MUST specify a room ID
-            (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_message_rows_with_feedback,
-                user_id, from_key, to_key, room_id, limit)
+            (rows, pkey) = self._get_message_rows_with_feedback(
+                txn, user_id, from_key, to_key, room_id, limit
+            )
         else:
-            (rows, pkey) = yield self._db_pool.runInteraction(
-                self._get_message_rows,
-                user_id, from_key, to_key, room_id, limit)
-        defer.returnValue((rows, pkey))
+            (rows, pkey) = self._get_message_rows(
+                txn, user_id, from_key, to_key, room_id, limit
+            )
+        return (rows, pkey)
 
     def _get_message_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
                           limit):
@@ -117,8 +114,7 @@ class StreamStore(SQLBaseStore):
 
         return (events, latest_pkey)
 
-    @defer.inlineCallbacks
-    def get_room_member_stream(self, user_id=None, from_key=None, to_key=None):
+    def get_room_member_stream(self, txn, user_id, from_pkey, to_pkey):
         """Get all room membership events for this user between the given keys.
 
         Args:
@@ -128,11 +124,6 @@ class StreamStore(SQLBaseStore):
         Returns:
             A tuple of rows (list of namedtuples), new_id(int)
         """
-        (rows, pkey) = yield self._db_pool.runInteraction(
-            self._get_room_member_rows, user_id, from_key, to_key)
-        defer.returnValue((rows, pkey))
-
-    def _get_room_member_rows(self, txn, user_id, from_pkey, to_pkey):
         # get all room membership events for rooms which the user is
         # *currently* joined in on, or all invite events for this user.
         current_membership_sub_query = (
@@ -155,17 +146,8 @@ class StreamStore(SQLBaseStore):
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, RoomMemberTable, from_pkey)
 
-    @defer.inlineCallbacks
-    def get_feedback_stream(self, user_id=None, from_key=None, to_key=None,
-                            room_id=None, limit=0):
-        (rows, pkey) = yield self._db_pool.runInteraction(
-            self._get_feedback_rows,
-            user_id, from_key, to_key, room_id, limit
-        )
-        defer.returnValue((rows, pkey))
-
-    def _get_feedback_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
-                           limit):
+    def get_feedback_stream(self, txn, user_id, from_pkey, to_pkey, room_id,
+                            limit=0):
         # work out which rooms this user is joined in on and join them with
         # the room id on the feedback table, bounded by the specified pkeys
 
@@ -189,17 +171,8 @@ class StreamStore(SQLBaseStore):
         cursor = txn.execute(query, query_args)
         return self._as_events(cursor, FeedbackTable, from_pkey)
 
-    @defer.inlineCallbacks
-    def get_room_data_stream(self, user_id=None, from_key=None, to_key=None,
-                             room_id=None, limit=0):
-        (rows, pkey) = yield self._db_pool.runInteraction(
-            self._get_room_data_rows,
-            user_id, from_key, to_key, room_id, limit
-        )
-        defer.returnValue((rows, pkey))
-
-    def _get_room_data_rows(self, txn, user_id, from_pkey, to_pkey, room_id,
-                            limit):
+    def get_room_data_stream(self, txn, user_id, from_pkey, to_pkey,
+                             room_id, limit=0):
         # work out which rooms this user is joined in on and join them with
         # the room id on the feedback table, bounded by the specified pkeys
 

@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from twisted.internet import defer
-
 from synapse.persistence.tables import FeedbackTable
 
 from ._base import SQLBaseStore
@@ -12,35 +10,29 @@ def last_row_id(cursor):
 
 class FeedbackStore(SQLBaseStore):
 
-    @defer.inlineCallbacks
-    def store_feedback(self, room_id=None, msg_id=None, msg_sender_id=None,
-                       fb_sender_id=None, fb_type=None, content=None):
+    def store_feedback(self, txn, room_id, msg_id, msg_sender_id,
+                       fb_sender_id, fb_type, content):
         query = ("INSERT INTO " + FeedbackTable.table_name +
                  "(room_id, msg_id, msg_sender_id, fb_sender_id, " +
                  "feedback_type, content) VALUES(?,?,?,?,?,?)")
-        last_id = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, last_row_id, room_id, msg_id, msg_sender_id,
-            fb_sender_id, fb_type, content)
-        defer.returnValue(last_id)
+        return self.exec_single_with_result(
+            txn, query, last_row_id, room_id, msg_id, msg_sender_id,
+            fb_sender_id, fb_type, content
+        )
 
-    @defer.inlineCallbacks
-    def get_feedback(self, room_id=None, msg_id=None, msg_sender_id=None,
-                     fb_sender_id=None, fb_type=None):
+    def get_feedback(self, txn, room_id, msg_id, msg_sender_id,
+                     fb_sender_id, fb_type):
         query = FeedbackTable.select_statement(
             "msg_sender_id = ? AND room_id = ? AND msg_id = ? " +
             "AND fb_sender_id = ? AND feedback_type = ? " +
             "ORDER BY id DESC LIMIT 1")
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, FeedbackTable.decode_results, msg_sender_id, room_id,
+        res = self.exec_single_with_result(
+            txn, query, FeedbackTable.decode_results, msg_sender_id, room_id,
             msg_id, fb_sender_id, fb_type
         )
         if res:
-            defer.returnValue(res[0])
-        defer.returnValue(None)
+            return res[0]
+        return None
 
-    @defer.inlineCallbacks
-    def get_max_feedback_id(self):
-        max_id = yield self._simple_max_id(FeedbackTable.table_name)
-        defer.returnValue(max_id)
+    def get_max_feedback_id(self, txn):
+        return self._simple_max_id(txn, FeedbackTable.table_name)

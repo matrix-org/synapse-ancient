@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from twisted.internet import defer
-
 from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
@@ -15,8 +13,7 @@ class RegistrationStore(SQLBaseStore):
 
         self.clock = hs.get_clock()
 
-    @defer.inlineCallbacks
-    def register(self, user_id, token):
+    def register(self, txn, user_id, token):
         """Attempts to register an account.
 
         Args:
@@ -25,9 +22,6 @@ class RegistrationStore(SQLBaseStore):
         Raises:
             StoreError if the user_id could not be registered.
         """
-        yield self._db_pool.runInteraction(self._register, user_id, token)
-
-    def _register(self, txn, user_id, token):
         now = int(self.clock.time())
 
         try:
@@ -41,8 +35,7 @@ class RegistrationStore(SQLBaseStore):
         txn.execute("INSERT INTO access_tokens(user_id, token) " +
                     "VALUES (?,?)", [txn.lastrowid, token])
 
-    @defer.inlineCallbacks
-    def get_user(self, token=None):
+    def get_user(self, txn, token):
         """Get a user from the given access token.
 
         Args:
@@ -52,11 +45,6 @@ class RegistrationStore(SQLBaseStore):
         Raises:
             StoreError if no user was found.
         """
-        user_id = yield self._db_pool.runInteraction(self._query_for_auth,
-                                                     token)
-        defer.returnValue(user_id)
-
-    def _query_for_auth(self, txn, token):
         txn.execute("SELECT users.name FROM access_tokens LEFT JOIN users" +
                     " ON users.id = access_tokens.user_id WHERE token = ?",
                     [token])
