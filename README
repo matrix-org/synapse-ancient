@@ -1,6 +1,8 @@
 Installation
 ------------
 
+[TODO(kegan): I also needed libffi-dev, which I don't think is included in build-essential.]
+
 Installing prerequisites on ubuntu::
 
     $ sudo apt-get install build-essential python-dev
