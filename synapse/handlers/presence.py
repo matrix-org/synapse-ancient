@@ -102,9 +102,20 @@ class PresenceHandler(BaseHandler):
         self._user_cachemap_latest_serial = 0
 
     def _get_or_make_usercache(self, user):
+        """If the cache entry doesn't exist, initialise a new one."""
         if user not in self._user_cachemap:
             self._user_cachemap[user] = UserPresenceCache()
         return self._user_cachemap[user]
+
+    def _get_or_offline_usercache(self, user):
+        """If the cache entry doesn't exist, return an OFFLINE one but do not
+        store it into the cache."""
+        if user in self._user_cachemap:
+            return self._user_cachemap[user]
+        else:
+            statuscache = UserPresenceCache()
+            statuscache.update({"state": PresenceState.OFFLINE}, user)
+            return statuscache
 
     def registered_user(self, user):
         self.store.create_presence(user.localpart)
@@ -118,12 +129,9 @@ class PresenceHandler(BaseHandler):
             defer.returnValue(state)
         else:
             # TODO(paul): Have remote server send us permissions set
-            if target_user in self._user_cachemap:
-                defer.returnValue(
-                    self._user_cachemap[target_user].get_state()
-                )
-            else:
-                defer.returnValue({"state": 0, "status_msg": ""})
+            defer.returnValue(
+                    self._get_or_offline_usercache(target_user).get_state()
+            )
 
     @defer.inlineCallbacks
     def set_state(self, target_user, auth_user, state):
@@ -287,11 +295,7 @@ class PresenceHandler(BaseHandler):
         for p in presence:
             observed_user = self.hs.parse_userid(p.pop("observed_user_id"))
             p["observed_user"] = observed_user
-
-            if observed_user in self._user_cachemap:
-                p.update(self._user_cachemap[observed_user].get_state())
-            else:
-                p.update({"state": PresenceState.OFFLINE})
+            p.update(self._get_or_offline_usercache(observed_user).get_state())
 
         defer.returnValue(presence)
 
@@ -341,17 +345,10 @@ class PresenceHandler(BaseHandler):
 
         self._local_pushmap[target_localpart].add(user)
 
-        if target_user in self._user_cachemap:
-            statuscache = self._user_cachemap[target_user]
-        else:
-            # Do NOT store this in _user_cachemap
-            statuscache = UserPresenceCache()
-            statuscache.update({"state": PresenceState.OFFLINE}, target_user)
-
         self.push_update_to_clients(
             observer_user=user,
             observed_user=target_user,
-            statuscache=statuscache,
+            statuscache=self._get_or_offline_usercache(target_user),
         )
 
     def _start_polling_remote(self, user, domain, remoteusers):
