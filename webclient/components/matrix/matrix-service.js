@@ -84,10 +84,7 @@ angular.module('matrixService', [])
         // List all rooms joined or been invited to
         rooms: function(from, to, limit) {
             // The REST path spec
-            var path = "/users/$user_id/rooms/list";
-
-            // Customize it
-            path = path.replace("$user_id", config.user_id);
+            var path = "/im/sync";
 
             return doRequest("GET", path);
         },

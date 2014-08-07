@@ -15,6 +15,7 @@ from daemonize import Daemonize
 
 import argparse
 import logging
+import logging.config
 import sqlite3
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,8 @@ def setup():
                         help="The verbosity level.")
     parser.add_argument('-f', '--log-file', dest="log_file", default=None,
                         help="File to log to.")
+    parser.add_argument('--log-config', dest="log_config", default=None,
+                        help="Python logging config")
     parser.add_argument('-D', '--daemonize', action='store_true',
                         default=False, help="Daemonize the home server")
     parser.add_argument('--pid-file', dest="pid", help="When running as a "
@@ -115,7 +118,8 @@ def setup():
 
     setup_logging(
         verbosity=verbosity,
-        filename=args.log_file
+        filename=args.log_file,
+        config_path=args.log_config,
     )
 
     logger.info("Server hostname: %s", args.host)

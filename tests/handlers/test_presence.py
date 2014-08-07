@@ -370,6 +370,24 @@ class PresencePushTestCase(unittest.TestCase):
                 return defer.succeed([])
         self.room_member_handler.get_room_members = get_room_members
 
+        @defer.inlineCallbacks
+        def fetch_room_distributions_into(room_id, localusers=None,
+                remotedomains=None, ignore_user=None):
+
+            members = yield get_room_members(room_id)
+            for member in members:
+                if ignore_user is not None and member == ignore_user:
+                    continue
+
+                if member.is_mine:
+                    if localusers is not None:
+                        localusers.add(member)
+                else:
+                    if remotedomains is not None:
+                        remotedomains.add(member.domain)
+        self.room_member_handler.fetch_room_distributions_into = (
+                fetch_room_distributions_into)
+
         def get_presence_list(user_localpart, accepted=None):
             return defer.succeed([
                 {"observed_user_id": "@banana:test"},
