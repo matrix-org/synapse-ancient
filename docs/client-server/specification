@@ -611,7 +611,7 @@ NOTE: Care must be taken when using this API in conjunction with event
 
 Get current state for all rooms (aka IM Initial Sync API)
 -------------------------------
-  REST Path: /users/$user_id/rooms/list
+  REST Path: /im/sync
   Valid methods: GET
   This API can use pagination query parameters. Pagination is applied on a per
   *room* basis. E.g. limit=1 means "get 1 message for each room" and not "get 1
