@@ -22,6 +22,8 @@ from mock import Mock
 
 logging.getLogger().addHandler(logging.NullHandler())
 
+PATH_PREFIX = "/matrix/client/api/v1"
+
 
 class EventStreamPaginationApiTestCase(unittest.TestCase):
     """ Tests event streaming query parameters and start/end keys used in the
@@ -100,7 +102,7 @@ class EventStreamPermissionsTestCase(RestTestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
 
         state_handler = Mock(spec=["handle_new_event"])
         state_handler.handle_new_event.return_value = True

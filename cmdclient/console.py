@@ -45,6 +45,7 @@ class SynapseCmd(cmd.Cmd):
             "complete_usernames": "on",
             "send_delivery_receipts": "on"
         }
+        self.path_prefix = "/matrix/client/api/v1"
         self.event_stream_token = "START"
         self.prompt = ">>> "
 
@@ -61,7 +62,7 @@ class SynapseCmd(cmd.Cmd):
         return self.config["token"]
 
     def _url(self):
-        return self.config["url"]
+        return self.config["url"] + self.path_prefix
 
     def _identityServerUrl(self):
         return self.config["identityServerUrl"]

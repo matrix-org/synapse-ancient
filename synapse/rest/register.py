@@ -2,16 +2,14 @@
 """This module contains REST servlets to do with registration: /register"""
 from twisted.internet import defer
 
-from base import RestServlet, InvalidHttpRequestError
+from base import RestServlet, InvalidHttpRequestError, client_path_pattern
 
 import json
-import re
 import urllib
 
 
 class RegisterRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/register$")
+    PATTERN = client_path_pattern("/register$")
 
     @defer.inlineCallbacks
     def on_POST(self, request):

@@ -17,6 +17,8 @@ from .utils import RestTestCase
 
 from mock import Mock
 
+PATH_PREFIX = "/matrix/client/api/v1"
+
 
 class RoomPermissionsTestCase(RestTestCase):
     """ Tests room permissions. """
@@ -25,7 +27,7 @@ class RoomPermissionsTestCase(RestTestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
 
         state_handler = Mock(spec=["handle_new_event"])
         state_handler.handle_new_event.return_value = True
@@ -374,7 +376,7 @@ class RoomsMemberListTestCase(RestTestCase):
     user_id = "@sid1:red"
 
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
 
         state_handler = Mock(spec=["handle_new_event"])
         state_handler.handle_new_event.return_value = True
@@ -454,7 +456,7 @@ class RoomsCreateTestCase(RestTestCase):
     user_id = "@sid1:red"
 
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
         self.auth_user_id = self.user_id
 
         state_handler = Mock(spec=["handle_new_event"])
@@ -586,7 +588,7 @@ class RoomTopicTestCase(RestTestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
         self.auth_user_id = self.user_id
         self.room_id = "rid1"
         self.path = "/rooms/%s/topic" % self.room_id
@@ -690,7 +692,7 @@ class RoomMemberStateTestCase(RestTestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
         self.auth_user_id = self.user_id
         self.room_id = "rid1"
 
@@ -805,7 +807,7 @@ class RoomMessagesTestCase(RestTestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
         self.auth_user_id = self.user_id
         self.room_id = "rid1"
 

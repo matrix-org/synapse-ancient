@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
-from synapse.api.errors import SynapseError
 from synapse.api.streams import PaginationConfig
-from base import RestServlet
-
-import re
+from base import RestServlet, client_path_pattern
 
 
 class ImSyncRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/im/sync$")
+    PATTERN = client_path_pattern("/im/sync$")
 
     @defer.inlineCallbacks
     def on_GET(self, request):
