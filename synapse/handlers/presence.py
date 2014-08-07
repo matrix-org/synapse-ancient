@@ -52,6 +52,10 @@ class PresenceHandler(BaseHandler):
             "stopped_user_eventstream", self.stopped_user_eventstream
         )
 
+        distributor.observe("user_joined_room",
+            self.user_joined_room
+        )
+
         distributor.declare("collect_presencelike_data")
 
         distributor.declare("changed_presencelike_data")
@@ -195,6 +199,27 @@ class PresenceHandler(BaseHandler):
     def stopped_user_eventstream(self, user):
         # TODO(paul): Save current state as "last online" state
         self.set_state(user, user, {"state": PresenceState.OFFLINE})
+
+    @defer.inlineCallbacks
+    def user_joined_room(self, user, room_id):
+        localusers = set()
+        remotedomains = set()
+
+        rm_handler = self.homeserver.get_handlers().room_member_handler
+        yield rm_handler.fetch_room_distributions_into(room_id,
+                localusers=localusers, remotedomains=remotedomains,
+                ignore_user=user)
+
+        if user.is_mine:
+            yield self._send_presence_to_distribution(srcuser=user,
+                localusers=localusers, remotedomains=remotedomains,
+                statuscache=self._get_or_offline_usercache(user),
+            )
+
+        for srcuser in localusers:
+            yield self._send_presence(srcuser=srcuser, destuser=user,
+                statuscache=self._get_or_offline_usercache(srcuser),
+            )
 
     @defer.inlineCallbacks
     def send_invite(self, observer_user, observed_user):
@@ -437,19 +462,40 @@ class PresenceHandler(BaseHandler):
         if not localusers and not remotedomains:
             defer.returnValue(None)
 
+        yield self._send_presence_to_distribution(user,
+            localusers=localusers, remotedomains=remotedomains,
+            statuscache=statuscache
+        )
+
+    def _send_presence(self, srcuser, destuser, statuscache):
+        if destuser.is_mine:
+            self.push_update_to_clients(
+                observer_user=destuser,
+                observed_user=srcuser,
+                statuscache=statuscache)
+            return defer.succeed(None)
+        else:
+            return self._push_presence_remote(srcuser, destuser.domain,
+                state=statuscache.get_state()
+            )
+
+    @defer.inlineCallbacks
+    def _send_presence_to_distribution(self, srcuser, localusers=set(),
+            remotedomains=set(), statuscache=None):
+
         for u in localusers:
             logger.debug(" | push to local user %s", u)
             self.push_update_to_clients(
                 observer_user=u,
-                observed_user=user,
+                observed_user=srcuser,
                 statuscache=statuscache,
             )
 
         deferreds = []
         for domain in remotedomains:
             logger.debug(" | push to remote domain %s", domain)
-            deferreds.append(self._push_presence_remote(
-                user, domain, state=statuscache.get_state())
+            deferreds.append(self._push_presence_remote(srcuser, domain,
+                state=statuscache.get_state())
             )
 
         yield defer.DeferredList(deferreds)
