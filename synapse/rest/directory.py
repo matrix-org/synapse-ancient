@@ -6,7 +6,7 @@ from synapse.types import RoomName
 from base import RestServlet, InvalidHttpRequestError
 
 
-class DirectoryServer(RestServlet):
+class ClientDirectoryServer(RestServlet):
     PATTERN = re.compile("^/ds/room/(?P<room_name>[^/]*)$")
 
     def on_GET(self, request, room_name):

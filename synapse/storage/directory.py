@@ -14,4 +14,5 @@ class DirectoryStore(SQLBaseStore):
         raise NotImplementedError("get_association_from_room_name")
 
     def create_room_name_association(self, room_name, room_id, servers):
+        # TODO(erikj): Should this throw if room_name is already in use?
         raise NotImplementedError("create_room_name_association")
