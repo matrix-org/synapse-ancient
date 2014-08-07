@@ -3,11 +3,9 @@
 """
 from twisted.internet import defer
 
-from base import RestServlet
+from base import RestServlet, client_path_pattern
 
 import json
-import re
-
 import logging
 
 
@@ -15,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class PresenceStatusRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/presence/(?P<user_id>[^/]*)/status")
+    PATTERN = client_path_pattern("/presence/(?P<user_id>[^/]*)/status")
 
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):
@@ -57,8 +54,7 @@ class PresenceStatusRestServlet(RestServlet):
 
 
 class PresenceListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/presence_list/(?P<user_id>[^/]*)")
+    PATTERN = client_path_pattern("/presence_list/(?P<user_id>[^/]*)")
 
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):

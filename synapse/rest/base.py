@@ -1,6 +1,19 @@
 # -*- coding: utf-8 -*-
 """ This module contains base REST classes for constructing REST servlets. """
 from synapse.api.errors import cs_error, CodeMessageException
+import re
+
+
+def client_path_pattern(path_regex):
+    """Creates a regex compiled client path with the correct client path prefix.
+
+    Args:
+        path_regex (str): The regex string to match. This should NOT have a ^
+        as this will be prefixed.
+    Returns:
+        SRE_Pattern
+    """
+    return re.compile("^/matrix/client/api/v1" + path_regex)
 
 
 class RestServletFactory(object):

@@ -14,7 +14,7 @@ angular.module('RoomController', [])
     $scope.userIDToInvite = "";
 
     var shortPoll = function() {
-        $http.get(matrixService.config().homeserver + "/events", {
+        $http.get(matrixService.config().homeserver + matrixService.prefix + "/events", {
             "params": {
                 "access_token": matrixService.config().access_token,
                 "from": $scope.state.events_from,

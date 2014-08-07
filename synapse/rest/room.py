@@ -2,7 +2,7 @@
 """ This module contains REST servlets to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
-from base import RestServlet, InvalidHttpRequestError
+from base import RestServlet, InvalidHttpRequestError, client_path_pattern
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent, FeedbackEvent)
@@ -10,7 +10,6 @@ from synapse.api.constants import Feedback, Membership
 from synapse.api.streams import PaginationConfig
 
 import json
-import re
 import urllib
 
 
@@ -18,17 +17,17 @@ class RoomCreateRestServlet(RestServlet):
     # No PATTERN; we have custom dispatch rules here
 
     def register(self, http_server):
-        # TODO(markjh): Namespace the client URI paths
         # /rooms OR /rooms/<roomid>
         http_server.register_path("POST",
-                                  re.compile("^/rooms$"),
+                                  client_path_pattern("/rooms$"),
                                   self.on_POST)
         http_server.register_path("PUT",
-                                  re.compile("^/rooms/(?P<room_id>[^/]*)$"),
+                                  client_path_pattern(
+                                      "/rooms/(?P<room_id>[^/]*)$"),
                                   self.on_PUT)
         # define CORS for all of /rooms in RoomCreateRestServlet for simplicity
         http_server.register_path("OPTIONS",
-                                  re.compile("^/rooms(?:/.*)?$"),
+                                  client_path_pattern("/rooms(?:/.*)?$"),
                                   self.on_OPTIONS)
 
     @defer.inlineCallbacks
@@ -91,8 +90,7 @@ class RoomCreateRestServlet(RestServlet):
 
 
 class RoomTopicRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/topic$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/topic$")
 
     def get_event_type(self):
         return RoomTopicEvent.TYPE
@@ -134,8 +132,7 @@ class RoomTopicRestServlet(RestServlet):
 
 
 class RoomMemberRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/" +
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/members/" +
                          "(?P<target_user_id>[^/]*)/state$")
 
     def get_event_type(self):
@@ -201,8 +198,7 @@ class RoomMemberRestServlet(RestServlet):
 
 
 class MessageRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/" +
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/messages/" +
                          "(?P<sender_id>[^/]*)/(?P<msg_id>[^/]*)$")
 
     def get_event_type(self):
@@ -248,9 +244,8 @@ class MessageRestServlet(RestServlet):
 
 
 class FeedbackRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile(
-        "^/rooms/(?P<room_id>[^/]*)/messages/" +
+    PATTERN = client_path_pattern(
+        "/rooms/(?P<room_id>[^/]*)/messages/" +
         "(?P<msg_sender_id>[^/]*)/(?P<msg_id>[^/]*)/feedback/" +
         "(?P<sender_id>[^/]*)/(?P<feedback_type>[^/]*)$"
     )
@@ -311,8 +306,7 @@ class FeedbackRestServlet(RestServlet):
 
 
 class RoomMemberListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/list$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/members/list$")
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
@@ -327,8 +321,7 @@ class RoomMemberListRestServlet(RestServlet):
 
 
 class RoomMessageListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/list$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/messages/list$")
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):

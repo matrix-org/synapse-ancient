@@ -2,15 +2,13 @@
 """ This module contains REST servlets to do with profile: /profile/<paths> """
 from twisted.internet import defer
 
-from base import RestServlet
+from base import RestServlet, client_path_pattern
 
 import json
-import re
 
 
 class ProfileDisplaynameRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/profile/(?P<user_id>[^/]*)/displayname")
+    PATTERN = client_path_pattern("/profile/(?P<user_id>[^/]*)/displayname")
 
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):
@@ -44,8 +42,7 @@ class ProfileDisplaynameRestServlet(RestServlet):
 
 
 class ProfileAvatarURLRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/profile/(?P<user_id>[^/]*)/avatar_url")
+    PATTERN = client_path_pattern("/profile/(?P<user_id>[^/]*)/avatar_url")
 
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):
