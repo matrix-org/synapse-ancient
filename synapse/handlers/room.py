@@ -448,41 +448,6 @@ class RoomMemberHandler(BaseHandler):
 
         #broadcast_msg = False
 
-        @defer.inlineCallbacks
-        def _do_membership_update():
-            # store membership
-            store_id = yield self.store.store_room_member(
-                user_id=event.target_user_id,
-                sender=event.user_id,
-                room_id=event.room_id,
-                content=event.content,
-                membership=event.content["membership"]
-            )
-
-            # Send a PDU to all hosts who have joined the room.
-            destinations = yield self.store.get_joined_hosts_for_room(
-                event.room_id
-            )
-
-            # If we're inviting someone, then we should also send it to that
-            # HS.
-            if event.content["membership"] == Membership.INVITE:
-                host = UserID.from_string(
-                    event.target_user_id, self.hs
-                ).domain
-                destinations.append(host)
-
-            # If we are joining a remote HS, include that.
-            if event.content["membership"] == Membership.JOIN:
-                host = UserID.from_string(
-                    event.target_user_id, self.hs
-                ).domain
-                destinations.append(host)
-
-            event.destinations = list(set(destinations))
-
-            defer.returnValue(store_id)
-
         prev_state = yield self.store.get_room_member(
             event.target_user_id, event.room_id
         )
@@ -537,43 +502,34 @@ class RoomMemberHandler(BaseHandler):
                 except:
                     logger.exception("Failed to set display_name")
 
-            with (yield self.room_lock.lock(room_id)):
-                # XXX: We don't do an auth check if we are doing an invite
-                # join dance for now, since we're kinda implicitly checking
-                # that we are allowed to join when we decide whether or not we
-                # need to do the invite/join dance.
+            # XXX: We don't do an auth check if we are doing an invite
+            # join dance for now, since we're kinda implicitly checking
+            # that we are allowed to join when we decide whether or not we
+            # need to do the invite/join dance.
 
-                should_do_dance, room_host = yield self._should_invite_join(
-                    room_id=room_id,
-                    room_host=room_host,
-                    prev_state=prev_state,
-                    do_auth=do_auth,
+            should_do_dance, room_host = yield self._should_invite_join(
+                room_id=room_id,
+                room_host=room_host,
+                prev_state=prev_state,
+                do_auth=do_auth,
+            )
+
+            # We want to do the _do_update inside the room lock.
+            if not should_do_dance:
+                logger.debug("Doing normal join")
+
+                if do_auth:
+                    yield self.auth.check(event, raises=True)
+
+                yield self.state_handler.handle_new_event(event)
+                yield self._do_local_membership_update(
+                    event,
+                    membership=event.content["membership"],
+                    broadcast_msg=broadcast_msg,
                 )
 
-                # We want to do the _do_update inside the room lock.
-                if not should_do_dance:
-                    logger.debug("Doing normal join")
 
-                    if do_auth:
-                        yield self.auth.check(event, raises=True)
-
-                    yield self.state_handler.handle_new_event(event)
-                    store_id = yield _do_membership_update()
-
-            # We don't want to send out the event notifs inside the room lock.
-            if not should_do_dance:
-                yield self.hs.get_federation().handle_new_event(event)
-                self.notifier.on_new_room_event(event, store_id)
-
-                if broadcast_msg:
-                    yield self._inject_membership_msg(
-                        source=event.user_id,
-                        target=event.target_user_id,
-                        room_id=room_id,
-                        membership=event.content["membership"]
-                    )
-
-            else:
+            if should_do_dance:
                 yield self._do_invite_join_dance(
                     room_id=room_id,
                     joinee=event.user_id,
@@ -588,31 +544,23 @@ class RoomMemberHandler(BaseHandler):
 
         else:
             # This is not a JOIN, so we can handle it normally.
-            with (yield self.room_lock.lock(event.room_id)):
-                if do_auth:
-                    yield self.auth.check(event, raises=True)
+            if do_auth:
+                yield self.auth.check(event, raises=True)
 
-                prev_state = yield self.store.get_room_member(
-                    event.target_user_id, event.room_id
-                )
-                if prev_state and prev_state.membership == event.membership:
-                    # double same action, treat this event as a NOOP.
-                    defer.returnValue({})
-                    return
+            prev_state = yield self.store.get_room_member(
+                event.target_user_id, event.room_id
+            )
+            if prev_state and prev_state.membership == event.membership:
+                # double same action, treat this event as a NOOP.
+                defer.returnValue({})
+                return
 
-                yield self.state_handler.handle_new_event(event)
-                store_id = yield _do_membership_update()
-
-            yield self.hs.get_federation().handle_new_event(event)
-            self.notifier.on_new_room_event(event, store_id)
-
-            if broadcast_msg:
-                yield self._inject_membership_msg(
-                    source=event.user_id,
-                    target=event.target_user_id,
-                    room_id=event.room_id,
-                    membership=event.content["membership"]
-                )
+            yield self.state_handler.handle_new_event(event)
+            yield self._do_local_membership_update(
+                event,
+                membership=event.content["membership"],
+                broadcast_msg=broadcast_msg,
+            )
 
         defer.returnValue({"room_id": room_id})
 
@@ -656,6 +604,51 @@ class RoomMemberHandler(BaseHandler):
         )
 
         defer.returnValue([r["room_id"] for r in rooms])
+
+    @defer.inlineCallbacks
+    def _do_local_membership_update(self, event, membership, broadcast_msg):
+        # store membership
+        store_id = yield self.store.store_room_member(
+            user_id=event.target_user_id,
+            sender=event.user_id,
+            room_id=event.room_id,
+            content=event.content,
+            membership=membership
+        )
+
+        # Send a PDU to all hosts who have joined the room.
+        destinations = yield self.store.get_joined_hosts_for_room(
+            event.room_id
+        )
+
+        # If we're inviting someone, then we should also send it to that
+        # HS.
+        if membership == Membership.INVITE:
+            host = UserID.from_string(
+                event.target_user_id, self.hs
+            ).domain
+            destinations.append(host)
+
+        # If we are joining a remote HS, include that.
+        if membership == Membership.JOIN:
+            host = UserID.from_string(
+                event.target_user_id, self.hs
+            ).domain
+            destinations.append(host)
+
+        event.destinations = list(set(destinations))
+
+        yield self.hs.get_federation().handle_new_event(event)
+        self.notifier.on_new_room_event(event, store_id)
+
+        if broadcast_msg:
+            yield self._inject_membership_msg(
+                source=event.user_id,
+                target=event.target_user_id,
+                room_id=event.room_id,
+                membership=event.content["membership"]
+            )
+
 
     @defer.inlineCallbacks
     def _do_invite_join_dance(self, room_id, joinee, target_host, content):
