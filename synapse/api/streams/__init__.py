@@ -11,13 +11,6 @@ class PaginationConfig(object):
         self.to_tok = to_tok
         self.limit = limit
 
-    def dict(self):
-        return {
-            "from": self.from_tok,
-            "to": self.to_tok,
-            "limit": self.limit
-        }
-
     @classmethod
     def from_request(cls, request, raise_invalid_params=True):
         params = {
