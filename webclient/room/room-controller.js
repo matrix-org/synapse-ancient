@@ -14,7 +14,7 @@ angular.module('RoomController', [])
     $scope.userIDToInvite = "";
 
     var shortPoll = function() {
-        $http.get(matrixService.config().homeserver + "/events", {
+        $http.get(matrixService.config().homeserver + matrixService.prefix + "/events", {
             "params": {
                 "access_token": matrixService.config().access_token,
                 "from": $scope.state.events_from,
@@ -27,7 +27,13 @@ angular.module('RoomController', [])
                 for (var i = 0; i < response.data.chunk.length; i++) {
                     var chunk = response.data.chunk[i];
                     if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
+                        if ("membership_target" in chunk.content) {
+                            chunk.user_id = chunk.content.membership_target;
+                        }
                         $scope.messages.push(chunk);
+                        $timeout(function() {
+                            window.scrollTo(0, document.body.scrollHeight);
+                        },0);
                     }
                     else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
                         updateMemberList(chunk);
@@ -43,7 +49,7 @@ angular.module('RoomController', [])
                     $timeout(shortPoll, 0);
                 }
             }, function(response) {
-                $scope.feedback = "Can't stream: " + response.data;
+                $scope.feedback = "Can't stream: " + JSON.stringify(response);
                 if ($scope.stopPoll) {
                     console.log("Stopping polling.");
                 }

@@ -16,8 +16,9 @@ import urlparse
 
 class MockHttpServer(HttpServer):
 
-    def __init__(self):
+    def __init__(self, prefix=""):
         self.callbacks = []  # 3-tuple of method/pattern/function
+        self.prefix = prefix
 
     def trigger_get(self, path):
         return self.trigger("GET", path, None)
@@ -38,6 +39,7 @@ class MockHttpServer(HttpServer):
         Raises:
             KeyError If no event is found which will handle the path.
         """
+        path = self.prefix + path
 
         # annoyingly we return a twisted http request which has chained calls
         # to get at the http content, hence mock it here.

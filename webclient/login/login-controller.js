@@ -6,6 +6,7 @@ angular.module('LoginController', ['matrixService'])
     $scope.account = {
         homeserver: "http://localhost:8080", // http://matrix.openmarket.com", The hacky version of the HS hosted at the this URL does not work anymore
         user_name_or_id: "",
+        user_id: "",
         access_token: "",
         identityServer: "http://localhost:8090"
     };
@@ -45,7 +46,7 @@ angular.module('LoginController', ['matrixService'])
 
         matrixService.setConfig({
             homeserver: $scope.account.homeserver,
-            user_id: $scope.account.user_name_or_id,
+            user_id: $scope.account.user_id,
             access_token: $scope.account.access_token
         });
 
@@ -63,7 +64,7 @@ angular.module('LoginController', ['matrixService'])
                 $location.path("rooms");
             },
             function(reason) {
-                $scope.feedback = "Failure: " + reason;
+                $scope.feedback = "Failure: " + reason + " Are you sure your username is correct?";
             });
     };
 }]);

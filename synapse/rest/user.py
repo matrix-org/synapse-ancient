@@ -1,22 +1,16 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import defer
 
-from synapse.api.errors import SynapseError
 from synapse.api.streams import PaginationConfig
-from base import RestServlet
-
-import re
+from base import RestServlet, client_path_pattern
 
 
-class UserRoomListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/users/(?P<sender_id>[^/]*)/rooms/list$")
+class ImSyncRestServlet(RestServlet):
+    PATTERN = client_path_pattern("/im/sync$")
 
     @defer.inlineCallbacks
-    def on_GET(self, request, sender_id):
+    def on_GET(self, request):
         user = yield self.auth.get_user_by_req(request)
-        if user.to_string() != sender_id:
-            raise SynapseError(403, "Cannot see room list of other users.")
         with_feedback = "feedback" in request.args
         pagination_config = PaginationConfig.from_request(request)
         handler = self.handlers.message_handler
@@ -29,4 +23,4 @@ class UserRoomListRestServlet(RestServlet):
 
 
 def register_servlets(hs, http_server):
-    UserRoomListRestServlet(hs).register(http_server)
+    ImSyncRestServlet(hs).register(http_server)

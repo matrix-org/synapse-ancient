@@ -2,7 +2,7 @@
 """ This module contains REST servlets to do with rooms: /rooms/<paths> """
 from twisted.internet import defer
 
-from base import RestServlet, InvalidHttpRequestError
+from base import RestServlet, InvalidHttpRequestError, client_path_pattern
 from synapse.api.errors import SynapseError, cs_error
 from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent, FeedbackEvent)
@@ -10,7 +10,6 @@ from synapse.api.constants import Feedback, Membership
 from synapse.api.streams import PaginationConfig
 
 import json
-import re
 import urllib
 
 
@@ -18,17 +17,17 @@ class RoomCreateRestServlet(RestServlet):
     # No PATTERN; we have custom dispatch rules here
 
     def register(self, http_server):
-        # TODO(markjh): Namespace the client URI paths
         # /rooms OR /rooms/<roomid>
         http_server.register_path("POST",
-                                  re.compile("^/rooms$"),
+                                  client_path_pattern("/rooms$"),
                                   self.on_POST)
         http_server.register_path("PUT",
-                                  re.compile("^/rooms/(?P<room_id>[^/]*)$"),
+                                  client_path_pattern(
+                                      "/rooms/(?P<room_id>[^/]*)$"),
                                   self.on_PUT)
         # define CORS for all of /rooms in RoomCreateRestServlet for simplicity
         http_server.register_path("OPTIONS",
-                                  re.compile("^/rooms(?:/.*)?$"),
+                                  client_path_pattern("/rooms(?:/.*)?$"),
                                   self.on_OPTIONS)
 
     @defer.inlineCallbacks
@@ -38,7 +37,8 @@ class RoomCreateRestServlet(RestServlet):
             auth_user = yield self.auth.get_user_by_req(request)
 
             if not room_id:
-                raise InvalidHttpRequestError(400, "PUT must specify a room ID")
+                raise InvalidHttpRequestError(
+                    400, "PUT must specify a room ID")
 
             room_config = self.get_room_config(request)
             info = yield self.make_room(room_config, auth_user, room_id)
@@ -67,9 +67,9 @@ class RoomCreateRestServlet(RestServlet):
     def make_room(self, room_config, auth_user, room_id):
         handler = self.handlers.room_creation_handler
         new_room_id = yield handler.create_room(
-                user_id=auth_user.to_string(),
-                room_id=room_id,
-                config=room_config
+            user_id=auth_user.to_string(),
+            room_id=room_id,
+            config=room_config
         )
         defer.returnValue({
             "room_id": new_room_id
@@ -90,8 +90,7 @@ class RoomCreateRestServlet(RestServlet):
 
 
 class RoomTopicRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/topic$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/topic$")
 
     def get_event_type(self):
         return RoomTopicEvent.TYPE
@@ -102,11 +101,11 @@ class RoomTopicRestServlet(RestServlet):
 
         msg_handler = self.handlers.message_handler
         data = yield msg_handler.get_room_data(
-                user_id=user.to_string(),
-                room_id=urllib.unquote(room_id),
-                event_type=RoomTopicEvent.TYPE,
-                state_key="",
-            )
+            user_id=user.to_string(),
+            room_id=urllib.unquote(room_id),
+            event_type=RoomTopicEvent.TYPE,
+            state_key="",
+        )
 
         if not data:
             defer.returnValue((404, cs_error("Topic not found.")))
@@ -133,9 +132,8 @@ class RoomTopicRestServlet(RestServlet):
 
 
 class RoomMemberRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/" +
-                      "(?P<target_user_id>[^/]*)/state$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/members/"
+                                  + "(?P<target_user_id>[^/]*)/state$")
 
     def get_event_type(self):
         return RoomMemberEvent.TYPE
@@ -179,9 +177,11 @@ class RoomMemberRestServlet(RestServlet):
 
         valid_membership_values = [Membership.JOIN, Membership.INVITE]
         if (content["membership"] not in valid_membership_values):
-            raise SynapseError(400,
-                cs_error("Membership value must be %s." %
-                         valid_membership_values))
+            raise SynapseError(
+                400, cs_error("Membership value must be %s." % (
+                    valid_membership_values,
+                ))
+            )
 
         event = self.event_factory.create_event(
             etype=self.get_event_type(),
@@ -198,9 +198,8 @@ class RoomMemberRestServlet(RestServlet):
 
 
 class MessageRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/" +
-                      "(?P<sender_id>[^/]*)/(?P<msg_id>[^/]*)$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/messages/"
+                                  + "(?P<sender_id>[^/]*)/(?P<msg_id>[^/]*)$")
 
     def get_event_type(self):
         return MessageEvent.TYPE
@@ -245,10 +244,11 @@ class MessageRestServlet(RestServlet):
 
 
 class FeedbackRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/" +
-                      "(?P<msg_sender_id>[^/]*)/(?P<msg_id>[^/]*)/feedback/" +
-                      "(?P<sender_id>[^/]*)/(?P<feedback_type>[^/]*)$")
+    PATTERN = client_path_pattern(
+        "/rooms/(?P<room_id>[^/]*)/messages/" +
+        "(?P<msg_sender_id>[^/]*)/(?P<msg_id>[^/]*)/feedback/" +
+        "(?P<sender_id>[^/]*)/(?P<feedback_type>[^/]*)$"
+    )
 
     def get_event_type(self):
         return FeedbackEvent.TYPE
@@ -262,13 +262,14 @@ class FeedbackRestServlet(RestServlet):
             raise SynapseError(400, "Bad feedback type.")
 
         msg_handler = self.handlers.message_handler
-        feedback = yield msg_handler.get_feedback(room_id=urllib.unquote(room_id),
-                                            msg_sender_id=msg_sender_id,
-                                            msg_id=msg_id,
-                                            user_id=user.to_string(),
-                                            fb_sender_id=fb_sender_id,
-                                            fb_type=feedback_type
-                                            )
+        feedback = yield msg_handler.get_feedback(
+            room_id=urllib.unquote(room_id),
+            msg_sender_id=msg_sender_id,
+            msg_id=msg_id,
+            user_id=user.to_string(),
+            fb_sender_id=fb_sender_id,
+            fb_type=feedback_type
+        )
 
         if not feedback:
             defer.returnValue((404, cs_error("Feedback not found.")))
@@ -305,8 +306,7 @@ class FeedbackRestServlet(RestServlet):
 
 
 class RoomMemberListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/members/list$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/members/list$")
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):
@@ -321,8 +321,7 @@ class RoomMemberListRestServlet(RestServlet):
 
 
 class RoomMessageListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/rooms/(?P<room_id>[^/]*)/messages/list$")
+    PATTERN = client_path_pattern("/rooms/(?P<room_id>[^/]*)/messages/list$")
 
     @defer.inlineCallbacks
     def on_GET(self, request, room_id):

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from synapse.api.errors import SynapseError
-from synapse.federation.units import JsonEncodedObject
+from synapse.util.jsonobject import JsonEncodedObject
 
 
 class SynapseEvent(JsonEncodedObject):
 
-    """Base class for Synapse events. These are JSON objects which must abide by
-    a certain well-defined structure.
+    """Base class for Synapse events. These are JSON objects which must abide
+    by a certain well-defined structure.
     """
 
     # Attributes that are currently assumed by the federation side:

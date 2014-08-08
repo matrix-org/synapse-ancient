@@ -1,20 +1,12 @@
 # -*- coding: utf-8 -*-
-from twisted.internet import defer
+from ._base import SQLBaseStore, Table
 
-from synapse.persistence.tables import RoomDataTable
-
-from ._base import SQLBaseStore
-
-
-def last_row_id(cursor):
-    return cursor.lastrowid
-
+import collections
 
 class RoomDataStore(SQLBaseStore):
 
     """Provides various CRUD operations for Room Events. """
 
-    @defer.inlineCallbacks
     def get_room_data(self, room_id, etype, state_key=""):
         """Retrieve the data stored under this type and state_key.
 
@@ -29,16 +21,11 @@ class RoomDataStore(SQLBaseStore):
             "room_id = ? AND type = ? AND state_key = ? "
             "ORDER BY id DESC LIMIT 1"
         )
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, RoomDataTable.decode_results,
-            room_id, etype, state_key
+        return self._execute(
+            RoomDataTable.decode_single_result,
+            query, room_id, etype, state_key,
         )
-        if res:
-            defer.returnValue(res[0])
-        defer.returnValue(None)
 
-    @defer.inlineCallbacks
     def store_room_data(self, room_id, etype, state_key="", content=None):
         """Stores room specific data.
 
@@ -50,15 +37,26 @@ class RoomDataStore(SQLBaseStore):
         Returns:
             The store ID for this data.
         """
-        query = ("INSERT INTO " + RoomDataTable.table_name +
-                "(type, state_key, room_id, content) VALUES (?,?,?,?)")
-        store_id = yield self._db_pool.runInteraction(
-            self.exec_single_with_result, query, last_row_id,
-            etype, state_key, room_id, content
-        )
-        defer.returnValue(store_id)
+        return self._simple_insert(RoomDataTable.table_name, dict(
+            etype=etype,
+            state_key=state_key,
+            room_id=room_id,
+            content=content,
+        ))
 
-    @defer.inlineCallbacks
     def get_max_room_data_id(self):
-        max_id = yield self._simple_max_id(RoomDataTable.table_name)
-        defer.returnValue(max_id)
+        return self._simple_max_id(RoomDataTable.table_name)
+
+
+class RoomDataTable(Table):
+    table_name = "room_data"
+
+    fields = [
+        "id",
+        "room_id",
+        "type",
+        "state_key",
+        "content"
+    ]
+
+    EntryType = collections.namedtuple("RoomDataEntry", fields)

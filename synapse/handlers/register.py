@@ -66,9 +66,9 @@ class RegistrationHandler(BaseHandler):
                             500, "Cannot generate user ID.")
 
     def _generate_token(self, user_id):
-        # urlsafe variant uses _ and - so use . as the separator and replace all
-        # =s with .s so http clients don't quote =s when it is used as query
-        # params.
+        # urlsafe variant uses _ and - so use . as the separator and replace
+        # all =s with .s so http clients don't quote =s when it is used as
+        # query params.
         return (base64.urlsafe_b64encode(user_id).replace('=', '.') + '.' +
                 stringutils.random_string(18))
 

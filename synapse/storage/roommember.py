@@ -3,25 +3,19 @@ from twisted.internet import defer
 
 from synapse.types import UserID
 from synapse.api.constants import Membership
-from synapse.persistence.tables import RoomMemberTable
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseStore, Table
 
+import collections
 import json
 import logging
-
 
 logger = logging.getLogger(__name__)
 
 
-def last_row_id(cursor):
-    return cursor.lastrowid
-
-
 class RoomMemberStore(SQLBaseStore):
 
-    @defer.inlineCallbacks
-    def get_room_member(self, user_id=None, room_id=None):
+    def get_room_member(self, user_id, room_id):
         """Retrieve the current state of a room member.
 
         Args:
@@ -33,15 +27,12 @@ class RoomMemberStore(SQLBaseStore):
         """
         query = RoomMemberTable.select_statement(
             "room_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, RoomMemberTable.decode_results, room_id, user_id)
-        if res:
-            defer.returnValue(res[0])
-        defer.returnValue(None)
+        return self._execute(
+            RoomMemberTable.decode_single_result,
+            query, room_id, user_id,
+        )
 
-    @defer.inlineCallbacks
-    def store_room_member(self, user_id=None, sender=None, room_id=None,
-                          membership=None, content=None):
+    def store_room_member(self, user_id, sender, room_id, membership, content):
         """Store a room member in the database.
 
         Args:
@@ -51,20 +42,17 @@ class RoomMemberStore(SQLBaseStore):
             state.
             content (dict): The content of the membership (JSON).
         """
-
         content_json = json.dumps(content)
-        query = ("INSERT INTO " + RoomMemberTable.table_name +
-                "(user_id, sender, room_id, membership, content) "
-                "VALUES(?,?,?,?,?)")
-        row = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query,
-            last_row_id, user_id, sender, room_id, membership, content_json
-        )
-        defer.returnValue(row)
+        return self._simple_insert(RoomMemberTable.table_name, dict(
+            user_id=user_id,
+            sender=sender,
+            room_id=room_id,
+            membership=membership,
+            content_json=content_json,
+        ))
 
     @defer.inlineCallbacks
-    def get_room_members(self, room_id=None, membership=None):
+    def get_room_members(self, room_id, membership=None):
         """Retrieve the current room member list for a room.
 
         Args:
@@ -75,18 +63,19 @@ class RoomMemberStore(SQLBaseStore):
         Returns:
             list of namedtuples representing the members in this room.
         """
-        query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
-            " WHERE room_id = ? GROUP BY user_id")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, self._room_member_decode, room_id)
+        query = RoomMemberTable.select_statement(
+            "id IN (SELECT MAX(id) FROM " + RoomMemberTable.table_name
+            + " WHERE room_id = ? GROUP BY user_id)"
+        )
+        res = yield self._execute(
+            RoomMemberTable.decode_results, query, room_id,
+        )
         # strip memberships which don't match
         if membership:
             res = [entry for entry in res if entry.membership == membership]
         defer.returnValue(res)
 
-    @defer.inlineCallbacks
-    def get_rooms_for_user_where_membership_is(self, user_id=None,
-                                               membership_list=None):
+    def get_rooms_for_user_where_membership_is(self, user_id, membership_list):
         """ Get all the rooms for this user where the membership for this user
         matches one in the membership list.
 
@@ -98,7 +87,7 @@ class RoomMemberStore(SQLBaseStore):
             A list of dicts with "room_id" and "membership" keys.
         """
         if not membership_list:
-            defer.returnValue(None)
+            return defer.succeed(None)
 
         args = [user_id]
         membership_placeholder = ["membership=?"] * len(membership_list)
@@ -106,31 +95,22 @@ class RoomMemberStore(SQLBaseStore):
         for membership in membership_list:
             args.append(membership)
 
-        query = ("SELECT room_id, membership FROM room_memberships " +
-                 "WHERE user_id=? AND " + where_membership +
-                 " GROUP BY room_id ORDER BY id DESC")
-        res = yield self._db_pool.runInteraction(self.exec_single_with_result,
-                query, self.cursor_to_dict, *args)
-        defer.returnValue(res)
-
-    def _room_member_decode(self, cursor):
-        results = cursor.fetchall()
-        # strip the MAX(id) column from the results so it can be made into
-        # a namedtuple (which requires exactly the number of columns of the
-        # table)
-        entries = [t[0:-1] for t in results]
-        return RoomMemberTable.decode_results(entries)
+        query = ("SELECT room_id, membership FROM room_memberships"
+                 + " WHERE user_id=? AND " + where_membership
+                 + " GROUP BY room_id ORDER BY id DESC")
+        return self._execute(
+            self.cursor_to_dict, query, *args
+        )
 
     @defer.inlineCallbacks
     def get_joined_hosts_for_room(self, room_id):
-        query = (
-            "SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
-            " WHERE room_id = ? GROUP BY user_id"
+        query = RoomMemberTable.select_statement(
+            "id IN (SELECT MAX(id) FROM " + RoomMemberTable.table_name
+            + " WHERE room_id = ? GROUP BY user_id)"
         )
 
-        res = yield self._db_pool.runInteraction(
-            self.exec_single_with_result,
-            query, self._room_member_decode, room_id
+        res = yield self._execute(
+            RoomMemberTable.decode_results, query, room_id,
         )
 
         def host_from_user_id_string(user_id):
@@ -148,7 +128,21 @@ class RoomMemberStore(SQLBaseStore):
 
         defer.returnValue(hosts)
 
-    @defer.inlineCallbacks
     def get_max_room_member_id(self):
-        max_id = yield self._simple_max_id(RoomMemberTable.table_name)
-        defer.returnValue(max_id)
+        return self._simple_max_id(RoomMemberTable.table_name)
+
+
+class RoomMemberTable(Table):
+    table_name = "room_memberships"
+
+    fields = [
+        "id",
+        "user_id",
+        "sender",
+        "room_id",
+        "membership",
+        "content"
+    ]
+
+    EntryType = collections.namedtuple("RoomMemberEntry", fields)
+

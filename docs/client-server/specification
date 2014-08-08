@@ -22,7 +22,7 @@ Terminology
 -----------
 Stream Tokens: 
 An opaque token used to make further streaming requests. When using any 
-pagination streaming API, responses will contain a start and end streaming token. 
+pagination streaming API, responses will contain a start and end stream token. 
 When reconnecting to the stream, these tokens can be used to tell the server 
 where the client got up to in the stream.
 
@@ -38,10 +38,10 @@ in rooms. Each IM sent by a client must have a unique message ID which is unique
 for that particular client.
 
 User ID:
-The user@host style ID of the client. When registering for an account, the 
-client specifies their username. The userid is this username along with the home
-servers unique hostname. When federating between home servers, the userid is 
-used to uniquely identify users across multiple home servers.
+The @username:host style ID of the client. When registering for an account, the 
+client specifies their username. The user_id is this username along with the 
+home server's unique hostname. When federating between home servers, the user_id
+is used to uniquely identify users across multiple home servers.
 
 Room ID:
 The room_id@host style ID for the room. When rooms are created, the client either
@@ -100,7 +100,6 @@ Query parameters:
        START or END.
   limit : integer - An integer representing the maximum number of items to 
           return.
-  search : NOT_YET_IMPLEMENTED : The search query to perform.
 
 For example, the event stream has events E1 -> E15. The client wants the last 5 
 events and doesn't know any previous events:
@@ -130,6 +129,11 @@ S                                                           E
                                          |
                          GET /rooms/list?from=9&to=END&limit=5
                          Returns: R11,R12,R13,R14,R15
+                         
+Note that tokens are treated in an *exclusive*, not inclusive, manner. The end 
+token from the intial request was '9' which corresponded to R10. When the 2nd
+request was made, R10 did not appear again, even though from=9 was specified. If
+you know the token, you already have the data.
 
 Pagination Response
 -------------------
@@ -212,7 +216,7 @@ API.
 
 For example:
   Event Type: sy.example.room.members
-  REST Path: /examples/room/$room_id/members/$userid
+  REST Path: /examples/room/$room_id/members/$user_id
   REST Content: { "membership" : "invited" }
   
 is represented in the event stream as:
@@ -221,13 +225,13 @@ is represented in the event stream as:
   "event_id" : "e_some_event_id",
   "type" : "sy.example.room.members",
   "room_id" : $room_id,
-  "userid" : $userid,
+  "user_id" : $user_id,
   "content" : {
     "membership" : "invited"
   }
 }
 
-As convention, the URL variable arg "$varname" should map directly onto the name 
+As convention, the URL variable "$varname" will map directly onto the name 
 of the JSON key "varname".
 
 Error Responses
@@ -254,7 +258,7 @@ Registering for an account
 --------------------------
   POST /register
   With: A JSON object containing the key "user_id" which contains the desired 
-        userid, or an empty JSON object to have the server allocate a userid 
+        user_id, or an empty JSON object to have the server allocate a user_id 
         automatically.
   Returns (success): 200 OK with a JSON object:
                      {
@@ -285,6 +289,15 @@ All POST/PUT/GET/DELETE requests MUST have an 'access_token' query parameter to
 allow the server to authenticate the client. All
 POST requests MUST be submitted as application/json. 
 
+All paths MUST be namespaced by the version of the API being used. This should
+be:
+
+/matrix/client/api/v1
+
+All REST paths in this section MUST be prefixed with this. E.g.
+  REST Path: /rooms/$room_id
+  Absolute Path: /matrix/client/api/v1/rooms/$room_id
+
 Rooms
 =====
 A room is a conceptual place where users can send and receive messages. Rooms 
@@ -294,7 +307,7 @@ uniquely identified via the room_id.
 
 Creating a room (with a room ID)
 --------------------------------
-  Event Type: sy.room.create
+  Event Type: sy.room.create [TODO(kegan): Do we generate events for this?]
   REST Path: /rooms/$room_id
   Valid methods: PUT
   Required keys: None.
@@ -312,7 +325,7 @@ Creating a room (with a room ID)
 
 Creating a room (without a room ID)
 -----------------------------------
-  Event Type: sy.room.create
+  Event Type: sy.room.create [TODO(kegan): Do we generate events for this?]
   REST Path: /rooms
   Valid methods: POST
   Required keys: None.
@@ -320,7 +333,8 @@ Creating a room (without a room ID)
     visibility : [public|private] - Set whether this room shows up in the public 
     room list.
   Returns:
-    On Success: The allocated room ID.
+    On Success: The allocated room ID. Additional information about the room
+    such as the visibility MAY be included as extra keys in this response.
     {
       room_id : $room_id
     }
@@ -361,33 +375,26 @@ Room Members
 
 Invite/Joining/Leaving a room
 -----------------------------
-  Event Type: sy.room.members.state
-  REST Path: /rooms/$room_id/members/$userid/state
+  Event Type: sy.room.member
+  REST Path: /rooms/$room_id/members/$user_id/state
   Valid methods: PUT/GET/DELETE
   Required keys:
-    membership : [join|invite] - The membership state of $userid in room $room_id
-                  join - Indicate you ($userid) are joining the room $room_id.
-                  invite - Indicate that $userid has been invited to room 
-                  $room_id.
+    membership : [join|invite] - The membership state of $user_id in room 
+                                 $room_id.
 
-  User $userid can leave room $room_id by DELETEing this path.
+Where:
+  join - Indicate you ($user_id) are joining the room $room_id.
+  invite - Indicate that $user_id has been invited to room $room_id.
+
+User $user_id can leave room $room_id by DELETEing this path.
 
 Checking the user list of a room
 --------------------------------
-  Event Type: sy.room.members.list
   REST Path: /rooms/$room_id/members/list
+  This API can use pagination query parameters.
   Valid methods: GET
   Returns:
-    A JSON object with room member userids as keys and their /members/$userid 
-    content as the value. This will
-    be nested for each path below /members/$userid. For example:
-    {
-      "$userid1" : {
-                     "state" : { "membership" : "join" }
-                   },
-      "$userid2" : { "state" : { "membership" : "invite" } },
-      "$userid3" : { "state" : { "membership" : "join" } },
-    }
+    A pagination response with chunk data as sy.room.member events.
 
 Messages
 ========
@@ -402,8 +409,8 @@ submits keys with the same name, they will be clobbered by
 the server.
 
 Required keys:
-from : "string [userid]"
-  The userid of the user who sent the message/feedback.
+from : "string [user_id]"
+  The user_id of the user who sent the message/feedback.
 
 Optional keys:
 hsob_ts : integer
@@ -422,7 +429,7 @@ Sending messages
   REST Path: /rooms/$room_id/messages/$from/$msg_id
   Valid methods: GET/PUT
   URL parameters:
-    $from : userid - The sender's userid. This value will be clobbered by the 
+    $from : user_id - The sender's user_id. This value will be clobbered by the 
     server before sending.
   Required keys: 
     msgtype: [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - 
@@ -542,8 +549,8 @@ when the user has read the message. These receipts are collectively known as
   REST Path: /rooms/$room_id/messages/$msgfrom/$msg_id/feedback/$from/$feedback
   Valid methods: GET/PUT
   URL parameters:
-    $msgfrom - The sender of the message's userid.
-    $from : userid - The sender of the feedback's userid. This value will be 
+    $msgfrom - The sender of the message's user_id.
+    $from : user_id - The sender of the feedback's user_id. This value will be 
     clobbered by the server before sending.
     $feedback : [d|r] - Specify if this is a [d]elivery or [r]ead receipt.
   Required keys:
@@ -576,7 +583,7 @@ message sender ID and message ID keys.
 {
   "event_id":"e1247632487",
   "type":"sy.room.message.feedback",
-  "from":"string [userid]",
+  "from":"string [user_id]",
   "feedback":"string [d|r]",
   "room_id":"$room_id",
   "msg_id":"$msg_id",
@@ -588,7 +595,7 @@ message sender ID and message ID keys.
 
      COMPRESSED (via /messages/list)
 {
-  "from":"string [userid]",
+  "from":"string [user_id]",
   "feedback":"string [d|r]",
   "content":{
     "sender_ts":139880943
@@ -615,7 +622,7 @@ NOTE: Care must be taken when using this API in conjunction with event
 
 Get current state for all rooms (aka IM Initial Sync API)
 -------------------------------
-  REST Path: /users/$user_id/rooms/list
+  REST Path: /im/sync
   Valid methods: GET
   This API can use pagination query parameters. Pagination is applied on a per
   *room* basis. E.g. limit=1 means "get 1 message for each room" and not "get 1
@@ -677,7 +684,7 @@ Messages:
 REGISTER FOR AN ACCOUNT
 POST: /register
 Content: {}
-Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
+Returns: { "user_id" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 
 GET PUBLIC ROOM LIST
 GET: /rooms/list?access_token=abcdef0123456789
@@ -772,9 +779,9 @@ Returns:
     [
       { 
         "event_id":"e10f3d2b", 
-        "type":"sy.room.members.state",
+        "type":"sy.room.member",
         "room_id":"room_beta@sy.org",
-        "userid":"bob@sy.org",
+        "user_id":"bob@sy.org",
         "content":{
           "membership":"join"
         }
@@ -851,10 +858,10 @@ Returns:
       },
       { 
         "event_id":"0018453d", 
-        "type":"sy.room.members.state",
+        "type":"sy.room.member",
         "room_id":"commoners@randomhost.org",
         "from":"alice@randomhost.org",
-        "userid":"bob@sy.org",
+        "user_id":"bob@sy.org",
         "content":{
           "membership":"invite"
         }
@@ -863,41 +870,6 @@ Returns:
   "start": "stok_0184288",
   "end": "etok_1348723"
 }
-
-[[TODO(kegan):
-unclaimed:
-- support for generic room data? (client specs state/clobbering?)
-- push notification support
-- multi-user support / multiplex (SSO to HS, then different accounts)
-
-kegan:
-- event stream bug fixes (double join messages, feed invites down the stream,
-topic updates, spec out room membership change event type (not just text))
-- longpoll improvements (support room members/topics
-- 'im sync' catchup for initial state (primarily grouping 'room message list'
-requests for all rooms the user is in. This will depend on client impls, since
-we may just want to lazy load each room when clients select the room for the
-first time, in which case we just need to know which rooms the client is in.
-- public room list
-
-erik:
-x- link to federation
-x- support for locking when doing room auth + prev pdus
-
-leo:
-- presence
-x- typing notifications (needs spec + impl)
-x- profile support (nickname, profile pic, etc)
-- expand room creation config (permissions, anti-glare, etc)
-
-mark:
-- attachment support (uploading/downloading, ideally simultaneously)
-x- Add 3PID / IS support
-
-permeating all of this:
-- unit tests where appropriate
-- additions to cmd client where appropriate
-]]
 
 [[TODO(kegan):
 Outstanding problems / missing spec:

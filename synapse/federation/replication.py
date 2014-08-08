@@ -116,10 +116,10 @@ class ReplicationLayer(object):
     @log_function
     def send_edu(self, destination, edu_type, content):
         edu = Edu(
-                origin=self.server_name,
-                destination=destination,
-                edu_type=edu_type,
-                content=content,
+            origin=self.server_name,
+            destination=destination,
+            edu_type=edu_type,
+            content=content,
         )
 
         # TODO, add errback, etc.
@@ -517,7 +517,7 @@ class _TransactionQueue(object):
 
             transaction = Transaction.create_new(
                 ts=self._clock.time_msec(),
-                transaction_id = self._next_txn_id,
+                transaction_id=self._next_txn_id,
                 origin=self.server_name,
                 destination=destination,
                 pdus=pdus,
@@ -533,7 +533,7 @@ class _TransactionQueue(object):
 
             # Actually send the transaction
             code, response = yield self.transport_layer.send_transaction(
-                    transaction
+                transaction
             )
 
             logger.debug("TX [%s] Sent transaction", destination)

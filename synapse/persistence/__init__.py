@@ -13,6 +13,7 @@ __all__ = [
     "read_schema",
 ]
 
+
 def schema_path(schema):
     """ Get a filesystem path for the named database schema
 

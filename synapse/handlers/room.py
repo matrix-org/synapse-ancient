@@ -45,8 +45,8 @@ class MessageHandler(BaseHandler):
 
         # Pull out the message from the db
         msg = yield self.store.get_message(room_id=room_id,
-                                               msg_id=msg_id,
-                                               user_id=sender_id)
+                                           msg_id=msg_id,
+                                           user_id=sender_id)
 
         if msg:
             defer.returnValue(msg)
@@ -93,7 +93,7 @@ class MessageHandler(BaseHandler):
             room_id (str): The room they want messages from.
             pagin_config (synapse.api.streams.PaginationConfig): The pagination
             config rules to apply, if any.
-            feedback (bool): True to get compressed feedback with these messages
+            feedback (bool): True to get compressed feedback with the messages
         Returns:
             dict: Pagination API results
         """
@@ -142,9 +142,9 @@ class MessageHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def get_room_data(self, user_id=None, room_id=None,
-                           event_type=None, state_key="",
-                           public_room_rules=[],
-                           private_room_rules=["join"]):
+                      event_type=None, state_key="",
+                      public_room_rules=[],
+                      private_room_rules=["join"]):
         """ Get data from a room.
 
         Args:
@@ -152,9 +152,9 @@ class MessageHandler(BaseHandler):
             public_room_rules : A list of membership states the user can be in,
             in order to read this data IN A PUBLIC ROOM. An empty list means
             'any state'.
-            private_room_rules : A list of membership states the user can be in,
-            in order to read this data IN A PRIVATE ROOM. An empty list means
-            'any state'.
+            private_room_rules : A list of membership states the user can be
+            in, in order to read this data IN A PRIVATE ROOM. An empty list
+            means 'any state'.
         Returns:
             The path data content.
         Raises:
@@ -196,8 +196,9 @@ class MessageHandler(BaseHandler):
 
         # Pull out the feedback from the db
         fb = yield self.store.get_feedback(
-                room_id=room_id, msg_id=msg_id, msg_sender_id=msg_sender_id,
-                fb_sender_id=fb_sender_id, fb_type=fb_type)
+            room_id=room_id, msg_id=msg_id, msg_sender_id=msg_sender_id,
+            fb_sender_id=fb_sender_id, fb_type=fb_type
+        )
 
         if fb:
             defer.returnValue(fb)
@@ -223,8 +224,8 @@ class MessageHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def snapshot_all_rooms(self, user_id=None, pagin_config=None,
-                                   feedback=False):
-        """Retrieve a snapshot of all rooms the user is invited or joined in on.
+                           feedback=False):
+        """Retrieve a snapshot of all rooms the user is invited or has joined.
 
         This snapshot may include messages for all rooms where the user is
         joined, depending on the pagination config.
@@ -241,17 +242,22 @@ class MessageHandler(BaseHandler):
             on the specified PaginationConfig.
         """
         room_list = yield self.store.get_rooms_for_user_where_membership_is(
-                        user_id=user_id,
-                        membership_list=[Membership.INVITE, Membership.JOIN])
+            user_id=user_id,
+            membership_list=[Membership.INVITE, Membership.JOIN]
+        )
         for room_info in room_list:
-            if room_info["membership"] == Membership.INVITE:
+            if room_info["membership"] != Membership.JOIN:
                 continue
-
-            event_chunk = yield self.get_messages(user_id=user_id,
-                                                  pagin_config=pagin_config,
-                                                  feedback=feedback,
-                                                  room_id=room_info["room_id"])
-            room_info["messages"] = event_chunk
+            try:
+                event_chunk = yield self.get_messages(
+                    user_id=user_id,
+                    pagin_config=pagin_config,
+                    feedback=feedback,
+                    room_id=room_info["room_id"]
+                )
+                room_info["messages"] = event_chunk
+            except:
+                pass
         defer.returnValue(room_list)
 
 
@@ -342,17 +348,46 @@ class RoomMemberHandler(BaseHandler):
 
         self.clock = hs.get_clock()
 
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("user_joined_room")
+
     @defer.inlineCallbacks
-    def get_room_members(self, room_id):
+    def get_room_members(self, room_id, membership=Membership.JOIN):
         hs = self.hs
 
-        memberships = yield self.store.get_room_members(room_id=room_id)
+        memberships = yield self.store.get_room_members(
+            room_id=room_id, membership=membership
+        )
 
         defer.returnValue([hs.parse_userid(m.user_id) for m in memberships])
 
     @defer.inlineCallbacks
+    def fetch_room_distributions_into(self, room_id, localusers=None,
+                                      remotedomains=None, ignore_user=None):
+        """Fetch the distribution of a room, adding elements to either
+        'localusers' or 'remotedomains', which should be a set() if supplied.
+        If ignore_user is set, ignore that user.
+
+        This function returns nothing; its result is performed by the
+        side-effect on the two passed sets. This allows easy accumulation of
+        member lists of multiple rooms at once if required.
+        """
+        members = yield self.get_room_members(room_id)
+        for member in members:
+            if ignore_user is not None and member == ignore_user:
+                continue
+
+            if member.is_mine:
+                if localusers is not None:
+                    localusers.add(member)
+            else:
+                if remotedomains is not None:
+                    remotedomains.add(member.domain)
+
+    @defer.inlineCallbacks
     def get_room_members_as_pagination_chunk(self, room_id=None, user_id=None,
-            limit=0, start_tok=None, end_tok=None):
+                                             limit=0, start_tok=None,
+                                             end_tok=None):
         """Retrieve a list of room members in the room.
 
         Args:
@@ -413,41 +448,6 @@ class RoomMemberHandler(BaseHandler):
 
         #broadcast_msg = False
 
-        @defer.inlineCallbacks
-        def _do_membership_update():
-            # store membership
-            store_id = yield self.store.store_room_member(
-                user_id=event.target_user_id,
-                sender=event.user_id,
-                room_id=event.room_id,
-                content=event.content,
-                membership=event.content["membership"]
-            )
-
-            # Send a PDU to all hosts who have joined the room.
-            destinations = yield self.store.get_joined_hosts_for_room(
-                event.room_id
-            )
-
-            # If we're inviting someone, then we should also send it to that
-            # HS.
-            if event.content["membership"] == Membership.INVITE:
-                host = UserID.from_string(
-                    event.target_user_id, self.hs
-                ).domain
-                destinations.append(host)
-
-            # If we are joining a remote HS, include that.
-            if event.content["membership"] == Membership.JOIN:
-                host = UserID.from_string(
-                    event.target_user_id, self.hs
-                ).domain
-                destinations.append(host)
-
-            event.destinations = list(set(destinations))
-
-            defer.returnValue(store_id)
-
         prev_state = yield self.store.get_room_member(
             event.target_user_id, event.room_id
         )
@@ -502,43 +502,34 @@ class RoomMemberHandler(BaseHandler):
                 except:
                     logger.exception("Failed to set display_name")
 
-            with (yield self.room_lock.lock(room_id)):
-                # XXX: We don't do an auth check if we are doing an invite
-                # join dance for now, since we're kinda implicitly checking
-                # that we are allowed to join when we decide whether or not we
-                # need to do the invite/join dance.
+            # XXX: We don't do an auth check if we are doing an invite
+            # join dance for now, since we're kinda implicitly checking
+            # that we are allowed to join when we decide whether or not we
+            # need to do the invite/join dance.
 
-                should_do_dance, room_host = yield self._should_invite_join(
-                    room_id=room_id,
-                    room_host=room_host,
-                    prev_state=prev_state,
-                    do_auth=do_auth,
+            should_do_dance, room_host = yield self._should_invite_join(
+                room_id=room_id,
+                room_host=room_host,
+                prev_state=prev_state,
+                do_auth=do_auth,
+            )
+
+            # We want to do the _do_update inside the room lock.
+            if not should_do_dance:
+                logger.debug("Doing normal join")
+
+                if do_auth:
+                    yield self.auth.check(event, raises=True)
+
+                yield self.state_handler.handle_new_event(event)
+                yield self._do_local_membership_update(
+                    event,
+                    membership=event.content["membership"],
+                    broadcast_msg=broadcast_msg,
                 )
 
-                # We want to do the _do_update inside the room lock.
-                if not should_do_dance:
-                    logger.debug("Doing normal join")
 
-                    if do_auth:
-                        yield self.auth.check(event, raises=True)
-
-                    yield self.state_handler.handle_new_event(event)
-                    store_id = yield _do_membership_update()
-
-            # We don't want to send out the event notifs inside the room lock.
-            if not should_do_dance:
-                yield self.hs.get_federation().handle_new_event(event)
-                self.notifier.on_new_room_event(event, store_id)
-
-                if broadcast_msg:
-                    yield self._inject_membership_msg(
-                        source=event.user_id,
-                        target=event.target_user_id,
-                        room_id=room_id,
-                        membership=event.content["membership"]
-                    )
-
-            else:
+            if should_do_dance:
                 yield self._do_invite_join_dance(
                     room_id=room_id,
                     joinee=event.user_id,
@@ -546,33 +537,30 @@ class RoomMemberHandler(BaseHandler):
                     content=event.content,
                 )
 
+            user = self.hs.parse_userid(event.user_id)
+            self.distributor.fire(
+                "user_joined_room", user=user, room_id=room_id
+            )
+
         else:
             # This is not a JOIN, so we can handle it normally.
-            with (yield self.room_lock.lock(event.room_id)):
-                if do_auth:
-                    yield self.auth.check(event, raises=True)
+            if do_auth:
+                yield self.auth.check(event, raises=True)
 
-                prev_state = yield self.store.get_room_member(
-                    event.target_user_id, event.room_id
-                )
-                if prev_state and prev_state.membership == event.membership:
-                    # double same action, treat this event as a NOOP.
-                    defer.returnValue({})
-                    return
+            prev_state = yield self.store.get_room_member(
+                event.target_user_id, event.room_id
+            )
+            if prev_state and prev_state.membership == event.membership:
+                # double same action, treat this event as a NOOP.
+                defer.returnValue({})
+                return
 
-                yield self.state_handler.handle_new_event(event)
-                store_id = yield _do_membership_update()
-
-            yield self.hs.get_federation().handle_new_event(event)
-            self.notifier.on_new_room_event(event, store_id)
-
-            if broadcast_msg:
-                yield self._inject_membership_msg(
-                    source=event.user_id,
-                    target=event.target_user_id,
-                    room_id=event.room_id,
-                    membership=event.content["membership"]
-                )
+            yield self.state_handler.handle_new_event(event)
+            yield self._do_local_membership_update(
+                event,
+                membership=event.content["membership"],
+                broadcast_msg=broadcast_msg,
+            )
 
         defer.returnValue({"room_id": room_id})
 
@@ -612,9 +600,55 @@ class RoomMemberHandler(BaseHandler):
         """Returns a list of roomids that the user has any of the given
         membership states in."""
         rooms = yield self.store.get_rooms_for_user_where_membership_is(
-                user_id=user.to_string(), membership_list=membership_list)
+            user_id=user.to_string(), membership_list=membership_list
+        )
 
         defer.returnValue([r["room_id"] for r in rooms])
+
+    @defer.inlineCallbacks
+    def _do_local_membership_update(self, event, membership, broadcast_msg):
+        # store membership
+        store_id = yield self.store.store_room_member(
+            user_id=event.target_user_id,
+            sender=event.user_id,
+            room_id=event.room_id,
+            content=event.content,
+            membership=membership
+        )
+
+        # Send a PDU to all hosts who have joined the room.
+        destinations = yield self.store.get_joined_hosts_for_room(
+            event.room_id
+        )
+
+        # If we're inviting someone, then we should also send it to that
+        # HS.
+        if membership == Membership.INVITE:
+            host = UserID.from_string(
+                event.target_user_id, self.hs
+            ).domain
+            destinations.append(host)
+
+        # If we are joining a remote HS, include that.
+        if membership == Membership.JOIN:
+            host = UserID.from_string(
+                event.target_user_id, self.hs
+            ).domain
+            destinations.append(host)
+
+        event.destinations = list(set(destinations))
+
+        yield self.hs.get_federation().handle_new_event(event)
+        self.notifier.on_new_room_event(event, store_id)
+
+        if broadcast_msg:
+            yield self._inject_membership_msg(
+                source=event.user_id,
+                target=event.target_user_id,
+                room_id=event.room_id,
+                membership=event.content["membership"]
+            )
+
 
     @defer.inlineCallbacks
     def _do_invite_join_dance(self, room_id, joinee, target_host, content):
@@ -657,18 +691,21 @@ class RoomMemberHandler(BaseHandler):
 
         membership_json = {
             "msgtype": u"sy.text",
-            "body": body
+            "body": body,
+            "membership_source": source,
+            "membership_target": target,
+            "membership": membership,
         }
 
         msg_id = "m%s" % int(self.clock.time_msec())
 
         event = self.event_factory.create_event(
-                etype=MessageEvent.TYPE,
-                room_id=room_id,
-                user_id="_homeserver_",
-                msg_id=msg_id,
-                content=membership_json
-                )
+            etype=MessageEvent.TYPE,
+            room_id=room_id,
+            user_id="_homeserver_",
+            msg_id=msg_id,
+            content=membership_json
+        )
 
         handler = self.hs.get_handlers().message_handler
         yield handler.send_message(event, suppress_auth=True)

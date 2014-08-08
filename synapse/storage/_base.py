@@ -22,30 +22,30 @@ class SQLBaseStore(object):
             A list of dicts where the key is the column header.
         """
         col_headers = list(column[0] for column in cursor.description)
-        results = list(dict(zip(col_headers, row)) for row in cursor.fetchall())
+        results = list(
+            dict(zip(col_headers, row)) for row in cursor.fetchall()
+        )
         return results
 
-    def exec_single_with_result(self, txn, query, func, *args):
+    def _execute(self, decoder, query, *args):
         """Runs a single query for a result set.
 
         Args:
-            txn - Cursor transaction
+            decoder - The function which can resolve the cursor results to
+                something meaningful.
             query - The query string to execute
-            func - The function which can resolve the cursor results to
-                something
-            meaningful.
             *args - Query args.
         Returns:
-            The result of func(results)
+            The result of decoder(results)
         """
-        logger.debug("[SQL] %s  Args=%s Func=%s", query, args, func.__name__)
-        cursor = txn.execute(query, args)
-        return func(cursor)
+        logger.debug(
+            "[SQL] %s  Args=%s Func=%s", query, args, decoder.__name__
+        )
 
-    def exec_single(self, txn, query, *args):
-        """Runs a single query, returning nothing."""
-        logger.debug("[SQL] %s  Args=%s" % (query, args))
-        txn.execute(query, args)
+        def interaction(txn):
+            cursor = txn.execute(query, args)
+            return decoder(cursor)
+        return self._db_pool.runInteraction(interaction)
 
     # "Simple" SQL API methods that operate on a single table with no JOINs,
     # no complex WHERE clauses, just a dict of values for columns.
@@ -65,7 +65,8 @@ class SQLBaseStore(object):
 
         def func(txn):
             txn.execute(sql, values.values())
-        self._db_pool.runInteraction(func)
+            return txn.lastrowid
+        return self._db_pool.runInteraction(func)
 
     def _simple_select_one(self, table, keyvalues, retcols,
                            allow_none=False):
@@ -234,3 +235,86 @@ class SQLBaseStore(object):
             return max_id
 
         return self._db_pool.runInteraction(func)
+
+
+class Table(object):
+    """ A base class used to store information about a particular table.
+    """
+
+    table_name = None
+    """ str: The name of the table """
+
+    fields = None
+    """ list: The field names """
+
+    EntryType = None
+    """ Type: A tuple type used to decode the results """
+
+    _select_where_clause = "SELECT %s FROM %s WHERE %s"
+    _select_clause = "SELECT %s FROM %s"
+    _insert_clause = "INSERT OR REPLACE INTO %s (%s) VALUES (%s)"
+
+    @classmethod
+    def select_statement(cls, where_clause=None):
+        """
+        Args:
+            where_clause (str): The WHERE clause to use.
+
+        Returns:
+            str: An SQL statement to select rows from the table with the given
+            WHERE clause.
+        """
+        if where_clause:
+            return cls._select_where_clause % (
+                ", ".join(cls.fields),
+                cls.table_name,
+                where_clause
+            )
+        else:
+            return cls._select_clause % (
+                ", ".join(cls.fields),
+                cls.table_name,
+            )
+
+    @classmethod
+    def insert_statement(cls):
+        return cls._insert_clause % (
+            cls.table_name,
+            ", ".join(cls.fields),
+            ", ".join(["?"] * len(cls.fields)),
+        )
+
+    @classmethod
+    def decode_single_result(cls, results):
+        """ Given an iterable of tuples, return a single instance of
+            `EntryType` or None if the iterable is empty
+        Args:
+            results (list): The results list to convert to `EntryType`
+        Returns:
+            EntryType: An instance of `EntryType`
+        """
+        results = list(results)
+        if results:
+            return cls.EntryType(*results[0])
+        else:
+            return None
+
+    @classmethod
+    def decode_results(cls, results):
+        """ Given an iterable of tuples, return a list of `EntryType`
+        Args:
+            results (list): The results list to convert to `EntryType`
+
+        Returns:
+            list: A list of `EntryType`
+        """
+        return [cls.EntryType(*row) for row in results]
+
+    @classmethod
+    def get_fields_string(cls, prefix=None):
+        if prefix:
+            to_join = ("%s.%s" % (prefix, f) for f in cls.fields)
+        else:
+            to_join = cls.fields
+
+        return ", ".join(to_join)

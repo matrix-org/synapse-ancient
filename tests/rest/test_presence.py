@@ -22,12 +22,13 @@ ONLINE = PresenceState.ONLINE
 
 
 myid = "@apple:test"
+PATH_PREFIX = "/matrix/client/api/v1"
 
 
 class PresenceStateTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
         self.mock_handler = Mock(spec=[
             "get_state",
             "set_state",
@@ -83,7 +84,7 @@ class PresenceStateTestCase(unittest.TestCase):
 class PresenceListTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
         self.mock_handler = Mock(spec=[
             "get_presence_list",
             "send_invite",
@@ -153,7 +154,7 @@ class PresenceListTestCase(unittest.TestCase):
 
 class PresenceEventStreamTestCase(unittest.TestCase):
     def setUp(self):
-        self.mock_server = MockHttpServer()
+        self.mock_server = MockHttpServer(prefix=PATH_PREFIX)
 
         # TODO: mocked data store
 

@@ -2,7 +2,7 @@
 from twisted.internet import defer
 
 from synapse.api.errors import SynapseError, AuthError
-from synapse.api.constants import PresenceState, Membership
+from synapse.api.constants import PresenceState
 from synapse.api.streams import StreamData
 
 from ._base import BaseHandler
@@ -45,38 +45,52 @@ class PresenceHandler(BaseHandler):
         distributor = hs.get_distributor()
         distributor.observe("registered_user", self.registered_user)
 
-        distributor.observe("started_user_eventstream",
-                self.started_user_eventstream)
-        distributor.observe("stopped_user_eventstream",
-                self.stopped_user_eventstream)
+        distributor.observe(
+            "started_user_eventstream", self.started_user_eventstream
+        )
+        distributor.observe(
+            "stopped_user_eventstream", self.stopped_user_eventstream
+        )
+
+        distributor.observe("user_joined_room",
+            self.user_joined_room
+        )
 
         distributor.declare("collect_presencelike_data")
 
         distributor.declare("changed_presencelike_data")
-        distributor.observe("changed_presencelike_data",
-                self.changed_presencelike_data)
+        distributor.observe(
+            "changed_presencelike_data", self.changed_presencelike_data
+        )
 
         self.distributor = distributor
 
         self.federation = hs.get_replication_layer()
 
-        self.federation.register_edu_handler("sy.presence",
-                self.incoming_presence)
-        self.federation.register_edu_handler("sy.presence_invite",
-                lambda origin, content: self.invite_presence(
-                    observed_user=hs.parse_userid(content["observed_user"]),
-                    observer_user=hs.parse_userid(content["observer_user"]),
-                ))
-        self.federation.register_edu_handler("sy.presence_accept",
-                lambda origin, content: self.accept_presence(
-                    observed_user=hs.parse_userid(content["observed_user"]),
-                    observer_user=hs.parse_userid(content["observer_user"]),
-                ))
-        self.federation.register_edu_handler("sy.presence_deny",
-                lambda origin, content: self.deny_presence(
-                    observed_user=hs.parse_userid(content["observed_user"]),
-                    observer_user=hs.parse_userid(content["observer_user"]),
-                ))
+        self.federation.register_edu_handler(
+            "sy.presence", self.incoming_presence
+        )
+        self.federation.register_edu_handler(
+            "sy.presence_invite",
+            lambda origin, content: self.invite_presence(
+                observed_user=hs.parse_userid(content["observed_user"]),
+                observer_user=hs.parse_userid(content["observer_user"]),
+            )
+        )
+        self.federation.register_edu_handler(
+            "sy.presence_accept",
+            lambda origin, content: self.accept_presence(
+                observed_user=hs.parse_userid(content["observed_user"]),
+                observer_user=hs.parse_userid(content["observer_user"]),
+            )
+        )
+        self.federation.register_edu_handler(
+            "sy.presence_deny",
+            lambda origin, content: self.deny_presence(
+                observed_user=hs.parse_userid(content["observed_user"]),
+                observer_user=hs.parse_userid(content["observer_user"]),
+            )
+        )
 
         # IN-MEMORY store, mapping local userparts to sets of local users to
         # be informed of state changes.
@@ -91,6 +105,22 @@ class PresenceHandler(BaseHandler):
         self._user_cachemap = {}
         self._user_cachemap_latest_serial = 0
 
+    def _get_or_make_usercache(self, user):
+        """If the cache entry doesn't exist, initialise a new one."""
+        if user not in self._user_cachemap:
+            self._user_cachemap[user] = UserPresenceCache()
+        return self._user_cachemap[user]
+
+    def _get_or_offline_usercache(self, user):
+        """If the cache entry doesn't exist, return an OFFLINE one but do not
+        store it into the cache."""
+        if user in self._user_cachemap:
+            return self._user_cachemap[user]
+        else:
+            statuscache = UserPresenceCache()
+            statuscache.update({"state": PresenceState.OFFLINE}, user)
+            return statuscache
+
     def registered_user(self, user):
         self.store.create_presence(user.localpart)
 
@@ -98,17 +128,14 @@ class PresenceHandler(BaseHandler):
     def get_state(self, target_user, auth_user):
         if target_user.is_mine:
             # TODO(paul): Only allow local users who are presence-subscribed
-            state = yield self.store.get_presence_state(
-                    target_user.localpart)
+            state = yield self.store.get_presence_state(target_user.localpart)
 
             defer.returnValue(state)
         else:
             # TODO(paul): Have remote server send us permissions set
-            if target_user in self._user_cachemap:
-                defer.returnValue(
-                        self._user_cachemap[target_user].get_state())
-            else:
-                defer.returnValue({"state": 0, "status_msg": ""})
+            defer.returnValue(
+                    self._get_or_offline_usercache(target_user).get_state()
+            )
 
     @defer.inlineCallbacks
     def set_state(self, target_user, auth_user, state):
@@ -124,19 +151,22 @@ class PresenceHandler(BaseHandler):
 
         for k in state.keys():
             if k not in ("state", "status_msg"):
-                raise SynapseError(400,
-                        "Unexpected presence state key '%s'" % (k))
+                raise SynapseError(
+                    400, "Unexpected presence state key '%s'" % (k,)
+                )
 
         logger.debug("Updating presence state of %s to %s",
-                target_user.localpart, state["state"])
+                     target_user.localpart, state["state"])
 
         state_to_store = dict(state)
 
         yield defer.DeferredList([
-            self.store.set_presence_state(target_user.localpart,
-                state_to_store),
-            self.distributor.fire("collect_presencelike_data",
-                target_user, state),
+            self.store.set_presence_state(
+                target_user.localpart, state_to_store
+            ),
+            self.distributor.fire(
+                "collect_presencelike_data", target_user, state
+            ),
         ])
 
         now_online = state["state"] != PresenceState.OFFLINE
@@ -155,10 +185,7 @@ class PresenceHandler(BaseHandler):
             del self._user_cachemap[target_user]
 
     def changed_presencelike_data(self, user, state):
-        if user not in self._user_cachemap:
-            self._user_cachemap[user] = UserPresenceCache()
-
-        statuscache = self._user_cachemap[user]
+        statuscache = self._get_or_make_usercache(user)
 
         self._user_cachemap_latest_serial += 1
         statuscache.update(state, serial=self._user_cachemap_latest_serial)
@@ -174,23 +201,46 @@ class PresenceHandler(BaseHandler):
         self.set_state(user, user, {"state": PresenceState.OFFLINE})
 
     @defer.inlineCallbacks
+    def user_joined_room(self, user, room_id):
+        localusers = set()
+        remotedomains = set()
+
+        rm_handler = self.homeserver.get_handlers().room_member_handler
+        yield rm_handler.fetch_room_distributions_into(room_id,
+                localusers=localusers, remotedomains=remotedomains,
+                ignore_user=user)
+
+        if user.is_mine:
+            yield self._send_presence_to_distribution(srcuser=user,
+                localusers=localusers, remotedomains=remotedomains,
+                statuscache=self._get_or_offline_usercache(user),
+            )
+
+        for srcuser in localusers:
+            yield self._send_presence(srcuser=srcuser, destuser=user,
+                statuscache=self._get_or_offline_usercache(srcuser),
+            )
+
+    @defer.inlineCallbacks
     def send_invite(self, observer_user, observed_user):
         if not observer_user.is_mine:
             raise SynapseError(400, "User is not hosted on this Home Server")
 
         yield self.store.add_presence_list_pending(
-                observer_user.localpart, observed_user.to_string())
+            observer_user.localpart, observed_user.to_string()
+        )
 
         if observed_user.is_mine:
             yield self.invite_presence(observed_user, observer_user)
         else:
             yield self.federation.send_edu(
-                    destination=observed_user.domain,
-                    edu_type="sy.presence_invite",
-                    content={
-                        "observed_user": observed_user.to_string(),
-                        "observer_user": observer_user.to_string(),
-                    })
+                destination=observed_user.domain,
+                edu_type="sy.presence_invite",
+                content={
+                    "observed_user": observed_user.to_string(),
+                    "observer_user": observer_user.to_string(),
+                }
+            )
 
     @defer.inlineCallbacks
     def _should_accept_invite(self, observed_user, observer_user):
@@ -211,7 +261,8 @@ class PresenceHandler(BaseHandler):
 
         if accept:
             yield self.store.allow_presence_inbound(
-                    observed_user.localpart, observer_user.to_string())
+                observed_user.localpart, observer_user.to_string()
+            )
 
         if observer_user.is_mine:
             if accept:
@@ -222,24 +273,27 @@ class PresenceHandler(BaseHandler):
             edu_type = "sy.presence_accept" if accept else "sy.presence_deny"
 
             yield self.federation.send_edu(
-                    destination=observer_user.domain,
-                    edu_type=edu_type,
-                    content={
-                        "observed_user": observed_user.to_string(),
-                        "observer_user": observer_user.to_string(),
-                    })
+                destination=observer_user.domain,
+                edu_type=edu_type,
+                content={
+                    "observed_user": observed_user.to_string(),
+                    "observer_user": observer_user.to_string(),
+                }
+            )
 
     @defer.inlineCallbacks
     def accept_presence(self, observed_user, observer_user):
         yield self.store.set_presence_list_accepted(
-                observer_user.localpart, observed_user.to_string())
+            observer_user.localpart, observed_user.to_string()
+        )
 
         self.start_polling_presence(observer_user, target_user=observed_user)
 
     @defer.inlineCallbacks
     def deny_presence(self, observed_user, observer_user):
         yield self.store.del_presence_list(
-                observer_user.localpart, observed_user.to_string())
+            observer_user.localpart, observed_user.to_string()
+        )
 
         # TODO(paul): Inform the user somehow?
 
@@ -249,7 +303,8 @@ class PresenceHandler(BaseHandler):
             raise SynapseError(400, "User is not hosted on this Home Server")
 
         yield self.store.del_presence_list(
-                observer_user.localpart, observed_user.to_string())
+            observer_user.localpart, observed_user.to_string()
+        )
 
         self.stop_polling_presence(observer_user, target_user=observed_user)
 
@@ -258,17 +313,14 @@ class PresenceHandler(BaseHandler):
         if not observer_user.is_mine:
             raise SynapseError(400, "User is not hosted on this Home Server")
 
-        presence = yield self.store.get_presence_list(observer_user.localpart,
-                accepted=accepted)
+        presence = yield self.store.get_presence_list(
+            observer_user.localpart, accepted=accepted
+        )
 
         for p in presence:
             observed_user = self.hs.parse_userid(p.pop("observed_user_id"))
             p["observed_user"] = observed_user
-
-            if observed_user in self._user_cachemap:
-                p.update(self._user_cachemap[observed_user].get_state())
-            else:
-                p.update({"state": PresenceState.OFFLINE})
+            p.update(self._get_or_offline_usercache(observed_user).get_state())
 
         defer.returnValue(presence)
 
@@ -280,15 +332,19 @@ class PresenceHandler(BaseHandler):
             target_users = [target_user]
         else:
             presence = yield self.store.get_presence_list(
-                    user.localpart, accepted=True)
-            target_users = [self.hs.parse_userid(x["observed_user_id"])
-                    for x in presence]
+                user.localpart, accepted=True
+            )
+            target_users = [
+                self.hs.parse_userid(x["observed_user_id"]) for x in presence
+            ]
 
         if state is None:
             state = yield self.store.get_presence_state(user.localpart)
 
-        localusers, remoteusers = partitionbool(target_users,
-                lambda u: u.is_mine)
+        localusers, remoteusers = partitionbool(
+            target_users,
+            lambda u: u.is_mine
+        )
 
         for target_user in localusers:
             self._start_polling_local(user, target_user)
@@ -298,8 +354,9 @@ class PresenceHandler(BaseHandler):
         for domain in remoteusers_by_domain:
             remoteusers = remoteusers_by_domain[domain]
 
-            deferreds.append(self._start_polling_remote(user, domain,
-                remoteusers))
+            deferreds.append(self._start_polling_remote(
+                user, domain, remoteusers
+            ))
 
         yield defer.DeferredList(deferreds)
 
@@ -313,16 +370,10 @@ class PresenceHandler(BaseHandler):
 
         self._local_pushmap[target_localpart].add(user)
 
-        if target_user in self._user_cachemap:
-            statuscache = self._user_cachemap[target_user]
-        else:
-            statuscache = UserPresenceCache()
-            statuscache.update({"state": PresenceState.OFFLINE}, target_user)
-
         self.push_update_to_clients(
-                observer_user=user,
-                observed_user=target_user,
-                statuscache=statuscache,
+            observer_user=user,
+            observed_user=target_user,
+            statuscache=self._get_or_offline_usercache(target_user),
         )
 
     def _start_polling_remote(self, user, domain, remoteusers):
@@ -349,15 +400,16 @@ class PresenceHandler(BaseHandler):
         if target_user:
             raise NotImplementedError("TODO: remove one user")
 
-        remoteusers = [u for u in self._remote_recvmap if
-                user in self._remote_recvmap[u]]
+        remoteusers = [u for u in self._remote_recvmap
+                       if user in self._remote_recvmap[u]]
         remoteusers_by_domain = partition(remoteusers, lambda u: u.domain)
 
         for domain in remoteusers_by_domain:
             remoteusers = remoteusers_by_domain[domain]
 
             deferreds.append(
-                    self._stop_polling_remote(user, domain, remoteusers))
+                self._stop_polling_remote(user, domain, remoteusers)
+            )
 
         return defer.DeferredList(deferreds)
 
@@ -380,9 +432,9 @@ class PresenceHandler(BaseHandler):
                 del self._remote_recvmap[u]
 
         return self.federation.send_edu(
-                destination=domain,
-                edu_type="sy.presence",
-                content={"unpoll": [u.to_string() for u in remoteusers]}
+            destination=domain,
+            edu_type="sy.presence",
+            content={"unpoll": [u.to_string() for u in remoteusers]}
         )
 
     @defer.inlineCallbacks
@@ -402,33 +454,49 @@ class PresenceHandler(BaseHandler):
         room_ids = yield rm_handler.get_rooms_for_user(user)
 
         for room_id in room_ids:
-            members = yield rm_handler.get_room_members(room_id)
-
-            for member in members:
-                if member == user:
-                    continue
-
-                if member.is_mine:
-                    localusers.add(member)
-                else:
-                    remotedomains.add(member.domain)
+            yield rm_handler.fetch_room_distributions_into(
+                room_id, localusers=localusers, remotedomains=remotedomains,
+                ignore_user=user,
+            )
 
         if not localusers and not remotedomains:
             defer.returnValue(None)
+
+        yield self._send_presence_to_distribution(user,
+            localusers=localusers, remotedomains=remotedomains,
+            statuscache=statuscache
+        )
+
+    def _send_presence(self, srcuser, destuser, statuscache):
+        if destuser.is_mine:
+            self.push_update_to_clients(
+                observer_user=destuser,
+                observed_user=srcuser,
+                statuscache=statuscache)
+            return defer.succeed(None)
+        else:
+            return self._push_presence_remote(srcuser, destuser.domain,
+                state=statuscache.get_state()
+            )
+
+    @defer.inlineCallbacks
+    def _send_presence_to_distribution(self, srcuser, localusers=set(),
+            remotedomains=set(), statuscache=None):
 
         for u in localusers:
             logger.debug(" | push to local user %s", u)
             self.push_update_to_clients(
                 observer_user=u,
-                observed_user=user,
+                observed_user=srcuser,
                 statuscache=statuscache,
             )
 
         deferreds = []
         for domain in remotedomains:
             logger.debug(" | push to remote domain %s", domain)
-            deferreds.append(self._push_presence_remote(user, domain,
-                state=statuscache.get_state()))
+            deferreds.append(self._push_presence_remote(srcuser, domain,
+                state=statuscache.get_state())
+            )
 
         yield defer.DeferredList(deferreds)
 
@@ -436,8 +504,9 @@ class PresenceHandler(BaseHandler):
     def _push_presence_remote(self, user, destination, state=None):
         if state is None:
             state = yield self.store.get_presence_state(user.localpart)
-            yield self.distributor.fire("collect_presencelike_data",
-                    user, state)
+            yield self.distributor.fire(
+                "collect_presencelike_data", user, state
+            )
 
         yield self.federation.send_edu(
             destination=destination,
@@ -464,14 +533,9 @@ class PresenceHandler(BaseHandler):
             room_ids = yield rm_handler.get_rooms_for_user(user)
 
             for room_id in room_ids:
-                members = yield rm_handler.get_room_members(room_id)
-
-                for member in members:
-                    if member == user:
-                        continue
-
-                    if member.is_mine:
-                        observers.add(member)
+                yield rm_handler.fetch_room_distributions_into(
+                    room_id, localusers=observers, ignore_user=user
+                )
 
             if not observers:
                 break
@@ -479,19 +543,16 @@ class PresenceHandler(BaseHandler):
             state = dict(push)
             del state["user_id"]
 
-            if user not in self._user_cachemap:
-                self._user_cachemap[user] = UserPresenceCache()
-
-            statuscache = self._user_cachemap[user]
+            statuscache = self._get_or_make_usercache(user)
 
             self._user_cachemap_latest_serial += 1
             statuscache.update(state, serial=self._user_cachemap_latest_serial)
 
             for observer_user in observers:
                 self.push_update_to_clients(
-                        observer_user=observer_user,
-                        observed_user=user,
-                        statuscache=statuscache,
+                    observer_user=observer_user,
+                    observed_user=user,
+                    statuscache=statuscache,
                 )
 
             if state["state"] == PresenceState.OFFLINE:
@@ -527,11 +588,13 @@ class PresenceHandler(BaseHandler):
         yield defer.DeferredList(deferreds)
 
     def push_update_to_clients(self, observer_user, observed_user,
-            statuscache):
-        self.notifier.on_new_user_event(observer_user.to_string(),
-                event_data=statuscache.make_event(user=observed_user),
-                stream_type=PresenceStreamData,
-                store_id=statuscache.serial)
+                               statuscache):
+        self.notifier.on_new_user_event(
+            observer_user.to_string(),
+            event_data=statuscache.make_event(user=observed_user),
+            stream_type=PresenceStreamData,
+            store_id=statuscache.serial
+        )
 
 
 class PresenceStreamData(StreamData):
@@ -544,7 +607,7 @@ class PresenceStreamData(StreamData):
 
         # TODO(paul): limit, and filter by visibility
         updates = [(k, cachemap[k]) for k in cachemap
-                if from_key < cachemap[k].serial <= to_key]
+                   if from_key < cachemap[k].serial <= to_key]
 
         if updates:
             latest_serial = max([x[1].serial for x in updates])
@@ -584,7 +647,7 @@ class UserPresenceCache(object):
 
     def get_state(self):
         # clone it so caller can't break our cache
-        return dict(self.state);
+        return dict(self.state)
 
     def make_event(self, user):
         content = self.get_state()

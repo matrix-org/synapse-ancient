@@ -2,14 +2,11 @@
 """This module contains REST servlets to do with public paths: /public"""
 from twisted.internet import defer
 
-from base import RestServlet
-
-import re
+from base import RestServlet, client_path_pattern
 
 
 class PublicRoomListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/public/rooms$")
+    PATTERN = client_path_pattern("/public/rooms$")
 
     @defer.inlineCallbacks
     def on_GET(self, request):

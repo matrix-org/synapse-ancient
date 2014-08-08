@@ -38,7 +38,7 @@ class SynapseKeyClientProtocol(HTTPClient):
     SSL connection."""
 
     def connectionMade(self):
-        logger.debug("Connected to %s" % self.transport.getHost())
+        logger.debug("Connected to %s", self.transport.getHost())
         self.sendCommand(b"GET", b"/key")
         self.endHeaders()
         self.timer = reactor.callLater(

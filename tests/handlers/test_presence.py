@@ -8,7 +8,7 @@ import logging
 
 from synapse.server import HomeServer
 from synapse.api.constants import PresenceState
-from synapse.handlers.presence import PresenceHandler
+from synapse.handlers.presence import PresenceHandler, UserPresenceCache
 
 
 OFFLINE = PresenceState.OFFLINE
@@ -370,12 +370,33 @@ class PresencePushTestCase(unittest.TestCase):
                 return defer.succeed([])
         self.room_member_handler.get_room_members = get_room_members
 
+        @defer.inlineCallbacks
+        def fetch_room_distributions_into(room_id, localusers=None,
+                remotedomains=None, ignore_user=None):
+
+            members = yield get_room_members(room_id)
+            for member in members:
+                if ignore_user is not None and member == ignore_user:
+                    continue
+
+                if member.is_mine:
+                    if localusers is not None:
+                        localusers.add(member)
+                else:
+                    if remotedomains is not None:
+                        remotedomains.add(member.domain)
+        self.room_member_handler.fetch_room_distributions_into = (
+                fetch_room_distributions_into)
+
         def get_presence_list(user_localpart, accepted=None):
             return defer.succeed([
                 {"observed_user_id": "@banana:test"},
                 {"observed_user_id": "@clementine:test"},
             ])
         self.datastore.get_presence_list = get_presence_list
+
+        self.distributor = hs.get_distributor()
+        self.distributor.declare("user_joined_room")
 
         # Some local users to test with
         self.u_apple = hs.parse_userid("@apple:test")
@@ -395,7 +416,6 @@ class PresencePushTestCase(unittest.TestCase):
                 {"state": ONLINE})
 
         # TODO(paul): Gut-wrenching
-        from synapse.handlers.presence import UserPresenceCache
         self.handler._user_cachemap[self.u_apple] = UserPresenceCache()
         apple_set = self.handler._local_pushmap.setdefault("apple", set())
         apple_set.add(self.u_banana)
@@ -446,7 +466,6 @@ class PresencePushTestCase(unittest.TestCase):
                 {"state": ONLINE})
 
         # TODO(paul): Gut-wrenching
-        from synapse.handlers.presence import UserPresenceCache
         self.handler._user_cachemap[self.u_apple] = UserPresenceCache()
         apple_set = self.handler._remote_sendmap.setdefault("apple", set())
         apple_set.add(self.u_potato.domain)
@@ -505,6 +524,91 @@ class PresencePushTestCase(unittest.TestCase):
         state = yield self.handler.get_state(self.u_potato, self.u_apple)
 
         self.assertEquals({"state": ONLINE}, state)
+
+    @defer.inlineCallbacks
+    def test_join_room_local(self):
+        self.room_members = [self.u_apple, self.u_banana]
+
+        yield self.distributor.fire("user_joined_room", self.u_elderberry,
+            "a-room"
+        )
+
+        self.mock_update_client.assert_has_calls([
+            # Apple and Elderberry see each other
+            call(observer_user=self.u_apple,
+                observed_user=self.u_elderberry,
+                statuscache=ANY),
+            call(observer_user=self.u_elderberry,
+                observed_user=self.u_apple,
+                statuscache=ANY),
+            # Banana and Elderberry see each other
+            call(observer_user=self.u_banana,
+                observed_user=self.u_elderberry,
+                statuscache=ANY),
+            call(observer_user=self.u_elderberry,
+                observed_user=self.u_banana,
+                statuscache=ANY),
+        ], any_order=True)
+
+    @defer.inlineCallbacks
+    def test_join_room_remote(self):
+        ## Sending local user state to a newly-joined remote user
+
+        # TODO(paul): Gut-wrenching
+        self.handler._user_cachemap[self.u_apple] = UserPresenceCache()
+        self.handler._user_cachemap[self.u_apple].update(
+                {"state": PresenceState.ONLINE}, self.u_apple)
+        self.room_members = [self.u_apple, self.u_banana]
+
+        yield self.distributor.fire("user_joined_room", self.u_potato,
+            "a-room"
+        )
+
+        self.replication.send_edu.assert_has_calls([
+                call(
+                    destination="remote",
+                    edu_type="sy.presence",
+                    content={
+                        "push": [
+                            {"user_id": "@apple:test",
+                            "state": 2},
+                        ],
+                    }),
+                call(
+                    destination="remote",
+                    edu_type="sy.presence",
+                    content={
+                        "push": [
+                            {"user_id": "@banana:test",
+                            "state": 0},
+                        ],
+                    }),
+        ], any_order=True)
+
+        self.replication.send_edu.reset_mock()
+
+        ## Sending newly-joined local user state to remote users
+
+        self.handler._user_cachemap[self.u_clementine] = UserPresenceCache()
+        self.handler._user_cachemap[self.u_clementine].update(
+                {"state": PresenceState.ONLINE}, self.u_clementine)
+        self.room_members.append(self.u_potato)
+
+        yield self.distributor.fire("user_joined_room", self.u_clementine,
+            "a-room"
+        )
+
+        self.replication.send_edu.assert_has_calls(
+                call(
+                    destination="remote",
+                    edu_type="sy.presence",
+                    content={
+                        "push": [
+                            {"user_id": "@clementine:test",
+                            "state": 2},
+                        ],
+                    }),
+        )
 
 
 class PresencePollingTestCase(unittest.TestCase):

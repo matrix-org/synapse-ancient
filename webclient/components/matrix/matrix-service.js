@@ -15,6 +15,7 @@ angular.module('matrixService', [])
     
     // Current version of permanent storage
     var configVersion = 0;
+    var prefixPath = "/matrix/client/api/v1";
 
     var doRequest = function(method, path, params, data) {
         // Inject the access token
@@ -27,7 +28,9 @@ angular.module('matrixService', [])
     };
 
     var doBaseRequest = function(baseUrl, method, path, params, data, headers) {
-
+        if (path.indexOf(prefixPath) !== 0) {
+            path = prefixPath + path;
+        }
         // Do not directly return the $http instance but return a promise
         // with enriched or cleaned information
         var deferred = $q.defer();
@@ -57,6 +60,7 @@ angular.module('matrixService', [])
 
     return {
         /****** Home server API ******/
+        prefix: prefixPath,
 
         // Register an user
         register: function(user_name) {
@@ -84,10 +88,7 @@ angular.module('matrixService', [])
         // List all rooms joined or been invited to
         rooms: function(from, to, limit) {
             // The REST path spec
-            var path = "/users/$user_id/rooms/list";
-
-            // Customize it
-            path = path.replace("$user_id", config.user_id);
+            var path = "/im/sync";
 
             return doRequest("GET", path);
         },

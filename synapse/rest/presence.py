@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-""" This module contains REST servlets to do with presence: /presence/<paths> """
+""" This module contains REST servlets to do with presence: /presence/<paths>
+"""
 from twisted.internet import defer
 
-from base import RestServlet
+from base import RestServlet, client_path_pattern
 
 import json
-import re
-
 import logging
 
 
@@ -14,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class PresenceStatusRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/presence/(?P<user_id>[^/]*)/status")
+    PATTERN = client_path_pattern("/presence/(?P<user_id>[^/]*)/status")
 
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):
@@ -23,7 +21,7 @@ class PresenceStatusRestServlet(RestServlet):
         user = self.hs.parse_userid(user_id)
 
         state = yield self.handlers.presence_handler.get_state(
-                target_user=user, auth_user=auth_user)
+            target_user=user, auth_user=auth_user)
 
         defer.returnValue((200, state))
 
@@ -47,7 +45,7 @@ class PresenceStatusRestServlet(RestServlet):
             defer.returnValue((400, "Unable to parse state"))
 
         yield self.handlers.presence_handler.set_state(
-                target_user=user, auth_user=auth_user, state=state)
+            target_user=user, auth_user=auth_user, state=state)
 
         defer.returnValue((200, ""))
 
@@ -56,8 +54,7 @@ class PresenceStatusRestServlet(RestServlet):
 
 
 class PresenceListRestServlet(RestServlet):
-    # TODO(markjh): Namespace the client URI paths
-    PATTERN = re.compile("^/presence_list/(?P<user_id>[^/]*)")
+    PATTERN = client_path_pattern("/presence_list/(?P<user_id>[^/]*)")
 
     @defer.inlineCallbacks
     def on_GET(self, request, user_id):
@@ -71,10 +68,8 @@ class PresenceListRestServlet(RestServlet):
             defer.returnValue((400, "Cannot get another user's presence list"))
 
         presence = yield self.handlers.presence_handler.get_presence_list(
-                observer_user=user, accepted=True)
+            observer_user=user, accepted=True)
 
-        # TODO(paul): Should include current known displayname / avatar URLs
-        #   if we have them
         for p in presence:
             observed_user = p.pop("observed_user")
             p["user_id"] = observed_user.to_string()
@@ -90,8 +85,8 @@ class PresenceListRestServlet(RestServlet):
             defer.returnValue((400, "User not hosted on this Home Server"))
 
         if auth_user != user:
-            defer.returnValue((400,
-                "Cannot modify another user's presence list"))
+            defer.returnValue((
+                400, "Cannot modify another user's presence list"))
 
         try:
             content = json.loads(request.content.read())
