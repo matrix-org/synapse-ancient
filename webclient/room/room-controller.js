@@ -38,7 +38,7 @@ angular.module('RoomController', [])
                     else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
                         updateMemberList(chunk);
                     }
-                    else if (chunk.type === "sy.presence") {
+                    else if (chunk.type === "m.presence") {
                         updatePresence(chunk);
                     }
                 }
