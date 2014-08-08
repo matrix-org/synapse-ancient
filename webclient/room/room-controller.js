@@ -126,9 +126,18 @@ angular.module('RoomController', [])
         if ($scope.textInput == "") {
             return;
         }
-        
+                    
         // Send the text message
-        matrixService.sendTextMessage($scope.room_id, $scope.textInput).then(
+        var promise;
+        // FIXME: handle other commands too
+        if ($scope.textInput.indexOf("/me") == 0) {
+            promise = matrixService.sendEmoteMessage($scope.room_id, $scope.textInput.substr(4));
+        }
+        else {
+            promise = matrixService.sendTextMessage($scope.room_id, $scope.textInput);
+        }
+        
+        promise.then(
             function() {
                 console.log("Sent message");
                 $scope.textInput = "";

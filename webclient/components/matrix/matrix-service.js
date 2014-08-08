@@ -170,6 +170,16 @@ angular.module('matrixService', [])
             return this.sendMessage(room_id, msg_id, content);
         },
 
+        // Send an emote message
+        sendEmoteMessage: function(room_id, body, msg_id) {
+            var content = {
+                 msgtype: "sy.emote",
+                 body: body
+            };
+
+            return this.sendMessage(room_id, msg_id, content);
+        },
+
         // get a snapshot of the members in a room.
         getMemberList: function(room_id) {
             // Like the cmd client, escape room ids

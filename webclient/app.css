@@ -164,6 +164,11 @@ h1 {
     max-width: 90%;
 }
 
+.emote {
+    background-color: #fff ! important;
+    border: 0px ! important;
+}
+
 .bubble {
     padding: 6px;
     padding-left: 1em;
@@ -177,6 +182,10 @@ h1 {
 .mine .text .bubble {
     text-align: left ! important;
     background-color: #ccc ! important;
+}
+
+.mine .emote .bubble {
+    background-color: #fff ! important;
 }
 
 /******************************/
