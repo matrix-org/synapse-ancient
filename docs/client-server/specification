@@ -21,8 +21,6 @@ a home server.
 [[TODO(kegan):
 Outstanding problems / missing spec:
 - No presence spec.
-- Multiple devices on the same account (no shared way to auth e.g. we don't 
-  msisdn auth), LOGIN API.
 - Spec out standard error responses (malformed json, missing keys, invalid 
   values for keys, unknown users (iff host is home server),
   room id in use, Pagination query param error / index out of bounds, )
