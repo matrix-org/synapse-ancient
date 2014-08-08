@@ -364,7 +364,7 @@ Type: "mx.login.password"
 LoginSubmission:
 {
   "type": "mx.login.password",
-  "user": <username>,
+  "user": <user_id>,
   "password": <password>
 }
 
@@ -389,8 +389,59 @@ The server checks this, finds it is valid, and returns:
 OAuth2-based
 ------------
 Type: "mx.login.oauth2"
-TODO(kegan)
+This is a multi-stage login.
 
+LoginSubmission:
+{
+  "type": "mx.login.oauth2",
+  "user": <user_id>
+}
+Returns:
+{
+  "uri": <Authorization Request uri OR service selection uri>
+}
+
+The home server acts as a 'confidential' Client for the purposes of OAuth2.
+
+If the uri is a "sevice selection uri", it is a simple page which prompts the 
+user to choose which service to authorize with. On selection of a service, they
+link through to Authorization Request URIs. If there is only 1 service which the
+home server accepts when logging in, this indirection can be skipped and the
+"uri" key can be the Authorization Request URI. 
+
+The client visits the Authorization Request URI, which then shows the OAuth2 
+Allow/Deny prompt. Hitting 'Allow' returns the redirect URI with the auth code. 
+Home servers can choose any path for the redirect URI. The client should visit 
+the redirect URI, which will then finish the OAuth2 login process, granting the 
+home server an access token for the chosen service. When the home server gets 
+this access token, it knows that the cilent has authed with the 3rd party, and 
+so can return a LoginResult.
+
+The OAuth redirect URI (with auth code) MUST return a LoginResult.
+    
+Example:
+Assume you are @bob:matrix.org and you wish to login on another mobile device.
+First, you GET /login which returns:
+{
+  "type": "mx.login.oauth2"
+}
+Your client knows how to handle this, so your client prompts the user to enter
+their username. This is then submitted:
+{
+  "type": "mx.login.oauth2",
+  "user": "@bob:matrix.org"
+}
+The server only accepts auth from Google, so returns the Authorization Request
+URI for Google:
+{
+  "uri": "https://accounts.google.com/o/oauth2/auth?response_type=code&
+  client_id=CLIENT_ID&redirect_uri=REDIRECT_URI&scope=photos"
+}
+The client then visits this URI and authorizes the home server. The client then
+visits the REDIRECT_URI with the auth code= query parameter which returns:
+{
+  "access_token": "0123456789abcdef"
+}
 
 Email-based (code)
 ------------------
@@ -400,7 +451,7 @@ This is a multi-stage login.
 First LoginSubmission:
 {
   "type": "mx.login.email.code",
-  "user": <matrix user id>
+  "user": <user_id>
   "email": <email address>
 }
 Returns:
@@ -458,7 +509,7 @@ This is a multi-stage login.
 First LoginSubmission:
 {
   "type": "mx.login.email.url",
-  "user": <matrix user id>
+  "user": <user_id>
   "email": <email address>
 }
 Returns:
