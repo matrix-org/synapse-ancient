@@ -799,9 +799,6 @@ class PresencePollingTestCase(unittest.TestCase):
 
         self.mock_update_client.reset_mock()
 
-        # Hideous
-        apple_cache = self.handler._user_cachemap[self.u_apple]
-
         # apple goes offline
         yield self.handler.set_state(
                 target_user=self.u_apple, auth_user=self.u_apple,
@@ -811,7 +808,7 @@ class PresencePollingTestCase(unittest.TestCase):
         self.mock_update_client.assert_has_calls([
                 call(observer_user=self.u_banana,
                     observed_user=self.u_apple,
-                    statuscache=apple_cache),
+                    statuscache=ANY),
         ], any_order=True)
 
         self.assertFalse("banana" in self.handler._local_pushmap)
