@@ -68,24 +68,24 @@ class PresenceHandler(BaseHandler):
         self.federation = hs.get_replication_layer()
 
         self.federation.register_edu_handler(
-            "sy.presence", self.incoming_presence
+            "mx.presence", self.incoming_presence
         )
         self.federation.register_edu_handler(
-            "sy.presence_invite",
+            "mx.presence_invite",
             lambda origin, content: self.invite_presence(
                 observed_user=hs.parse_userid(content["observed_user"]),
                 observer_user=hs.parse_userid(content["observer_user"]),
             )
         )
         self.federation.register_edu_handler(
-            "sy.presence_accept",
+            "mx.presence_accept",
             lambda origin, content: self.accept_presence(
                 observed_user=hs.parse_userid(content["observed_user"]),
                 observer_user=hs.parse_userid(content["observer_user"]),
             )
         )
         self.federation.register_edu_handler(
-            "sy.presence_deny",
+            "mx.presence_deny",
             lambda origin, content: self.deny_presence(
                 observed_user=hs.parse_userid(content["observed_user"]),
                 observer_user=hs.parse_userid(content["observer_user"]),
@@ -261,7 +261,7 @@ class PresenceHandler(BaseHandler):
         else:
             yield self.federation.send_edu(
                 destination=observed_user.domain,
-                edu_type="sy.presence_invite",
+                edu_type="mx.presence_invite",
                 content={
                     "observed_user": observed_user.to_string(),
                     "observer_user": observer_user.to_string(),
@@ -296,7 +296,7 @@ class PresenceHandler(BaseHandler):
             else:
                 yield self.deny_presence(observed_user, observer_user)
         else:
-            edu_type = "sy.presence_accept" if accept else "sy.presence_deny"
+            edu_type = "mx.presence_accept" if accept else "mx.presence_deny"
 
             yield self.federation.send_edu(
                 destination=observer_user.domain,
@@ -413,7 +413,7 @@ class PresenceHandler(BaseHandler):
 
         return self.federation.send_edu(
             destination=domain,
-            edu_type="sy.presence",
+            edu_type="mx.presence",
             content={"poll": [u.to_string() for u in remoteusers]}
         )
 
@@ -461,7 +461,7 @@ class PresenceHandler(BaseHandler):
 
         return self.federation.send_edu(
             destination=domain,
-            edu_type="sy.presence",
+            edu_type="mx.presence",
             content={"unpoll": [u.to_string() for u in remoteusers]}
         )
 
@@ -538,7 +538,7 @@ class PresenceHandler(BaseHandler):
 
         yield self.federation.send_edu(
             destination=destination,
-            edu_type="sy.presence",
+            edu_type="mx.presence",
             content={
                 "push": [
                     dict(user_id=user.to_string(), **state),
@@ -681,4 +681,4 @@ class UserPresenceCache(object):
         content = self.get_state()
         content["user_id"] = user.to_string()
 
-        return {"type": "sy.presence", "content": content}
+        return {"type": "mx.presence", "content": content}

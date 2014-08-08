@@ -178,7 +178,7 @@ class EventStreamPermissionsTestCase(RestTestCase):
 
         # First message is a reflection of my own presence status change
         self.assertEquals(1, len(response["chunk"]))
-        self.assertEquals("sy.presence", response["chunk"][0]["type"])
+        self.assertEquals("mx.presence", response["chunk"][0]["type"])
 
         # joined room (expect all content for room)
         yield self.join(room=room_id, user=self.user_id, tok=self.token)

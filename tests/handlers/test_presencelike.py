@@ -202,7 +202,7 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
 
         self.replication.send_edu.assert_called_with(
                 destination="remote",
-                edu_type="sy.presence",
+                edu_type="mx.presence",
                 content={
                     "push": [
                         {"user_id": "@apple:test",
@@ -221,7 +221,7 @@ class PresenceProfilelikeDataTestCase(unittest.TestCase):
         potato_set.add(self.u_apple)
 
         yield self.replication.received_edu(
-                "remote", "sy.presence", {
+                "remote", "mx.presence", {
                     "push": [
                         {"user_id": "@potato:remote",
                          "state": 2,
