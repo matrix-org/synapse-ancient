@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-from synapse.persistence.tables import (RoomMemberTable, MessagesTable,
-                                        FeedbackTable, RoomDataTable)
 
 from ._base import SQLBaseStore
+from .message import MessagesTable
+from .feedback import FeedbackTable
+from .roomdata import RoomDataTable
+from .roommember import RoomMemberTable
 
 import json
 import logging

@@ -5,20 +5,17 @@ from synapse.api.events.room import (
     RoomMemberEvent, MessageEvent, RoomTopicEvent, FeedbackEvent,
     RoomConfigEvent
 )
-from synapse.persistence.tables import (
-    RoomMemberTable, MessagesTable, FeedbackTable, RoomDataTable
-)
 
 import json
 
-from .feedback import FeedbackStore
-from .message import MessageStore
+from .feedback import FeedbackStore, FeedbackTable
+from .message import MessageStore, MessagesTable
 from .presence import PresenceStore
 from .profile import ProfileStore
 from .registration import RegistrationStore
 from .room import RoomStore
-from .roommember import RoomMemberStore
-from .roomdata import RoomDataStore
+from .roommember import RoomMemberStore, RoomMemberTable
+from .roomdata import RoomDataStore, RoomDataTable
 from .stream import StreamStore
 
 

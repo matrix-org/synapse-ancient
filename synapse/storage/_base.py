@@ -235,3 +235,86 @@ class SQLBaseStore(object):
             return max_id
 
         return self._db_pool.runInteraction(func)
+
+
+class Table(object):
+    """ A base class used to store information about a particular table.
+    """
+
+    table_name = None
+    """ str: The name of the table """
+
+    fields = None
+    """ list: The field names """
+
+    EntryType = None
+    """ Type: A tuple type used to decode the results """
+
+    _select_where_clause = "SELECT %s FROM %s WHERE %s"
+    _select_clause = "SELECT %s FROM %s"
+    _insert_clause = "INSERT OR REPLACE INTO %s (%s) VALUES (%s)"
+
+    @classmethod
+    def select_statement(cls, where_clause=None):
+        """
+        Args:
+            where_clause (str): The WHERE clause to use.
+
+        Returns:
+            str: An SQL statement to select rows from the table with the given
+            WHERE clause.
+        """
+        if where_clause:
+            return cls._select_where_clause % (
+                ", ".join(cls.fields),
+                cls.table_name,
+                where_clause
+            )
+        else:
+            return cls._select_clause % (
+                ", ".join(cls.fields),
+                cls.table_name,
+            )
+
+    @classmethod
+    def insert_statement(cls):
+        return cls._insert_clause % (
+            cls.table_name,
+            ", ".join(cls.fields),
+            ", ".join(["?"] * len(cls.fields)),
+        )
+
+    @classmethod
+    def decode_single_result(cls, results):
+        """ Given an iterable of tuples, return a single instance of
+            `EntryType` or None if the iterable is empty
+        Args:
+            results (list): The results list to convert to `EntryType`
+        Returns:
+            EntryType: An instance of `EntryType`
+        """
+        results = list(results)
+        if results:
+            return cls.EntryType(*results[0])
+        else:
+            return None
+
+    @classmethod
+    def decode_results(cls, results):
+        """ Given an iterable of tuples, return a list of `EntryType`
+        Args:
+            results (list): The results list to convert to `EntryType`
+
+        Returns:
+            list: A list of `EntryType`
+        """
+        return [cls.EntryType(*row) for row in results]
+
+    @classmethod
+    def get_fields_string(cls, prefix=None):
+        if prefix:
+            to_join = ("%s.%s" % (prefix, f) for f in cls.fields)
+        else:
+            to_join = cls.fields
+
+        return ", ".join(to_join)

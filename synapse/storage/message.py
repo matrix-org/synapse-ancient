@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from synapse.persistence.tables import MessagesTable
+from ._base import SQLBaseStore, Table
 
-from ._base import SQLBaseStore
+import collections
 
 
 class MessageStore(SQLBaseStore):
@@ -40,3 +40,18 @@ class MessageStore(SQLBaseStore):
 
     def get_max_message_id(self):
         return self._simple_max_id(MessagesTable.table_name)
+
+
+class MessagesTable(Table):
+    table_name = "messages"
+
+    fields = [
+        "id",
+        "user_id",
+        "room_id",
+        "msg_id",
+        "content"
+    ]
+
+    EntryType = collections.namedtuple("MessageEntry", fields)
+

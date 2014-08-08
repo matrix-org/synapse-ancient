@@ -5,10 +5,10 @@ from sqlite3 import IntegrityError
 
 from synapse.api.errors import StoreError
 from synapse.api.events.room import RoomTopicEvent
-from synapse.persistence.tables import RoomsTable
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseStore, Table
 
+import collections
 import json
 import logging
 
@@ -102,3 +102,15 @@ class RoomStore(SQLBaseStore):
             res[i] = {k: v for k, v in room_row.iteritems() if k in ret_keys}
 
         defer.returnValue(res)
+
+
+class RoomsTable(Table):
+    table_name = "rooms"
+
+    fields = [
+        "room_id",
+        "is_public",
+        "creator"
+    ]
+
+    EntryType = collections.namedtuple("RoomEntry", fields)

@@ -3,13 +3,12 @@ from twisted.internet import defer
 
 from synapse.types import UserID
 from synapse.api.constants import Membership
-from synapse.persistence.tables import RoomMemberTable
 
-from ._base import SQLBaseStore
+from ._base import SQLBaseStore, Table
 
+import collections
 import json
 import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -131,3 +130,19 @@ class RoomMemberStore(SQLBaseStore):
 
     def get_max_room_member_id(self):
         return self._simple_max_id(RoomMemberTable.table_name)
+
+
+class RoomMemberTable(Table):
+    table_name = "room_memberships"
+
+    fields = [
+        "id",
+        "user_id",
+        "sender",
+        "room_id",
+        "membership",
+        "content"
+    ]
+
+    EntryType = collections.namedtuple("RoomMemberEntry", fields)
+

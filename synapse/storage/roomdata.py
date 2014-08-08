@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from synapse.persistence.tables import RoomDataTable
+from ._base import SQLBaseStore, Table
 
-from ._base import SQLBaseStore
-
+import collections
 
 class RoomDataStore(SQLBaseStore):
 
@@ -47,3 +46,17 @@ class RoomDataStore(SQLBaseStore):
 
     def get_max_room_data_id(self):
         return self._simple_max_id(RoomDataTable.table_name)
+
+
+class RoomDataTable(Table):
+    table_name = "room_data"
+
+    fields = [
+        "id",
+        "room_id",
+        "type",
+        "state_key",
+        "content"
+    ]
+
+    EntryType = collections.namedtuple("RoomDataEntry", fields)

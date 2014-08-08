@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from synapse.persistence.tables import FeedbackTable
+from ._base import SQLBaseStore, Table
 
-from ._base import SQLBaseStore
-
+import collections
 
 class FeedbackStore(SQLBaseStore):
 
@@ -30,3 +29,20 @@ class FeedbackStore(SQLBaseStore):
 
     def get_max_feedback_id(self):
         return self._simple_max_id(FeedbackTable.table_name)
+
+
+class FeedbackTable(Table):
+    table_name = "feedback"
+
+    fields = [
+        "id",
+        "content",
+        "feedback_type",
+        "fb_sender_id",
+        "msg_id",
+        "room_id",
+        "msg_sender_id"
+    ]
+
+    EntryType = collections.namedtuple("FeedbackEntry", fields)
+
