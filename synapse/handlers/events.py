@@ -70,6 +70,8 @@ class EventStreamHandler(BaseHandler):
         """
         auth_user = self.hs.parse_userid(auth_user_id)
 
+        stream_id = object()
+
         try:
             if auth_user not in self._streams_per_user:
                 self._streams_per_user[auth_user] = 0
@@ -90,8 +92,6 @@ class EventStreamHandler(BaseHandler):
 
             # fix unknown tokens to known tokens
             pagin_config = yield event_stream.fix_tokens(pagin_config)
-
-            stream_id = object()
 
             # register interest in receiving new events
             self.notifier.store_events_for(user_id=auth_user_id,
