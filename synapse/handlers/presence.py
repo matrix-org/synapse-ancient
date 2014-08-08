@@ -125,12 +125,38 @@ class PresenceHandler(BaseHandler):
         self.store.create_presence(user.localpart)
 
     @defer.inlineCallbacks
+    def is_presence_visible(self, observer_user, observed_user):
+        assert(observed_user.is_mine)
+
+        if observer_user == observed_user:
+            defer.returnValue(True)
+
+        allowed_by_subscription = yield self.store.is_presence_visible(
+            observed_localpart=observed_user.localpart,
+            observer_userid=observer_user.to_string(),
+        )
+
+        if allowed_by_subscription:
+            defer.returnValue(True)
+
+        # TODO(paul): Check same channel
+
+        defer.returnValue(False)
+
+    @defer.inlineCallbacks
     def get_state(self, target_user, auth_user):
         if target_user.is_mine:
-            # TODO(paul): Only allow local users who are presence-subscribed
-            state = yield self.store.get_presence_state(target_user.localpart)
+            visible = yield self.is_presence_visible(observer_user=auth_user,
+                observed_user=target_user
+            )
 
-            defer.returnValue(state)
+            if visible:
+                state = yield self.store.get_presence_state(
+                    target_user.localpart
+                )
+                defer.returnValue(state)
+            else:
+                raise SynapseError(404, "Presence information not visible")
         else:
             # TODO(paul): Have remote server send us permissions set
             defer.returnValue(
@@ -260,7 +286,7 @@ class PresenceHandler(BaseHandler):
         accept = yield self._should_accept_invite(observed_user, observer_user)
 
         if accept:
-            yield self.store.allow_presence_inbound(
+            yield self.store.allow_presence_visible(
                 observed_user.localpart, observer_user.to_string()
             )
 
@@ -363,7 +389,9 @@ class PresenceHandler(BaseHandler):
     def _start_polling_local(self, user, target_user):
         target_localpart = target_user.localpart
 
-        # TODO(paul) permissions checks
+        if not self.is_presence_visible(observer_user=user,
+            observed_user=target_user):
+            return
 
         if target_localpart not in self._local_pushmap:
             self._local_pushmap[target_localpart] = set()
