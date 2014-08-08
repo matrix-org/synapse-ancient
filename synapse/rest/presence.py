@@ -70,8 +70,6 @@ class PresenceListRestServlet(RestServlet):
         presence = yield self.handlers.presence_handler.get_presence_list(
             observer_user=user, accepted=True)
 
-        # TODO(paul): Should include current known displayname / avatar URLs
-        #   if we have them
         for p in presence:
             observed_user = p.pop("observed_user")
             p["user_id"] = observed_user.to_string()
