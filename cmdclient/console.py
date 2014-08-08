@@ -480,6 +480,27 @@ class SynapseCmd(cmd.Cmd):
         else:
             reactor.callFromThread(self._run_and_pprint, "GET", path)
 
+    def _do_presence_state(self, state, line):
+        args = self._parse(line, ["msgstring"])
+        path = "/presence/%s/status" % (self.config["user"])
+        data = {"state": state}
+        if "msgstring" in args:
+            data["status_msg"] = args["msgstring"]
+
+        reactor.callFromThread(self._run_and_pprint, "PUT", path, data=data)
+
+    def do_offline(self, line):
+        """Set my presence state to OFFLINE"""
+        self._do_presence_state(0, line)
+
+    def do_away(self, line):
+        """Set my presence state to AWAY"""
+        self._do_presence_state(1, line)
+
+    def do_online(self, line):
+        """Set my presence state to ONLINE"""
+        self._do_presence_state(2, line)
+
     def _parse(self, line, keys, force_keys=False):
         """ Parses the given line.
 
