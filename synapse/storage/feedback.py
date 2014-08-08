@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from ._base import SQLBaseStore, Table
+from synapse.api.events.room import FeedbackEvent
 
 import collections
+import json
+
 
 class FeedbackStore(SQLBaseStore):
 
@@ -44,5 +47,15 @@ class FeedbackTable(Table):
         "msg_sender_id"
     ]
 
-    EntryType = collections.namedtuple("FeedbackEntry", fields)
+    class EntryType(collections.namedtuple("FeedbackEntry", fields)):
 
+        def as_event(self, event_factory):
+            return event_factory.create_event(
+                etype=FeedbackEvent.TYPE,
+                room_id=self.room_id,
+                msg_id=self.msg_id,
+                msg_sender_id=self.msg_sender_id,
+                user_id=self.fb_sender_id,
+                feedback_type=self.feedback_type,
+                content=json.loads(self.content),
+            )

@@ -82,10 +82,18 @@ class MockHttpServer(HttpServer):
 
 class MemoryDataStore(object):
 
-    RoomMember = namedtuple(
+    class RoomMember(namedtuple(
         "RoomMember",
         ["room_id", "user_id", "sender", "membership", "content"]
-    )
+    )):
+        def as_event(self, event_factory):
+            return event_factory.create_event(
+                etype=RoomMemberEvent.TYPE,
+                room_id=self.room_id,
+                target_user_id=self.user_id,
+                user_id=self.sender,
+                content=json.loads(self.content),
+            )
 
     PathData = namedtuple("PathData",
                           ["room_id", "path", "content"])

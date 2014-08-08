@@ -2,6 +2,8 @@
 from ._base import SQLBaseStore, Table
 
 import collections
+import json
+
 
 class RoomDataStore(SQLBaseStore):
 
@@ -59,4 +61,11 @@ class RoomDataTable(Table):
         "content"
     ]
 
-    EntryType = collections.namedtuple("RoomDataEntry", fields)
+    class EntryType(collections.namedtuple("RoomDataEntry", fields)):
+
+        def as_event(self, event_factory):
+            return event_factory.create_event(
+                etype=self.type,
+                room_id=self.room_id,
+                content=json.loads(self.content),
+            )

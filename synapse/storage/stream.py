@@ -260,5 +260,10 @@ class StreamStore(SQLBaseStore):
         last_pkey = from_pkey
         if data_entries:
             last_pkey = data_entries[-1].id
-        events = self.to_events(data_entries)
+
+        events = [
+            entry.as_event(self.event_factory).get_dict()
+            for entry in data_entries
+        ]
+
         return (events, last_pkey)

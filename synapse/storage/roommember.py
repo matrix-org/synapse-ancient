@@ -3,8 +3,10 @@ from twisted.internet import defer
 
 from synapse.types import UserID
 from synapse.api.constants import Membership
+from synapse.api.events.room import RoomMemberEvent
 
 from ._base import SQLBaseStore, Table
+
 
 import collections
 import json
@@ -48,7 +50,7 @@ class RoomMemberStore(SQLBaseStore):
             sender=sender,
             room_id=room_id,
             membership=membership,
-            content_json=content_json,
+            content=content_json,
         ))
 
     @defer.inlineCallbacks
@@ -144,5 +146,13 @@ class RoomMemberTable(Table):
         "content"
     ]
 
-    EntryType = collections.namedtuple("RoomMemberEntry", fields)
+    class EntryType(collections.namedtuple("RoomMemberEntry", fields)):
 
+        def as_event(self, event_factory):
+            return event_factory.create_event(
+                etype=RoomMemberEvent.TYPE,
+                room_id=self.room_id,
+                target_user_id=self.user_id,
+                user_id=self.sender,
+                content=json.loads(self.content),
+            )

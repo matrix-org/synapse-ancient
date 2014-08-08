@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from ._base import SQLBaseStore, Table
+from synapse.api.events.room import MessageEvent
 
 import collections
+import json
 
 
 class MessageStore(SQLBaseStore):
@@ -53,5 +55,13 @@ class MessagesTable(Table):
         "content"
     ]
 
-    EntryType = collections.namedtuple("MessageEntry", fields)
+    class EntryType(collections.namedtuple("MessageEntry", fields)):
 
+        def as_event(self, event_factory):
+            return event_factory.create_event(
+                etype=MessageEvent.TYPE,
+                room_id=self.room_id,
+                user_id=self.user_id,
+                msg_id=self.msg_id,
+                content=json.loads(self.content),
+            )

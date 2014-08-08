@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """Contains exceptions and error codes."""
 
+import logging
 
 class CodeMessageException(Exception):
     """An exception with code and message attributes."""
 
     def __init__(self, code, msg):
+        logging.error("%s: %s, %s", type(self).__name__, code, msg)
         super(CodeMessageException, self).__init__("%d: %s" % (code, msg))
         self.code = code
         self.msg = msg

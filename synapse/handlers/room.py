@@ -25,6 +25,7 @@ class MessageHandler(BaseHandler):
         super(MessageHandler, self).__init__(hs)
         self.hs = hs
         self.clock = hs.get_clock()
+        self.event_factory = hs.get_event_factory()
 
     @defer.inlineCallbacks
     def get_message(self, msg_id=None, room_id=None, sender_id=None,
@@ -404,7 +405,10 @@ class RoomMemberHandler(BaseHandler):
         yield self.auth.check_joined_room(room_id, user_id)
 
         member_list = yield self.store.get_room_members(room_id=room_id)
-        event_list = self.store.to_events(member_list)
+        event_list = [
+            entry.as_event(self.event_factory).get_dict()
+            for entry in member_list
+        ]
         chunk_data = {
             "start": "START",
             "end": "END",
