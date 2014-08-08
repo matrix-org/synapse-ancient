@@ -27,27 +27,25 @@ class SQLBaseStore(object):
         )
         return results
 
-    def exec_single_with_result(self, txn, query, func, *args):
+    def _execute(self, decoder, query, *args):
         """Runs a single query for a result set.
 
         Args:
-            txn - Cursor transaction
+            decoder - The function which can resolve the cursor results to
+                something meaningful.
             query - The query string to execute
-            func - The function which can resolve the cursor results to
-                something
-            meaningful.
             *args - Query args.
         Returns:
-            The result of func(results)
+            The result of decoder(results)
         """
-        logger.debug("[SQL] %s  Args=%s Func=%s", query, args, func.__name__)
-        cursor = txn.execute(query, args)
-        return func(cursor)
+        logger.debug(
+            "[SQL] %s  Args=%s Func=%s", query, args, decoder.__name__
+        )
 
-    def exec_single(self, txn, query, *args):
-        """Runs a single query, returning nothing."""
-        logger.debug("[SQL] %s  Args=%s", query, args)
-        txn.execute(query, args)
+        def interaction(txn):
+            cursor = txn.execute(query, args)
+            return decoder(cursor)
+        return self._db_pool.runInteraction(interaction)
 
     # "Simple" SQL API methods that operate on a single table with no JOINs,
     # no complex WHERE clauses, just a dict of values for columns.
@@ -67,7 +65,8 @@ class SQLBaseStore(object):
 
         def func(txn):
             txn.execute(sql, values.values())
-        self._db_pool.runInteraction(func)
+            return txn.lastrowid
+        return self._db_pool.runInteraction(func)
 
     def _simple_select_one(self, table, keyvalues, retcols,
                            allow_none=False):

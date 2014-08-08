@@ -55,6 +55,21 @@ class Table(object):
         )
 
     @classmethod
+    def decode_single_result(cls, results):
+        """ Given an iterable of tuples, return a single instance of
+            `EntryType` or None if the iterable is empty
+        Args:
+            results (list): The results list to convert to `EntryType`
+        Returns:
+            EntryType: An instance of `EntryType`
+        """
+        results = list(results)
+        if results:
+            return cls.EntryType(*results[0])
+        else:
+            return None
+
+    @classmethod
     def decode_results(cls, results):
         """ Given an iterable of tuples, return a list of `EntryType`
         Args:
