@@ -38,10 +38,10 @@ in rooms. Each IM sent by a client must have a unique message ID which is unique
 for that particular client.
 
 User ID:
-The user@host style ID of the client. When registering for an account, the 
-client specifies their username. The userid is this username along with the home
-servers unique hostname. When federating between home servers, the userid is 
-used to uniquely identify users across multiple home servers.
+The @username:host style ID of the client. When registering for an account, the 
+client specifies their username. The user_id is this username along with the 
+home server's unique hostname. When federating between home servers, the user_id
+is used to uniquely identify users across multiple home servers.
 
 Room ID:
 The room_id@host style ID for the room. When rooms are created, the client either
@@ -258,7 +258,7 @@ Registering for an account
 --------------------------
   POST /register
   With: A JSON object containing the key "user_id" which contains the desired 
-        userid, or an empty JSON object to have the server allocate a userid 
+        user_id, or an empty JSON object to have the server allocate a user_id 
         automatically.
   Returns (success): 200 OK with a JSON object:
                      {
@@ -288,6 +288,15 @@ data, if there are no keys to send, an empty JSON object should be sent.
 All POST/PUT/GET/DELETE requests MUST have an 'access_token' query parameter to 
 allow the server to authenticate the client. All
 POST requests MUST be submitted as application/json. 
+
+All paths MUST be namespaced by the version of the API being used. This should
+be:
+
+/matrix/client/api/v1
+
+All REST paths in this section MUST be prefixed with this. E.g.
+  REST Path: /rooms/$room_id
+  Absolute Path: /matrix/client/api/v1/rooms/$room_id
 
 Rooms
 =====
@@ -367,15 +376,17 @@ Room Members
 Invite/Joining/Leaving a room
 -----------------------------
   Event Type: sy.room.member
-  REST Path: /rooms/$room_id/members/$userid/state
+  REST Path: /rooms/$room_id/members/$user_id/state
   Valid methods: PUT/GET/DELETE
   Required keys:
-    membership : [join|invite] - The membership state of $userid in room $room_id
-                  join - Indicate you ($userid) are joining the room $room_id.
-                  invite - Indicate that $userid has been invited to room 
-                  $room_id.
+    membership : [join|invite] - The membership state of $user_id in room 
+                                 $room_id.
 
-  User $userid can leave room $room_id by DELETEing this path.
+Where:
+  join - Indicate you ($user_id) are joining the room $room_id.
+  invite - Indicate that $user_id has been invited to room $room_id.
+
+User $user_id can leave room $room_id by DELETEing this path.
 
 Checking the user list of a room
 --------------------------------
@@ -399,7 +410,7 @@ the server.
 
 Required keys:
 from : "string [user_id]"
-  The userid of the user who sent the message/feedback.
+  The user_id of the user who sent the message/feedback.
 
 Optional keys:
 hsob_ts : integer
@@ -418,7 +429,7 @@ Sending messages
   REST Path: /rooms/$room_id/messages/$from/$msg_id
   Valid methods: GET/PUT
   URL parameters:
-    $from : userid - The sender's user_id. This value will be clobbered by the 
+    $from : user_id - The sender's user_id. This value will be clobbered by the 
     server before sending.
   Required keys: 
     msgtype: [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - 
@@ -538,8 +549,8 @@ when the user has read the message. These receipts are collectively known as
   REST Path: /rooms/$room_id/messages/$msgfrom/$msg_id/feedback/$from/$feedback
   Valid methods: GET/PUT
   URL parameters:
-    $msgfrom - The sender of the message's userid.
-    $from : userid - The sender of the feedback's userid. This value will be 
+    $msgfrom - The sender of the message's user_id.
+    $from : user_id - The sender of the feedback's user_id. This value will be 
     clobbered by the server before sending.
     $feedback : [d|r] - Specify if this is a [d]elivery or [r]ead receipt.
   Required keys:
@@ -572,7 +583,7 @@ message sender ID and message ID keys.
 {
   "event_id":"e1247632487",
   "type":"sy.room.message.feedback",
-  "from":"string [userid]",
+  "from":"string [user_id]",
   "feedback":"string [d|r]",
   "room_id":"$room_id",
   "msg_id":"$msg_id",
@@ -584,7 +595,7 @@ message sender ID and message ID keys.
 
      COMPRESSED (via /messages/list)
 {
-  "from":"string [userid]",
+  "from":"string [user_id]",
   "feedback":"string [d|r]",
   "content":{
     "sender_ts":139880943
@@ -673,7 +684,7 @@ Messages:
 REGISTER FOR AN ACCOUNT
 POST: /register
 Content: {}
-Returns: { "userid" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
+Returns: { "user_id" : "bob@sy.org" , "access_token" : "abcdef0123456789" }
 
 GET PUBLIC ROOM LIST
 GET: /rooms/list?access_token=abcdef0123456789
@@ -770,7 +781,7 @@ Returns:
         "event_id":"e10f3d2b", 
         "type":"sy.room.member",
         "room_id":"room_beta@sy.org",
-        "userid":"bob@sy.org",
+        "user_id":"bob@sy.org",
         "content":{
           "membership":"join"
         }
@@ -850,7 +861,7 @@ Returns:
         "type":"sy.room.member",
         "room_id":"commoners@randomhost.org",
         "from":"alice@randomhost.org",
-        "userid":"bob@sy.org",
+        "user_id":"bob@sy.org",
         "content":{
           "membership":"invite"
         }
