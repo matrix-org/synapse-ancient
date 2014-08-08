@@ -64,10 +64,12 @@ class RoomMemberStore(SQLBaseStore):
         Returns:
             list of namedtuples representing the members in this room.
         """
-        query = ("SELECT *, MAX(id) FROM " + RoomMemberTable.table_name
-                 + " WHERE room_id = ? GROUP BY user_id")
+        query = RoomMemberTable.select_statement(
+            "id IN (SELECT MAX(id) FROM " + RoomMemberTable.table_name
+            + " WHERE room_id = ? GROUP BY user_id)"
+        )
         res = yield self._execute(
-            self._room_member_decode, query, room_id,
+            RoomMemberTable.decode_results, query, room_id,
         )
         # strip memberships which don't match
         if membership:
@@ -101,22 +103,15 @@ class RoomMemberStore(SQLBaseStore):
             self.cursor_to_dict, query, *args
         )
 
-    def _room_member_decode(self, results):
-        # strip the MAX(id) column from the results so it can be made into
-        # a namedtuple (which requires exactly the number of columns of the
-        # table)
-        entries = [t[:-1] for t in results]
-        return RoomMemberTable.decode_results(entries)
-
     @defer.inlineCallbacks
     def get_joined_hosts_for_room(self, room_id):
-        query = (
-            "SELECT *, MAX(id) FROM " + RoomMemberTable.table_name +
-            " WHERE room_id = ? GROUP BY user_id"
+        query = RoomMemberTable.select_statement(
+            "id IN (SELECT MAX(id) FROM " + RoomMemberTable.table_name
+            + " WHERE room_id = ? GROUP BY user_id)"
         )
 
         res = yield self._execute(
-            self._room_member_decode, query, room_id,
+            RoomMemberTable.decode_results, query, room_id,
         )
 
         def host_from_user_id_string(user_id):
