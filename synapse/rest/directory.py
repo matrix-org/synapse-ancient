@@ -45,7 +45,7 @@ class ClientDirectoryServer(RestServlet):
 
         logger.debug("Got room name: %s", room_alias_obj.to_string())
 
-        room_id = RoomID.from_string(content["room_id"], self.hs)
+        room_id = content["room_id"]
         servers = content["servers"]
 
         logger.debug("Got room_id: %s", room_id)

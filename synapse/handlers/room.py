@@ -293,12 +293,12 @@ class RoomCreationHandler(BaseHandler):
 
         if room_id:
             # Ensure room_id is the correct type
-            room_id = RoomID.from_string(room_id, self.hs)
-            if not room_id.is_mine:
-                raise SynapseError(400, "Room id must be local")
+            # room_id_obj = RoomID.from_string(room_id, self.hs)
+            # if not room_id_obj.is_mine:
+            #    raise SynapseError(400, "Room id must be local")
 
             yield self.store.store_room(
-                room_id=room_id.to_string(),
+                room_id=room_id,
                 room_creator_user_id=user_id,
                 is_public=config["visibility"] == "public"
             )
@@ -316,7 +316,7 @@ class RoomCreationHandler(BaseHandler):
                         room_creator_user_id=user_id,
                         is_public=config["visibility"] == "public"
                     )
-                    room_id = gen_room_id
+                    room_id = gen_room_id.to_string()
                     break
                 except StoreError:
                     attempts += 1
@@ -325,7 +325,7 @@ class RoomCreationHandler(BaseHandler):
 
         config_event = self.event_factory.create_event(
             etype=RoomConfigEvent.TYPE,
-            room_id=room_id.to_string(),
+            room_id=room_id,
             user_id=user_id,
             content=config,
         )
@@ -347,7 +347,7 @@ class RoomCreationHandler(BaseHandler):
         join_event = self.event_factory.create_event(
             etype=RoomMemberEvent.TYPE,
             target_user_id=user_id,
-            room_id=room_id.to_string(),
+            room_id=room_id,
             user_id=user_id,
             membership=Membership.JOIN,
             content=content
@@ -359,7 +359,7 @@ class RoomCreationHandler(BaseHandler):
             do_auth=False
         )
 
-        defer.returnValue(room_id.to_string())
+        defer.returnValue(room_id)
 
 
 class RoomMemberHandler(BaseHandler):
@@ -548,7 +548,8 @@ class RoomMemberHandler(BaseHandler):
     @defer.inlineCallbacks
     def _do_join(self, event, room_host=None, do_auth=True, broadcast_msg=True):
         joinee = self.hs.parse_userid(event.target_user_id)
-        room_id = RoomID.from_string(event.room_id, self.hs)
+        # room_id = RoomID.from_string(event.room_id, self.hs)
+        room_id = event.room_id
 
         # If event doesn't include a display name, add one.
         yield self._fill_out_join_content(
@@ -560,7 +561,7 @@ class RoomMemberHandler(BaseHandler):
         # that we are allowed to join when we decide whether or not we
         # need to do the invite/join dance.
 
-        room = yield self.store.get_room(room_id.to_string())
+        room = yield self.store.get_room(room_id)
 
         if room:
             should_do_dance = False
@@ -568,11 +569,11 @@ class RoomMemberHandler(BaseHandler):
             should_do_dance = True
         else:
             prev_state = yield self.store.get_room_member(
-                joinee.to_string(), room_id.to_string()
+                joinee.to_string(), room_id
             )
 
             if prev_state and prev_state.membership == Membership.INVITE:
-                room = yield self.store.get_room(room_id.to_string())
+                room = yield self.store.get_room(room_id)
                 inviter = UserID.from_string(
                     prev_state.sender, self.hs
                 )
@@ -599,7 +600,7 @@ class RoomMemberHandler(BaseHandler):
 
         if should_do_dance:
             yield self._do_invite_join_dance(
-                room_id=room_id.to_string(),
+                room_id=room_id,
                 joinee=event.user_id,
                 target_host=room_host,
                 content=event.content,
@@ -607,7 +608,7 @@ class RoomMemberHandler(BaseHandler):
 
         user = self.hs.parse_userid(event.user_id)
         self.distributor.fire(
-            "user_joined_room", user=user, room_id=room_id.to_string()
+            "user_joined_room", user=user, room_id=room_id
         )
 
     @defer.inlineCallbacks

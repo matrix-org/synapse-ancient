@@ -50,7 +50,7 @@ class DirectoryStore(SQLBaseStore):
             "room_aliases",
             {
                 "room_alias": room_alias.to_string(),
-                "room_id": room_id.to_string(),
+                "room_id": room_id,
             },
         )
 
