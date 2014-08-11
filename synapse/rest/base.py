@@ -55,6 +55,9 @@ class RestServletFactory(object):
         import im
         im.register_servlets(hs, http_server)
 
+        import login
+        login.register_servlets(hs, http_server)
+
 
 class RestServlet(object):
 
