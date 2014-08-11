@@ -46,7 +46,7 @@ class DirectoryHandler(BaseHandler):
             )
         else:
             # TODO(erikj): Hit out to remote HS.
-            pass
+            raise NotImplementedError("Can't do remote room alias fetching")
 
         # TODO(erikj): Handle result
 
