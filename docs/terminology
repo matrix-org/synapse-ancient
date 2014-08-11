@@ -66,7 +66,7 @@ Room ID:
   An opaque string (of as-yet undecided format) that identifies a particular
   room and used in PDUs referring to it.
 
-Room Name:
+Room Alias:
   A human-readable string of the form #name:some.domain that users can use as a
   pointer to identify a room; a Directory Server will map this to its Room ID
 
