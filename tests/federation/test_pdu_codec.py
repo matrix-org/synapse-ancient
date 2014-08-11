@@ -52,7 +52,7 @@ class PduCodecTestCase(unittest.TestCase):
         pdu = Pdu(
             pdu_id="foo",
             context="rooooom",
-            pdu_type="sy.room.message",
+            pdu_type="m.room.message",
             origin="bar.com",
             ts=12345,
             depth=5,
@@ -72,7 +72,7 @@ class PduCodecTestCase(unittest.TestCase):
 
     def test_pdu_from_event(self):
         event = self.event_factory.create_event(
-            etype="sy.room.message",
+            etype="m.room.message",
             event_id="gargh_id",
             room_id="rooom",
             user_id="sender",
@@ -88,7 +88,7 @@ class PduCodecTestCase(unittest.TestCase):
         self.assertEquals(event.type, pdu.pdu_type)
 
         event = self.event_factory.create_event(
-            etype="sy.room.message",
+            etype="m.room.message",
             event_id="gargh_id@bob.com",
             room_id="rooom",
             user_id="sender",
@@ -107,7 +107,7 @@ class PduCodecTestCase(unittest.TestCase):
         pdu = Pdu(
             pdu_id="foo",
             context="rooooom",
-            pdu_type="sy.room.topic",
+            pdu_type="m.room.topic",
             origin="bar.com",
             ts=12345,
             depth=5,
@@ -129,7 +129,7 @@ class PduCodecTestCase(unittest.TestCase):
 
     def test_pdu_from_state_event(self):
         event = self.event_factory.create_event(
-            etype="sy.room.topic",
+            etype="m.room.topic",
             event_id="gargh_id",
             room_id="rooom",
             user_id="sender",

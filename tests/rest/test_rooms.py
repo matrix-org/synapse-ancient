@@ -73,7 +73,7 @@ class RoomPermissionsTestCase(RestTestCase):
         (code, response) = yield self.mock_server.trigger(
                            "PUT",
                            self.created_rmid_msg_path,
-                           '{"msgtype":"sy.text","body":"test msg"}')
+                           '{"msgtype":"m.text","body":"test msg"}')
         self.assertEquals(200, code, msg=str(response))
 
         # set topic for public room
@@ -122,7 +122,7 @@ class RoomPermissionsTestCase(RestTestCase):
 
     @defer.inlineCallbacks
     def test_send_message(self):
-        msg_content = '{"msgtype":"sy.text","body":"hello"}'
+        msg_content = '{"msgtype":"m.text","body":"hello"}'
         send_msg_path = ("/rooms/%s/messages/%s/mid1" %
                         (self.created_rmid, self.user_id))
 
@@ -884,9 +884,9 @@ class RoomMessagesTestCase(RestTestCase):
         self.assertEquals(200, code, msg=str(response))
         self.assert_dict(json.loads(content), response)
 
-        # sy.text message type
+        # m.text message type
         path = "/rooms/rid1/messages/%s/mid2" % self.user_id
-        content = '{"body":"test2","msgtype":"sy.text"}'
+        content = '{"body":"test2","msgtype":"m.text"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(200, code, msg=str(response))
 
@@ -896,6 +896,6 @@ class RoomMessagesTestCase(RestTestCase):
 
         # trying to send message in different user path
         path = "/rooms/rid1/messages/%s/mid2" % ("invalid" + self.user_id)
-        content = '{"body":"test2","msgtype":"sy.text"}'
+        content = '{"body":"test2","msgtype":"m.text"}'
         (code, response) = yield self.mock_server.trigger("PUT", path, content)
         self.assertEquals(403, code, msg=str(response))

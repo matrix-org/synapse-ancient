@@ -93,7 +93,7 @@ class FederationTestCase(unittest.TestCase):
                     pdu_id="the-pdu-id",
                     origin="red",
                     context="my-context",
-                    pdu_type="sy.topic",
+                    pdu_type="m.topic",
                     ts=123456789000,
                     depth=1,
                     is_state=True,
@@ -128,7 +128,7 @@ class FederationTestCase(unittest.TestCase):
                     pdu_id="abc123def456",
                     origin="red",
                     context="my-context",
-                    pdu_type="sy.text",
+                    pdu_type="m.text",
                     ts=123456789001,
                     depth=1,
                     content_json='{"text":"Here is the message"}',
@@ -140,7 +140,7 @@ class FederationTestCase(unittest.TestCase):
                 "/pdu/red/abc123def456/", None)
         self.assertEquals(200, code)
         self.assertEquals(1, len(response["pdus"]))
-        self.assertEquals("sy.text", response["pdus"][0]["pdu_type"])
+        self.assertEquals("m.text", response["pdus"][0]["pdu_type"])
 
     @defer.inlineCallbacks
     def test_send_pdu(self):
@@ -154,7 +154,7 @@ class FederationTestCase(unittest.TestCase):
                 destinations=["remote"],
                 context="my-context",
                 ts=123456789002,
-                pdu_type="sy.test",
+                pdu_type="m.test",
                 content={"testing": "content here"},
                 depth=1,
         )
@@ -174,7 +174,7 @@ class FederationTestCase(unittest.TestCase):
                             "prev_pdus": [],
                             "ts": 123456789002,
                             "context": "my-context",
-                            "pdu_type": "sy.test",
+                            "pdu_type": "m.test",
                             "is_state": False,
                             "content": {"testing": "content here"},
                             "depth": 1,
@@ -191,7 +191,7 @@ class FederationTestCase(unittest.TestCase):
 
         yield self.federation.send_edu(
                 destination="remote",
-                edu_type="sy.test",
+                edu_type="m.test",
                 content={"testing": "content here"},
         )
 
@@ -207,7 +207,7 @@ class FederationTestCase(unittest.TestCase):
                         {
                             "origin": "test",
                             "destination": "remote",
-                            "edu_type": "sy.test",
+                            "edu_type": "m.test",
                             "content": {"testing": "content here"},
                         }
                     ],
@@ -218,7 +218,7 @@ class FederationTestCase(unittest.TestCase):
         recv_observer = Mock()
         recv_observer.return_value = defer.succeed(())
 
-        self.federation.register_edu_handler("sy.test", recv_observer)
+        self.federation.register_edu_handler("m.test", recv_observer)
 
         yield self.mock_http_server.trigger("PUT", "/send/1001000/",
                 """{
@@ -229,7 +229,7 @@ class FederationTestCase(unittest.TestCase):
                         {
                             "origin": "remote",
                             "destination": "test",
-                            "edu_type": "sy.test",
+                            "edu_type": "m.test",
                             "content": {"testing": "reply here"}
                         }
                     ]

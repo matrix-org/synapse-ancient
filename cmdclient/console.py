@@ -309,7 +309,7 @@ class SynapseCmd(cmd.Cmd):
                                              self._usr(),
                                              msg_id)
         body_json = {
-            "msgtype": "sy.text",
+            "msgtype": "m.text",
             "body": args["body"]
         }
         reactor.callFromThread(self._run_and_pprint, "PUT", path, body_json)
@@ -445,7 +445,7 @@ class SynapseCmd(cmd.Cmd):
 
         if "chunk" in res:
             for event in res["chunk"]:
-                if (event["type"] == "sy.room.message" and
+                if (event["type"] == "m.room.message" and
                         self._is_on("send_delivery_receipts") and
                         event["user_id"] != self._usr()):  # not sent by us
                     self._send_receipt(event, "d")

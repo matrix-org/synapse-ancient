@@ -93,7 +93,7 @@ class RestTestCase(unittest.TestCase):
             body = "body_text_here"
 
         path = "/rooms/%s/messages/%s/%s" % (room_id, sender_id, msg_id)
-        content = '{"msgtype":"sy.text","body":"%s"}' % body
+        content = '{"msgtype":"m.text","body":"%s"}' % body
         if tok:
             path = path + "?access_token=%s" % tok
 

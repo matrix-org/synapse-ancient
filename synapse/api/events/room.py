@@ -3,7 +3,7 @@ from . import SynapseEvent
 
 
 class RoomTopicEvent(SynapseEvent):
-    TYPE = "sy.room.topic"
+    TYPE = "m.room.topic"
 
     def __init__(self, **kwargs):
         kwargs["state_key"] = ""
@@ -14,7 +14,7 @@ class RoomTopicEvent(SynapseEvent):
 
 
 class RoomMemberEvent(SynapseEvent):
-    TYPE = "sy.room.member"
+    TYPE = "m.room.member"
 
     valid_keys = SynapseEvent.valid_keys + [
         "target_user_id",  # target
@@ -31,7 +31,7 @@ class RoomMemberEvent(SynapseEvent):
 
 
 class MessageEvent(SynapseEvent):
-    TYPE = "sy.room.message"
+    TYPE = "m.room.message"
 
     valid_keys = SynapseEvent.valid_keys + [
         "msg_id",  # unique per room + user combo
@@ -45,7 +45,7 @@ class MessageEvent(SynapseEvent):
 
 
 class FeedbackEvent(SynapseEvent):
-    TYPE = "sy.room.message.feedback"
+    TYPE = "m.room.message.feedback"
 
     valid_keys = SynapseEvent.valid_keys + [
         "msg_id",  # the message ID being acknowledged
@@ -61,7 +61,7 @@ class FeedbackEvent(SynapseEvent):
 
 
 class InviteJoinEvent(SynapseEvent):
-    TYPE = "sy.room.invite_join"
+    TYPE = "m.room.invite_join"
 
     valid_keys = SynapseEvent.valid_keys + [
         "target_user_id",
@@ -76,7 +76,7 @@ class InviteJoinEvent(SynapseEvent):
 
 
 class RoomConfigEvent(SynapseEvent):
-    TYPE = "sy.room.config"
+    TYPE = "m.room.config"
 
     def __init__(self, **kwargs):
         kwargs["state_key"] = ""
