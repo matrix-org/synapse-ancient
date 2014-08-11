@@ -12,6 +12,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+PREFIX = "/matrix/client/api/v1"
+
 
 class ProfileHandler(BaseHandler):
 
@@ -44,7 +46,7 @@ class ProfileHandler(BaseHandler):
             # TODO(paul): This should use the server-server API to ask another
             # HS. For now we'll just have it use the http client to talk to the
             # other HS's REST client API
-            path = "/profile/%s/displayname?local_only=1" % (
+            path = PREFIX + "/profile/%s/displayname?local_only=1" % (
                 target_user.to_string()
             )
 
@@ -98,7 +100,7 @@ class ProfileHandler(BaseHandler):
             # HS. For now we'll just have it use the http client to talk to the
             # other HS's REST client API
             destination = target_user.domain
-            path = "/profile/%s/avatar_url?local_only=1" % (
+            path = PREFIX + "/profile/%s/avatar_url?local_only=1" % (
                 target_user.to_string(),
             )
 
