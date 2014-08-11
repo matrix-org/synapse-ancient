@@ -99,12 +99,12 @@ into its own doc]]
 
 The following keys have special semantics or meaning to Synapse itself:
 
-sy.member (has subkeys)
+m.member (has subkeys)
   Stores a sub-key for every Synapse User ID which is currently a member of
   this room. Its value gives the membership type ("knocked", "invited",
   "joined").
 
-sy.power_levels
+m.power_levels
   Stores a mapping from Synapse User IDs to their power-level in the room. If
   they are not present in this mapping, the default applies.
 
@@ -112,17 +112,17 @@ sy.power_levels
   is that updates to it are atomic; allowing a number of colliding-edit
   problems to be avoided.
 
-sy.default_level
+m.default_level
   Gives the default power-level for members of the room that do not have one
   specified in their membership key.
 
-sy.invite_level
+m.invite_level
   If set, gives the minimum power-level required for members to invite others
   to join, or to accept knock requests from non-members requesting access. If
   absent, then invites are not allowed. An invitation involves setting their
   membership type to "invited", in addition to sending the invite message.
 
-sy.join_rules
+m.join_rules
   Encodes the rules on how non-members can join the room. Has the following
   possibilities:
     "public" - a non-member can join the room directly
@@ -134,27 +134,27 @@ sy.join_rules
         may join by any mechanism
 
   In any of the first three modes, existing members with sufficient permission
-  can send invites to non-members if allowed by the "sy.invite_level" key. A
-  "private" room is not allowed to have the "sy.invite_level" set.
+  can send invites to non-members if allowed by the "m.invite_level" key. A
+  "private" room is not allowed to have the "m.invite_level" set.
 
   A client may use the value of this key to hint at the user interface
   expectations to provide; in particular, a private chat with one other use
   might warrant specific handling in the client.
 
-sy.may_join
+m.may_join
   A list of User IDs that are always allowed to join the room, regardless of any
   of the prevailing join rules and invite levels. These apply even to private
   rooms. These are stored in a single list with normal update-powerlevel
   permissions applied; users cannot arbitrarily remove themselves from the list.
 
-sy.add_state_level
+m.add_state_level
   The power-level required for a user to be able to add new state keys.
 
-sy.public_history
+m.public_history
   If set and true, anyone can request the history of the room, without needing
   to be a member of the room.
 
-sy.archive_servers
+m.archive_servers
   For "public" rooms with public history, gives a list of home servers that
   should be included in message distribution to the room, even if no users on
   that server are present. These ensure that a public room can still persist
@@ -164,14 +164,14 @@ sy.archive_servers
 The following keys are provided by Synapse for user benefit, but their value is
 not otherwise used by Synapse.
 
-sy.name
+m.name
   Stores a short human-readable name for the room, such that clients can display
   to a user to assist in identifying which room is which.
   
   This name specifically is not the strong ID used by the message transport
   system to refer to the room, because it may be changed from time to time.
 
-sy.topic
+m.topic
   Stores the current human-readable topic
 
 
@@ -229,13 +229,13 @@ Home Servers will need a client-API option to request setting up a new user-user
 chat room, which will then need special handling within the server. It will
 create a new room with the following 
 
-  sy.member: the proposing user
-  sy.join_rules: "private"
-  sy.may_join: both users
-  sy.power_levels: empty
-  sy.default_level: 0
-  sy.add_state_level: 0
-  sy.public_history: False
+  m.member: the proposing user
+  m.join_rules: "private"
+  m.may_join: both users
+  m.power_levels: empty
+  m.default_level: 0
+  m.add_state_level: 0
+  m.public_history: False
 
 Having created the room, it can send an invite message to the other user in the
 normal way - the room permissions state that no users can be set to the invited

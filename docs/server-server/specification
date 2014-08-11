@@ -76,7 +76,7 @@ sent them), and a nested content field containing the actual event content.
   "context":"#example.green",
   "origin":"green",
   "ts":1404838188000,
-  "pdu_type":"sy.text",
+  "pdu_type":"m.text",
   "prev_pdus":[["blue","99d16afbc857975916f1d73e49e52b65"]],
   "content":...
   "is_state":false}

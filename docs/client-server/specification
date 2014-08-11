@@ -207,7 +207,7 @@ EVENT_ID
   the client.
 
 EVENT_TYPE
-  The namespaced event type (sy.*)
+  The namespaced event type (m.*)
 
 URL_ARGS
   Path specific data from the REST API.
@@ -227,7 +227,7 @@ stream. The event content maps directly to the contents submitted via the REST
 API.
 
 For example:
-  Event Type: sy.example.room.members
+  Event Type: m.example.room.members
   REST Path: /examples/room/$room_id/members/$user_id
   REST Content: { "membership" : "invited" }
   
@@ -235,7 +235,7 @@ is represented in the event stream as:
 
 {
   "event_id" : "e_some_event_id",
-  "type" : "sy.example.room.members",
+  "type" : "m.example.room.members",
   "room_id" : $room_id,
   "user_id" : $user_id,
   "content" : {
@@ -585,7 +585,7 @@ uniquely identified via the room_id.
 
 Creating a room (with a room ID)
 --------------------------------
-  Event Type: sy.room.create [TODO(kegan): Do we generate events for this?]
+  Event Type: m.room.create [TODO(kegan): Do we generate events for this?]
   REST Path: /rooms/$room_id
   Valid methods: PUT
   Required keys: None.
@@ -603,7 +603,7 @@ Creating a room (with a room ID)
 
 Creating a room (without a room ID)
 -----------------------------------
-  Event Type: sy.room.create [TODO(kegan): Do we generate events for this?]
+  Event Type: m.room.create [TODO(kegan): Do we generate events for this?]
   REST Path: /rooms
   Valid methods: POST
   Required keys: None.
@@ -619,7 +619,7 @@ Creating a room (without a room ID)
 
 Setting the topic for a room
 ----------------------------
-  Event Type: sy.room.topic
+  Event Type: m.room.topic
   REST Path: /rooms/$room_id/topic
   Valid methods: GET/PUT
   Required keys: 
@@ -653,7 +653,7 @@ Room Members
 
 Invite/Joining/Leaving a room
 -----------------------------
-  Event Type: sy.room.member
+  Event Type: m.room.member
   REST Path: /rooms/$room_id/members/$user_id/state
   Valid methods: PUT/GET/DELETE
   Required keys:
@@ -672,7 +672,7 @@ Checking the user list of a room
   This API can use pagination query parameters.
   Valid methods: GET
   Returns:
-    A pagination response with chunk data as sy.room.member events.
+    A pagination response with chunk data as m.room.member events.
 
 Messages
 ========
@@ -703,14 +703,14 @@ hsib_ts : integer
 
 Sending messages
 ----------------
-  Event Type: sy.room.message
+  Event Type: m.room.message
   REST Path: /rooms/$room_id/messages/$from/$msg_id
   Valid methods: GET/PUT
   URL parameters:
     $from : user_id - The sender's user_id. This value will be clobbered by the 
     server before sending.
   Required keys: 
-    msgtype: [sy.text|sy.emote|sy.image|sy.audio|sy.video|sy.location|sy.file] - 
+    msgtype: [m.text|m.emote|m.image|m.audio|m.video|m.location|m.file] - 
              The type of message. Not to be confused with the Event 'type'.
   Optional keys:
     sender_ts : integer - A timestamp (ms resolution) representing the 
@@ -724,21 +724,21 @@ Sending messages
 
 Each msgtype may have required fields of their own.
 
-msgtype: sy.text
+msgtype: m.text
 ----------------
 Required keys:
   body : "string" - The body of the message.
 Optional keys:
   None.
 
-msgtype: sy.emote
+msgtype: m.emote
 -----------------
 Required keys:
   body : "string" - *tries to come up with a witty explanation*.
 Optional keys:
   None.
 
-msgtype: sy.image
+msgtype: m.image
 -----------------
 Required keys:
   url : "string" - The URL to the image.
@@ -760,7 +760,7 @@ ImageInfo: Information about an image.
 Interpretation of 'body' key: The alt text of the image, or some kind of content 
 description for accessibility e.g. "image attachment".
 
-msgtype: sy.audio
+msgtype: m.audio
 -----------------
 Required keys:
   url : "string" - The URL to the audio.
@@ -779,7 +779,7 @@ Interpretation of 'body' key: A description of the audio e.g. "Bee Gees -
 Stayin' Alive", or some kind of content description for accessibility e.g. 
 "audio attachment".
 
-msgtype: sy.video
+msgtype: m.video
 -----------------
 Required keys:
   url : "string" - The URL to the video.
@@ -801,7 +801,7 @@ VideoInfo: Information about a video.
 Interpretation of 'body' key: A description of the video e.g. "Gangnam style", 
 or some kind of content description for accessibility e.g. "video attachment".
 
-msgtype: sy.location
+msgtype: m.location
 --------------------
 Required keys:
   geo_uri : "string" - The geo URI representing the location.
@@ -823,7 +823,7 @@ sender know that the message arrived. You may also want to send a read receipt
 when the user has read the message. These receipts are collectively known as 
 'feedback'.
 
-  Event Type: sy.room.message.feedback
+  Event Type: m.room.message.feedback
   REST Path: /rooms/$room_id/messages/$msgfrom/$msg_id/feedback/$from/$feedback
   Valid methods: GET/PUT
   URL parameters:
@@ -839,7 +839,7 @@ when the user has read the message. These receipts are collectively known as
 
 Receiving messages (bulk/pagination)
 ------------------------------------
-  Event Type: sy.room.message
+  Event Type: m.room.message
   REST Path: /rooms/$room_id/messages/list
   Valid methods: GET
   Query Parameters:
@@ -860,7 +860,7 @@ message sender ID and message ID keys.
      ORIGINAL (via event streaming)
 {
   "event_id":"e1247632487",
-  "type":"sy.room.message.feedback",
+  "type":"m.room.message.feedback",
   "from":"string [user_id]",
   "feedback":"string [d|r]",
   "room_id":"$room_id",
@@ -920,7 +920,7 @@ RoomStateInfo: A snapshot of information about a single room.
       "start": "string",
       "end": "string",
       "chunk":
-      sy.room.message pagination stream events (with feedback if specified),
+      m.room.message pagination stream events (with feedback if specified),
       this is the same as "Receiving messages (bulk/pagination)".
     }
   }
@@ -1079,13 +1079,13 @@ Returns:
     [
       { 
         "event_id":"01948374", 
-        "type":"sy.room.message",
+        "type":"m.room.message",
         "room_id":"room_beta@sy.org",
         "msg_id":"avefifu",
         "from":"alice@randomhost.org",
         "hs_ts":139985736,
         "content":{
-          "msgtype":"sy.text",
+          "msgtype":"m.text",
           "body":"afk"
         }
         "feedback": [
@@ -1101,13 +1101,13 @@ Returns:
       },
       { 
         "event_id":"028dfe8373", 
-        "type":"sy.room.message",
+        "type":"m.room.message",
         "room_id":"room_beta@sy.org",
         "msg_id":"afhgfff",
         "from":"alice@randomhost.org",
         "hs_ts":139970006,
         "content":{
-          "msgtype":"sy.text",
+          "msgtype":"m.text",
           "body":"you're my only friend"
         }
         "feedback": [
@@ -1142,7 +1142,7 @@ Returns:
     [
       { 
         "event_id":"e10f3d2b", 
-        "type":"sy.room.member",
+        "type":"m.room.member",
         "room_id":"room_beta@sy.org",
         "user_id":"bob@sy.org",
         "content":{
@@ -1151,13 +1151,13 @@ Returns:
       },
       { 
         "event_id":"1b352d32", 
-        "type":"sy.room.message",
+        "type":"m.room.message",
         "room_id":"room_beta@sy.org",
         "msg_id":"m0001",
         "from":"bob@sy.org",
         "hs_ts":140193857,
         "content":{
-          "msgtype":"sy.text",
+          "msgtype":"m.text",
           "body":"Hi everyone"
         }
       }
@@ -1176,7 +1176,7 @@ Returns:
     [
       { 
         "event_id":"feee0294", 
-        "type":"sy.room.topic",
+        "type":"m.room.topic",
         "room_id":"room_beta@sy.org",
         "from":"alice@randomhost.org",
         "content":{
@@ -1185,43 +1185,43 @@ Returns:
       },
       { 
         "event_id":"a028bd9e", 
-        "type":"sy.room.message",
+        "type":"m.room.message",
         "room_id":"room_beta@sy.org",
         "msg_id":"z839409",
         "from":"alice@randomhost.org",
         "hs_ts":140195000,
         "content":{
-          "msgtype":"sy.text",
+          "msgtype":"m.text",
           "body":"Hello!!!"
         }
       },
       { 
         "event_id":"49372d9e", 
-        "type":"sy.room.message",
+        "type":"m.room.message",
         "room_id":"room_beta@sy.org",
         "msg_id":"z839410",
         "from":"alice@randomhost.org",
         "hs_ts":140196000,
         "content":{
-          "msgtype":"sy.text",
+          "msgtype":"m.text",
           "body":"Let's go to another room"
         }
       },
       { 
         "event_id":"10abdd01", 
-        "type":"sy.room.message",
+        "type":"m.room.message",
         "room_id":"room_beta@sy.org",
         "msg_id":"z839411",
         "from":"alice@randomhost.org",
         "hs_ts":140197000,
         "content":{
-          "msgtype":"sy.text",
+          "msgtype":"m.text",
           "body":"You're not my friend"
         }
       },
       { 
         "event_id":"0018453d", 
-        "type":"sy.room.member",
+        "type":"m.room.member",
         "room_id":"commoners@randomhost.org",
         "from":"alice@randomhost.org",
         "user_id":"bob@sy.org",
