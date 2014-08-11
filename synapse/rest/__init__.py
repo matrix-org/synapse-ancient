@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from . import (
-    room, events, register, profile, public, presence, user, directory
+    room, events, register, profile, public, presence, directory
 )
 
 class RestServletFactory(object):
@@ -25,7 +25,6 @@ class RestServletFactory(object):
         profile.register_servlets(hs, http_server)
         public.register_servlets(hs, http_server)
         presence.register_servlets(hs, http_server)
-        user.register_servlets(hs, http_server)
         directory.register_servlets(hs, http_server)
 
 
