@@ -48,7 +48,7 @@ synapseClient
             });
         };
     })
-    .directive('autoFocus', ['$timeout', function($timeout) {
+    .directive('ngFocus', ['$timeout', function($timeout) {
         return {
             link: function(scope, element, attr) {
                 $timeout(function() { element[0].focus() }, 0);

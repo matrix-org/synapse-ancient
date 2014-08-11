@@ -51,7 +51,7 @@
                         {{ state.user_id }} 
                     </td>
                     <td width="*">
-                        <input class="mainInput" ng-model="textInput" ng-enter="send()"/>
+                        <input class="mainInput" ng-model="textInput" ng-enter="send()" ng-focus="true"/>
                     </td>
                     <td width="1">
                         <button ng-click="send()">Send</button>
