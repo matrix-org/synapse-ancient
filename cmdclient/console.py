@@ -175,7 +175,11 @@ class SynapseCmd(cmd.Cmd):
                 self._check_can_login)
             if can_login:
                 p = getpass.getpass("Enter your password: ")
-                reactor.callFromThread(self._do_login, args["user_id"], p)
+                user = args["user_id"]
+                if self._is_on("complete_usernames") and not user.startswith("@"):
+                    user = "@" + user + ":" + self._domain()
+
+                reactor.callFromThread(self._do_login, user, p)
                 print " got %s " % p
         except Exception as e:
             print e
