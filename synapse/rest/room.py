@@ -8,9 +8,14 @@ from synapse.api.events.room import (RoomTopicEvent, MessageEvent,
                                      RoomMemberEvent, FeedbackEvent)
 from synapse.api.constants import Feedback, Membership
 from synapse.api.streams import PaginationConfig
+from synapse.types import RoomAlias
 
 import json
+import logging
 import urllib
+
+
+logger = logging.getLogger(__name__)
 
 
 class RoomCreateRestServlet(RestServlet):
@@ -129,6 +134,29 @@ class RoomTopicRestServlet(RestServlet):
             event=event
         )
         defer.returnValue((200, ""))
+
+
+class JoinRoomAliasServlet(RestServlet):
+    PATTERN = client_path_pattern("/join/(?P<room_alias>[^/]+)$")
+
+    @defer.inlineCallbacks
+    def on_PUT(self, request, room_alias):
+        user = yield self.auth.get_user_by_req(request)
+
+        if not user:
+            defer.returnValue((403, "Unrecognized user"))
+
+        logger.debug("room_alias: %s", room_alias)
+
+        room_alias = RoomAlias.from_string(
+            urllib.unquote(room_alias),
+            self.hs
+        )
+
+        handler = self.handlers.room_member_handler
+        yield handler.join_room_name(user, room_alias)
+
+        defer.returnValue((200, {}))
 
 
 class RoomMemberRestServlet(RestServlet):
@@ -356,3 +384,4 @@ def register_servlets(hs, http_server):
     RoomCreateRestServlet(hs).register(http_server)
     RoomMemberListRestServlet(hs).register(http_server)
     RoomMessageListRestServlet(hs).register(http_server)
+    JoinRoomAliasServlet(hs).register(http_server)

@@ -493,70 +493,9 @@ class RoomMemberHandler(BaseHandler):
         # if this HS is not currently in the room, i.e. we have to do the
         # invite/join dance.
         if event.membership == Membership.JOIN:
-
-            # If event doesn't include a display name, add one.
-            profile_handler = self.hs.get_handlers().profile_handler
-            if "displayname" not in event.content:
-                try:
-                    display_name = yield profile_handler.get_displayname(
-                        self.hs.parse_userid(event.target_user_id)
-                    )
-
-                    if display_name:
-                        event.content["displayname"] = display_name
-                except:
-                    logger.exception("Failed to set display_name")
-
-            if "avatar_url" not in event.content:
-                try:
-                    avatar_url = yield profile_handler.get_avatar_url(
-                        self.hs.parse_userid(event.target_user_id)
-                    )
-
-                    if avatar_url:
-                        event.content["avatar_url"] = avatar_url
-                except:
-                    logger.exception("Failed to set display_name")
-
-            # XXX: We don't do an auth check if we are doing an invite
-            # join dance for now, since we're kinda implicitly checking
-            # that we are allowed to join when we decide whether or not we
-            # need to do the invite/join dance.
-
-            should_do_dance, room_host = yield self._should_invite_join(
-                room_id=room_id,
-                prev_state=prev_state,
-                do_auth=do_auth,
+            yield self._do_join(
+                event, do_auth=do_auth, broadcast_msg=broadcast_msg
             )
-
-            # We want to do the _do_update inside the room lock.
-            if not should_do_dance:
-                logger.debug("Doing normal join")
-
-                if do_auth:
-                    yield self.auth.check(event, raises=True)
-
-                yield self.state_handler.handle_new_event(event)
-                yield self._do_local_membership_update(
-                    event,
-                    membership=event.content["membership"],
-                    broadcast_msg=broadcast_msg,
-                )
-
-
-            if should_do_dance:
-                yield self._do_invite_join_dance(
-                    room_id=room_id,
-                    joinee=event.user_id,
-                    target_host=room_host,
-                    content=event.content,
-                )
-
-            user = self.hs.parse_userid(event.user_id)
-            self.distributor.fire(
-                "user_joined_room", user=user, room_id=room_id
-            )
-
         else:
             # This is not a JOIN, so we can handle it normally.
             if do_auth:
@@ -578,6 +517,124 @@ class RoomMemberHandler(BaseHandler):
             )
 
         defer.returnValue({"room_id": room_id})
+
+    @defer.inlineCallbacks
+    def join_room_name(self, joinee, room_alias, do_auth=True, content={}):
+        directory_handler = self.hs.get_handlers().directory_handler
+        mapping = yield directory_handler.get_association(room_alias)
+
+        if not mapping:
+            raise SynapseError(404, "No such room alias")
+
+        room_id = mapping["room_id"]
+        hosts = mapping["servers"]
+        if not hosts:
+            raise SynapseError(404, "No known servers")
+
+        host = hosts[0]
+
+        content.update({"membership": Membership.JOIN})
+        new_event = self.event_factory.create_event(
+            etype=RoomMemberEvent.TYPE,
+            target_user_id=joinee.to_string(),
+            room_id=room_id,
+            user_id=joinee.to_string(),
+            membership=Membership.JOIN,
+            content=content,
+        )
+
+        yield self._do_join(new_event, room_host=host, do_auth=True)
+
+    @defer.inlineCallbacks
+    def _do_join(self, event, room_host=None, do_auth=True, broadcast_msg=True):
+        joinee = self.hs.parse_userid(event.target_user_id)
+        room_id = RoomID.from_string(event.room_id, self.hs)
+
+        # If event doesn't include a display name, add one.
+        yield self._fill_out_join_content(
+            joinee, event.content
+        )
+
+        # XXX: We don't do an auth check if we are doing an invite
+        # join dance for now, since we're kinda implicitly checking
+        # that we are allowed to join when we decide whether or not we
+        # need to do the invite/join dance.
+
+        room = yield self.store.get_room(room_id.to_string())
+
+        if room:
+            should_do_dance = False
+        elif room_host:
+            should_do_dance = True
+        else:
+            prev_state = yield self.store.get_room_member(
+                joinee.to_string(), room_id.to_string()
+            )
+
+            if prev_state and prev_state.membership == Membership.INVITE:
+                room = yield self.store.get_room(room_id.to_string())
+                inviter = UserID.from_string(
+                    prev_state.sender, self.hs
+                )
+
+                should_do_dance = not inviter.is_mine and not room
+                room_host = inviter.domain
+            else:
+                should_do_dance = False
+
+        # We want to do the _do_update inside the room lock.
+        if not should_do_dance:
+            logger.debug("Doing normal join")
+
+            if do_auth:
+                yield self.auth.check(event, raises=True)
+
+            yield self.state_handler.handle_new_event(event)
+            yield self._do_local_membership_update(
+                event,
+                membership=event.content["membership"],
+                broadcast_msg=broadcast_msg,
+            )
+
+
+        if should_do_dance:
+            yield self._do_invite_join_dance(
+                room_id=room_id.to_string(),
+                joinee=event.user_id,
+                target_host=room_host,
+                content=event.content,
+            )
+
+        user = self.hs.parse_userid(event.user_id)
+        self.distributor.fire(
+            "user_joined_room", user=user, room_id=room_id.to_string()
+        )
+
+    @defer.inlineCallbacks
+    def _fill_out_join_content(self, user_id, content):
+        # If event doesn't include a display name, add one.
+        profile_handler = self.hs.get_handlers().profile_handler
+        if "displayname" not in content:
+            try:
+                display_name = yield profile_handler.get_displayname(
+                    user_id
+                )
+
+                if display_name:
+                    content["displayname"] = display_name
+            except:
+                logger.exception("Failed to set display_name")
+
+        if "avatar_url" not in content:
+            try:
+                avatar_url = yield profile_handler.get_avatar_url(
+                    user_id
+                )
+
+                if avatar_url:
+                    content["avatar_url"] = avatar_url
+            except:
+                logger.exception("Failed to set display_name")
 
     @defer.inlineCallbacks
     def _should_invite_join(self, room_id, prev_state, do_auth):
@@ -658,7 +715,6 @@ class RoomMemberHandler(BaseHandler):
                 room_id=event.room_id,
                 membership=event.content["membership"]
             )
-
 
     @defer.inlineCallbacks
     def _do_invite_join_dance(self, room_id, joinee, target_host, content):
