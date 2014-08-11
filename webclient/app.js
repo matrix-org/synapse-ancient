@@ -23,7 +23,7 @@ synapseClient.config(['$routeProvider',
                 controller: 'RoomsController'
             }).
             otherwise({
-                redirectTo: '/login'
+                redirectTo: '/rooms'
             });
     }]);
 
