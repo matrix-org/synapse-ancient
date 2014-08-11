@@ -283,7 +283,7 @@ class RoomCreationHandler(BaseHandler):
         if "room_alias" in config:
             room_alias = RoomAlias.from_string(config["room_alias"], self.hs)
             mapping = yield self.store.get_association_from_room_alias(
-                room_alis
+                room_alias
             )
 
             if mapping:
@@ -331,7 +331,7 @@ class RoomCreationHandler(BaseHandler):
         )
 
         if room_alias:
-            yield self.store.reate_room_alias_association(
+            yield self.store.create_room_alias_association(
                 room_id=room_id,
                 room_alias=room_alias,
                 servers=[self.hs.hostname],
@@ -359,7 +359,7 @@ class RoomCreationHandler(BaseHandler):
             do_auth=False
         )
 
-        defer.returnValue(room_id)
+        defer.returnValue(room_id.to_string())
 
 
 class RoomMemberHandler(BaseHandler):
