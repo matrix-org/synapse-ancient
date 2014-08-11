@@ -3,6 +3,8 @@
 from twisted.internet import defer
 from ._base import BaseHandler
 
+from synapse.api.errors import SynapseError
+
 import logging
 import json
 
@@ -21,7 +23,8 @@ class DirectoryHandler(BaseHandler):
         # TODO(erikj): Do auth.
 
         if not room_alias.is_mine:
-            raise Exception("foo")  # TODO(erikj): Change this.
+            raise SynapseError(400, "Room alias must be local")
+            # TODO(erikj): Change this.
 
         # TODO(erikj): Add transactions.
 
