@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 """ Starts a synapse client console. """
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor, defer, threads
 from http import TwistedHttpClient
 
 import argparse
@@ -163,6 +163,57 @@ class SynapseCmd(cmd.Cmd):
             self.config["user"] = json_res["user_id"]
             self.config["token"] = json_res["access_token"]
             save_config(self.config)
+
+    def do_login(self, line):
+        """Login as a specific user: "login @bob:localhost"
+        You MAY be prompted for a password, or instructed to visit a URL.
+        """
+        try:
+            args = self._parse(line, ["user_id"], force_keys=True)
+            can_login = threads.blockingCallFromThread(
+                reactor,
+                self._check_can_login)
+            if can_login:
+                p = getpass.getpass("Enter your password: ")
+                reactor.callFromThread(self._do_login, args["user_id"], p)
+                print " got %s " % p
+        except Exception as e:
+            print e
+
+    @defer.inlineCallbacks
+    def _do_login(self, user, password):
+        path = "/login"
+        data = {
+            "user": user,
+            "password": password,
+            "type": "m.login.password"
+        }
+        url = self._url() + path
+        json_res = yield self.http_client.do_request("POST", url, data=data)
+        print json_res
+
+        if "access_token" in json_res:
+            self.config["user"] = json_res["user_id"]
+            self.config["token"] = json_res["access_token"]
+            save_config(self.config)
+            print "Login successful."
+
+    @defer.inlineCallbacks
+    def _check_can_login(self):
+        path = "/login"
+        # ALWAYS check that the home server can handle the login request before
+        # submitting!
+        url = self._url() + path
+        json_res = yield self.http_client.do_request("GET", url)
+        print json_res
+
+        if ("type" not in json_res or "m.login.password" != json_res["type"] or
+                "stages" in json_res):
+            fallback_url = self._url() + "/login/fallback"
+            print ("Unable to login via the command line client. Please visit "
+                "%s to login." % fallback_url)
+            defer.returnValue(False)
+        defer.returnValue(True)
 
     def do_3pidrequest(self, line):
         """Requests the association of a third party identifier
