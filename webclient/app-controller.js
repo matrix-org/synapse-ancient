@@ -8,7 +8,7 @@ angular.module('AppController', ['matrixService'])
 .controller('AppController', ['$scope', '$location', '$rootScope', 'matrixService',
                                function($scope, $location, $rootScope, matrixService) {
          
-    // Do show buttons on the login page
+    // Check current URL to avoid to display the logout button on the login page
     $scope.location = $location.path();
     
     // Update the location state when the ng location changed
