@@ -5,6 +5,7 @@ from .room import (
 )
 from .events import EventStreamHandler
 from .federation import FederationHandler
+from .login import LoginHandler
 from .profile import ProfileHandler
 from .presence import PresenceHandler
 
@@ -27,3 +28,4 @@ class Handlers(object):
         self.profile_handler = ProfileHandler(hs)
         self.presence_handler = PresenceHandler(hs)
         self.room_list_handler = RoomListHandler(hs)
+        self.login_handler = LoginHandler(hs)
