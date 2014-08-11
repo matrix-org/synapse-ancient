@@ -1,45 +1,81 @@
 Installation
-------------
+============
 
 [TODO(kegan): I also needed libffi-dev, which I don't think is included in build-essential.]
 
-Installing prerequisites on ubuntu::
+First, the dependencies need to be installed. Start by installing 'python-dev'
+and the various tools of the compiler toolchain:
+
+  Installing prerequisites on ubuntu:
 
     $ sudo apt-get install build-essential python-dev
 
-Installing prerequisites on Mac OS X::
+  Installing prerequisites on Mac OS X:
 
     $ xcode-select --install
 
-To install the synapse module run::
+The homeserver has a number of external dependencies, that are easiest
+to install by making setup.py do so, in --user mode:
 
-    $ python setup.py install
+ $ python setup.py develop --user
 
-To setup a development version run::
+This will run a process of downloading and installing into your
+user's .local/lib directory all of the required dependencies that are
+missing.
 
-    $ python setup.py develop
+Once this is done, you may wish to run the homeserver's unit tests, to
+check that everything is installed as it should be:
 
-To run the tests run::
+ $ python setup.py test
 
-    $ python setup.py test
+This should end with a 'PASSED' result:
 
-Basic Usage
------------
+ Ran 143 tests in 0.601s
 
-To run a home server::
+ PASSED (successes=143)
 
-    $ python -m synapse.app.homeserver
 
-Or::
+Running The Home Server
+=======================
 
-    $ synapse-homeserver
+In order for other home servers to send messages to your server, they will need
+to know its host name. You have two choices here, which will influence the form
+of your user IDs:
 
-For a complete list of parameters run::
-    
-    $ synapse-homeserver -h
+ 1) Use the machine's own hostname as available on public DNS in the form of its
+    A or AAAA records. This is easier to set up initially, perhaps for testing,
+    but lacks the flexibility of SRV.
+
+ 2) Set up a SRV record for your domain name. This requires you create a SRV
+    record in DNS, but gives the flexibility to run the server on your own
+    choice of TCP port, on a machine that might not be the same name as the
+    domain name.
+
+For the first form, simply pass the required hostname (of the machine) as the
+--host parameter:
+
+ $ python synapse/app/homeserver.py --host machine.my.domain.name
+
+For the second form, first create your SRV record and publish it in DNS. This
+needs to be named _matrix._tcp.YOURDOMAIN, and point at at least one hostname
+and port where the server is running. (At the current time we only support a
+single server, but we may at some future point support multiple servers, for
+backup failover or load-balancing purposes). The DNS record would then look
+something like:
+
+   _matrix._tcp    IN      SRV     10 0 8448 machine.my.domain.name.
+
+At this point, you should then run the homeserver with the hostname of this
+SRV record, as that is the name other machines will expect it to have:
+
+ $ python synapse/app/homeserver.py --host my.domain.name --port 8448
+
+You may additionally want to pass one or more "-v" options, in order to
+increase the verbosity of logging output; at least for initial testing.
+
 
 Building Documentation
-----------------------
+======================
 
 Before building documentation install spinx and sphinxcontrib-napoleon::
 
