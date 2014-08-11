@@ -364,7 +364,7 @@ class ReplicationLayer(object):
         is_new = yield self.pdu_actions.is_new(pdu)
         if is_new and not pdu.outlier:
             # We only paginate backwards to the min depth.
-            min_depth = yield self.store.get_min_depth(pdu.context)
+            min_depth = yield self.store.get_min_depth_for_context(pdu.context)
 
             if min_depth and pdu.depth > min_depth:
                 for pdu_id, origin in pdu.prev_pdus:
