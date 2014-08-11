@@ -11,7 +11,7 @@ from ..utils import MockHttpServer
 from synapse.server import HomeServer
 from synapse.federation import initialize_http_replication
 from synapse.federation.units import Pdu
-from synapse.persistence.transactions import PduTuple, PduEntry
+from synapse.storage.pdu import PduTuple, PduEntry
 
 
 logging.getLogger().addHandler(logging.NullHandler())
@@ -68,7 +68,7 @@ class FederationTestCase(unittest.TestCase):
                 http_server=self.mock_http_server,
                 http_client=self.mock_http_client,
                 db_pool=None,
-                persistence_service=self.mock_persistence,
+                datastore=self.mock_persistence,
                 clock=self.clock,
         )
         self.federation = initialize_http_replication(hs)

@@ -23,8 +23,8 @@ class PduActions(object):
     """ Defines persistence actions that relate to handling PDUs.
     """
 
-    def __init__(self, persistence_service):
-        self.service = persistence_service
+    def __init__(self, datastore):
+        self.store = datastore
 
     @log_function
     def persist_received(self, pdu):
@@ -55,7 +55,7 @@ class PduActions(object):
         Returns:
             Deferred
         """
-        return self.service.mark_pdu_as_processed(pdu.pdu_id, pdu.origin)
+        return self.store.mark_pdu_as_processed(pdu.pdu_id, pdu.origin)
 
     @defer.inlineCallbacks
     @log_function
@@ -66,7 +66,7 @@ class PduActions(object):
         Returns:
             Deferred
         """
-        results = yield self.service.get_latest_pdus_in_context(pdu.context)
+        results = yield self.store.get_latest_pdus_in_context(pdu.context)
 
         pdu.prev_pdus = [(p_id, origin) for p_id, origin, _ in results]
 
@@ -85,7 +85,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a list of `Pdu`s
         """
-        results = yield self.service.get_pdus_after_transaction(
+        results = yield self.store.get_pdus_after_transaction(
             transaction_id,
             destination
         )
@@ -95,7 +95,7 @@ class PduActions(object):
     @defer.inlineCallbacks
     @log_function
     def get_all_pdus_from_context(self, context):
-        results = yield self.service.get_all_pdus_from_context(context)
+        results = yield self.store.get_all_pdus_from_context(context)
         defer.returnValue([Pdu.from_pdu_tuple(p) for p in results])
 
     @defer.inlineCallbacks
@@ -107,7 +107,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a list of `Pdu`s.
         """
-        results = yield self.service.get_pagination(
+        results = yield self.store.get_pagination(
             context, pdu_list, limit
         )
 
@@ -122,7 +122,7 @@ class PduActions(object):
         Returns:
             Deferred: Results in a `bool`
         """
-        return self.service.is_pdu_new(
+        return self.store.is_pdu_new(
             pdu_id=pdu.pdu_id,
             origin=pdu.origin,
             context=pdu.context,
@@ -141,11 +141,11 @@ class PduActions(object):
         logger.debug("Persisting: %s", repr(kwargs))
 
         if pdu.is_state:
-            ret = yield self.service.persist_state(**kwargs)
+            ret = yield self.store.persist_state(**kwargs)
         else:
-            ret = yield self.service.persist_pdu(**kwargs)
+            ret = yield self.store.persist_pdu(**kwargs)
 
-        yield self.service.update_min_depth_for_context(
+        yield self.store.update_min_depth_for_context(
             pdu.context, pdu.depth
         )
 
@@ -156,8 +156,8 @@ class TransactionActions(object):
     """ Defines persistence actions that relate to handling Transactions.
     """
 
-    def __init__(self, persistence_service):
-        self.service = persistence_service
+    def __init__(self, datastore):
+        self.store = datastore
 
     @log_function
     def have_responded(self, transaction):
@@ -173,7 +173,7 @@ class TransactionActions(object):
             raise RuntimeError("Cannot persist a transaction with no "
                                "transaction_id")
 
-        return self.service.get_received_txn_response(
+        return self.store.get_received_txn_response(
             transaction.transaction_id, transaction.origin
         )
 
@@ -188,7 +188,7 @@ class TransactionActions(object):
             raise RuntimeError("Cannot persist a transaction with no "
                                "transaction_id")
 
-        return self.service.set_received_txn_response(
+        return self.store.set_received_txn_response(
             transaction.transaction_id,
             transaction.origin,
             code,
@@ -204,7 +204,7 @@ class TransactionActions(object):
         Returns:
             Deferred
         """
-        transaction.prev_ids = yield self.service.prep_send_transaction(
+        transaction.prev_ids = yield self.store.prep_send_transaction(
             transaction.transaction_id,
             transaction.destination,
             transaction.ts,
@@ -219,7 +219,7 @@ class TransactionActions(object):
         Returns:
             Deferred
         """
-        return self.service.delivered_txn(
+        return self.store.delivered_txn(
             transaction.transaction_id,
             transaction.destination,
             response_code,

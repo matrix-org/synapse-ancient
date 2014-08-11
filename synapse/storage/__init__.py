@@ -5,8 +5,6 @@ from synapse.api.events.room import (
     RoomConfigEvent
 )
 
-import json
-
 from .feedback import FeedbackStore
 from .message import MessageStore
 from .presence import PresenceStore
@@ -16,11 +14,16 @@ from .room import RoomStore
 from .roommember import RoomMemberStore
 from .roomdata import RoomDataStore
 from .stream import StreamStore
+from .pdu import StatePduStore, PduStore
+from .transactions import TransactionStore
+
+import json
+import os
 
 
 class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
                 RegistrationStore, StreamStore, ProfileStore, FeedbackStore,
-                PresenceStore):
+                PresenceStore, PduStore, StatePduStore, TransactionStore):
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)
@@ -71,3 +74,29 @@ class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
             raise NotImplementedError(
                 "Don't know how to persist type=%s" % event.type
             )
+
+
+def schema_path(schema):
+    """ Get a filesystem path for the named database schema
+
+    Args:
+        schema: Name of the database schema.
+    Returns:
+        A filesystem path pointing at a ".sql" file.
+
+    """
+    dir_path = os.path.dirname(__file__)
+    schemaPath = os.path.join(dir_path, "schema", schema + ".sql")
+    return schemaPath
+
+
+def read_schema(schema):
+    """ Read the named database schema.
+
+    Args:
+        schema: Name of the datbase schema.
+    Returns:
+        A string containing the database schema.
+    """
+    with open(schema_path(schema)) as schema_file:
+        return schema_file.read()

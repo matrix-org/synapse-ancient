@@ -25,7 +25,7 @@ class StateHandler(object):
     """
 
     def __init__(self, hs):
-        self._persistence = hs.get_persistence_service()
+        self.store = hs.get_datastore()
         self._replication = hs.get_replication_layer()
         self.server_name = hs.hostname
 
@@ -56,7 +56,7 @@ class StateHandler(object):
         # Now I need to fill out the prev state and work out if it has auth
         # (w.r.t. to power levels)
 
-        results = yield self._persistence.get_latest_pdus_in_context(
+        results = yield self.store.get_latest_pdus_in_context(
             event.room_id
         )
 
@@ -72,7 +72,7 @@ class StateHandler(object):
         else:
             event.depth = 0
 
-        current_state = yield self._persistence.get_current_state(
+        current_state = yield self.store.get_current_state(
             key.context, key.type, key.state_key
         )
 
@@ -85,7 +85,7 @@ class StateHandler(object):
         # than the power level of the user
         # power_level = self._get_power_level_for_event(event)
 
-        yield self._persistence.update_current_state(
+        yield self.store.update_current_state(
             pdu_id=event.event_id,
             origin=self.server_name,
             context=key.context,
@@ -112,7 +112,7 @@ class StateHandler(object):
         is_new = yield self._handle_new_state(new_pdu)
 
         if is_new:
-            yield self._persistence.update_current_state(
+            yield self.store.update_current_state(
                 pdu_id=new_pdu.pdu_id,
                 origin=new_pdu.origin,
                 context=new_pdu.context,
@@ -130,7 +130,7 @@ class StateHandler(object):
     @defer.inlineCallbacks
     @log_function
     def _handle_new_state(self, new_pdu):
-        tree = yield self._persistence.get_unresolved_state_tree(new_pdu)
+        tree = yield self.store.get_unresolved_state_tree(new_pdu)
         new_branch, current_branch = tree
 
         logger.debug(

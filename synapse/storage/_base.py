@@ -4,6 +4,7 @@ from twisted.internet import defer
 
 from synapse.api.errors import StoreError
 
+import collections
 
 logger = logging.getLogger(__name__)
 
@@ -318,3 +319,46 @@ class Table(object):
             to_join = cls.fields
 
         return ", ".join(to_join)
+
+
+class JoinHelper(object):
+    """ Used to help do joins on tables by looking at the tables' fields and
+    creating a list of unique fields to use with SELECTs and a namedtuple
+    to dump the results into.
+
+    Attributes:
+        taples (list): List of `Table` classes
+        EntryType (type)
+    """
+
+    def __init__(self, *tables):
+        self.tables = tables
+
+        res = []
+        for table in self.tables:
+            res += [f for f in table.fields if f not in res]
+
+        self.EntryType = collections.namedtuple("JoinHelperEntry", res)
+
+    def get_fields(self, **prefixes):
+        """Get a string representing a list of fields for use in SELECT
+        statements with the given prefixes applied to each.
+
+        For example::
+
+            JoinHelper(PdusTable, StateTable).get_fields(
+                PdusTable="pdus",
+                StateTable="state"
+            )
+        """
+        res = []
+        for field in self.EntryType._fields:
+            for table in self.tables:
+                if field in table.fields:
+                    res.append("%s.%s" % (prefixes[table.__name__], field))
+                    break
+
+        return ", ".join(res)
+
+    def decode_results(self, rows):
+        return [self.EntryType(*row) for row in rows]

@@ -5,7 +5,6 @@
 # partial one for unit test mocking.
 
 # Imports required for the default HomeServer() implementation
-from synapse.persistence import PersistenceService
 from synapse.federation import initialize_http_replication
 from synapse.federation.handler import FederationEventHandler
 from synapse.api.events.factory import EventFactory
@@ -124,9 +123,6 @@ class HomeServer(BaseHomeServer):
 
     def build_clock(self):
         return Clock()
-
-    def build_persistence_service(self):
-        return PersistenceService(self)
 
     def build_replication_layer(self):
         return initialize_http_replication(self)

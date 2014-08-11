@@ -8,7 +8,6 @@ from twisted.internet import defer
 from .units import Transaction, Pdu, Edu
 
 from .persistence import PduActions, TransactionActions
-from synapse.persistence.transactions import PduQueries
 
 from synapse.util.logutils import log_function
 
@@ -43,9 +42,9 @@ class ReplicationLayer(object):
         self.transport_layer.register_received_handler(self)
         self.transport_layer.register_request_handler(self)
 
-        self.persistence_service = hs.get_persistence_service()
-        self.pdu_actions = PduActions(self.persistence_service)
-        self.transaction_actions = TransactionActions(self.persistence_service)
+        self.store = hs.get_datastore()
+        self.pdu_actions = PduActions(self.store)
+        self.transaction_actions = TransactionActions(self.store)
 
         self._transaction_queue = _TransactionQueue(
             hs, self.transaction_actions, transport_layer
@@ -56,7 +55,6 @@ class ReplicationLayer(object):
 
         self._order = 0
 
-        self._db_pool = hs.get_db_pool()
         self._clock = hs.get_clock()
 
     def set_handler(self, handler):
@@ -139,10 +137,7 @@ class ReplicationLayer(object):
         Returns:
             Deferred: Results in the received PDUs.
         """
-        extremities = yield self._db_pool.runInteraction(
-            PduQueries.get_back_extremities,
-            context
-        )
+        extremities = yield self.store.get_oldest_pdus_in_context(context)
 
         logger.debug("paginate extrem=%s", extremities)
 
@@ -292,7 +287,7 @@ class ReplicationLayer(object):
     @defer.inlineCallbacks
     @log_function
     def on_context_state_request(self, context):
-        results = yield self.persistence_service.get_current_state_for_context(
+        results = yield self.store.get_current_state_for_context(
             context
         )
 
@@ -339,7 +334,7 @@ class ReplicationLayer(object):
         Returns:
             Deferred: Results in a `Pdu`.
         """
-        pdu_tuple = yield self.persistence_service.get_pdu(pdu_id, pdu_origin)
+        pdu_tuple = yield self.store.get_pdu(pdu_id, pdu_origin)
 
         defer.returnValue(Pdu.from_pdu_tuple(pdu_tuple))
 
@@ -369,10 +364,7 @@ class ReplicationLayer(object):
         is_new = yield self.pdu_actions.is_new(pdu)
         if is_new and not pdu.outlier:
             # We only paginate backwards to the min depth.
-            min_depth = yield self._db_pool.runInteraction(
-                PduQueries.get_min_depth,
-                pdu.context
-            )
+            min_depth = yield self.store.get_min_depth(pdu.context)
 
             if min_depth and pdu.depth > min_depth:
                 for pdu_id, origin in pdu.prev_pdus:

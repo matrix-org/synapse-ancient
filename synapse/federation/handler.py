@@ -22,7 +22,7 @@ class FederationEventHandler(object):
     """
 
     def __init__(self, hs):
-        self.persistence = hs.get_persistence_service()
+        self.store = hs.get_datastore()
         self.replication_layer = hs.get_replication_layer()
         self.state_handler = hs.get_state_handler()
         # self.auth_handler = gs.get_auth_handler()
@@ -101,10 +101,10 @@ class FederationEventHandler(object):
 
     @defer.inlineCallbacks
     def _on_new_state(self, pdu, new_state_event):
-        # TODO: Do any persistence stuff here. Notifiy C2S about this new
+        # TODO: Do any store stuff here. Notifiy C2S about this new
         # state.
 
-        yield self.persistence.update_current_state(
+        yield self.store.update_current_state(
             pdu_id=pdu.pdu_id,
             origin=pdu.origin,
             context=pdu.context,
@@ -119,7 +119,7 @@ class FederationEventHandler(object):
         if hasattr(event, "prev_events"):
             return
 
-        results = yield self.persistence.get_latest_pdus_in_context(
+        results = yield self.store.get_latest_pdus_in_context(
             event.room_id
         )
 

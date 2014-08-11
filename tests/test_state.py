@@ -3,7 +3,7 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from synapse.state import StateHandler
-from synapse.persistence.transactions import PduEntry
+from synapse.storage.pdu import PduEntry
 from synapse.federation.pdu_codec import encode_event_id
 
 from collections import namedtuple
@@ -26,8 +26,8 @@ class StateTestCase(unittest.TestCase):
         ])
         self.replication = Mock(spec=["get_pdu"])
 
-        hs = Mock(spec=["get_persistence_service", "get_replication_layer"])
-        hs.get_persistence_service.return_value = self.persistence
+        hs = Mock(spec=["get_datastore", "get_replication_layer"])
+        hs.get_datastore.return_value = self.persistence
         hs.get_replication_layer.return_value = self.replication
         hs.hostname = "bob.com"
 
