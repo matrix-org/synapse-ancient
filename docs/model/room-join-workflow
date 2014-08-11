@@ -18,9 +18,9 @@ The most direct way a user discovers the existence of a room is from a
 invitation from some other user who is a member of that room.
 
 The inviter's HS sets the membership status of the invitee to "invited" in the
-"sy.members" state key by sending a state update PDU. The HS then broadcasts
-this PDU among the existing members in the usual way. An invitation message is
-also sent to the invited user, containing the Room ID and the PDU ID of this
+"m.members" state key by sending a state update PDU. The HS then broadcasts this
+PDU among the existing members in the usual way. An invitation message is also
+sent to the invited user, containing the Room ID and the PDU ID of this
 invitation state change and potentially a list of some other home servers to use
 to accept the invite. The user's client can then choose to display it in some
 way to alert the user.
@@ -72,9 +72,9 @@ other candidates if the chosen one is no longer aware of the room, because it
 has no users as members in it.
 
 Once a candidate server that is aware of the room has been found, it can
-broadcast an update PDU to add the member into the "sy.members" key setting
-their state directly to "joined" (i.e. bypassing the two-phase invite
-semantics), remembering to include the new user's HS in that list.
+broadcast an update PDU to add the member into the "m.members" key setting their
+state directly to "joined" (i.e. bypassing the two-phase invite semantics),
+remembering to include the new user's HS in that list.
 
 Knocking on a Semi-Public Room
 ------------------------------

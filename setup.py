@@ -21,6 +21,7 @@ setup(
         "pyasn1",
         "pynacl",
         "daemonize",
+        "py-bcrypt",
     ],
     dependency_links=[
         "git+ssh://git@git.openmarket.com/tng/syutil.git#egg=syutil-0.0.1",

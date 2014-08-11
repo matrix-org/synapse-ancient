@@ -52,8 +52,11 @@ class RestServletFactory(object):
         import presence
         presence.register_servlets(hs, http_server)
 
-        import user
-        user.register_servlets(hs, http_server)
+        import im
+        im.register_servlets(hs, http_server)
+
+        import login
+        login.register_servlets(hs, http_server)
 
 
 class RestServlet(object):

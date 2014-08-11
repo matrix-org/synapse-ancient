@@ -164,7 +164,7 @@ angular.module('matrixService', [])
         // Send a text message
         sendTextMessage: function(room_id, body, msg_id) {
             var content = {
-                 msgtype: "sy.text",
+                 msgtype: "m.text",
                  body: body
             };
 
@@ -174,7 +174,7 @@ angular.module('matrixService', [])
         // Send an emote message
         sendEmoteMessage: function(room_id, body, msg_id) {
             var content = {
-                 msgtype: "sy.emote",
+                 msgtype: "m.emote",
                  body: body
             };
 

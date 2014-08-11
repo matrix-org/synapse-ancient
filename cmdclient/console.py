@@ -6,6 +6,7 @@ from http import TwistedHttpClient
 
 import argparse
 import cmd
+import getpass
 import json
 import shlex
 import sys
@@ -17,7 +18,7 @@ import os
 import nacl.signing
 import nacl.encoding
 
-from syutil.crypto.jsonsign import verify_signed_json
+from syutil.crypto.jsonsign import verify_signed_json, SignatureVerifyException
 
 CONFIG_JSON = "cmdclient_config.json"
 
@@ -129,9 +130,26 @@ class SynapseCmd(cmd.Cmd):
         """
         args = self._parse(line, ["userid", "noupdate"])
         path = "/register"
+
+        password = None
+        pwd = None
+        pwd2 = "_"
+        while pwd != pwd2:
+            pwd = getpass.getpass("(Optional) Type a password for this user: ")
+            if len(pwd) == 0:
+                print "Not using a password for this user."
+                break
+            pwd2 = getpass.getpass("Retype the password: ")
+            if pwd != pwd2:
+                print "Password mismatch."
+            else:
+                password = pwd
+
         body = {}
         if "userid" in args:
             body["user_id"] = args["userid"]
+        if password:
+            body["password"] = password
 
         reactor.callFromThread(self._do_register, "POST", path, body,
                                "noupdate" not in args)
@@ -276,7 +294,7 @@ class SynapseCmd(cmd.Cmd):
                                 sigValid = True
                                 print "Mapping %s -> %s correctly signed by %s" % (userstring, json_res['mxid'], signame)
                                 break
-                            except synapse.crypto.signing.InvalidSignature as e:
+                            except SignatureVerifyException as e:
                                 print "Invalid signature from %s" % (signame)
                                 print e
 
@@ -309,7 +327,7 @@ class SynapseCmd(cmd.Cmd):
                                              self._usr(),
                                              msg_id)
         body_json = {
-            "msgtype": "sy.text",
+            "msgtype": "m.text",
             "body": args["body"]
         }
         reactor.callFromThread(self._run_and_pprint, "PUT", path, body_json)
@@ -445,7 +463,7 @@ class SynapseCmd(cmd.Cmd):
 
         if "chunk" in res:
             for event in res["chunk"]:
-                if (event["type"] == "sy.room.message" and
+                if (event["type"] == "m.room.message" and
                         self._is_on("send_delivery_receipts") and
                         event["user_id"] != self._usr()):  # not sent by us
                     self._send_receipt(event, "d")

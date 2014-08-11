@@ -110,7 +110,7 @@ h1 {
 
 .messageTableWrapper {
     width: auto;
-    margin-right: 120px;
+    margin-right: 140px;
 }
 
 .messageTable {
@@ -183,7 +183,7 @@ h1 {
 
 .mine .text .bubble {
     text-align: left ! important;
-    background-color: #ccc ! important;
+    background-color: #d8d8e8 ! important;
 }
 
 .mine .emote .bubble {

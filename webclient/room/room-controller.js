@@ -26,7 +26,7 @@ angular.module('RoomController', [])
 
                 for (var i = 0; i < response.data.chunk.length; i++) {
                     var chunk = response.data.chunk[i];
-                    if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.message") {
+                    if (chunk.room_id == $scope.room_id && chunk.type == "m.room.message") {
                         if ("membership_target" in chunk.content) {
                             chunk.user_id = chunk.content.membership_target;
                         }
@@ -35,10 +35,10 @@ angular.module('RoomController', [])
                             window.scrollTo(0, document.body.scrollHeight);
                         },0);
                     }
-                    else if (chunk.room_id == $scope.room_id && chunk.type == "sy.room.member") {
+                    else if (chunk.room_id == $scope.room_id && chunk.type == "m.room.member") {
                         updateMemberList(chunk);
                     }
-                    else if (chunk.type === "sy.presence") {
+                    else if (chunk.type === "m.presence") {
                         updatePresence(chunk);
                     }
                 }

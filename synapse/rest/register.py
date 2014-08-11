@@ -14,8 +14,12 @@ class RegisterRestServlet(RestServlet):
     @defer.inlineCallbacks
     def on_POST(self, request):
         desired_user_id = None
+        password = None
         try:
             register_json = json.loads(request.content.read())
+            if "password" in register_json:
+                password = register_json["password"]
+
             if type(register_json["user_id"]) == unicode:
                 desired_user_id = register_json["user_id"]
                 if urllib.quote(desired_user_id) != desired_user_id:
@@ -31,7 +35,9 @@ class RegisterRestServlet(RestServlet):
             pass  # user_id is optional
 
         handler = self.handlers.registration_handler
-        (user_id, token) = yield handler.register(localpart=desired_user_id)
+        (user_id, token) = yield handler.register(
+            localpart=desired_user_id,
+            password=password)
         defer.returnValue((200,
                            {"user_id": user_id, "access_token": token}))
 

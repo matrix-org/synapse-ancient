@@ -112,12 +112,12 @@ class MemoryDataStore(object):
         self.rooms = {}
         self.room_members = {}
 
-    def register(self, user_id, token):
+    def register(self, user_id, token, password_hash):
         if user_id in self.tokens_to_users.values():
             raise StoreError(400, "User in use.")
         self.tokens_to_users[token] = user_id
 
-    def get_user(self, token=None):
+    def get_user_by_token(self, token):
         try:
             return self.tokens_to_users[token]
         except:
@@ -129,8 +129,7 @@ class MemoryDataStore(object):
         except:
             return None
 
-    def store_room(self, room_id=None, room_creator_user_id=None,
-                              is_public=None):
+    def store_room(self, room_id, room_creator_user_id, is_public):
         if room_id in self.rooms:
             raise StoreError(409, "Conflicting room!")
 

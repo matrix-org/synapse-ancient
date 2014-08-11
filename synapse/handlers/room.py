@@ -683,7 +683,7 @@ class RoomMemberHandler(BaseHandler):
     @defer.inlineCallbacks
     def _inject_membership_msg(self, room_id=None, source=None, target=None,
                                membership=None):
-        # TODO this should be a different type of message, not sy.text
+        # TODO this should be a different type of message, not m.text
         if membership == Membership.INVITE:
             body = "%s invited %s to the room." % (source, target)
         elif membership == Membership.JOIN:
@@ -694,7 +694,7 @@ class RoomMemberHandler(BaseHandler):
             raise RoomError(500, "Unknown membership value %s" % membership)
 
         membership_json = {
-            "msgtype": u"sy.text",
+            "msgtype": u"m.text",
             "body": body,
             "membership_source": source,
             "membership_target": target,

@@ -237,7 +237,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
         self.replication.send_edu.assert_called_with(
                 destination="elsewhere",
-                edu_type="mx.presence_invite",
+                edu_type="m.presence_invite",
                 content={
                     "observer_user": "@apple:test",
                     "observed_user": "@cabbage:elsewhere",
@@ -251,7 +251,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
         self.replication.send_edu.return_value = defer.succeed((200, "OK"))
 
         yield self.replication.received_edu(
-                "elsewhere", "mx.presence_invite", {
+                "elsewhere", "m.presence_invite", {
                     "observer_user": "@cabbage:elsewhere",
                     "observed_user": "@apple:test",
                 }
@@ -262,7 +262,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
         self.replication.send_edu.assert_called_with(
                 destination="elsewhere",
-                edu_type="mx.presence_accept",
+                edu_type="m.presence_accept",
                 content={
                     "observer_user": "@cabbage:elsewhere",
                     "observed_user": "@apple:test",
@@ -274,7 +274,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
         self.replication.send_edu.return_value = defer.succeed((200, "OK"))
 
         yield self.replication.received_edu(
-                "elsewhere", "mx.presence_invite", {
+                "elsewhere", "m.presence_invite", {
                     "observer_user": "@cabbage:elsewhere",
                     "observed_user": "@durian:test",
                 }
@@ -282,7 +282,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
 
         self.replication.send_edu.assert_called_with(
                 destination="elsewhere",
-                edu_type="mx.presence_deny",
+                edu_type="m.presence_deny",
                 content={
                     "observer_user": "@cabbage:elsewhere",
                     "observed_user": "@durian:test",
@@ -292,7 +292,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_accepted_remote(self):
         yield self.replication.received_edu(
-                "elsewhere", "mx.presence_accept", {
+                "elsewhere", "m.presence_accept", {
                     "observer_user": "@apple:test",
                     "observed_user": "@cabbage:elsewhere",
                 }
@@ -307,7 +307,7 @@ class PresenceInvitesTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_denied_remote(self):
         yield self.replication.received_edu(
-                "elsewhere", "mx.presence_deny", {
+                "elsewhere", "m.presence_deny", {
                     "observer_user": "@apple:test",
                     "observed_user": "@eggplant:elsewhere",
                 }
@@ -537,7 +537,7 @@ class PresencePushTestCase(unittest.TestCase):
         self.replication.send_edu.assert_has_calls([
                 call(
                     destination="remote",
-                    edu_type="mx.presence",
+                    edu_type="m.presence",
                     content={
                         "push": [
                             {"user_id": "@apple:test",
@@ -546,7 +546,7 @@ class PresencePushTestCase(unittest.TestCase):
                     }),
                 call(
                     destination="farm",
-                    edu_type="mx.presence",
+                    edu_type="m.presence",
                     content={
                         "push": [
                             {"user_id": "@apple:test",
@@ -565,7 +565,7 @@ class PresencePushTestCase(unittest.TestCase):
         self.room_members = [self.u_banana, self.u_potato]
 
         yield self.replication.received_edu(
-                "remote", "mx.presence", {
+                "remote", "m.presence", {
                     "push": [
                         {"user_id": "@potato:remote",
                          "state": 2},
@@ -628,7 +628,7 @@ class PresencePushTestCase(unittest.TestCase):
         self.replication.send_edu.assert_has_calls([
                 call(
                     destination="remote",
-                    edu_type="mx.presence",
+                    edu_type="m.presence",
                     content={
                         "push": [
                             {"user_id": "@apple:test",
@@ -637,7 +637,7 @@ class PresencePushTestCase(unittest.TestCase):
                     }),
                 call(
                     destination="remote",
-                    edu_type="mx.presence",
+                    edu_type="m.presence",
                     content={
                         "push": [
                             {"user_id": "@banana:test",
@@ -662,7 +662,7 @@ class PresencePushTestCase(unittest.TestCase):
         self.replication.send_edu.assert_has_calls(
                 call(
                     destination="remote",
-                    edu_type="mx.presence",
+                    edu_type="m.presence",
                     content={
                         "push": [
                             {"user_id": "@clementine:test",
@@ -823,7 +823,7 @@ class PresencePollingTestCase(unittest.TestCase):
 
         self.replication.send_edu.assert_called_with(
                 destination="remote",
-                edu_type="mx.presence",
+                edu_type="m.presence",
                 content={
                     "poll": [ "@potato:remote" ],
                 },
@@ -843,7 +843,7 @@ class PresencePollingTestCase(unittest.TestCase):
 
         self.replication.send_edu.assert_called_with(
                 destination="remote",
-                edu_type="mx.presence",
+                edu_type="m.presence",
                 content={
                     "unpoll": [ "@potato:remote" ],
                 },
@@ -854,7 +854,7 @@ class PresencePollingTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def test_remote_poll_receive(self):
         yield self.replication.received_edu(
-                "remote", "mx.presence", {
+                "remote", "m.presence", {
                     "poll": [ "@banana:test" ],
                 }
         )
@@ -864,7 +864,7 @@ class PresencePollingTestCase(unittest.TestCase):
 
         self.replication.send_edu.assert_called_with(
                 destination="remote",
-                edu_type="mx.presence",
+                edu_type="m.presence",
                 content={
                     "push": [
                         {"user_id": "@banana:test",
@@ -875,7 +875,7 @@ class PresencePollingTestCase(unittest.TestCase):
         )
 
         yield self.replication.received_edu(
-                "remote", "mx.presence", {
+                "remote", "m.presence", {
                     "unpoll": [ "@banana:test" ],
                 }
         )

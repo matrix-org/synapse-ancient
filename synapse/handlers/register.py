@@ -8,6 +8,7 @@ from ._base import BaseHandler
 import synapse.util.stringutils as stringutils
 
 import base64
+import bcrypt
 
 
 class RegistrationHandler(BaseHandler):
@@ -19,24 +20,31 @@ class RegistrationHandler(BaseHandler):
         self.distributor.declare("registered_user")
 
     @defer.inlineCallbacks
-    def register(self, localpart=None):
+    def register(self, localpart=None, password=None):
         """Registers a new client on the server.
 
         Args:
             localpart : The local part of the user ID to register. If None,
               one will be randomly generated.
+            password (str) : The password to assign to this user so they can
+            login again.
         Returns:
             A tuple of (user_id, access_token).
         Raises:
             RegistrationError if there was a problem registering.
         """
+        password_hash = None
+        if password:
+            password_hash = bcrypt.hashpw(password, bcrypt.gensalt())
 
         if localpart:
             user = UserID(localpart, self.hs.hostname, True)
             user_id = user.to_string()
 
             token = self._generate_token(user_id)
-            yield self.store.register(user_id, token)
+            yield self.store.register(user_id=user_id,
+                token=token,
+                password_hash=password_hash)
 
             self.distributor.fire("registered_user", user)
             defer.returnValue((user_id, token))
@@ -52,7 +60,10 @@ class RegistrationHandler(BaseHandler):
                     user_id = user.to_string()
 
                     token = self._generate_token(user_id)
-                    yield self.store.register(user_id, token)
+                    yield self.store.register(
+                        user_id=user_id,
+                        token=token,
+                        password_hash=password_hash)
 
                     self.distributor.fire("registered_user", user)
                     defer.returnValue((user_id, token))

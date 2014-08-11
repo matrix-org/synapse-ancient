@@ -38,6 +38,11 @@ class EventStreamError(SynapseError):
     pass
 
 
+class LoginError(SynapseError):
+    """An error raised when there was a problem logging in."""
+    pass
+
+
 class StoreError(SynapseError):
     """An error raised when there was a problem storing some data."""
     pass
