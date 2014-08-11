@@ -2,7 +2,7 @@
 """Contains functions for performing events on rooms."""
 from twisted.internet import defer
 
-from synapse.types import UserID, RoomAlias
+from synapse.types import UserID, RoomAlias, RoomID
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError, SynapseError
 from synapse.api.events.room import (
@@ -279,9 +279,26 @@ class RoomCreationHandler(BaseHandler):
             SynapseError if the room ID was taken, couldn't be stored, or
             something went horribly wrong.
         """
+
+        if "room_alias" in config:
+            room_alias = RoomAlias.from_string(config["room_alias"], self.hs)
+            mapping = yield self.store.get_association_from_room_alias(
+                room_alis
+            )
+
+            if mapping:
+                raise SynapseError(400, "Room alias already taken")
+        else:
+            room_alias = None
+
         if room_id:
+            # Ensure room_id is the correct type
+            room_id = RoomID.from_string(room_id, self.hs)
+            if not room_id.is_mine:
+                raise SynapseError(400, "Room id must be local")
+
             yield self.store.store_room(
-                room_id=room_id,
+                room_id=room_id.to_string(),
                 room_creator_user_id=user_id,
                 is_public=config["visibility"] == "public"
             )
@@ -292,9 +309,10 @@ class RoomCreationHandler(BaseHandler):
             room_id = None
             while attempts < 5:
                 try:
-                    gen_room_id = stringutils.random_string(18)
+                    random_string = stringutils.random_string(18)
+                    gen_room_id = RoomID.create_local(random_string, self.hs)
                     yield self.store.store_room(
-                        room_id=gen_room_id,
+                        room_id=gen_room_id.to_string(),
                         room_creator_user_id=user_id,
                         is_public=config["visibility"] == "public"
                     )
@@ -305,16 +323,22 @@ class RoomCreationHandler(BaseHandler):
             if not room_id:
                 raise StoreError(500, "Couldn't generate a room ID.")
 
-        with (yield self.room_lock.lock(room_id)):
-            config_event = self.event_factory.create_event(
-                etype=RoomConfigEvent.TYPE,
+        config_event = self.event_factory.create_event(
+            etype=RoomConfigEvent.TYPE,
+            room_id=room_id.to_string(),
+            user_id=user_id,
+            content=config,
+        )
+
+        if room_alias:
+            yield self.store.reate_room_alias_association(
                 room_id=room_id,
-                user_id=user_id,
-                content=config,
+                room_alias=room_alias,
+                servers=[self.hs.hostname],
             )
 
-            yield self.state_handler.handle_new_event(config_event)
-            # store_id = persist...
+        yield self.state_handler.handle_new_event(config_event)
+        # store_id = persist...
 
         yield self.hs.get_federation().handle_new_event(config_event)
         # self.notifier.on_new_room_event(event, store_id)
@@ -323,7 +347,7 @@ class RoomCreationHandler(BaseHandler):
         join_event = self.event_factory.create_event(
             etype=RoomMemberEvent.TYPE,
             target_user_id=user_id,
-            room_id=room_id,
+            room_id=room_id.to_string(),
             user_id=user_id,
             membership=Membership.JOIN,
             content=content
@@ -464,18 +488,6 @@ class RoomMemberHandler(BaseHandler):
             return
 
         room_id = event.room_id
-        room_host = None
-        try:
-            # TODO: This is a quick bodge to allow us to join public rooms
-            # without fully implementing directory servers and the like
-            room_alias_object = RoomAlias.from_string(event.room_id, self.hs)
-            if room_alias_object and not room_alias_object.is_mine:
-                room_id = room_alias_object.localpart
-                room_host = room_alias_object.domain
-        except SynapseError as e:
-            if e.code != 400:
-                raise
-            room_alias_object = None
 
         # If we're trying to join a room then we have to do this differently
         # if this HS is not currently in the room, i.e. we have to do the
@@ -513,7 +525,6 @@ class RoomMemberHandler(BaseHandler):
 
             should_do_dance, room_host = yield self._should_invite_join(
                 room_id=room_id,
-                room_host=room_host,
                 prev_state=prev_state,
                 do_auth=do_auth,
             )
@@ -569,14 +580,8 @@ class RoomMemberHandler(BaseHandler):
         defer.returnValue({"room_id": room_id})
 
     @defer.inlineCallbacks
-    def _should_invite_join(self, room_id, room_host, prev_state, do_auth):
+    def _should_invite_join(self, room_id, prev_state, do_auth):
         logger.debug("_should_invite_join: room_id: %s", room_id)
-
-        if room_host:
-            room = yield self.store.get_room(room_id)
-            if not room:
-                defer.returnValue((True, room_host))
-                return
 
         # XXX: We don't do an auth check if we are doing an invite
         # join dance for now, since we're kinda implicitly checking
@@ -586,6 +591,7 @@ class RoomMemberHandler(BaseHandler):
         # Only do an invite join dance if a) we were invited,
         # b) the person inviting was from a differnt HS and c) we are
         # not currently in the room
+        room_host = None
         if prev_state and prev_state.membership == Membership.INVITE:
             room = yield self.store.get_room(room_id)
             inviter = UserID.from_string(

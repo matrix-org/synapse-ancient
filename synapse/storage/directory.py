@@ -14,7 +14,7 @@ RoomAliasMapping = namedtuple(
 class DirectoryStore(SQLBaseStore):
 
     @defer.inlineCallbacks
-    def get_association_from_room_alias(self, room_alias_str):
+    def get_association_from_room_alias(self, room_alias):
         """ Get's the room_id and server list for a given room_alias
 
         Returns:
@@ -23,7 +23,7 @@ class DirectoryStore(SQLBaseStore):
         """
         room_id = yield self._simple_select_one_onecol(
             "room_aliases",
-            {"room_alias": room_alias_str},
+            {"room_alias": room_alias.to_string()},
             "room_id",
             allow_none=True,
         )
@@ -34,7 +34,7 @@ class DirectoryStore(SQLBaseStore):
 
         servers = yield self._simple_select_onecol(
             "room_alias_servers",
-            {"room_alias": room_alias_str},
+            {"room_alias": room_alias.to_string()},
             "server",
         )
 
@@ -42,7 +42,7 @@ class DirectoryStore(SQLBaseStore):
             defer.returnValue(None)
             return
 
-        defer.returnValue(RoomAliasMapping(room_id, room_alias_str, servers))
+        defer.returnValue(RoomAliasMapping(room_id, room_alias.to_string(), servers))
 
     @defer.inlineCallbacks
     def create_room_alias_association(self, room_alias, room_id, servers):
@@ -50,7 +50,7 @@ class DirectoryStore(SQLBaseStore):
             "room_aliases",
             {
                 "room_alias": room_alias.to_string(),
-                "room_id": room_id,
+                "room_id": room_id.to_string(),
             },
         )
 

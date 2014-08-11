@@ -39,7 +39,7 @@ class DirectoryHandler(BaseHandler):
 
         if room_alias.is_mine:
             result = yield self.store.get_association_from_room_alias(
-                room_alias.to_string()
+                room_alias
             )
         else:
             # TODO(erikj): Hit out to remote HS.
