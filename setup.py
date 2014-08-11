@@ -32,7 +32,7 @@ setup(
         "mock"
     ],
     include_package_data=True,
-    long_description=read("README"),
+    long_description=read("README.rst"),
     entry_points="""
     [console_scripts]
     synapse-homeserver=synapse.app.homeserver:run
