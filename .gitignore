@@ -17,3 +17,4 @@ htmlcov
 
 demo/*.db
 demo/*.log
+demo/*.pid
