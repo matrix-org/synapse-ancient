@@ -18,7 +18,7 @@ import os
 import nacl.signing
 import nacl.encoding
 
-from syutil.crypto.jsonsign import verify_signed_json
+from syutil.crypto.jsonsign import verify_signed_json, SignatureVerifyException
 
 CONFIG_JSON = "cmdclient_config.json"
 
@@ -294,7 +294,7 @@ class SynapseCmd(cmd.Cmd):
                                 sigValid = True
                                 print "Mapping %s -> %s correctly signed by %s" % (userstring, json_res['mxid'], signame)
                                 break
-                            except synapse.crypto.signing.InvalidSignature as e:
+                            except SignatureVerifyException as e:
                                 print "Invalid signature from %s" % (signame)
                                 print e
 
