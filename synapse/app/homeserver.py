@@ -43,7 +43,8 @@ class SynapseHomeServer(HomeServer):
             "users",
             "profiles",
             "presence",
-            "im"
+            "im",
+            "room_aliases",
         ]
 
         for sql_loc in schemas:

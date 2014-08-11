@@ -51,6 +51,6 @@ class UserID(DomainSpecificString):
     SIGIL = "@"
 
 
-class RoomName(DomainSpecificString):
+class RoomAlias(DomainSpecificString):
     """Structure representing a room name."""
     SIGIL = "#"

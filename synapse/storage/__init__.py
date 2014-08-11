@@ -5,6 +5,7 @@ from synapse.api.events.room import (
     RoomConfigEvent
 )
 
+from .directory import DirectoryStore
 from .feedback import FeedbackStore
 from .message import MessageStore
 from .presence import PresenceStore
@@ -23,7 +24,8 @@ import os
 
 class DataStore(RoomDataStore, RoomMemberStore, MessageStore, RoomStore,
                 RegistrationStore, StreamStore, ProfileStore, FeedbackStore,
-                PresenceStore, PduStore, StatePduStore, TransactionStore):
+                PresenceStore, PduStore, StatePduStore, TransactionStore,
+                DirectoryStore):
 
     def __init__(self, hs):
         super(DataStore, self).__init__(hs)

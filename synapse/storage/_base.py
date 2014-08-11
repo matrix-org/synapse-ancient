@@ -109,6 +109,33 @@ class SQLBaseStore(object):
         else:
             defer.returnValue(None)
 
+    @defer.inlineCallbacks
+    def _simple_select_onecol(self, table, keyvalues, retcol):
+        """Executes a SELECT query on the named table, which returns a list
+        comprising of the values of the named column from the selected rows.
+
+        Args:
+            table (str): table name
+            keyvalues (dict): column names and values to select the rows with
+            retcol (str): column whos value we wish to retrieve.
+
+        Returns:
+            list
+        """
+        sql = "SELECT %(retcol)s FROM %(table)s WHERE %(where)s" % {
+            "retcol": retcol,
+            "table": table,
+            "where": " AND ".join("%s = ?" % k for k in keyvalues.keys()),
+        }
+
+        def func(txn):
+            txn.execute(sql, keyvalues.values())
+            return txn.fetchall()
+
+        res = yield self._db_pool.runInteraction(func)
+
+        defer.returnValue(res)
+
     def _simple_select_list(self, table, keyvalues, retcols):
         """Executes a SELECT query on the named table, which may return zero or
         more rows, returning the result as a list of dicts.

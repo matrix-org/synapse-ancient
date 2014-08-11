@@ -11,7 +11,7 @@ from synapse.api.events.factory import EventFactory
 from synapse.api.notifier import Notifier
 from synapse.api.auth import Auth
 from synapse.handlers import Handlers
-from synapse.rest.base import RestServletFactory
+from synapse.rest import RestServletFactory
 from synapse.state import StateHandler
 from synapse.storage import DataStore
 from synapse.types import UserID

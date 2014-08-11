@@ -2,7 +2,7 @@
 """Contains functions for performing events on rooms."""
 from twisted.internet import defer
 
-from synapse.types import UserID, RoomName
+from synapse.types import UserID, RoomAlias
 from synapse.api.constants import Membership
 from synapse.api.errors import RoomError, StoreError, SynapseError
 from synapse.api.events.room import (
@@ -468,14 +468,14 @@ class RoomMemberHandler(BaseHandler):
         try:
             # TODO: This is a quick bodge to allow us to join public rooms
             # without fully implementing directory servers and the like
-            room_name_object = RoomName.from_string(event.room_id, self.hs)
-            if room_name_object and not room_name_object.is_mine:
-                room_id = room_name_object.localpart
-                room_host = room_name_object.domain
+            room_alias_object = RoomAlias.from_string(event.room_id, self.hs)
+            if room_alias_object and not room_alias_object.is_mine:
+                room_id = room_alias_object.localpart
+                room_host = room_alias_object.domain
         except SynapseError as e:
             if e.code != 400:
                 raise
-            room_name_object = None
+            room_alias_object = None
 
         # If we're trying to join a room then we have to do this differently
         # if this HS is not currently in the room, i.e. we have to do the

@@ -8,6 +8,7 @@ from .federation import FederationHandler
 from .login import LoginHandler
 from .profile import ProfileHandler
 from .presence import PresenceHandler
+from .directory import DirectoryHandler
 
 
 class Handlers(object):
@@ -29,3 +30,4 @@ class Handlers(object):
         self.presence_handler = PresenceHandler(hs)
         self.room_list_handler = RoomListHandler(hs)
         self.login_handler = LoginHandler(hs)
+        self.directory_handler = DirectoryHandler(hs)
