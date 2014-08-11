@@ -45,6 +45,11 @@ class DomainSpecificString(
         """Return a string encoding the fields of the structure object."""
         return "%s%s:%s" % (self.SIGIL, self.localpart, self.domain)
 
+    @classmethod
+    def create_local(cls, localpart, hs):
+        """Create a structure on the local domain"""
+        return cls(localpart=localpart, domain=hs.hostname, is_mine=True)
+
 
 class UserID(DomainSpecificString):
     """Structure representing a user ID."""
@@ -54,3 +59,7 @@ class UserID(DomainSpecificString):
 class RoomAlias(DomainSpecificString):
     """Structure representing a room name."""
     SIGIL = "#"
+
+class RoomID(DomainSpecificString):
+    """Structure representing a room id. """
+    SIGIL = "!"
