@@ -6,33 +6,33 @@ Installation
 First, the dependencies need to be installed. Start by installing 'python-dev'
 and the various tools of the compiler toolchain:
 
-  Installing prerequisites on ubuntu:
+  Installing prerequisites on ubuntu::
 
     $ sudo apt-get install build-essential python-dev
 
-  Installing prerequisites on Mac OS X:
+  Installing prerequisites on Mac OS X::
 
     $ xcode-select --install
 
 The homeserver has a number of external dependencies, that are easiest
-to install by making setup.py do so, in --user mode:
+to install by making setup.py do so, in --user mode::
 
- $ python setup.py develop --user
+    $ python setup.py develop --user
 
 This will run a process of downloading and installing into your
 user's .local/lib directory all of the required dependencies that are
 missing.
 
 Once this is done, you may wish to run the homeserver's unit tests, to
-check that everything is installed as it should be:
+check that everything is installed as it should be::
 
- $ python setup.py test
+    $ python setup.py test
 
-This should end with a 'PASSED' result:
+This should end with a 'PASSED' result::
 
- Ran 143 tests in 0.601s
+    Ran 143 tests in 0.601s
 
- PASSED (successes=143)
+    PASSED (successes=143)
 
 
 Running The Home Server
@@ -52,23 +52,23 @@ of your user IDs:
     domain name.
 
 For the first form, simply pass the required hostname (of the machine) as the
---host parameter:
+--host parameter::
 
- $ python synapse/app/homeserver.py --host machine.my.domain.name
+    $ python synapse/app/homeserver.py --host machine.my.domain.name
 
 For the second form, first create your SRV record and publish it in DNS. This
 needs to be named _matrix._tcp.YOURDOMAIN, and point at at least one hostname
 and port where the server is running. (At the current time we only support a
 single server, but we may at some future point support multiple servers, for
 backup failover or load-balancing purposes). The DNS record would then look
-something like:
+something like::
 
-   _matrix._tcp    IN      SRV     10 0 8448 machine.my.domain.name.
+    _matrix._tcp    IN      SRV     10 0 8448 machine.my.domain.name.
 
 At this point, you should then run the homeserver with the hostname of this
-SRV record, as that is the name other machines will expect it to have:
+SRV record, as that is the name other machines will expect it to have::
 
- $ python synapse/app/homeserver.py --host my.domain.name --port 8448
+    $ python synapse/app/homeserver.py --host my.domain.name --port 8448
 
 You may additionally want to pass one or more "-v" options, in order to
 increase the verbosity of logging output; at least for initial testing.
@@ -80,10 +80,10 @@ Running The Web Client
 At the present time, the web client is not directly served by the homeserver's
 HTTP server. To serve this in a form the web browser can reach, arrange for the
 'webclient' sub-directory to be made available by any sort of HTTP server that
-can serve static files. For example, python's SimpleHTTPServer will suffice:
+can serve static files. For example, python's SimpleHTTPServer will suffice::
 
- $ cd webclient
- $ python -m SimpleHTTPServer
+    $ cd webclient
+    $ python -m SimpleHTTPServer
 
 You can now point your browser at  http://localhost:8000/  to find the client.
 
@@ -97,9 +97,9 @@ Registering A New Account
 
 Your new user name will be formed partly from the hostname your server is
 running as, and partly from a localpart you specify when you create the
-account. Your name will take the form of
+account. Your name will take the form of::
 
- @localpart:my.domain.here
+    @localpart:my.domain.here
          (pronounced "at localpart on my dot domain dot here")
 
 Specify your desired localpart in the topmost box of the "Register for an
