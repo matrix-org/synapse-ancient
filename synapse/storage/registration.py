@@ -16,6 +16,28 @@ class RegistrationStore(SQLBaseStore):
         self.clock = hs.get_clock()
 
     @defer.inlineCallbacks
+    def add_access_token_to_user(self, user_id, token):
+        """Adds an access token for the given user.
+
+        Args:
+            user_id (str): The user ID.
+            token (str): The new access token to add.
+        Raises:
+            StoreError if there was a problem adding this.
+        """
+        row = yield self._simple_select_one("users", {"name": user_id}, ["id"])
+        if not row:
+            raise StoreError(400, "Bad user ID supplied.")
+        row_id = row["id"]
+        yield self._simple_insert(
+            "access_tokens",
+            {
+                "user_id": row_id,
+                "token": token
+            }
+        )
+
+    @defer.inlineCallbacks
     def register(self, user_id, token, password_hash):
         """Attempts to register an account.
 
@@ -44,7 +66,6 @@ class RegistrationStore(SQLBaseStore):
         txn.execute("INSERT INTO access_tokens(user_id, token) " +
                     "VALUES (?,?)", [txn.lastrowid, token])
 
-    @defer.inlineCallbacks
     def get_user_by_id(self, user_id):
         query = ("SELECT users.name, users.password_hash FROM users "
                 "WHERE users.name = ?")

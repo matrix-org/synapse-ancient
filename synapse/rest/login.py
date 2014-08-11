@@ -19,7 +19,8 @@ class LoginRestServlet(RestServlet):
         login_submission = _parse_json(request)
         try:
             if login_submission["type"] == LoginRestServlet.PASS_TYPE:
-                defer.returnValue(self.do_password_login(login_submission))
+                result = yield self.do_password_login(login_submission)
+                defer.returnValue(result)
             else:
                 raise SynapseError(400, "Bad login type.")
         except KeyError:
@@ -28,10 +29,10 @@ class LoginRestServlet(RestServlet):
     @defer.inlineCallbacks
     def do_password_login(self, login_submission):
         handler = self.handlers.login_handler
-        token = handler.login(
+        token = yield handler.login(
             user=login_submission["user"],
             password=login_submission["password"])
-        defer.returnValue(token)
+        defer.returnValue((200, {"access_token": token}))
 
 
 class LoginFallbackRestServlet(RestServlet):

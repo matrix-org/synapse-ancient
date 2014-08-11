@@ -193,7 +193,7 @@ class SynapseCmd(cmd.Cmd):
         print json_res
 
         if "access_token" in json_res:
-            self.config["user"] = json_res["user_id"]
+            self.config["user"] = user
             self.config["token"] = json_res["access_token"]
             save_config(self.config)
             print "Login successful."
