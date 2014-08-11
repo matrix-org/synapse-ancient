@@ -1,4 +1,4 @@
-var synapseClient = angular.module('synapseClient', [
+var matrixWebClient = angular.module('matrixWebClient', [
     'ngRoute',
     'AppController',
     'LoginController',
@@ -7,7 +7,7 @@ var synapseClient = angular.module('synapseClient', [
     'matrixService'
 ]);
 
-synapseClient.config(['$routeProvider',
+matrixWebClient.config(['$routeProvider',
     function($routeProvider) {
         $routeProvider.
             when('/login', {
@@ -27,7 +27,7 @@ synapseClient.config(['$routeProvider',
             });
     }]);
 
-synapseClient.run(['$location', 'matrixService' , function($location, matrixService) {
+matrixWebClient.run(['$location', 'matrixService' , function($location, matrixService) {
     // If we have no persistent login information, go to the login page
     var config = matrixService.config();
     if (!config || !config.access_token) {
@@ -35,7 +35,7 @@ synapseClient.run(['$location', 'matrixService' , function($location, matrixServ
     }
 }]);
 
-synapseClient
+matrixWebClient
     .directive('ngEnter', function () {
         return function (scope, element, attrs) {
             element.bind("keydown keypress", function (event) {
