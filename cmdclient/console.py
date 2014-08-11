@@ -6,6 +6,7 @@ from http import TwistedHttpClient
 
 import argparse
 import cmd
+import getpass
 import json
 import shlex
 import sys
@@ -129,9 +130,26 @@ class SynapseCmd(cmd.Cmd):
         """
         args = self._parse(line, ["userid", "noupdate"])
         path = "/register"
+
+        password = None
+        pwd = None
+        pwd2 = "_"
+        while pwd != pwd2:
+            pwd = getpass.getpass("(Optional) Type a password for this user: ")
+            if len(pwd) == 0:
+                print "Not using a password for this user."
+                break
+            pwd2 = getpass.getpass("Retype the password: ")
+            if pwd != pwd2:
+                print "Password mismatch."
+            else:
+                password = pwd
+
         body = {}
         if "userid" in args:
             body["user_id"] = args["userid"]
+        if password:
+            body["password"] = password
 
         reactor.callFromThread(self._do_register, "POST", path, body,
                                "noupdate" not in args)

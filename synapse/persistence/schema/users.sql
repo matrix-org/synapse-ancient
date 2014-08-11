@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS users(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
+    password_hash TEXT,
     creation_ts INTEGER,
     UNIQUE(name) ON CONFLICT ROLLBACK
 );

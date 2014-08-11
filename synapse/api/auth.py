@@ -145,7 +145,7 @@ class Auth(object):
             AuthError if no user by that token exists or the token is invalid.
         """
         try:
-            user_id = yield self.store.get_user(token=token)
+            user_id = yield self.store.get_user_by_token(token=token)
             defer.returnValue(self.hs.parse_userid(user_id))
         except StoreError:
             raise AuthError(403, "Unrecognised access token.")

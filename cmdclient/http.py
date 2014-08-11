@@ -133,7 +133,13 @@ class TwistedHttpClient(HttpClient):
         retries_left = 5
         print "%s to %s with headers %s" % (method, url, headers_dict)
         if self.verbose and producer:
-            print json.dumps(producer.data, indent=4)
+            if "password" in producer.data:
+                temp = producer.data["password"]
+                producer.data["password"] = "[REDACTED]"
+                print json.dumps(producer.data, indent=4)
+                producer.data["password"] = temp
+            else:
+                print json.dumps(producer.data, indent=4)
 
         while True:
             try:

@@ -16,23 +16,26 @@ class RegistrationStore(SQLBaseStore):
         self.clock = hs.get_clock()
 
     @defer.inlineCallbacks
-    def register(self, user_id, token):
+    def register(self, user_id, token, password_hash):
         """Attempts to register an account.
 
         Args:
             user_id (str): The desired user ID to register.
             token (str): The desired access token to use for this user.
+            password_hash (str): Optional. The password hash for this user.
         Raises:
             StoreError if the user_id could not be registered.
         """
-        yield self._db_pool.runInteraction(self._register, user_id, token)
+        yield self._db_pool.runInteraction(self._register, user_id, token,
+                                           password_hash)
 
-    def _register(self, txn, user_id, token):
+    def _register(self, txn, user_id, token, password_hash):
         now = int(self.clock.time())
 
         try:
-            txn.execute("INSERT INTO users(name, creation_ts) VALUES (?,?)",
-                        [user_id, now])
+            txn.execute("INSERT INTO users(name, password_hash, creation_ts) "
+                        "VALUES (?,?,?)",
+                        [user_id, password_hash, now])
         except IntegrityError:
             raise StoreError(400, "User ID already taken.")
 
@@ -42,7 +45,16 @@ class RegistrationStore(SQLBaseStore):
                     "VALUES (?,?)", [txn.lastrowid, token])
 
     @defer.inlineCallbacks
-    def get_user(self, token=None):
+    def get_user_by_id(self, user_id):
+        query = ("SELECT users.name, users.password_hash FROM users "
+                "WHERE users.name = ?")
+        return self._execute(
+            self.cursor_to_dict,
+            query, user_id
+        )
+
+    @defer.inlineCallbacks
+    def get_user_by_token(self, token):
         """Get a user from the given access token.
 
         Args:
