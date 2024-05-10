@@ -1,3 +1,25 @@
+About
+=====
+
+This is the pre-release git repository of Synapse, the original Matrix.org
+homeserver implementation.  This repository was then flattened to create the
+initial public repository for Synapse_ on Aug 12th 2014.
+
+It is provided here STRICTLY for the archaeological interest and curiousity of
+future generations of Matrix historians.  Please do not actually try running
+this or reusing its code - it will not work with today's Matrix network, and
+will be full of security holes.
+
+For the commit history to make sense, it's worth understanding that the Matrix
+project was originally codenamed Synapse, so almost all of the history here
+uses that name. The name Synapse then continued as the name of the initial
+implementation.
+
+-- Matthew (May 10th 2024)
+
+
+The original README is as follows:
+
 Installation
 ============
 
@@ -124,3 +146,5 @@ Before building documentation install spinx and sphinxcontrib-napoleon::
 Building documentation::
 
     $ python setup.py build_sphinx
+
+.. _Synapse: https://github.com/element-hq/synapse/commits/4f475c7697722e946e39e42f38f3dd03a95d8765
